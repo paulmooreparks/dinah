@@ -1122,6 +1122,53 @@
       "replay": "once"
     },
     {
+      "ref": "yavc.docs/position@1",
+      "title": "Read the Place in the Document",
+      "description": "An opaque string that says where the instance is in its document, the block at the top of the pane. A host gives it back as data-docs-position on the root at the next start, and the instance opens there when that text is still in the document.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "position"
+        ],
+        "properties": {
+          "position": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null when no document is drawn."
+          }
+        }
+      },
+      "capabilities": [],
+      "changes": "none",
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/print@1",
+      "title": "Print the Document",
+      "description": "Print the current document as the Print command does, for a host that has taken the command away. A document with host shortcodes the host cannot print is refused and the reason is shown in the application.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "capabilities": [],
+      "changes": "none",
+      "replay": "once"
+    },
+    {
       "ref": "yavc.docs/header-footer@1",
       "title": "Set Header and Footer",
       "description": "Change the current document settings as one undoable source edit.",

@@ -1,5 +1,5 @@
 {
-  "digest": "c8b53748406584bc36dc487f5ba2bcdfa4335d1a9d0250fd75c288d9dca0b38c",
+  "digest": "8ecad46f34ee38f157e15b83df575ecf6c8f1fbee4bcef3fad55d0afb2749fb5",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -150,13 +150,13 @@
     },
     {
       "path": "content/docs/actions.json",
-      "bytes": 34991,
-      "sha256": "107797cd175cc9512cd3b74adf7bf71fe140d0ec41589a47dea8dcd38f6dd757"
+      "bytes": 36515,
+      "sha256": "948021a59f0584e39913aa63d234c245a258e44a5000bfe34db1edf51fc42c73"
     },
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "99750321661ca7cdd52c4b942b2ed1b2aefe2ec39ca5bb318ff2d9b5e7f33dd4"
+      "sha256": "950ae01ed2b230584f8b5b2ab8a1218e8eb7838bd718a8a53e59c14171b354d5"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "c957d37288f93fecd4596fe5ffdb28bba722ebe4a2b3b53992b1811f2353f6bf"
+      "sha256": "c36354845393834a1e8abc9d5dca6cf2ed0c2a32cb9aa87d5591b7c7f25c3bf8"
     },
     {
       "path": "content/editor/editor.css",
@@ -365,13 +365,13 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 164373,
-      "sha256": "6ffcaf270533cff82d1ff447ea9235c56921814d00d5332c70b6d1a432799af7"
+      "bytes": 164445,
+      "sha256": "7699dca7888572d7c0b80e9969be68f99143737618c259e2bc0b1f8c0769005e"
     },
     {
       "path": "content/md-editor/pages.js",
-      "bytes": 43084,
-      "sha256": "5a1d76a35268ebd317eefcf167943f0e54ea178503f7c6ccfe2b4bdb8de44eca"
+      "bytes": 43387,
+      "sha256": "02429cf125d8c582c0604da630730330ff694a684e1eb6c8f2da17262ab3df59"
     },
     {
       "path": "content/md-editor/paper-sizes.js",
@@ -1395,13 +1395,13 @@
     },
     {
       "path": "content/text-workspace/workspace.css",
-      "bytes": 11985,
-      "sha256": "5c97eb30db008d03983e15c536c7f260b1415ce26b4a23560d7ad876309501bc"
+      "bytes": 12887,
+      "sha256": "3bfa049ec2222310f52fb996ec2762c83a81c3d5fe443308f44d8af17a2af9df"
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 263302,
-      "sha256": "5f1b127bd66d90c9a7f3d22384c050c31d62093285bdd87151ff6b6a5d597adb"
+      "bytes": 276134,
+      "sha256": "eda45bb553eab90e3d15d68070b5233276a21f11e9e0ad6afbce3bf65c647303"
     },
     {
       "path": "go.mod",
@@ -2460,8 +2460,8 @@
     },
     {
       "path": "workspace-lab/host.js",
-      "bytes": 7683,
-      "sha256": "a80835d42aad856a198fc4eeaf0b4846d5db7361e40a7f56e27846503bceecf8"
+      "bytes": 7762,
+      "sha256": "d188b21983dc88962b454805921becf3e0fc3d9314d3e79e94b86c3efa1a1ec8"
     },
     {
       "path": "workspace-lab/index.html",

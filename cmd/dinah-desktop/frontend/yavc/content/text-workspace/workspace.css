@@ -181,3 +181,11 @@
 .pc-editor.ed-document .ed-scroll { padding: var(--space-4); background: var(--surface-alt); }
 .pc-editor.ed-document .ed-scroll > .doc-paginated { margin-inline: auto; }
 .ed-print-frame { position: fixed; left: -100000px; top: 0; width: 1200px; height: 1200px; border: 0; }
+/* A read-only instance (docs/editing-settings-contract.md) is the document and nothing around it: no tabs, no status bar, and a page that flows to the width of its pane. */
+.pc-docs-read .ed-tabs, .pc-docs-read .ed-status { display: none; }
+.pc-docs-read { min-width: 0; }
+.pc-docs-read .ed-scroll { min-width: 0; }
+.pc-docs-read:not([data-docs-layout="pages"]) .doc-page { max-width: 100%; min-width: 0; width: auto; box-sizing: border-box; overflow-wrap: anywhere; padding: var(--space-3, 12px) var(--space-4, 16px) !important; }
+.pc-editor .ed-read-find { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); }
+.pc-editor .ed-read-find .input { flex: 1 1 8rem; min-width: 0; }
+.pc-docs-read .ed-read-bar, .pc-docs-read .ed-read-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); }

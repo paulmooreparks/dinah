@@ -83,6 +83,9 @@
         opts = opts || {};
         var app = opts.application, isDocs = app === 'docs';
         if (app !== 'editor' && !isDocs) throw new Error('The workspace requires a fixed application identity.');
+        /* A read-only instance (docs/editing-settings-contract.md, "A read-only instance"): the host sets data-docs-mode="read" on the root before the applet starts, and it holds for
+           the life of the instance. It draws the document as Preview does, or as pages when the root has data-docs-layout="pages", and has no way to change the text. */
+        var readMode = isDocs && root.getAttribute('data-docs-mode') === 'read', pagesLayout = readMode && root.getAttribute('data-docs-layout') === 'pages';
         var hostServices = (window.pudlHost || {}).contentWorkspace;
         if (!hostServices || hostServices.version !== 1) throw new Error('Workspace host version 1 is required.');
         function loadSiteFs() { return hostServices.browser ? hostServices.browser().then(function (x) { return x.F; }) : Promise.resolve(null); }
@@ -92,16 +95,17 @@
     /* The Editor is a text editor: it shows every file, Markdown too, as
        its text. Docs is where a Markdown document is drawn, on a page or as
        it will look (DESIGN.md, decision 131). */
-    var MARKDOWN_VIEWS = isDocs ? [['document', 'Document'], ['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']] : [['text', 'Text']];
+    var MARKDOWN_VIEWS = readMode ? (pagesLayout ? [['document', 'Document']] : [['preview', 'Preview']]) : isDocs ? [['document', 'Document'], ['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']] : [['text', 'Text']];
     var SEVERAL_VIEWS = MARKDOWN_VIEWS.length > 1;
-    function supportsView(tab, mode) { return !!tab && (mode === 'text' || (tab.lang === 'markdown' && MARKDOWN_VIEWS.some(function (entry) { return entry[0] === mode; }))); }
+    function supportsView(tab, mode) { return !!tab && (mode === 'text' && !readMode || (tab.lang === 'markdown' && MARKDOWN_VIEWS.some(function (entry) { return entry[0] === mode; }))); }
     function resolvedView(tab, preferred) {
         if (supportsView(tab, preferred)) { return preferred; }
-        return (isDocs ? ['document', 'visual', 'text'] : ['text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
+        return (readMode ? [MARKDOWN_VIEWS[0][0]] : isDocs ? ['document', 'visual', 'text'] : ['text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
     }
 
         var n = ++uid;
         root.classList.add('pc-editor');
+        if (readMode) { root.classList.add('pc-docs-read'); }
         if (opts.fit === 'fill') { root.classList.add('pc-editor-fill'); }
         /* The Editor's keys (Ctrl+F, Ctrl+S and the rest) work while focus
            is inside it. A press on a part that takes no focus of its own,
@@ -172,6 +176,16 @@
         var tabs = [], active = -1, untitled = 0;
         var H = window.pudlHost || {}, resourceSession = null, resources = null, recovery = null;
         /* The host's editing settings (docs/editing-settings-contract.md), read once here and used for every editing area for as long as this applet lives. Only a version 1 service whose spellcheck is the boolean false changes anything. */
+        /* fileCommands: false takes away New, Open, Save As, Export and Print, and save: "host" Docs' own Save (docs/editing-settings-contract.md). */
+        var fileCommandsOff = !!(H.editing && H.editing.version === 1 && H.editing.fileCommands === false), saveByHost = !!(H.editing && H.editing.version === 1 && H.editing.save === 'host');
+        var FILE_COMMANDS = ['new', 'new-template', 'new-markdown', 'open', 'open-other', 'save-as', 'save-encoded-copy', 'import-docx', 'export-docx', 'export-pdf'], READ_COMMANDS = ['find', 'toggle-outline', 'copy', 'select-all', 'print-document'];
+        /* Whether a command, and the key bound to it, exists at all in this instance. */
+        function commandExists(id) {
+            if (fileCommandsOff && (FILE_COMMANDS.indexOf(id) >= 0 || id === 'print-document')) { return false; }
+            if (saveByHost && id === 'save') { return false; }
+            if (readMode) { return READ_COMMANDS.indexOf(id) >= 0; }
+            return true;
+        }
         var spellcheckOff = !!(H.editing && H.editing.version === 1 && H.editing.spellcheck === false);
         /* documentName (docs/editing-settings-contract.md): false leaves the document's name out of the status line, and 'resource' shows the resource's ID, which a host whose IDs are readable addresses uses. */
         var nameSetting = H.editing && H.editing.version === 1 ? H.editing.documentName : undefined;
@@ -641,6 +655,7 @@
         }
 
         async function addTab(t, text,guard) {
+            if (readMode) { t.readOnly = true; }
             await leaveDocument(); if (destroyed) return;
             if(guard&&!guard())return;
             if (documentWindows && documentWindows.mode(root) === 'single' && !restoring && tabs.length === 1 && !current().path && !dirtyTab(current()) && !view.state.doc.length) { tabs = []; active = -1; }
@@ -1245,6 +1260,7 @@
         }
         function saveSetting(changes) {
             Object.assign(settings, changes);Object.assign(storedSettings,changes);
+            if (readMode) { return Promise.resolve(); }
             var ticket = {};
             Object.keys(changes).forEach(function (key) { pendingSettings[key] = { value: changes[key], ticket: ticket }; });
             return loadConfig().then(function (c) { return c.set(app, changes); }).catch(function () { }).finally(function () {
@@ -1694,6 +1710,7 @@
             var bindings=effectiveKeys();
             Object.keys(bindings).forEach(function (key) {
                 var name=bindings[key];if(!validKey(key) || name!==null&&!COMMANDS[name])return;
+                if(name!==null&&!commandExists(name)){keys.push({key:key,run:function(){return true;}});return;}
                 keys.push({key:key,run:function(){if(name!==null){try{Promise.resolve(COMMANDS[name]()).catch(function(err){say(err.message,true);});}catch(err){say(err.message,true);}}return true;}});
             });
             return keys;
@@ -1890,10 +1907,38 @@
                 previewPages.refresh();
             } else { drawBlocks(el.page, p.blocks); }
             el.scroll.scrollTop = top;
+            applyPlace();
             var problems = p.problems || [];
             if (problems.length) {
                 say((problems.length === 1 ? 'One problem' : problems.length + ' problems') + (problems[0].line ? ', line ' + problems[0].line : '') + ': ' + problems[0].message, false);
             } else { say(''); }
+        }
+        /* A place in the document, as an opaque string (docs/editing-settings-contract.md, "A read-only instance"): the line of the block at the top of the pane, with a hash of that
+           line's text, so that a place whose text has gone is not used. data-docs-position gives one back when the instance starts. */
+        function lineHash(text) { var h = 5381; for (var i = 0; i < text.length; i++) { h = ((h << 5) + h + text.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
+        function positionNow() {
+            var t = current(); if (!t || !view || !el.scroll) { return null; }
+            var top = el.scroll.getBoundingClientRect().top, line = 1;
+            Array.from(el.page.querySelectorAll('[data-line]')).some(function (block) { if (block.getBoundingClientRect().bottom > top + 1) { line = Number(block.getAttribute('data-line')) || 1; return true; } return false; });
+            line = Math.min(Math.max(1, line), view.state.doc.lines);
+            return 'v1:' + line + ':' + lineHash(view.state.doc.line(line).text);
+        }
+        /* A host with several instances asks one of them, since actions go to the instance that started last: it dispatches a yavc-docs-position event on the instance's root, and the
+           instance puts the place in event.detail.position. */
+        function onPositionRequest(event) { if (event.detail && typeof event.detail === 'object') { event.detail.position = positionNow(); } }
+        if (isDocs) { root.addEventListener('yavc-docs-position', onPositionRequest); }
+        var pendingPlace = readMode ? (root.getAttribute('data-docs-position') || null) : null;
+        function applyPlace() {
+            if (pendingPlace === null || !view) { return; }
+            var given = /^v1:(\d+):([0-9a-z]+)$/.exec(pendingPlace); pendingPlace = null;
+            if (!given) { return; }
+            var doc = view.state.doc, want = Math.min(Number(given[1]), doc.lines), found = 0;
+            if (lineHash(doc.line(want).text) === given[2]) { found = want; }
+            else { for (var n = 1; n <= doc.lines; n++) { if (lineHash(doc.line(n).text) === given[2] && (!found || Math.abs(n - want) < Math.abs(found - want))) { found = n; } } }
+            if (!found) { return; }
+            var target = null;
+            Array.from(el.page.querySelectorAll('[data-line]')).forEach(function (block) { if (Number(block.getAttribute('data-line')) <= found) { target = block; } });
+            if (target) { el.scroll.scrollTop += target.getBoundingClientRect().top - el.scroll.getBoundingClientRect().top; }
         }
         /* Draws preview blocks into an element with the kit's renderer
            (apps/md-editor/kit.js drawBlocks): made safe, diagrams, pictures,
@@ -2089,7 +2134,56 @@
         }
         /* Find in whichever the reader is working in: the page in Visual, or
            in Split while the text does not have the keyboard; else the text. */
+        /* Find in a read-only instance: the drawn document is searched as text and each match is selected in turn, so the page itself is not changed and there is no Replace. */
+        var readFindBar = null;
+        function openReadFind() {
+            if (!readFindBar) {
+                readFindBar = document.createElement('div'); readFindBar.className = 'ed-read-find'; readFindBar.setAttribute('role', 'search');
+                readFindBar.innerHTML = '<label class="form-label" for="read-find-' + n + '">Find</label><input class="input" id="read-find-' + n + '" type="search" data-role="read-find-input" autocomplete="off" spellcheck="false">' +
+                    '<button class="btn" type="button" data-role="read-find-previous">Previous</button><button class="btn" type="button" data-role="read-find-next">Next</button>' +
+                    '<span class="ed-read-find-count" data-role="read-find-count" role="status" aria-live="polite"></span><button class="btn" type="button" data-role="read-find-close">Close</button>';
+                el.findPlace.appendChild(readFindBar);
+                var input = readFindBar.querySelector('input'), count = readFindBar.querySelector('[data-role="read-find-count"]'), at = -1, hits = [];
+                function collect() {
+                    var q = input.value.toLowerCase(); hits = []; at = -1;
+                    if (!q) { count.textContent = ''; return; }
+                    var nodes = [], text = '', walker = document.createTreeWalker(el.page, NodeFilter.SHOW_TEXT), node;
+                    while ((node = walker.nextNode())) { if (node.parentElement && node.parentElement.closest('.doc-page-gap,script,style')) { continue; } nodes.push({ node: node, start: text.length }); text += node.data; }
+                    var lower = text.toLowerCase(), from = 0, i;
+                    while ((i = lower.indexOf(q, from)) >= 0 && hits.length < 5000) { hits.push([i, i + q.length]); from = i + q.length; }
+                    function place(offset, end) { var k = nodes.length - 1; while (k > 0 && nodes[k].start > offset - (end ? 1 : 0)) { k--; } return k < 0 ? null : [nodes[k].node, offset - nodes[k].start]; }
+                    hits = hits.map(function (h) { var a = place(h[0], false), b = place(h[1], true); if (!a || !b) { return null; } var r = document.createRange(); r.setStart(a[0], a[1]); r.setEnd(b[0], b[1]); return r; }).filter(Boolean);
+                    count.textContent = hits.length ? hits.length + (hits.length === 1 ? ' match' : ' matches') : 'No matches';
+                }
+                function go(step) {
+                    if (!hits.length) { collect(); } if (!hits.length) { return; }
+                    at = (at + step + hits.length) % hits.length;
+                    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(hits[at]);
+                    var target = hits[at].startContainer.parentElement; if (target) { target.scrollIntoView({ block: 'center' }); }
+                    count.textContent = (at + 1) + ' of ' + hits.length;
+                }
+                input.addEventListener('input', function () { collect(); });
+                input.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); go(event.shiftKey ? -1 : 1); } else if (event.key === 'Escape') { event.preventDefault(); el.findPlace.hidden = true; el.scroll.focus(); } });
+                readFindBar.querySelector('[data-role="read-find-next"]').addEventListener('click', function () { go(1); });
+                readFindBar.querySelector('[data-role="read-find-previous"]').addEventListener('click', function () { go(-1); });
+                readFindBar.querySelector('[data-role="read-find-close"]').addEventListener('click', function () { el.findPlace.hidden = true; el.scroll.focus(); });
+            }
+            el.findPlace.hidden = false; readFindBar.querySelector('input').focus(); readFindBar.querySelector('input').select();
+        }
+        /* A read-only instance has no editing surface to carry the key for Find, so the key is taken at its root, and only for a press whose target is inside it. */
+        function onReadKey(event) { if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && String(event.key).toLowerCase() === 'f') { event.preventDefault(); openReadFind(); } }
+        /* A link to a heading in the same note is followed inside the instance: the browser would take the page to the first element with that id, which with several notes on one page may be
+           in another, and would leave the keyboard on the page's body, where the instance gets no key. */
+        function onReadLink(event) {
+            var link = event.target.closest && event.target.closest('a[href^="#"]'); if (!link || !el.page.contains(link)) { return; }
+            event.preventDefault();
+            var id = decodeURIComponent(link.getAttribute('href').slice(1)), target = Array.from(el.page.querySelectorAll('[id]')).find(function (node) { return node.id === id; });
+            if (target) { el.scroll.scrollTop += target.getBoundingClientRect().top - el.scroll.getBoundingClientRect().top; }
+            el.scroll.focus({ preventScroll: true });
+        }
+        if (readMode) { root.addEventListener('keydown', onReadKey); root.addEventListener('click', onReadLink); }
         function openFind() {
+            if (readMode) { openReadFind(); return; }
             if (formatsThePage() && pageActive()) { openPageFind(); return; }
             if (!view) { return; }
             if (lastFind && !CM.getSearchQuery(view.state).search) {
@@ -2320,7 +2414,7 @@
         var waiting = [], restoring = false;
         var SESSION_KEY = 'pc-' + app + '-session';
         /* PUDL keys a numbered instance name-2 to name-9 (0.27.0). */
-        var ownsSession = !/-[2-9]$/.test(String(opts.instance || ''));
+        var ownsSession = !readMode && !/-[2-9]$/.test(String(opts.instance || ''));
         var sessionTimer = 0;
         function keep() {
             if (restoring) { return; }
@@ -2678,6 +2772,7 @@
                 if (!validKey(key)) { problems.push('"' + key + '" isn\'t a key CodeMirror knows'); return; }
                 if (name === null) { list.push({ key: key, preventDefault: true, run: function () { return true; } }); return; }
                 var run = COMMANDS[name];
+                if (run && !commandExists(name)) { list.push({ key: key, preventDefault: true, run: function () { return true; } }); return; }
                 if (!run) { problems.push('there is no command called "' + name + '"'); return; }
                 list.push({ key: key, preventDefault: true, run: function () { run(); return true; } });
             });
@@ -2752,7 +2847,7 @@
             return window.yavcKeyBindings.open({title:isDocs?'Docs':'Editor',defaults:DEFAULT_KEYS,keys:settings.keys,keyLabel:keyLabel,validKey:validKey,signal:styleLifetime.signal,
                 commands:Object.keys(COMMANDS).sort().map(function (id) {return {id:id,label:typeof titles.get(id)==='string'?titles.get(id):id};}),
                 current:function(){return !destroyed&&JSON.stringify(settings.keys || {})===baseline;},
-                save:function(keys){return loadConfig().then(function (c) {return c.set(app,{keys:keys});});}});
+                save:function(keys){if(readMode)return Promise.resolve();return loadConfig().then(function (c) {return c.set(app,{keys:keys});});}});
         }
 
         /* === The command table and the toolbar (PUDL 0.68.0) ===============
@@ -2819,7 +2914,7 @@
                 cmd('export-pdf', 'Download as PDF', 'download', function () { return downloadDocument('pdf'); }, { hidden:function () {return !isDocs;}, disabled: function () { return !ready || !tab || tab.lang !== 'markdown'; } }),
                 cmd('undo', 'Undo', 'yavc-undo', function () { return editing().history('undo'); }, { builtIn: 'Mod-z', glyphOnly: true, disabled: function () { return !editing() || !editing().canHistory('undo'); } }),
                 cmd('redo', 'Redo', 'yavc-redo', function () { return editing().history('redo'); }, { builtIn: 'Mod-y', glyphOnly: true, disabled: function () { return !editing() || !editing().canHistory('redo'); } }),
-                cmd('find', 'Find and Replace…', 'search', openFind, { builtIn: 'Mod-f' }),
+                cmd('find', readMode ? 'Find…' : 'Find and Replace…', 'search', openFind, { builtIn: 'Mod-f' }),
                 cmd('json-format', 'Format Source', 'code', function () { if (lsp) { lsp.format(view); } }, { shortcut: 'Shift+Alt+F', hidden: function () { return isDocs || !tab || ['json','css','html'].indexOf(tab.lang) < 0; }, disabled: function () { return !editable || !lsp; } }),
                 cmd('language-restart', 'Restart Language Assistance', 'reload', function () { if (lsp) { lsp.restart(); view.dispatch({ effects: lspComp.reconfigure(languageAssistance(current())) }); } }, { hidden: function () { return isDocs || !tab || ['json','css','html'].indexOf(tab.lang) < 0; }, disabled: function () { return !ready || !lsp; } }),
                 cmd('go-to-line', 'Go to Line…', null, goToLine, { builtIn: 'Mod-Alt-g' }),
@@ -2899,7 +2994,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                     /* A view the reader chooses is the tab's from then on. */
                     run: function () { var t = current(); if (t) { t.view = v[0]; } setView(v[0]); } });
             });
-            return table.concat(hostCommands.rows(ready), editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []);
+            return table.concat(readMode ? [] : hostCommands.rows(ready), editing() ? editing().commands() : [], readMode ? [] : commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []).filter(function (c) { return !c || typeof c.id !== 'string' || commandExists(c.id); });
         }
 
         /* The toolbar a host without the toolbar service gets: what is used
@@ -2948,19 +3043,20 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             fallbackBar.replaceChildren();
             groups.forEach(function (entry) {
                 var g = entry.g, group = document.createElement('div');
-                group.className = 'toolbar-group'; group.setAttribute('role', 'group'); group.setAttribute('aria-label', g.label);
+                group.className = readMode ? 'ed-read-group' : 'toolbar-group'; group.setAttribute('role', 'group'); group.setAttribute('aria-label', g.label);
                 group.setAttribute('data-toolbar-group', g.label); group.setAttribute('data-toolbar-glyph', g.glyph); group.setAttribute('data-toolbar-priority', String(g.priority));
                 if (g.end) { group.setAttribute('data-toolbar-end', ''); }
                 entry.items.forEach(function (item) {
                     var control;
-                    if (typeof item === 'string') { control = document.createElement('button'); control.type = 'button'; control.setAttribute('data-command', item); }
+                    if (typeof item === 'string') { control = document.createElement('button'); control.type = 'button'; control.setAttribute('data-command', item); if (readMode) { control.className = 'btn'; } }
                     else { control = document.createElement('div'); control.className = 'seg sm'; control.setAttribute('data-command-choice', item.choice); }
                     group.appendChild(control);
                 });
                 fallbackBar.appendChild(group);
             });
             if (window.pudlCommands) { window.pudlCommands.changed(); }
-            if (window.pudlToolbar) { window.pudlToolbar.enhance(fallbackBar.parentNode); }
+            /* PUDL's toolbar folds its groups as the window narrows and has no call to undo that, so a read-only instance, whose few commands need no folding and which is disposed to change its note, does not use it. */
+            if (window.pudlToolbar && !readMode) { window.pudlToolbar.enhance(fallbackBar.parentNode); }
             /* PUDL fills the controls and folds the row in the next frame, so the keyboard is given back after that, to the same command
                where it is still shown and otherwise to the first control that is, or to the workspace. */
             if (owned) {
@@ -3030,10 +3126,11 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             if (destroyed) return;
             if (resourceSession) { resources = resourceSession.client; recovery = resourceSession.recovery; }
             if (!resources && !F) throw new Error('This host has no revision-safe resource service.');
-            var snapshotHost = H.snapshot;
+            /* A read-only instance keeps no draft, so it does not join the snapshot service. */
+            var snapshotHost = readMode ? null : H.snapshot;
             restoring = true;
             if (snapshotHost) snap = snapshotHost.join(root, takeSnapshot, { remember: !!resources && ownsSession, validate: resourceSession ? resourceSession.validate : function (value) { if (value && value.version === 2) throw new Error('This recovery snapshot requires its resource host. Its saved copy has been retained.'); } });
-            if (resources && (!snap || typeof snap.flush !== 'function')) { if (snap) snap.leave(); snap = null; throw new Error('Resource editing requires recovery write acknowledgement.'); }
+            if (resources && !readMode && (!snap || typeof snap.flush !== 'function')) { if (snap) snap.leave(); snap = null; throw new Error('Resource editing requires recovery write acknowledgement.'); }
             lspComp = new CM.Compartment();
             try {
                 var languageServices = await window.yavcMdEditor.languageServices();
@@ -3048,7 +3145,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 var ownSettings = await config.load(app, {}).catch(function () {return {};});
                 if(destroyed)return;if(config.stored)ownSettings=await config.stored(app);
                 if(destroyed)return;
-                if(isDocs && !ownSettings.workspaceMigration && config.adopt){
+                if(isDocs && !readMode && !ownSettings.workspaceMigration && config.adopt){
                     var legacy=config.stored ? await config.stored('editor').catch(function () {return {};}) : {};var adopted={workspaceMigration:1};
                     if(destroyed)return;
                     ['wrap','explorer','explorerWidth','outline','outlineWidth','markdownView','documentView','documentZoom'].forEach(function (key) {if(Object.prototype.hasOwnProperty.call(legacy,key) && !Object.prototype.hasOwnProperty.call(ownSettings,key))adopted[key]=legacy[key];});
@@ -3280,6 +3377,20 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             }
         };
         if (!isDocs) ['new-template@1','page-setup@1','header-footer@1','export@1','document-zoom@1','table@1'].forEach(function (id) {if(liveActions[id])liveActions[id]=async function () {throw new Error('This document action moved to yavc.docs/'+id+'. Open the saved document in Docs.');};});
+        /* A place in the document, and printing, which a host asks for with an action since its own command may be gone (docs/editing-settings-contract.md). */
+        if (isDocs) {
+            liveActions['position@1'] = async function () { docNo(); return { output: { position: positionNow() } }; };
+            liveActions['print@1'] = async function () { docNo(); await printDocument(); return { output: {} }; };
+        }
+        /* A read-only instance has no action that changes the text, the file or the view, and a host that took the file commands away has none that does their work. */
+        if (readMode) {
+            ['theme@1', 'new-template@1', 'header-footer@1', 'typography@1', 'page-setup@1', 'document-zoom@1', 'review-resolve@1', 'review-propose@1', 'move-section@1', 'table@1', 'format@1', 'define@1', 'open-file@1', 'new@1', 'set-text@1', 'insert@1', 'replace@1', 'save@1', 'close@1', 'view@1'].forEach(function (id) {
+                if (liveActions[id]) { liveActions[id] = async function () { throw new Error('This Docs is a read-only instance, so it cannot ' + (id === 'view@1' ? 'change its view' : 'do that') + '.'); }; }
+            });
+        }
+        if (fileCommandsOff) {
+            ['new@1', 'new-template@1', 'open-file@1'].forEach(function (id) { if (liveActions[id]) { liveActions[id] = async function () { throw new Error('The host has taken the file commands away from this Docs.'); }; } });
+        }
         Object.keys(liveActions).forEach(function (id) {var handler=liveActions[id];liveActions[id]=async function (input) {await boot;if(destroyed || startupFailed || !view)throw new Error('This workspace is no longer available.');return handler(input);};});
         if (documentWindows) unbindDocuments = documentWindows.bind(root, {
             application: app, resource: function () {return current() && current().path;},
@@ -3295,10 +3406,10 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
         var fallbackSlot = commonToolbar ? null : root.querySelector('[data-toolbar-slot]');
         if (fallbackSlot) {
             fallbackBar = document.createElement('div');
-            fallbackBar.className = 'toolbar yavc-fallback-toolbar'; fallbackBar.setAttribute('role', 'toolbar');
-            fallbackBar.setAttribute('aria-label', (isDocs ? 'Docs' : 'Editor') + ' Toolbar'); fallbackBar.setAttribute('data-toolbar-fold', '');
-            /* Every command on it is in a menu, so the ribbon has them while it shows (PUDL 0.80.1). */
-            fallbackBar.setAttribute('data-toolbar-ribbon', 'hide');
+            /* PUDL enhances every element with the class toolbar that the page adds, with observers that it cannot undo, so a read-only instance, which is disposed to change its note, draws its few commands in a bar of its own. */
+            fallbackBar.className = (readMode ? 'ed-read-bar' : 'toolbar') + ' yavc-fallback-toolbar'; fallbackBar.setAttribute('role', 'toolbar');
+            fallbackBar.setAttribute('aria-label', (isDocs ? 'Docs' : 'Editor') + ' Toolbar');
+            if (!readMode) { fallbackBar.setAttribute('data-toolbar-fold', ''); /* Every command on it is in a menu, so the ribbon has them while it shows (PUDL 0.80.1). */ fallbackBar.setAttribute('data-toolbar-ribbon', 'hide'); }
             fallbackSlot.appendChild(fallbackBar);
             document.addEventListener('pudl:commands-change', drawFallbackToolbar);
             drawFallbackToolbar();
@@ -3326,6 +3437,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 keepSession();
                 if (snap) snap.flush();
                 destroyed = true;
+                root.removeEventListener('yavc-docs-position', onPositionRequest); root.removeEventListener('keydown', onReadKey); root.removeEventListener('click', onReadLink);
                 styleLifetime.abort();
                 styleRevision++; clearTimeout(styleTimer); if (documentStyles) { documentStyles.destroy(); }
                 if (unsubscribe) { unsubscribe(); }
@@ -3336,6 +3448,8 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 if (explorer) { explorer.destroy(); }
                 finalSync.catch(function (err) { say(err.message, true); }).finally(function () { keepSession(); if (snap) { snap.flush(); snap.leave(); } if (visual.api) { visual.api.destroy(); } if (view) { view.destroy(); } });
                 if (lsp) { lsp.dispose(); }
+                /* A read-only instance is disposed to change its note, so what it drew goes with it. */
+                if (readMode) { root.replaceChildren(); root.classList.remove('pc-editor', 'pc-docs-read'); }
             },
             ready: boot
         };

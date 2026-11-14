@@ -378,7 +378,7 @@
                 raf = 0; if (!alive || v.isDestroyed) { return; }
                 var page = o.pagination && o.pagination();
                 if (!page || !v.dom.isConnected) {
-                    if (signature) { signature = ''; v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
+                    if (signature) { signature = ''; if (o.syncSelection) { o.syncSelection(); } v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
                     return;
                 }
                 if (!v.dom.getClientRects().length || v.dom.getBoundingClientRect().width === 0) { return; }
@@ -402,6 +402,8 @@
                         });
                         (layout.footnotes||[]).filter(function(note){return !note.part&&!note.sourceOnly;}).forEach(function(note){widgets.push(PM.Decoration.node(note.pos,note.to,{class:'doc-footnote-paged',style:'top:'+(note.top-(note.originTop||0))+'px;left:'+(-(note.originLeft||0))+'px;width:'+note.width+'px;'}));});
                         noteGaps(layout,blocks).forEach(function(gap){widgets.push(PM.Decoration.widget(gap.block.pos,function(){return spacer(gap.height,!!gap.block.anchor,gap.block);},{side:-1,key:'note:'+gap.key+':'+gap.height,ignoreSelection:true}));});
+                        /* A click that the browser has made but the page has not yet read must not be undone by the page drawing its gaps: the page's selection takes the browser's first. */
+                        if (o.syncSelection) { o.syncSelection(); }
                         v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.create(v.state.doc, widgets)).setMeta('addToHistory', false));
                     }
                     applyFlowGaps(v.dom, layout, blocks);

@@ -27,7 +27,7 @@ func TestTheContentApplicationsActionsAreOfferedWithDinahsCapabilities(t *testin
 	if _, err := applet.New(bundles...); err != nil {
 		t.Fatalf("the registry refused the content actions: %v", err)
 	}
-	if counts["yavc.editor"] != 25 || counts["yavc.docs"] != 27 || counts["yavc.diagrams"] != 17 || counts["yavc.slides"] != 31 {
+	if counts["yavc.editor"] != 25 || counts["yavc.docs"] != 29 || counts["yavc.diagrams"] != 17 || counts["yavc.slides"] != 31 {
 		t.Fatalf("action counts %v", counts)
 	}
 	caps := map[string][]string{}
@@ -41,6 +41,11 @@ func TestTheContentApplicationsActionsAreOfferedWithDinahsCapabilities(t *testin
 		if !asks(ref) {
 			t.Errorf("%s changes a document but would not ask: %v", ref, caps[ref])
 		}
+	}
+	// Printing opens the system's print dialog in the person's window, so an
+	// agent asks before it.
+	if !asks("yavc.docs/print@1") {
+		t.Errorf("yavc.docs/print@1 opens a dialog but would not ask: %v", caps["yavc.docs/print@1"])
 	}
 	for _, ref := range []string{"yavc.editor/documents@1", "yavc.editor/document@1", "yavc.editor/outline@1"} {
 		if asks(ref) {

@@ -1175,7 +1175,7 @@ var schemaCache = null;
         taskBoxes(schema),
         footnoteNumbers(),
         hostShortcuts(schema),
-        window.yavcDocumentPages.plugin(PM, o),
+        window.yavcDocumentPages.plugin(PM, Object.assign({}, o, { syncSelection: function () { syncSelection(); } })),
         suggestionPlugin(),
         findPlugin(),
         mirrorPlugin(),
