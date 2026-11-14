@@ -44,6 +44,10 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
       await p.getByRole('button', { name: 'Retry Conversation', exact: true }).waitFor();
       ok('invalid context is refused without exposing messages', await p.locator('[data-context-message]').count() === 0 && JSON.stringify(failed) === JSON.stringify(await bounds()));
     }
+    await choose(t, 'r300');
+    await p.evaluate(messages => { __contextMessages = [{ ...messages[0], text: '', line: 'Reviewer joined the group.' }, { ...messages[1], text: '', attachments: [{ name: 'review.txt' }] }]; }, messages);
+    await choose(t, 'r200'); await p.locator('[data-context-message="91"]').waitFor();
+    ok('membership lines and messages without text remain understandable', (await p.locator('.decisions-context').innerText()).includes('Reviewer joined the group.') && (await p.locator('.decisions-context').innerText()).includes('This message has no text. Open it to see its contents.'));
     await p.evaluate(messages => { __contextMessages = messages; }, messages);
     await choose(t, 'r100'); await choose(t, 'r200'); await p.locator('[data-context-message="94"]').waitFor();
     ok('structured requests use their carrying message', (await t.calls('BusGroupMessageContext')).some(call => call[1] === '#Review' && call[2] === 200));

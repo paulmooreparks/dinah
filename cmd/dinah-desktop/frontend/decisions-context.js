@@ -14,7 +14,7 @@
   }
   function valid(messages, item) {
     return Array.isArray(messages) && messages.length <= 5 && messages.every(function (message, index) {
-      return message && Number.isSafeInteger(message.id) && message.id > 0 && message.id < item.messageId && (!index || messages[index - 1].id < message.id) && message.room === item.group && typeof message.from === 'string' && typeof message.text === 'string' && Number.isFinite(Date.parse(message.createdAt));
+      return message && Number.isSafeInteger(message.id) && message.id > 0 && message.id < item.messageId && (!index || messages[index - 1].id < message.id) && message.room === item.group && typeof message.from === 'string' && typeof message.text === 'string' && (message.line === undefined || typeof message.line === 'string') && Number.isFinite(Date.parse(message.createdAt));
     });
   }
   window.dinahDecisionContext = function (item) {
@@ -36,7 +36,7 @@
           var entry = node('article', 'decisions-context-message'); entry.dataset.contextMessage = String(message.id);
           var meta = node('p', 'decisions-context-meta'); meta.appendChild(node('strong', '', message.from));
           var time = node('time', '', window.dinahRegional.format(new Date(message.createdAt), 'dayTime')); time.dateTime = message.createdAt; meta.appendChild(time);
-          var text = node('p', 'decisions-context-text', message.text);
+          var text = node('p', 'decisions-context-text', message.line || message.text || 'This message has no text. Open it to see its contents.');
           var toggle = node('button', 'btn btn-sm', 'Expand Message'); toggle.type = 'button'; toggle.setAttribute('aria-expanded', 'false');
           toggle.addEventListener('click', function () { var expanded = toggle.getAttribute('aria-expanded') !== 'true'; toggle.setAttribute('aria-expanded', String(expanded)); entry.dataset.expanded = String(expanded); toggle.textContent = expanded ? 'Collapse Message' : 'Expand Message'; });
           var actions = node('div', 'decisions-actions'); actions.append(toggle, messageLink(item, message)); entry.append(meta, text, actions); body.appendChild(entry);
