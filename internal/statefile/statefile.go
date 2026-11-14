@@ -140,7 +140,7 @@ func read(path string) ([]byte, error) {
 	return ReadRegular(path)
 }
 
-func write(path string, data []byte, validatePrevious func([]byte) error) error {
+func write(path string, data []byte, validatePrevious func([]byte) error, before func([]byte) error) error {
 	if !json.Valid(data) {
 		return errors.New("state must be valid JSON")
 	}
@@ -159,6 +159,11 @@ func write(path string, data []byte, validatePrevious func([]byte) error) error 
 	}
 	if previous != nil && validatePrevious != nil {
 		if err := validatePrevious(previous); err != nil {
+			return err
+		}
+	}
+	if before != nil {
+		if err := before(previous); err != nil {
 			return err
 		}
 	}
@@ -190,7 +195,36 @@ func Write(path string, data []byte) error {
 func WriteValidated(path string, data []byte, validatePrevious func([]byte) error) error {
 	mu.Lock()
 	defer mu.Unlock()
-	return write(path, data, validatePrevious)
+	return write(path, data, validatePrevious, nil)
+}
+
+// WriteValidatedKeeping keeps the first replaced file at backup before writing
+// path. Both operations hold the writer mutex. Publish refuses replacement, so
+// an existing backup is never overwritten. If no file existed, backup.absent
+// records that fact instead; restoring that state means removing path.
+// Kept is true when this call publishes either record, even if the write fails.
+func WriteValidatedKeeping(path string, data []byte, validatePrevious func([]byte) error, backup string) (kept bool, err error) {
+	mu.Lock()
+	defer mu.Unlock()
+	err = write(path, data, validatePrevious, func(previous []byte) error {
+		for _, record := range []string{backup, backup + ".absent"} {
+			if _, err := ReadRegular(record); err == nil {
+				return nil
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
+		record, content := backup, previous
+		if previous == nil {
+			record, content = backup+".absent", []byte("No file existed before this change.\n")
+		}
+		if err := Publish(record, content); err != nil {
+			return fmt.Errorf("keep %s before changing %s: %w", record, path, err)
+		}
+		kept = true
+		return nil
+	})
+	return kept, err
 }
 
 // LockWait bounds how long ReadShared and Update wait for another holder of
@@ -363,5 +397,5 @@ func UpdateWithLock(path, lockPath string, change func(previous []byte) ([]byte,
 	if err != nil || next == nil {
 		return err
 	}
-	return write(path, next, nil)
+	return write(path, next, nil, nil)
 }

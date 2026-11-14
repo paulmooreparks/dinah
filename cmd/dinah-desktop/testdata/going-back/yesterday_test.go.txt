@@ -1,0 +1,200 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"studio/internal/bus"
+	"studio/internal/bushost"
+)
+
+// Compiled against 4fe5a52c without substituting any production source.
+func TestGoingBackYesterday(t *testing.T) {
+	root := os.Getenv("DINAH_GOING_BACK_ROOT")
+	if root == "" {
+		t.Fatal("fixture root required")
+	}
+	previous := configOverride
+	oldVersion := appVersion
+	t.Cleanup(func() { configOverride = previous; appVersion = oldVersion; closeAppLog() })
+	configOverride = filepath.Join(root, "full")
+	appVersion = "rollback-old"
+	snapshots := map[string]string{}
+	for _, name := range []string{"restart-resume.json", "restart-awaiting.json", "webview2/profiles.json", "notifications.json"} {
+		data, err := os.ReadFile(filepath.Join(configOverride, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshots[name] = string(data)
+	}
+	a := NewApp()
+	if a.startupErr != nil {
+		t.Fatal(a.startupErr)
+	}
+	if a.settings.SessionTitles["fixture-chat"] != "Invented chat" {
+		t.Fatal("known settings lost")
+	}
+	t.Log("Yesterday's NewApp starts with current settings and restart/profile files present")
+	if _, err := a.Notifications(); err == nil || !strings.Contains(err.Error(), "invalid durable notification") {
+		t.Fatalf("expected whole-store incompatibility: %v", err)
+	}
+	if _, err := a.SaveNotification(Notification{ID: "old_new", Kind: "app", Severity: "info", Title: "Invented old-build report"}); err == nil {
+		t.Fatal("old writer unexpectedly accepted the incompatible store")
+	}
+	t.Log("Confirmed incompatibility: both reading and adding Notifications fail when new card kinds exist")
+	state, err := a.ReadUIState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Values["dinah-decisions:request%3Afixture"] == nil {
+		t.Fatal("new decision draft did not load as opaque UI state")
+	}
+	state.Values["old-build-check"] = json.RawMessage(`true`)
+	if err = a.SaveUIState(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = saveSettings(s); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(configOverride, "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]json.RawMessage
+	if err = json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw["backgroundChatLimit"] != nil || raw["attentionReadSafe"] != nil {
+		t.Fatal("old writer unexpectedly preserves new fields")
+	}
+	if bushost.BackgroundSlots != 3 {
+		t.Fatalf("old fixed background limit %d", bushost.BackgroundSlots)
+	}
+	t.Log("Confirmed loss on old settings save: background limit and attention migration flag disappear; old limit is three")
+	for _, path := range []string{webviewDataPath(), documentWebviewDataPath(), showWebviewDataPath()} {
+		if _, err = os.Stat(filepath.Join(path, "invented-marker.txt")); err != nil {
+			t.Fatal("adopted old-version profile not reused", err)
+		}
+	}
+	ctx := context.Background()
+	b, err := bus.OpenAt(filepath.Join(configOverride, "bus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(filepath.Join(configOverride, "bus.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, table := range []string{"person_requests", "decision_operations", "decision_previews"} {
+		var count int
+		if err = db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("%s: %d %v", table, count, err)
+		}
+	}
+	var requestID int64
+	if err = db.QueryRow("SELECT message_id FROM person_requests").Scan(&requestID); err != nil {
+		t.Fatal(err)
+	}
+	message, err := b.Message(ctx, requestID)
+	if err != nil || !strings.Contains(message.Text, "Which invented option?") {
+		t.Fatalf("request message %+v %v", message, err)
+	}
+	reply, err := b.Send(ctx, bus.Sender{}, "", "Use the invented second choice.", nil, requestID)
+	if err != nil || reply.ReplyTo != requestID {
+		t.Fatalf("old reply %+v %v", reply, err)
+	}
+	if count, err := b.PendingSessionDeliveries(ctx, "fixture-asker"); err != nil || count < 1 {
+		t.Fatalf("delivery count %d %v", count, err)
+	}
+	if err = b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Yesterday opens the new SQLite schema, reads structured questions as ordinary text and queues a plain reply")
+	for name, before := range snapshots {
+		data, err = os.ReadFile(filepath.Join(configOverride, name))
+		if err != nil || string(data) != before {
+			t.Fatalf("%s changed: %v", name, err)
+		}
+	}
+	configOverride = filepath.Join(root, "legacy")
+	a = &App{}
+	list, err := a.Notifications()
+	if err != nil || len(list) != 500 {
+		t.Fatalf("legacy notices: %d %v", len(list), err)
+	}
+	for _, n := range list {
+		if n.ID == "mention-1" {
+			t.Fatal("old retention unexpectedly kept an eight-day-old mention")
+		}
+	}
+	if _, err = a.SaveNotification(Notification{ID: "ordinary_old", Kind: "app", Severity: "info", Title: "Invented report"}); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := readNotifications()
+	if err != nil || len(kept.Items) != 500 {
+		t.Fatalf("old pruned rewrite %d %v", len(kept.Items), err)
+	}
+	t.Log("Old retention hides aged/overflow attention and an ordinary write permanently prunes it")
+	configOverride = filepath.Join(root, "restored")
+	if err = os.MkdirAll(configOverride, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"settings.json", "notifications.json"} {
+		data, err = os.ReadFile(filepath.Join(root, "full", name+".before-decisions-2026-11-14"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(configOverride, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A pending write must not replay a post-copy file after restoration.
+	for _, name := range []string{"settings.json", "notifications.json"} {
+		pending, err := json.Marshal(map[string]any{"version": 1, "previous": []byte(`{"afterCopy":true}`), "next": []byte(`{"afterCopy":false}`)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(configOverride, name+".pending"), pending, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if interrupted := NewApp(); interrupted.startupErr == nil {
+		t.Fatal("old startup ignored a conflicting pending write")
+	}
+	for _, name := range []string{"settings.json", "notifications.json"} {
+		if err = os.Rename(filepath.Join(configOverride, name+".pending"), filepath.Join(configOverride, name+".pending.kept-for-rollback")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	restored := NewApp()
+	if restored.startupErr != nil {
+		t.Fatal(restored.startupErr)
+	}
+	if restored.settings.Approvals != "ask" || restored.settings.SessionTitles["fixture-chat"] != "Invented chat" {
+		t.Fatal("restored settings rejected or changed")
+	}
+	if list, err := restored.Notifications(); err != nil || len(list) != 0 {
+		t.Fatalf("restored notifications %v %v", list, err)
+	}
+	if _, err := restored.SaveNotification(Notification{ID: "restored_new", Kind: "app", Severity: "info", Title: "Invented restored report"}); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Restoring the two kept copies lets yesterday start, read settings and read/write Notifications")
+	configOverride = filepath.Join(root, "different-profile")
+	for _, path := range []string{webviewDataPath(), documentWebviewDataPath(), showWebviewDataPath()} {
+		if _, err = os.Stat(filepath.Join(path, "invented-marker.txt")); !os.IsNotExist(err) {
+			t.Fatalf("old version unexpectedly selected stable profile: %s %v", path, err)
+		}
+	}
+	t.Log("With stable profile-main/documents/show folders, yesterday selects its own version folders and cannot see those markers")
+}
