@@ -78,6 +78,13 @@ func main() {
 			reply(req.ID, map[string]any{"sessionId": id, "configOptions": []any{}})
 		case "session/list":
 			reply(req.ID, map[string]any{"sessions": []any{}})
+		case "session/load":
+			var p struct {
+				Session string `json:"sessionId"`
+			}
+			json.Unmarshal(req.Params, &p)
+			record(map[string]any{"loaded": p.Session, "at": time.Now().UTC()})
+			reply(req.ID, map[string]any{"configOptions": []any{}})
 		case "session/prompt":
 			var p struct {
 				Session string `json:"sessionId"`
@@ -133,6 +140,15 @@ func main() {
 						}
 						time.Sleep(20 * time.Millisecond)
 					}
+				}
+				if strings.Contains(text, "Fixture held broadcast to all.") {
+					for {
+						if _, err := os.Stat(filepath.Join(os.Getenv("DECISIONS_FIXTURE"), "release-"+session)); err == nil {
+							break
+						}
+						time.Sleep(20 * time.Millisecond)
+					}
+					record(map[string]any{"released": session, "at": time.Now().UTC()})
 				}
 				reply(id, map[string]string{"stopReason": "end_turn"})
 			}(req.ID, p.Session, text, s)
