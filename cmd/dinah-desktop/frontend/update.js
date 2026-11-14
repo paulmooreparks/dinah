@@ -66,7 +66,7 @@
     var who = waiting.slice(0, 8).join(', ') + (waiting.length > 8 ? ' and ' + (waiting.length - 8) + ' more' : '');
     notices.add({ id: 'dinah-pause-overdue', type: 'warning', glyph: 'pause', title: (waiting.length === 1 ? '1 chat has' : waiting.length + ' chats have') + ' not paused for the restart.',
       description: 'Still working: ' + who + '.',
-      body: name + ' keeps waiting for them. Restart Now ends their turns unfinished, and they are told after the restart that their turn was cut short. Cancel the Restart lets every chat carry on.',
+      body: 'Still working: ' + who + '. ' + name + ' keeps waiting for them. Restart Now ends their turns unfinished, and they are told after the restart that their turn was cut short. Cancel the Restart lets every chat carry on.',
       actions: [{ label: 'Restart Now…', run: function () { return restart(true); } }, { label: 'Cancel the Restart', primary: true, run: function () { return Promise.resolve(app().CancelRestart()); } }],
       dismissible: true, announced: true, className: 'dinah-update' });
   }

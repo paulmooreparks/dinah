@@ -1,0 +1,23 @@
+const {setup}=require('./lib/decisions-fixture');
+(async()=>{const t=await setup([], {noOpen:true});const {page:p,ok}=t;
+try{
+ const rows=await p.evaluate(()=>({view:dinahCommands.rows('view').map(r=>r.label),app:[...dinahCommands.rows('dinah').map(r=>r.label),dinahCommands.describe('settings').label],help:dinahCommands.rows('help').map(r=>r.label)}));
+ for(const label of ['Decisions','Broadcast to Active','Broadcast to All','Notifications'])ok('View contains '+label,rows.view.some(s=>s&&s.replace(/\u2026/g,'')===label),JSON.stringify(rows.view));
+ for(const label of ['Settings','Pause Chats and Restart'])ok('Application contains '+label,rows.app.some(s=>s&&s.replace('…','')===label),JSON.stringify(rows.app));
+ ok('Help contains Working with Chats',rows.help.includes('Working with Chats'));
+ await p.evaluate(()=>dinahWorkbench.open('settings','chat'));await p.locator('#set-background-chat-limit').waitFor({state:'visible'});
+ const field=p.locator('#set-background-chat-limit');ok('Background Chats has Maximum Chats',(await p.locator('#settings').innerText()).includes('Chats Opened in the Background')&&await p.getByLabel('Maximum Chats',{exact:true}).count()===1);
+ await p.evaluate(()=>{go.main.App.SetBackgroundChatLimit=async n=>{window.__limit=n;};});await field.focus();await p.keyboard.press('Shift+Tab');await p.keyboard.press('Tab');ok('Tab reaches Maximum Chats',await field.evaluate(e=>e===document.activeElement));await p.keyboard.press('Control+a');await p.keyboard.type('6');await p.keyboard.press('Tab');await p.waitForFunction(()=>window.__limit===6);ok('typing applies limit',true);
+ await p.locator('#status-needs').click();
+ ok('Notifications status button opens its list',await p.locator('#notifications-status-menu').evaluate(e=>e.matches(':popover-open')));
+ await p.keyboard.press('Escape');
+ await t.emit('update:state',{ready:true,pending:false,working:0,writing:0,blockers:[]});
+ ok('installed update adds Restart When Chats Finish',await p.evaluate(()=>dinahCommands.rows('dinah').some(r=>r.label==='Restart When Chats Finish')));
+ ok('status bar has Restart Now',/^Restart Now\u2026$/.test(await p.locator('#update-now').textContent()));
+ await t.emit('update:state',{ready:false,pending:true,pausing:true,overdue:true,working:1,writing:0,blockers:['Fixture Chat']});
+ ok('pending restart adds Cancel the Restart',await p.evaluate(()=>dinahCommands.rows('dinah').some(r=>r.label==='Cancel the Restart')));
+ await p.evaluate(()=>dinahWorkbench.open('needs-you'));const card=p.locator('#questions [data-notice-id="dinah-pause-overdue"]');await card.waitFor();
+ await card.getByRole('button',{name:'Cancel the Restart',exact:true}).waitFor({state:'visible'});
+ ok('overdue card visibly names the blocked chat',(await card.innerText()).includes('Fixture Chat'),await card.innerText());
+ ok('overdue card offers both choices',await card.getByRole('button',{name:/^Restart Now(?:\u2026)?$/,exact:true}).count()===1&&await card.getByRole('button',{name:'Cancel the Restart',exact:true}).count()===1); ok('notification does not automatically restart',(await t.calls('RestartToUpdate')).length===0);
+}finally{await t.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
