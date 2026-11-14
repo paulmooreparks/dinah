@@ -23,10 +23,14 @@ import (
 	"studio/internal/pageroutes"
 )
 
-// shellAddr is where the window's page is served, on the profile's port
-// (product.ShellPort). The port is fixed because the page keeps a little in
-// its own storage, which a browser keeps per address.
-var shellAddr = product.ShellAddr()
+// A normal start keeps the profile's port because browser storage belongs
+// to the origin. Hidden test starts use a free port and stay isolated.
+func shellStartupAddress(testing bool) string {
+	if testing {
+		return "127.0.0.1:0"
+	}
+	return product.ShellAddr()
+}
 
 // shellServer serves the window's page, its files and the bridge to the
 // App on a loopback address, and the window loads it as a browser would.
@@ -193,7 +197,7 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/pudl/") && (r.Method == "GET" || r.Method == "HEAD") {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		s.files.ServeHTTP(w, r)
+		s.servePageFiles(w, r)
 		return
 	}
 	c, err := r.Cookie(shellCookie)
@@ -227,8 +231,28 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 			return
 		}
-		s.files.ServeHTTP(w, r)
+		s.servePageFiles(w, r)
 	}
+}
+
+// File-serving errors can discard caching headers. Apply this policy when
+// committing the response, including a missing file or an invalid range.
+type noStorePageWriter struct{ http.ResponseWriter }
+
+func (w noStorePageWriter) WriteHeader(status int) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w noStorePageWriter) Write(data []byte) (int, error) {
+	w.Header().Set("Cache-Control", "no-store")
+	return w.ResponseWriter.Write(data)
+}
+
+func (w noStorePageWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (s *shellServer) servePageFiles(w http.ResponseWriter, r *http.Request) {
+	s.files.ServeHTTP(noStorePageWriter{w}, r)
 }
 
 // enter exchanges a one-time code for the window's cookie, then moves on to

@@ -174,6 +174,20 @@ func TestAShowNeedsAnotherDisplay(t *testing.T) {
 // The two pages' messages are carried in order, those posted before the
 // show's page reads included, and the show's page reaches what a slide is
 // drawn from and nothing else of the App.
+func TestShowMissingPageFileIsNotStored(t *testing.T) {
+	f := newShowFixture(t, "0,0,1920,1080;1920,0,2560,1440")
+	if _, err := f.app.OpenShow(ShowRequest{Application: "slides", Resource: "deck", Draft: "draft-1", Folder: "/workspaces/w/decks"}); err != nil {
+		t.Fatal(err)
+	}
+	cookie := f.signIn(t)
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		w := f.request(method, "/missing-show-script.js", "", cookie)
+		if w.Code != http.StatusNotFound || w.Result().Header.Get("Cache-Control") != "no-store" {
+			t.Fatalf("show %s missing file status %d Cache-Control=%q", method, w.Code, w.Result().Header.Get("Cache-Control"))
+		}
+	}
+}
+
 func TestAShowCarriesMessagesAndReadsOnlyItsDeck(t *testing.T) {
 	f := newShowFixture(t, "0,0,1920,1080;1920,0,2560,1440")
 	opened, err := f.app.OpenShow(ShowRequest{Application: "slides", Resource: "deck", Draft: "draft-1", Folder: "/workspaces/w/decks"})

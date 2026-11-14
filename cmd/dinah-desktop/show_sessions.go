@@ -309,7 +309,7 @@ func (s *shellServer) serveShow(w http.ResponseWriter, r *http.Request, show *sh
 	case r.URL.Path == "/draft-file" || r.URL.Path == "/doc-file" || r.URL.Path == "/resource-attachment" || r.URL.Path == "/bus-attachment" || r.URL.Path == "/upload":
 		http.Error(w, "A slide show reads only its own deck.", http.StatusForbidden)
 	case read:
-		s.files.ServeHTTP(w, r)
+		s.servePageFiles(w, r)
 	default:
 		http.Error(w, "A slide show reads only its own deck.", http.StatusForbidden)
 	}

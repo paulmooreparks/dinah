@@ -2,7 +2,7 @@
 
 The main WebView2 profile folder was reused by two real native processes with different injected versions. The hidden recipe changed the HTTP port between starts, so the second origin had neither storage marker in the separate persistent headless browser. Native WebView2 storage continuity remains unproved because this build's loader blocks the documented debugger attachment.
 
-The trial used branch engine/profile-trial from master e87cdf5328bd6c28863aa429abdab045e873d173. No production Go or frontend application source changed. The harness, process observer and reproduction script are the only executable additions. Nothing was pushed, installed or merged, and no mouse, keyboard or focus automation was used.
+The original trial used branch engine/profile-trial from master e87cdf5328bd6c28863aa429abdab045e873d173. That trial changed no production Go or frontend application source. Its executable additions were the harness, process observer and reproduction script. The later correction below changes the file response policy and extracts the existing startup address selection for testing. Nothing was pushed, installed or merged, and no mouse, keyboard or focus automation was used.
 
 ## What ran
 
@@ -64,3 +64,13 @@ scripts/with-test-lock.ps1 pwsh -NoProfile -File scripts/profile-version-trial.p
 The script requires installed headless Microsoft Edge and installs the pinned Playwright Core 1.64.0 driver into the output folder. It refuses an existing output folder. PROFILE_TRIAL_NATIVE=1 selects the original documented debugger probe, which remains unavailable with this production loader. No full browser suite or additional Go test suite ran; the product package was built twice and the changed harness was syntax-checked and executed.
 
 Earlier evidence remains in the sibling output folders. The initial unsuffixed folder records the blocked native debugger attempt. The headless folder records the overly strict displayed-version assertion. The final folder records the overly strict equality check against WebView2's EBWebView child path. The checked folder records the overly broad assertion that included an optional missing-file response. These attempts were retained, and none is counted as a successful complete trial.
+
+## Missing-file correction and fixed-port guard
+
+Lead accepted the trial's limits and requested two follow-ups before merging this branch. The new missing-file regression first failed for GET and HEAD requests to the optional product-applets.json, an ordinary missing script and a public PUDL stylesheet. Each returned 404 without Cache-Control. The normal-start port regression passed.
+
+The shell now applies no-store when its page-file writer commits a status or body. This keeps Go's file-error handling from discarding the policy. The wrapper is confined to static page files; it does not wrap the bridge or its streaming responses. The main page, public PUDL path and slide show's static files share it. Tests also cover an existing script and an unsatisfiable range response, plus the show's own authenticated missing-file route.
+
+Normal startup now calls shellStartupAddress(false), which returns the profile's ShellAddr. Its regression independently splits the selected address, checks loopback and the configured nonzero ShellPort, and verifies repeated normal selections stay equal. The hidden selection remains 127.0.0.1:0. The test binds no port and opens no window.
+
+The focused correction gate passed before the additional show/range cases were added. The complete touched-package result is pending. The original native/storage trial was not rerun, and native WebView2 storage remains unproved. No debugging capability was added to the production loader.

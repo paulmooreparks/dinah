@@ -175,10 +175,7 @@ func main() {
 	// the person's screen or meets a Dinah they are using.
 	entryFile := os.Getenv(product.ShellEntryVar())
 	testing := entryFile != ""
-	addr := shellAddr
-	if testing {
-		addr = "127.0.0.1:0"
-	}
+	addr := shellStartupAddress(testing)
 	// The page's port is taken in OnStartup, which runs only in the window
 	// that holds the single-instance lock: a second launch brings the first
 	// window forward and ends before it would meet the first one's port
