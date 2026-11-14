@@ -525,6 +525,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
 /* Updates reserves its status, row and scrolling areas across transitions. */
 #settings-updates { scrollbar-gutter: stable; }
 #settings-updates > .card { margin-block-end: var(--space-3); }
+#updates-set-aside { margin-block-end: var(--space-3); }
 .updates-programs { display: grid; grid-template-rows: repeat(3, 7rem); gap: var(--space-2); }
 .updates-row { box-sizing: border-box; height: 7rem; min-width: 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; gap: var(--space-2); align-items: flex-start; }
 .updates-row-text { flex: 1; min-width: 0; height: 100%; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }

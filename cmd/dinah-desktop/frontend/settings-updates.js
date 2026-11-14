@@ -119,6 +119,7 @@
   function fileName(path) { return String(path || '').split(/[\\/]/).pop().toLowerCase(); }
   function refreshInventory() {
     status('updates-inventory-status', 'Reading installed and running versions…');
+    if (window.dinahSetAsidePrograms) window.dinahSetAsidePrograms.refresh();
     return request('inventory', () => available().then(s => s.Status()), drawInventory, function (error) {
       status('updates-inventory-status', 'Could not read versions: ' + message(error) + (inventory ? ' The rows retain the last successful reading.' : ''), true);
       status('updates-running-status', 'Running state is unknown until status can be read.', true);
@@ -258,6 +259,7 @@
   window.dinahHost.on('update:state', function (s) { sequences.restart = (sequences.restart || 0) + 1; drawRestart(s); });
   document.addEventListener('dinah:workspace-selected', function () { if (visible()) readPackages(false); });
   window.dinahSettingsSections.register('updates', { state: () => '', shown: function () {
+    if (window.dinahSetAsidePrograms) window.dinahSetAsidePrograms.showInUpdates();
     refreshInventory(); refreshRestart(); readPackages(false); checkRelease(); follow();
   } });
   controls();

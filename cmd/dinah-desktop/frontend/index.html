@@ -970,7 +970,7 @@
           </section>
         </div>
         <div class="settings-panel" id="settings-set-aside" role="tabpanel" aria-labelledby="settings-tab-set-aside" tabindex="0" hidden>
-          <section class="card vstack gap-3" aria-labelledby="set-aside-title">
+          <section class="card vstack gap-3" id="set-aside-card" aria-labelledby="set-aside-title">
             <h3 class="card-title" id="set-aside-title">Set-aside Programs</h3>
             <p class="form-help">Choose older program copies to remove. Running copies and the newest fallback stay protected. Nothing is removed automatically.</p>
             <p class="settings-status updates-status" id="set-aside-status" role="status">Program copies have not been read.</p>
@@ -1005,6 +1005,7 @@
             <p class="settings-status updates-status" id="updates-running-status" role="status">Running programs have not been read.</p>
             <div class="updates-scroll" id="updates-running" tabindex="0" role="region" aria-label="Running programs"></div>
           </section>
+          <div id="updates-set-aside" hidden></div>
           <section class="card vstack gap-3" aria-labelledby="updates-packages-title">
             <h3 class="card-title" id="updates-packages-title">Skill Packages</h3>
             <p class="settings-status updates-status" id="updates-package-status" role="status">Installed packages have not been read.</p>

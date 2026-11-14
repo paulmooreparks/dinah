@@ -98,7 +98,21 @@
   }
   $('set-aside-refresh').addEventListener('click', load);
   $('set-aside-remove').addEventListener('click', remove);
-  window.dinahSettingsSections.register('set-aside', { state: () => '', shown: load });
-  $('settings-tab-set-aside').hidden = !(app() && app().ListSetAsidePrograms && app().RemoveSetAsidePrograms);
+  var supported = !!(app() && app().ListSetAsidePrograms && app().RemoveSetAsidePrograms);
+  function place(host) {
+    if (!supported || !host) return Promise.resolve();
+    if ($('set-aside-card').parentElement !== host) host.appendChild($('set-aside-card'));
+    return load();
+  }
+  function showInUpdates() {
+    var host = $('updates-set-aside');
+    if (host && supported) host.hidden = false;
+    return place(host);
+  }
+  window.dinahSetAsidePrograms = Object.freeze({ showInUpdates: showInUpdates, refresh: function () { return supported ? load() : Promise.resolve(); } });
+  window.dinahSettingsSections.register('set-aside', { state: () => '', shown: function () { return place($('settings-set-aside')); } });
+  $('settings-tab-set-aside').hidden = !supported;
+  // A restored Updates address may be adopted before this script registers.
+  if (!$('settings-updates').hidden) showInUpdates();
   controls();
 })();

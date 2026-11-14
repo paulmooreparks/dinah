@@ -31,7 +31,7 @@ async function start(changes = {}, openUpdates = true) {
       if (window.__fail[name]) throw new Error(window.__fail[name]);
       return snapshot;
     }
-    return {
+    const api = {
       ProductServices: data.missingDiscovery ? undefined : async () => {
         window.__serviceChecks = (window.__serviceChecks || 0) + 1;
         if (window.__u.discoveryError) throw new Error('Synthetic discovery failure');
@@ -75,6 +75,23 @@ async function start(changes = {}, openUpdates = true) {
       Restart: async () => { window.__updateCalls.push(['Restart']); throw new Error('Unexpected automatic restart'); },
       RestartToUpdate: async () => { window.__updateCalls.push(['RestartToUpdate']); throw new Error('Unexpected automatic restart'); }
     };
+    if (data.asideItems) {
+      api.ListSetAsidePrograms = async () => {
+        __updateCalls.push(['ListSetAsidePrograms']);
+        return finish('ListSetAsidePrograms', { items: __u.asideItems, totalBytes: __u.asideItems.reduce((sum, item) => sum + item.sizeBytes, 0), warnings: [] });
+      };
+      api.RemoveSetAsidePrograms = async input => {
+        __updateCalls.push(['RemoveSetAsidePrograms', clone(input)]);
+        const result = { items: [], removedBytes: 0 };
+        input.ids.forEach(id => {
+          const item = __u.asideItems.find(item => item.id === id);
+          if (!item || !item.canRemove) result.items.push({ id, state: 'refused', reasonCode: 'protected', reason: 'The copy is protected.' });
+          else { result.items.push({ id, state: 'removed', reasonCode: '', reason: '' }); result.removedBytes += item.sizeBytes; __u.asideItems = __u.asideItems.filter(item => item.id !== id); }
+        });
+        return finish('RemoveSetAsidePrograms', result);
+      };
+    }
+    return api;
   }, init: () => { if (window.__u.initialHold) Object.assign(window.__hold, window.__u.initialHold); } });
   await t.page.evaluate(() => dinahWorkbench.open('settings'));
   if (openUpdates) await t.page.locator('#settings-tab-updates').click();
