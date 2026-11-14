@@ -4,6 +4,7 @@ package bus
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,10 +18,11 @@ import (
 )
 
 type growthTiming struct {
-	FirstMS  float64 `json:"firstMs"`
-	MedianMS float64 `json:"medianMs"`
-	P95MS    float64 `json:"p95Ms"`
-	Rows     int     `json:"rows"`
+	ResultHash string  `json:"resultHash"`
+	FirstMS    float64 `json:"firstMs"`
+	MedianMS   float64 `json:"medianMs"`
+	P95MS      float64 `json:"p95Ms"`
+	Rows       int     `json:"rows"`
 }
 type growthReceipt struct {
 	Factor           int                     `json:"factor"`
@@ -165,6 +167,7 @@ func measureGrowth(t *testing.T, factor int) growthReceipt {
 	}
 	defer b.Close()
 	b.db.SetMaxOpenConns(1)
+	var queryValue any
 	measure := func(name string, prepare func(), query func() (int, error)) {
 		t.Helper()
 		var samples []float64
@@ -180,7 +183,11 @@ func measureGrowth(t *testing.T, factor int) growthReceipt {
 				t.Fatalf("%s: %v", name, err)
 			}
 			if i == 0 {
-				r.Queries[name] = growthTiming{FirstMS: elapsed, Rows: count}
+				encoded, err := json.Marshal(queryValue)
+				if err != nil {
+					t.Fatal(err)
+				}
+				r.Queries[name] = growthTiming{FirstMS: elapsed, Rows: count, ResultHash: fmt.Sprintf("%x", sha256.Sum256(encoded))}
 				rows = count
 			} else {
 				if count != rows {
@@ -195,10 +202,15 @@ func measureGrowth(t *testing.T, factor int) growthReceipt {
 		value.P95MS = samples[19]
 		r.Queries[name] = value
 	}
-	measure("wake", nil, func() (int, error) { v, e := b.Waking(ctx); return len(v), e })
-	measure("doorbell", nil, func() (int, error) { v, _, e := b.Doorbell(ctx, "chat-001"); return v, e })
+	measure("wake", nil, func() (int, error) { v, e := b.Waking(ctx); queryValue = v; return len(v), e })
+	measure("doorbell", nil, func() (int, error) {
+		v, newest, e := b.Doorbell(ctx, "chat-001")
+		queryValue = []int64{int64(v), newest}
+		return v, e
+	})
 	measure("decisions", nil, func() (int, error) {
 		v, e := b.DecisionEntries(ctx)
+		queryValue = v
 		if e == nil && v.Count < 7 {
 			e = fmt.Errorf("lost structured requests")
 		}
@@ -207,20 +219,36 @@ func measureGrowth(t *testing.T, factor int) growthReceipt {
 	exec(`UPDATE decision_start SET after_message=?`, n-1000)
 	measure("decisionsFreshBoundary", nil, func() (int, error) {
 		v, e := b.DecisionEntries(ctx)
+		queryValue = v
 		return v.Count, e
 	})
 	exec(`UPDATE decision_start SET after_message=?`, 7825-1000)
-	measure("group100", nil, func() (int, error) { v, e := b.RoomMessages(ctx, "group-02", 100); return len(v), e })
-	measure("attentionImport", nil, func() (int, error) { v, e := b.Mentions(ctx, 0); return len(v), e })
-	measure("attentionIncremental", nil, func() (int, error) { v, e := b.AttentionMentions(ctx, int64(n-100)); return len(v), e })
+	measure("group100", nil, func() (int, error) { v, e := b.RoomMessages(ctx, "group-02", 100); queryValue = v; return len(v), e })
+	measure("attentionImport", nil, func() (int, error) { v, e := b.Mentions(ctx, 0); queryValue = v; return len(v), e })
+	measure("attentionIncremental", nil, func() (int, error) { v, e := b.AttentionMentions(ctx, int64(n-100)); queryValue = v; return len(v), e })
 	measure("attentionAnswered5", nil, func() (int, error) {
 		v, e := b.MentionsAnswered(ctx, []int64{int64(n), int64(n - 1), int64(n - 2), int64(n - 3), int64(n - 4)})
+		queryValue = v
 		return len(v), e
 	})
 	measure("delivery5", func() {
 		exec(`UPDATE deliveries SET delivered_at=NULL WHERE recipient='chat-001' AND message_id>?`, n-5)
-	}, func() (int, error) { v, _, e := b.Deliver(ctx, "chat-001", "tool"); return len(v), e })
-	measure("deliveryEmpty", nil, func() (int, error) { v, _, e := b.Deliver(ctx, "chat-001", "tool"); return len(v), e })
+	}, func() (int, error) {
+		v, block, e := b.Deliver(ctx, "chat-001", "tool")
+		queryValue = struct {
+			Messages []Message
+			Block    bool
+		}{v, block}
+		return len(v), e
+	})
+	measure("deliveryEmpty", nil, func() (int, error) {
+		v, block, e := b.Deliver(ctx, "chat-001", "tool")
+		queryValue = struct {
+			Messages []Message
+			Block    bool
+		}{v, block}
+		return len(v), e
+	})
 	for name, query := range map[string]string{
 		"globalPending":   `SELECT d.id FROM deliveries d WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL`,
 		"attentionImport": `SELECT m.id FROM deliveries d JOIN messages m ON m.id=d.message_id WHERE d.recipient_kind='human' AND d.cancelled_at IS NULL AND d.delivered_at IS NULL AND m.from_session<>'' AND m.id>0 AND m.kind NOT IN ('host_result','room_member','chat_question') ORDER BY m.id`,
