@@ -1702,20 +1702,23 @@
            moved in the text is shown on the page, and one moved on the page is shown in the text, a moment after it stops moving. The page's
            selection is mapped to the text exactly or not at all, and the text's selection is mapped to the page the same way, so no other
            place stands in for one that cannot be mapped. A move that one pane makes in the other is not told back, so the two cannot chase each other. */
-        var mirror = { text: null, page: null, timer: 0, turn: 0 };
+        var mirror = { text: null, page: null, timer: 0, turn: 0, quiet: 0 };
         function mirrorOn() { return viewMode === 'split' && pageActive() && !!view; }
         function mirrorToPage() {
-            if (!mirrorOn() || editingPane !== 'text') { return; }
+            /* Any change of the text's selection that the mirror did not make is shown, whoever made it: a key, a click, or an action such as Go To or Find Next. */
+            if (!mirrorOn()) { return; }
             clearTimeout(mirror.timer); var turn = ++mirror.turn, tab = current();
             mirror.timer = setTimeout(async function () {
                 if (turn !== mirror.turn || destroyed || !mirrorOn() || current() !== tab) { return; }
                 var main = view.state.selection.main;
                 mirror.page = turn;
-                try { await visual.api.selectAtText(main.from, main.to); } finally { if (mirror.page === turn) { mirror.page = null; } }
+                try { await visual.api.selectAtText(main.from, main.to); } finally { if (mirror.page === turn) { mirror.page = null; } mirror.quiet = Date.now() + 500; }
             }, 120);
         }
         function mirrorToText() {
-            if (!mirrorOn() || editingPane !== 'visual') { return; }
+            /* A change of the page's selection is shown in the text whoever made it. While the text has the keyboard, a change that arrives just after the mirror set the page's selection is the
+               mirror's own and is not told back, so the two cannot chase each other, and a caret that the page could only show at the start of its line does not move the text's. */
+            if (!mirrorOn() || editingPane === 'text' && (mirror.page !== null || Date.now() < mirror.quiet)) { return; }
             clearTimeout(mirror.timer); var turn = ++mirror.turn, tab = current();
             mirror.timer = setTimeout(async function () {
                 if (turn !== mirror.turn || destroyed || !mirrorOn() || current() !== tab) { return; }

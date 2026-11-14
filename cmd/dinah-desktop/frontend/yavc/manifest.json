@@ -1,5 +1,5 @@
 {
-  "digest": "3546910b5dead19a58aafe68397236e864cf1b3f6f80be877391a102d14872b4",
+  "digest": "c8b53748406584bc36dc487f5ba2bcdfa4335d1a9d0250fd75c288d9dca0b38c",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "737bf19e90c802db65ae0380e7f1e3e90e8a60fb9976ed0b882760e112098d23"
+      "sha256": "99750321661ca7cdd52c4b942b2ed1b2aefe2ec39ca5bb318ff2d9b5e7f33dd4"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "02ec73b810b9c158512355540830f21938cf8521f810620783ddcfaff3ac8095"
+      "sha256": "c957d37288f93fecd4596fe5ffdb28bba722ebe4a2b3b53992b1811f2353f6bf"
     },
     {
       "path": "content/editor/editor.css",
@@ -1400,8 +1400,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 262689,
-      "sha256": "96371dd41402a660735ea978b764caaa7dcbb72456105c993799f00fbb030283"
+      "bytes": 263302,
+      "sha256": "5f1b127bd66d90c9a7f3d22384c050c31d62093285bdd87151ff6b6a5d597adb"
     },
     {
       "path": "go.mod",
