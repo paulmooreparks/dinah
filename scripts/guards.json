@@ -370,6 +370,16 @@
     "settings-updates-repair",
     "settings-updates-missing-services",
     "settings-updates-service",
-    "attention-kept"
+    "attention-kept",
+    "decisions-list",
+    "decisions-answers",
+    "decisions-drafts",
+    "decisions-delivery",
+    "decisions-broadcast",
+    "decisions-errors",
+    "decisions-races",
+    "decisions-narrow",
+    "decisions-pages",
+    "decisions-saved-state"
   ]
 }
