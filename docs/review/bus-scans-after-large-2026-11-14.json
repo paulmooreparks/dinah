@@ -1,0 +1,116 @@
+[
+  {
+    "factor": 100,
+    "messages": 782500,
+    "deliveries": 3239559,
+    "databaseBytes": 7469223936,
+    "seedPeakWalBytes": 55352232,
+    "pinnedWalBytes": 7065832,
+    "unpinnedWalBytes": 0,
+    "seedSeconds": 446.1269515,
+    "queries": {
+      "attentionAnswered5": {
+        "resultHash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "firstMs": 0,
+        "medianMs": 0,
+        "p95Ms": 0,
+        "rows": 0
+      },
+      "attentionImport": {
+        "resultHash": "c08b5ced9b24c22a104f194f58125bb527009879aa8810cea62e5c95d568ab18",
+        "firstMs": 2.1156,
+        "medianMs": 1.0634,
+        "p95Ms": 1.9964,
+        "rows": 5
+      },
+      "attentionIncremental": {
+        "resultHash": "97e6378e1d72ffb031c04468c8b43453839bbcc20ac08a3fca2258905a6ce028",
+        "firstMs": 5.0323,
+        "medianMs": 4.0013,
+        "p95Ms": 4.6065,
+        "rows": 17
+      },
+      "decisions": {
+        "resultHash": "a1fb94a0867ccdd664c2bfd0fe3dcc279d4d0fc176b805a1a26dc957b7f5ad20",
+        "firstMs": 0,
+        "medianMs": 0.4993,
+        "p95Ms": 1.1206,
+        "rows": 7
+      },
+      "decisionsFreshBoundary": {
+        "resultHash": "a1fb94a0867ccdd664c2bfd0fe3dcc279d4d0fc176b805a1a26dc957b7f5ad20",
+        "firstMs": 0.5016,
+        "medianMs": 0,
+        "p95Ms": 0.5087,
+        "rows": 7
+      },
+      "delivery5": {
+        "resultHash": "1f2b24bc7bd70eea6f4ce491a99df994aa684cb4d6dabe5734289a11f4f37bc1",
+        "firstMs": 7.5005,
+        "medianMs": 4.0057,
+        "p95Ms": 10.499,
+        "rows": 5
+      },
+      "deliveryEmpty": {
+        "resultHash": "cd41b8b1e59a49deb1f1b35c8dfc5701b7e3d5f987ff0aca685e725f29cba0ae",
+        "firstMs": 2.5015,
+        "medianMs": 2.5007,
+        "p95Ms": 3.0276,
+        "rows": 0
+      },
+      "doorbell": {
+        "resultHash": "ceadd1754c1246a095488c6b21118753b44f39daa49e97144be0f227ebbb8978",
+        "firstMs": 0.5054,
+        "medianMs": 0,
+        "p95Ms": 1.0971,
+        "rows": 5
+      },
+      "group100": {
+        "resultHash": "0cec12c3bfb8188aae170fa6539d9a8a0641459884822e58c6bbd3cc841a2f40",
+        "firstMs": 15.1129,
+        "medianMs": 8.0013,
+        "p95Ms": 9.6928,
+        "rows": 100
+      },
+      "wake": {
+        "resultHash": "b0c46576718887bf0aca7d4479589e8f3b2ac07a0207fcbea0fb4005d146a0ce",
+        "firstMs": 0.4988,
+        "medianMs": 0,
+        "p95Ms": 0.5005,
+        "rows": 1
+      }
+    },
+    "plans": {
+      "attentionImport": [
+        "SEARCH d USING INDEX deliveries_human_cursor (recipient_kind=? AND message_id\u003e?)",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "decisions": [
+        "CO-ROUTINE candidates",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH person_requests USING COVERING INDEX person_requests_open (closed=?)",
+        "RIGHT",
+        "SEARCH deliveries USING INDEX deliveries_human_decisions (recipient_kind=? AND message_id\u003e?)",
+        "SCALAR SUBQUERY 3",
+        "SEARCH messages USING INTEGER PRIMARY KEY (rowid\u003e?)",
+        "SCALAR SUBQUERY 2",
+        "SEARCH decision_start USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN candidates",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH p USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH d USING INDEX deliveries_human_decisions (recipient_kind=? AND message_id=?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH later USING COVERING INDEX messages_person_group (room=? AND id\u003e?)",
+        "CORRELATED SCALAR SUBQUERY 7",
+        "SEARCH reply USING COVERING INDEX messages_decision_replies (reply_to=? AND from_session=? AND from_name=? AND kind=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "globalPending": [
+        "SCAN d USING INDEX deliveries_pending"
+      ]
+    }
+  }
+]
