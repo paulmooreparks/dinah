@@ -21,3 +21,9 @@ The final answer-card and closed-request screenshots were inspected. The compact
 The candidate is ready for frontend review. The requested next step is combined integration with Engine's typed-origin implementation, followed by verification of real delivery and lookup. The mixed-run arrival failure and inherited lint finding remain disclosed limitations.
 
 The checks use invented messages and service responses. No installed-product journey, live question or answer, native window, desktop input, real-home write, credential read, full suite, push, merge or installation occurred. Delivery persistence and actual backend lookup remain Engine's integration and verification responsibility.
+
+## Backend contract review
+
+Engine's frozen candidate 8c3af285fab5729ebe120b942f74d06edabe2d3b was reviewed against this frontend on 14 November. Its implementation e17f3b11025fb3cab531edd1170be4548a51451b exposes the agreed lower-case answerOrigin fields on bus and delivery DTOs, the optional decisionAnswer arrival marker, and DecisionByID with the complete Decision projection, closed and readOnly. Plain mentions use question zero with asRecommended false. Structured replies retain request order and the explicit recommendation flag. The lookup clears dismissal affordances and has a query classification in pageMethods. No presentation-contract mismatch was found in these source paths.
+
+The contract and verification attachments from bus message 8024 were read and unchanged. Engine's backend test results remain its evidence. This review did not merge the branches or run a combined host/browser journey, so the integration limitation above remains. The lead can review the frontend and backend together using these frozen candidates.
