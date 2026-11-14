@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,6 +45,20 @@ type Application struct {
 	Applet string `json:"applet"`
 	// Name is the application's name, as its window and taskbar show it.
 	Name string `json:"name"`
+	// FileApplets selects an applet by the longest lower-case filename suffix.
+	// The application keeps its process identity, grants and recovery keys.
+	FileApplets map[string]string `json:"fileApplets,omitempty"`
+}
+
+func (a Application) fileApplet(path string) string {
+	name := strings.ToLower(filepath.Base(path))
+	selected, length := a.Applet, 0
+	for suffix, applet := range a.FileApplets {
+		if len(suffix) > length && strings.HasSuffix(name, suffix) {
+			selected, length = applet, len(suffix)
+		}
+	}
+	return selected
 }
 
 // Options are what the program gives the service.
@@ -117,6 +132,7 @@ type entryCode struct {
 // where the new window's answer goes.
 type ticket struct {
 	request json.RawMessage
+	applet  string
 	grant   string
 	done    chan callResult
 	made    time.Time
@@ -262,6 +278,7 @@ type document struct {
 	id, token   string
 	application string
 	app         Application
+	applet      string
 	service     *Service
 	bridge      *bridge.Bridge
 	link        *link
@@ -454,11 +471,15 @@ func (s *Service) Open(r OpenRequest) (Opened, error) {
 	}
 	d := &document{id: rand.Text(), token: rand.Text(), application: r.Application, app: app, service: s,
 		link: newLink(), start: path, current: path, grants: map[string]bool{}, picks: map[string]pick{}, calls: map[string]chan callResult{}}
+	d.applet = app.fileApplet(path)
 	if path != "" {
 		d.grants[path] = true
 		d.key = fileKey(r.Application, path)
 	}
 	if t != nil {
+		if path == "" && t.applet != "" {
+			d.applet = t.applet
+		}
 		d.request, d.ticket = t.request, r.Ticket
 		if t.grant != "" {
 			d.grants[t.grant] = true
