@@ -40,6 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
+ ListSetAsidePrograms
  Decisions DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
@@ -66,6 +67,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `
+ RemoveSetAsidePrograms
  AnswerDecision DismissDecision ConfirmDecisionBroadcast
  AddFileAccessEntry RemoveFileAccessEntry SetFileAccessDefault AcknowledgeFileAccessLog
  LogQueueDefault DismissJudgementWarning DismissJudgementWarnings SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart
