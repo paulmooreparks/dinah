@@ -10,14 +10,15 @@ setInterval(()=>{if(fs.existsSync(path.join(dir,'finish')))finish();},10).unref(
 readline.createInterface({input:process.stdin}).on('line',line=>{
  const m=JSON.parse(line),p=m.params||{};
  const reply=result=>emit({id:m.id,result});
- if(m.id===undefined)return;
+ if(m.id===undefined){if(m.method==='session/cancel'||m.method==='turn/interrupt')record({violation:'unexpected cancellation notification'});return;}
  record({method:m.method,...classify(text(p)),expectedTurnId:p.expectedTurnId,idleBehavior:p._meta?.steering?.idleBehavior});
  switch(m.method){
  case 'initialize': reply(mode==='codex'?{}:{protocolVersion:1,agentCapabilities:{loadSession:true},_meta:mode==='claude'?{steering:{supported:true}}:{}});break;
  case 'config/read':reply({config:{}});break;
  case 'model/list':reply({data:[{id:'test',model:'test',displayName:'Test',inputModalities:['text'],defaultReasoningEffort:'medium',supportedReasoningEfforts:[{reasoningEffort:'medium',description:'Medium'}]}]});break;
- case 'thread/start':case 'thread/resume':reply({thread:{id:'fixture',turns:[]},model:'test',reasoningEffort:'medium'});break;
- case 'thread/read':reply({thread:{id:'fixture',turns:[]}});break;
+ case 'thread/start':fs.writeFileSync(path.join(dir,'cwd'),p.cwd);reply({thread:{id:'fixture',cwd:p.cwd,turns:[]},model:'test',reasoningEffort:'medium'});break;
+ case 'thread/resume':reply({thread:{id:'fixture',cwd:fs.readFileSync(path.join(dir,'cwd'),'utf8'),turns:[]},model:'test',reasoningEffort:'medium'});break;
+ case 'thread/read':reply({thread:{id:'fixture',cwd:fs.readFileSync(path.join(dir,'cwd'),'utf8'),turns:[]}});break;
  case 'session/new':reply({sessionId:'fixture',configOptions:[]});break;
  case 'session/load':reply({configOptions:[]});break;
  case 'turn/start':case 'session/prompt':{

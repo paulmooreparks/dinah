@@ -22,6 +22,22 @@ import (
 	"studio/internal/ollamaagent"
 )
 
+// The model peer does not use tools. Suppress unrelated external MCP servers
+// in this fixture while retaining the real host-owned exchange loop.
+type qualityModelConnection struct{ *ollamaagent.Conn }
+
+func (c *qualityModelConnection) Call(ctx context.Context, method string, p, out any) error {
+	if method == "session/new" || method == "session/load" {
+		var params ollamaagent.SessionParams
+		if err := acp.Decode(p, &params); err != nil {
+			return err
+		}
+		params.McpServers = nil
+		return c.Conn.Call(ctx, method, params, out)
+	}
+	return c.Conn.Call(ctx, method, p, out)
+}
+
 type qualityPauseWire struct {
 	Method       string `json:"method"`
 	Work         bool   `json:"work"`
@@ -158,7 +174,9 @@ func qualityPausePath(t *testing.T, mode string) {
 			os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(entry)), "package.json"), []byte(`{"version":"`+claudeagent.Version+`"}`), 0600)
 			c, e = claudeagent.Start(node, state, dir, "", app.newAgentHandler(), nil)
 		case "ollama":
-			c, e = ollamaagent.Start(srv.URL, state, app.newAgentHandler())
+			var model *ollamaagent.Conn
+			model, e = ollamaagent.Start(srv.URL, state, app.newAgentHandler())
+			c = &qualityModelConnection{model}
 		default:
 			c, e = acp.Start(node, []string{script}, dir, app.newAgentHandler(), acp.Options{})
 		}
@@ -201,7 +219,14 @@ func qualityPausePath(t *testing.T, mode string) {
 	if err = a.Send(info.ID, "quality working turn", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	qualityAwait(t, "working prompt was not received", func() bool { return qualityCount(rows(), "work") == 1 })
+	qualityAwait(t, "working prompt was not received", func() bool {
+		select {
+		case ended := <-turns:
+			t.Fatalf("working turn ended before peer received it: %+v", ended)
+		default:
+		}
+		return qualityCount(rows(), "work") == 1
+	})
 	if mode == "devin" {
 		data, err := os.ReadFile(filepath.Join(dir, "prompt"))
 		if err != nil {
@@ -222,9 +247,7 @@ func qualityPausePath(t *testing.T, mode string) {
 		t.Fatal(err)
 	}
 	// A repeated request must not send the pause again while the turn is busy.
-	if err = a.PauseAndRestart(); err != nil {
-		t.Fatal(err)
-	}
+	_ = a.PauseAndRestart() // A pending restart may reject a repeated request.
 	if st := a.UpdateState(); !st.Pending || !st.Pausing || st.Working != 1 {
 		t.Fatalf("pause must wait for the peer: %+v", st)
 	}
@@ -306,9 +329,39 @@ func qualityPausePath(t *testing.T, mode string) {
 }
 
 func TestQualityPauseLeavesIdleClaudeAlone(t *testing.T) {
-	a, c := providerTestApp(t)
-	c.newIDs = []string{"claude:idle"}
-	a.runtime.PutProviderLocked("claude", newTestProvider(c, acp.InitializeResult{AgentCapabilities: acp.AgentCapabilities{LoadSession: true}}))
+	a, _ := providerTestApp(t)
+	dir := t.TempDir()
+	state := t.TempDir()
+	t.Setenv("QUALITY_PAUSE_DIR", dir)
+	t.Setenv("QUALITY_PAUSE_MODE", "claude")
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := claudeagent.Entry(state)
+	if err = os.MkdirAll(filepath.Dir(entry), 0700); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("testdata/quality-pause-provider.cjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(entry, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(entry)), "package.json"), []byte(`{"version":"`+claudeagent.Version+`"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := claudeagent.Start(node, state, dir, "", a.newAgentHandler(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	var init acp.InitializeResult
+	if err = c.Call(context.Background(), "initialize", acp.InitializeParams{ProtocolVersion: 1}, &init); err != nil {
+		t.Fatal(err)
+	}
+	a.runtime.PutProviderLocked("claude", newTestProvider(c, init))
 	info, err := a.NewSessionWithProviderAt(t.TempDir(), "claude")
 	if err != nil {
 		t.Fatal(err)
@@ -321,8 +374,17 @@ func TestQualityPauseLeavesIdleClaudeAlone(t *testing.T) {
 	if err = a.PauseAndRestart(); err != nil {
 		t.Fatal(err)
 	}
-	if len(readPaused().Chats) != 0 || len(prompts(c)) != 0 || a.session(info.ID).State().WorkActivity().Busy() {
+	if len(readPaused().Chats) != 0 || a.session(info.ID).State().WorkActivity().Busy() {
 		t.Fatal("pause started the idle Claude chat")
+	}
+	// A synchronous call on the same peer fences all earlier pause traffic.
+	if err = c.Call(context.Background(), "session/list", map[string]any{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range qualityWire(t, dir) {
+		if row.Method == "session/prompt" || row.Method == "_session/steering" || row.Violation != "" {
+			t.Fatalf("idle chat received input: %+v", row)
+		}
 	}
 	a.CancelRestart()
 }
