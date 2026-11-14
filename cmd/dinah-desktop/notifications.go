@@ -177,7 +177,8 @@ func writeNotifications(store notificationStore) error {
 }
 
 // A report is kept for notificationRetention, and the store keeps the
-// newest maxNotifications ordinary reports. Active attention is exempt.
+// newest maxNotifications ordinary reports. Active attention and the
+// first-start feature record, including its dismissal, are exempt.
 // A test lowers the number, since filling 500 takes
 // 500 writes of the store.
 const notificationRetention = 7 * 24 * time.Hour
@@ -194,12 +195,12 @@ func pruned(items []Notification) []Notification {
 	out := []Notification{}
 	ordinary := 0
 	for _, item := range items {
-		if !keptAttention(item) && item.Created.After(cutoff) {
+		if !keptAttention(item) && !keptWhatsNew(item) && item.Created.After(cutoff) {
 			ordinary++
 		}
 	}
 	for _, item := range items {
-		if keptAttention(item) {
+		if keptAttention(item) || keptWhatsNew(item) {
 			out = append(out, item)
 			continue
 		}

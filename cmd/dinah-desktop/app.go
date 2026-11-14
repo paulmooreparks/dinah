@@ -264,6 +264,9 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.watchFileAccess(ctx)
 	a.ctx = ctx
+	if err := a.keepWhatsNew(); err != nil {
+		logf("core", "warning", "the first-start feature card could not be kept: %v", err)
+	}
 	// An applet's action written outside this program asks the page
 	// through the same questions this program's own applets do.
 	pageask.Set(func(ctx context.Context, kind string, args any, within time.Duration) (string, error) {

@@ -16,6 +16,7 @@
 
 /* The full cards. */
 .notice.notices-card { --notice-color: var(--notices-colour); border-inline-start-color: var(--notices-colour); }
+.notice.whats-new-card { flex: none; box-sizing: border-box; height: 30rem; overflow: auto; scrollbar-gutter: stable; }
 .notices-card .notice-actions { flex-wrap: wrap; min-width: 0; }
 .notices-card code { overflow-wrap: anywhere; }
 .notices-card:focus { outline: none; }
