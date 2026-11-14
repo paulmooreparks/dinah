@@ -13,7 +13,7 @@ Yesterday's build, 4fe5a52c, opens today's bus database and loads the ordinary s
 | Browser profiles | Yesterday ignores webview2/profiles.json and selects its own version-named folders. It sees an adopted profile when that is its old version folder. If today's selected folder is profile-main, profile-documents or profile-show, yesterday selects different folders. The selected folder and record are not deleted. Native browser storage itself is not proved by marker files. |
 | Decisions drafts and layout | The existing version-one ui-state.json reader accepts and preserves the new Decisions draft key through an old API rewrite. Yesterday cannot display the Decisions window. Browser layout restoration across the missing applet has not been checked. |
 
-There is no tested guarantee that replacing only the executable restores yesterday's full behavior. The notification incompatibility is the main obstacle to that fallback. These results describe the currently shipped formats; this branch changes no production writer or migration.
+There is no tested guarantee that replacing only the executable restores yesterday's full behavior. The notification incompatibility is the main obstacle to that fallback. These initial results describe the shipped formats. The correction below changes the two writers to keep their previous files before replacement.
 
 ## Evidence
 
