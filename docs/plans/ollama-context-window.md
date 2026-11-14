@@ -2,6 +2,10 @@
 
 Another project's lead proposed this design to Dinah Architecture on 29 October 2026, from a requirement Paul set the same day. It is shared provider behaviour, so Dinah builds it first. This document records Dinah Architecture's rulings on it. The proposal itself is the specification, and it extends the context-length change recorded under "Ollama's Context Length" in [group-chat.md](group-chat.md).
 
+## Context selection changed on 14 November 2026
+
+The local automatic-setting rules below are superseded by [Ollama context selection](../design/ollama-context-cap.md). Local requests now specify the model's context length up to the Settings ceiling, so their effective window is known. The measured-count and saved-transcript rules below still apply.
+
 ## Accepted
 
 The design is accepted into the Ollama adapter and the chat page, sequenced after the 29 October change, which is already merged. Its three parts stand:

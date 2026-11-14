@@ -44,9 +44,8 @@ func TestAnOldDefaultBecomesOllamasSettingOnce(t *testing.T) {
 	}
 }
 
-// A length the person chose is sent as num_ctx and reported as chosen; one left
-// to Ollama is not sent, and is reported against the model's own limit.
-func TestAChosenSizeIsSentAndOllamasSettingIsNot(t *testing.T) {
+// A length the person chose is sent as num_ctx and reported as chosen.
+func TestAChosenSizeIsSent(t *testing.T) {
 	srv, seen := fakeOllama(t, "read_file")
 	h := &host{answer: "once"}
 	c, err := Start(srv.URL, t.TempDir(), h)

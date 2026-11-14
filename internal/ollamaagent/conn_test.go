@@ -122,7 +122,7 @@ func TestTurnRunsTheToolsAndKeepsTheConversation(t *testing.T) {
 	}
 	// A new conversation leaves the length to Ollama's own setting, and the
 	// sizes offered stop at the model's limit.
-	if string(ctxOption.CurrentValue) != `"0"` || !strings.Contains(string(ctxOption.Options), "Ollama's setting") || strings.Contains(string(ctxOption.Options), "65536") {
+	if string(ctxOption.CurrentValue) != `"0"` || !strings.Contains(string(ctxOption.Options), "Model and Settings limit") || strings.Contains(string(ctxOption.Options), "65536") {
 		t.Fatalf("context %+v", ctxOption)
 	}
 	var res acp.PromptResult
@@ -133,7 +133,7 @@ func TestTurnRunsTheToolsAndKeepsTheConversation(t *testing.T) {
 	if res.StopReason != "end_turn" || !strings.Contains(said, "The release ships on Friday.") || !strings.Contains(said, `"tool_call"`) || !strings.Contains(said, "I should look.") || !strings.Contains(said, "usage_update") || !strings.Contains(said, `"sizeKind":"model"`) || !strings.Contains(said, `"size":32768`) {
 		t.Fatalf("stop %q, updates:\n%s", res.StopReason, said)
 	}
-	if len(*seen) != 2 || len((*seen)[0].Tools) == 0 || (*seen)[0].Options["num_ctx"] != nil || (*seen)[1].Messages[len((*seen)[1].Messages)-1].ToolName != "read_file" {
+	if len(*seen) != 2 || len((*seen)[0].Tools) == 0 || (*seen)[0].Options["num_ctx"] != float64(32768) || (*seen)[1].Messages[len((*seen)[1].Messages)-1].ToolName != "read_file" {
 		t.Fatalf("requests %+v", *seen)
 	}
 	// The conversation is listed for its workspace and reopens with its

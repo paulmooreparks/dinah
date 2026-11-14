@@ -96,12 +96,12 @@ type SetAsideResult struct {
 	Turns int `json:"turns"`
 }
 
-// window is a conversation's window: the size the person chose, which is known,
-// and otherwise the model's own context_length as the model's limit, which is
-// known for a cloud model, because Ollama documents that a cloud model is set to
-// its maximum context length by default, and not for a local one, because Ollama
-// documents no way to read the length its server is set to.
+// window reports the size requested for local models. Cloud models retain
+// their existing maximum-context behaviour.
 func (c *Conn) window(ctx context.Context, rec record) (size int, kind string, known bool) {
+	if !isCloudModel(rec.Model) {
+		return c.localWindow(ctx, rec)
+	}
 	if rec.Context > 0 {
 		return rec.Context, "chosen", true
 	}

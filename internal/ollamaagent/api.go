@@ -172,7 +172,7 @@ func (s shown) can(capability string) bool {
 // contextLength is the model's <architecture>.context_length, or 0.
 func (s shown) contextLength() int {
 	arch, _ := s.ModelInfo["general.architecture"].(string)
-	if n, ok := s.ModelInfo[arch+".context_length"].(float64); ok && arch != "" {
+	if n, ok := s.ModelInfo[arch+".context_length"].(float64); ok && arch != "" && n > 0 && n <= 2147483647 && n == float64(int(n)) {
 		return int(n)
 	}
 	return 0
