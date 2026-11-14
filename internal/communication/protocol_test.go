@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-// Every chat is told to mention the person when it needs them, that their
-// name in the text does not count, and when not to.
-func TestChatsAreToldToMentionThePersonWhenTheyNeedThem(t *testing.T) {
+// Every chat distinguishes person decisions from results and notices.
+func TestChatsAreToldHowToAskForPersonDecisions(t *testing.T) {
 	text := Window("Paul")
 	for _, want := range []string{
-		"Put paul in actionRecipients when Paul needs to decide or answer",
+		"For a decision only Paul can make, use the ask_person tool of the dinah-bus server with a recommendation for each question",
+		"Put paul in actionRecipients for results and notices that need Paul's attention",
 		"Writing a name or @ in the body routes nothing",
 		"Address a group post to the member it is for",
 		"A handoff, a request or a question always names its recipient",
