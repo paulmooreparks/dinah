@@ -86,6 +86,9 @@ $failed = 0
 # every suite passes.
 $record = [System.Collections.Generic.List[string]]::new()
 foreach ($r in ($results | Sort-Object Suite)) {
+  # Keep stdout and stderr in full, including Playwright's indented call log
+  # and assertions that passed before a failure. Console output stays brief.
+  Set-Content -Path (Join-Path $Out ($r.Suite + '.log')) -Value $r.Output -Encoding utf8
   if ($r.Failed) {
     $failed++; "$($r.Suite) :"; $r.Lines | ForEach-Object { "  $_" }
     $record.Add("$($r.Suite) :")

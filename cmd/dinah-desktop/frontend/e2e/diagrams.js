@@ -46,12 +46,21 @@ const path = require('path');
   await p.waitForTimeout(300);
   ok('an unfinished block is not drawn', (await p.evaluate(() => window.__calls)).filter(c => c[0] === 'RenderD2').length === 0);
   await say('```\n\nAnd as Mermaid:\n\n```mermaid\ngraph TD\n  Lexer --> Check\n  Check -->|ok| Tree\n```\n\nA bad one:\n\n```d2\nbroken {\n```\n\nThe design is [Parser Design  Draft v0.11.md:705-803](file:///C:/Work/Parser/docs/Parser%20Design%20%20Draft%20v0.11.md), and the tool is file:///C:/Tools/run.exe here.');
-  await p.waitForTimeout(3000);
+  // Rendering finishes asynchronously. Wait for the drawing and its control,
+  // rather than assuming both have arrived after a fixed interval.
+  const mermaidExpand = p.getByRole('button', { name: 'Expand Mermaid Diagram', exact: true });
+  await mermaidExpand.waitFor({ state: 'attached' });
+  await p.waitForFunction(() => {
+    const button = document.querySelector('button[aria-label="Expand Mermaid Diagram"]');
+    return button && !button.disabled && button.closest('.media-frame').querySelector('svg');
+  });
+  await p.locator('.win[data-chat-current] .msg-diagram svg.d2-drawn').waitFor();
+  await p.locator('.win[data-chat-current] .msg-diagram-error').waitFor();
   ok('the d2 block is drawn', (await p.$$('.win[data-chat-current] [data-view-id=logs] .msg-diagram svg.d2-drawn')).length === 1);
   ok('the d2 source is folded under it', (await p.textContent('.win[data-chat-current] [data-view-id=logs] .msg-diagram details')).includes('a -> b'));
   const mm = await p.$$eval('.win[data-chat-current] [data-view-id=logs] .msg-diagram svg', s => s.filter(x => !x.classList.contains('d2-drawn')).length);
   ok('the Mermaid block is drawn by the library', mm === 1 && (await p.textContent('.win[data-chat-current] [data-view-id=logs]')).includes('Lexer'));
-  await p.getByRole('button',{name:'Expand Mermaid Diagram',exact:true}).click();
+  await mermaidExpand.click();
   await p.locator('#media-viewer [data-media-stage] svg').waitFor();
   ok('Chat diagrams open the shared vector viewer',(await p.locator('#media-viewer [data-media-stage] svg').textContent()).includes('Lexer'));
   await p.keyboard.press('Escape');
