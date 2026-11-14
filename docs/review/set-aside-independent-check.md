@@ -18,4 +18,6 @@ The contract must specify how program directories are supplied, how a listed fil
 
 ## Current status
 
-The Engine branch and design note were not present when this record was created. Quality has requested the contract path and revision. No candidate test has run, and no removal behavior is certified.
+The executable tests are written against the amended contract at `9579730e`, read through its attachment before implementation inspection. They reside in `internal/programs/quality_set_aside_windows_test.go` under the opt-in `windows && quality_set_aside` build constraint. They use the documented exported service directly, with no mock of process discovery or deletion. The child is a copy of the test executable with hidden startup, a stdout readiness handshake and a stdin lifetime pipe.
+
+Additional checks cover hard-link identity, stale selections after replacement, tied fallbacks, and the manual `.before` pattern's lower fallback precedence when an `.old` file exists. Removal results are checked against filesystem identity and content. The suite will run with `go test -tags quality_set_aside ./internal/programs -run '^TestQualitySetAside' -count=1` through the shared FIFO once Engine supplies the implementation candidate. No candidate test has run, and no removal behavior is certified. This pre-implementation test commit fixes the expected results before candidate integration.
