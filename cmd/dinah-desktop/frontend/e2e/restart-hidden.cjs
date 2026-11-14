@@ -37,7 +37,7 @@ async function open(entry) {
 (async()=>{
  try {
   const entry=await until(()=>read(entryFile).trim(),'entry');
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true, ...(process.env.RESTART_BROWSER_EXECUTABLE ? {executablePath:process.env.RESTART_BROWSER_EXECUTABLE} : {})});
   const p=await open(entry);
   await call(p,'SetAgentExecutable','devin',path.resolve(agent));
   await call(p,'SetWorkspace',out);
