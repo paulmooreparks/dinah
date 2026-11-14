@@ -38,6 +38,7 @@ type pausedChat struct {
 	Chat  string `json:"chat"`
 	Bus   string `json:"bus"`
 	Title string `json:"title"`
+	Cwd   string `json:"cwd,omitempty"`
 	// Told is set when the chat's agent was asked to stop, and Ended when
 	// its turn had ended before the window closed.
 	Told  bool `json:"told"`
@@ -133,7 +134,7 @@ func (a *App) notePaused(told map[string]bool) (pausedRecord, error) {
 			r.Chats[i].Told = r.Chats[i].Told || told[id]
 			continue
 		}
-		r.Chats = append(r.Chats, pausedChat{Chat: id, Bus: busID, Title: a.chatTitle(s), Told: told[id]})
+		r.Chats = append(r.Chats, pausedChat{Chat: id, Bus: busID, Title: a.chatTitle(s), Cwd: s.Cwd(), Told: told[id]})
 	}
 	return r, writePaused(r)
 }
@@ -248,6 +249,18 @@ func (a *App) resumePaused(restarted bool) {
 	r := readPaused()
 	if len(r.Chats) == 0 {
 		return
+	}
+	if restarted {
+		awaiting := pausedRecord{Run: r.Run}
+		for _, c := range r.Chats {
+			if s := a.session(c.Chat); s == nil || !s.Open() {
+				awaiting.Chats = append(awaiting.Chats, c)
+			}
+		}
+		if err := writeRestartAwaiting(awaiting); err != nil {
+			logf("core", "error", "recording restart continuations: %v", err)
+			return
+		}
 	}
 	var left []pausedChat
 	told := 0

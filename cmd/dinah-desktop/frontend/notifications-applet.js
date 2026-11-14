@@ -409,6 +409,18 @@
             notices.add(deliveryFailureNotice(item)); return;
           }
           if (item.dismissed) return;
+          if (item.kind === 'restart-left') {
+            if (notices.get(item.id)) notices.remove(item.id);
+            var restartNotice = reportNotice(item);
+            restartNotice.details = (item.chats || []).map(function (chat) { return chat.title; });
+            restartNotice.actions = (item.chats || []).map(function (chat) {
+              return { label: 'Open ' + chat.title, run: function () {
+                var session = S(chat.id); session.info.cwd = chat.cwd; session.info.title = chat.title;
+                return openSession(chat.id);
+              } };
+            });
+            notices.add(restartNotice); return;
+          }
           if (item.kind === 'mention' || item.kind === 'relay' || item.kind === 'attention') { keepAttention(item); return; }
           if (notices.get(item.id)) return;
           if (item.kind === 'document' || item.kind === 'app') { notices.add(reportNotice(item)); return; }

@@ -4,11 +4,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"studio/internal/bus"
 	"sync"
 	"time"
 )
@@ -61,7 +63,39 @@ func main() {
 			f.Close()
 			go func(id json.RawMessage, p json.RawMessage) {
 				if strings.Contains(string(p), "fixture original work") {
+					var hooks *bus.Bus
+					if os.Getenv("RESTART_STEER") == "1" {
+						hooks, err = bus.Open()
+						if err != nil {
+							panic(err)
+						}
+						defer hooks.Close()
+						var params struct {
+							Prompt []struct {
+								Text string `json:"text"`
+							} `json:"prompt"`
+						}
+						json.Unmarshal(p, &params)
+						var text string
+						for _, block := range params.Prompt {
+							text += block.Text + "\n"
+						}
+						if err := hooks.BindAgentTurn(context.Background(), "devin:restart-fixture", bus.MarkedSession(text), bus.MarkedTurn(text), "fixture-prompt"); err != nil {
+							panic(err)
+						}
+					}
 					for {
+						if hooks != nil {
+							steers, err := hooks.TakeAgentSteers(context.Background(), "devin:restart-fixture", "fixture-prompt")
+							if err != nil {
+								panic(err)
+							}
+							if len(steers) > 0 {
+								data, _ := json.Marshal(steers)
+								os.WriteFile(filepath.Join(os.Getenv("RESTART_FIXTURE"), "steering.json"), data, 0600)
+								break
+							}
+						}
 						if _, err := os.Stat(filepath.Join(os.Getenv("RESTART_FIXTURE"), "finish")); err == nil {
 							break
 						}

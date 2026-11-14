@@ -35,7 +35,9 @@ func (a *App) busCoordinator() *sessionhost.BusChats {
 			WakeAttempts:          &sessionhost.WakeAttempts{Read: a.readReconciledWaitingChats, Write: writeWaitingChats, Now: a.wakeClock},
 			ResolveWake:           a.waitingRoute,
 			OpenDeliveryChat: func(route sessionhost.WakeRoute) (sessionhost.Info, error) {
-				return a.sessionsLifecycle().OpenExact(route.Cwd, route.Target)
+				info, err := a.sessionsLifecycle().OpenExact(route.Cwd, route.Target)
+				a.restartChatOpened(route.Origin, route.Cwd, err)
+				return info, err
 			},
 			BusService:       a.busHost,
 			ResultBroker:     func() (*broker.Broker, error) { return a.appletHostService().Broker() },
@@ -53,9 +55,13 @@ func (a *App) busCoordinator() *sessionhost.BusChats {
 				_, err := a.OpenSessionAt(cwd, chat)
 				return err
 			},
-			ConnectGrace:  a.connectGrace(),
-			ConnectFailed: func(chat string, err error) { a.relayDeliveryFailed(chat, err); a.emit("notification:delivery", nil) },
-			Log:           func(level, format string, args ...any) { logf("bus", level, format, args...) },
+			ConnectGrace: a.connectGrace(),
+			ConnectFailed: func(chat string, err error) {
+				a.restartChatOpened(chat, "", err)
+				a.relayDeliveryFailed(chat, err)
+				a.emit("notification:delivery", nil)
+			},
+			Log: func(level, format string, args ...any) { logf("bus", level, format, args...) },
 		})
 	})
 	return a.busChatsService

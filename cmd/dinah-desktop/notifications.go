@@ -45,11 +45,12 @@ type Notification struct {
 	// Group, GroupTitle and Message say which group chat and which message a
 	// "mention" report is about, in which a chat asked for the person
 	// (mention_notices.go); SessionTitle is the chat that did.
-	Group      string    `json:"group,omitempty"`
-	GroupTitle string    `json:"groupTitle,omitempty"`
-	Message    int64     `json:"message,omitempty"`
-	Created    time.Time `json:"created"`
-	Dismissed  bool      `json:"dismissed"`
+	Group      string       `json:"group,omitempty"`
+	GroupTitle string       `json:"groupTitle,omitempty"`
+	Message    int64        `json:"message,omitempty"`
+	Created    time.Time    `json:"created"`
+	Dismissed  bool         `json:"dismissed"`
+	Chats      []BusChatRef `json:"chats,omitempty"`
 }
 
 var notificationDraftID = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -75,6 +76,15 @@ func validateNotification(n Notification) error {
 		return errors.New("invalid durable notification")
 	}
 	switch n.Kind {
+	case "restart-left":
+		if len(n.Chats) == 0 || len(n.Chats) > 512 {
+			return errors.New("invalid restart chat list")
+		}
+		for _, c := range n.Chats {
+			if c.ID == "" || len(c.ID) > 512 || c.Title == "" || len(c.Title) > 4096 || !filepath.IsAbs(c.Cwd) {
+				return errors.New("invalid restart chat")
+			}
+		}
 	case "attention":
 		if n.SessionID == "" || n.PermissionKey == "" || n.Group != "" || n.Message != 0 {
 			return errors.New("invalid permission attention")
