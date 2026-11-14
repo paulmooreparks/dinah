@@ -1,0 +1,308 @@
+[
+  {
+    "factor": 1,
+    "messages": 7825,
+    "deliveries": 32404,
+    "databaseBytes": 74924032,
+    "seedPeakWalBytes": 48863232,
+    "pinnedWalBytes": 7069952,
+    "unpinnedWalBytes": 0,
+    "seedSeconds": 1.0486755,
+    "queries": {
+      "attentionAnswered5": {
+        "firstMs": 0,
+        "medianMs": 0,
+        "p95Ms": 0.4991,
+        "rows": 0
+      },
+      "attentionImport": {
+        "firstMs": 1.0009,
+        "medianMs": 0.9999,
+        "p95Ms": 1.0011,
+        "rows": 5
+      },
+      "attentionIncremental": {
+        "firstMs": 8.0012,
+        "medianMs": 8.9997,
+        "p95Ms": 11.4999,
+        "rows": 16
+      },
+      "decisions": {
+        "firstMs": 1.5036,
+        "medianMs": 1.002,
+        "p95Ms": 1.5099,
+        "rows": 7
+      },
+      "decisionsFreshBoundary": {
+        "firstMs": 0.5051,
+        "medianMs": 1.005,
+        "p95Ms": 1.5089,
+        "rows": 7
+      },
+      "delivery5": {
+        "firstMs": 4.0005,
+        "medianMs": 3.5035,
+        "p95Ms": 4.4997,
+        "rows": 5
+      },
+      "deliveryEmpty": {
+        "firstMs": 1.9993,
+        "medianMs": 2.4999,
+        "p95Ms": 2.6143,
+        "rows": 0
+      },
+      "doorbell": {
+        "firstMs": 0.5022,
+        "medianMs": 0,
+        "p95Ms": 0.5021,
+        "rows": 5
+      },
+      "group100": {
+        "firstMs": 5.8619,
+        "medianMs": 5.0015,
+        "p95Ms": 5.5286,
+        "rows": 100
+      },
+      "wake": {
+        "firstMs": 6.9999,
+        "medianMs": 3.508,
+        "p95Ms": 4.0137,
+        "rows": 1
+      }
+    },
+    "plans": {
+      "attentionImport": [
+        "SEARCH d USING INDEX deliveries_waiting (recipient_kind=?)",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "decisions": [
+        "CO-ROUTINE candidates",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH person_requests USING COVERING INDEX person_requests_open (closed=?)",
+        "RIGHT",
+        "SEARCH messages USING INTEGER PRIMARY KEY (rowid\u003e?)",
+        "SCALAR SUBQUERY 2",
+        "SEARCH decision_start USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN candidates",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH p USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH d USING INDEX deliveries_decision_message (message_id=? AND recipient_kind=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH later USING COVERING INDEX messages_person_group (room=? AND id\u003e?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH reply USING COVERING INDEX messages_decision_replies (reply_to=? AND from_session=? AND from_name=? AND kind=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "globalPending": [
+        "SCAN d"
+      ]
+    }
+  },
+  {
+    "factor": 10,
+    "messages": 78250,
+    "deliveries": 323964,
+    "databaseBytes": 746844160,
+    "seedPeakWalBytes": 53143912,
+    "pinnedWalBytes": 7069952,
+    "unpinnedWalBytes": 0,
+    "seedSeconds": 29.1668932,
+    "queries": {
+      "attentionAnswered5": {
+        "firstMs": 0,
+        "medianMs": 0,
+        "p95Ms": 0,
+        "rows": 0
+      },
+      "attentionImport": {
+        "firstMs": 7.9999,
+        "medianMs": 3.5014,
+        "p95Ms": 4.083,
+        "rows": 5
+      },
+      "attentionIncremental": {
+        "firstMs": 88.7413,
+        "medianMs": 66.4721,
+        "p95Ms": 77.0858,
+        "rows": 17
+      },
+      "decisions": {
+        "firstMs": 173.0858,
+        "medianMs": 151.0885,
+        "p95Ms": 169.9585,
+        "rows": 7
+      },
+      "decisionsFreshBoundary": {
+        "firstMs": 2.0088,
+        "medianMs": 1.5119,
+        "p95Ms": 2.0107,
+        "rows": 7
+      },
+      "delivery5": {
+        "firstMs": 4.0307,
+        "medianMs": 4.0004,
+        "p95Ms": 4.5864,
+        "rows": 5
+      },
+      "deliveryEmpty": {
+        "firstMs": 1.9994,
+        "medianMs": 2.5158,
+        "p95Ms": 3.567,
+        "rows": 0
+      },
+      "doorbell": {
+        "firstMs": 0,
+        "medianMs": 0,
+        "p95Ms": 0.5016,
+        "rows": 5
+      },
+      "group100": {
+        "firstMs": 8.5022,
+        "medianMs": 8.5557,
+        "p95Ms": 15.5928,
+        "rows": 100
+      },
+      "wake": {
+        "firstMs": 73.9999,
+        "medianMs": 73.0102,
+        "p95Ms": 89.587,
+        "rows": 1
+      }
+    },
+    "plans": {
+      "attentionImport": [
+        "SEARCH d USING INDEX deliveries_waiting (recipient_kind=?)",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "decisions": [
+        "CO-ROUTINE candidates",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH person_requests USING COVERING INDEX person_requests_open (closed=?)",
+        "RIGHT",
+        "SEARCH messages USING INTEGER PRIMARY KEY (rowid\u003e?)",
+        "SCALAR SUBQUERY 2",
+        "SEARCH decision_start USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN candidates",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH p USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH d USING INDEX deliveries_decision_message (message_id=? AND recipient_kind=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH later USING COVERING INDEX messages_person_group (room=? AND id\u003e?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH reply USING COVERING INDEX messages_decision_replies (reply_to=? AND from_session=? AND from_name=? AND kind=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "globalPending": [
+        "SCAN d"
+      ]
+    }
+  },
+  {
+    "factor": 100,
+    "messages": 782500,
+    "deliveries": 3239559,
+    "databaseBytes": 7466958848,
+    "seedPeakWalBytes": 55323392,
+    "pinnedWalBytes": 7065832,
+    "unpinnedWalBytes": 0,
+    "seedSeconds": 412.7012431,
+    "queries": {
+      "attentionAnswered5": {
+        "firstMs": 0,
+        "medianMs": 0,
+        "p95Ms": 0.5,
+        "rows": 0
+      },
+      "attentionImport": {
+        "firstMs": 23.5017,
+        "medianMs": 23.6039,
+        "p95Ms": 27,
+        "rows": 5
+      },
+      "attentionIncremental": {
+        "firstMs": 755.1412,
+        "medianMs": 744.7393,
+        "p95Ms": 792.6368,
+        "rows": 17
+      },
+      "decisions": {
+        "firstMs": 1994.4093,
+        "medianMs": 1951.9869,
+        "p95Ms": 2147.7534,
+        "rows": 7
+      },
+      "decisionsFreshBoundary": {
+        "firstMs": 1.9997,
+        "medianMs": 1.5003,
+        "p95Ms": 2.0013,
+        "rows": 7
+      },
+      "delivery5": {
+        "firstMs": 6.0035,
+        "medianMs": 5.5025,
+        "p95Ms": 10.5667,
+        "rows": 5
+      },
+      "deliveryEmpty": {
+        "firstMs": 2.4968,
+        "medianMs": 2.5023,
+        "p95Ms": 3.4997,
+        "rows": 0
+      },
+      "doorbell": {
+        "firstMs": 0.5001,
+        "medianMs": 0,
+        "p95Ms": 0.5003,
+        "rows": 5
+      },
+      "group100": {
+        "firstMs": 7.5002,
+        "medianMs": 7.0019,
+        "p95Ms": 8.5024,
+        "rows": 100
+      },
+      "wake": {
+        "firstMs": 852.3605,
+        "medianMs": 825.9889,
+        "p95Ms": 886.2582,
+        "rows": 1
+      }
+    },
+    "plans": {
+      "attentionImport": [
+        "SEARCH d USING INDEX deliveries_waiting (recipient_kind=?)",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "decisions": [
+        "CO-ROUTINE candidates",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH person_requests USING COVERING INDEX person_requests_open (closed=?)",
+        "RIGHT",
+        "SEARCH messages USING INTEGER PRIMARY KEY (rowid\u003e?)",
+        "SCALAR SUBQUERY 2",
+        "SEARCH decision_start USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCAN candidates",
+        "SEARCH m USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH p USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH d USING INDEX deliveries_decision_message (message_id=? AND recipient_kind=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH later USING COVERING INDEX messages_person_group (room=? AND id\u003e?)",
+        "CORRELATED SCALAR SUBQUERY 6",
+        "SEARCH reply USING COVERING INDEX messages_decision_replies (reply_to=? AND from_session=? AND from_name=? AND kind=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "globalPending": [
+        "SCAN d"
+      ]
+    }
+  }
+]
