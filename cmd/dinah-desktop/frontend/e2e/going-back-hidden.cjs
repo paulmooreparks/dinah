@@ -14,7 +14,7 @@ if (!fs.existsSync(path.join(home, 'restart-resume.json'))) throw Error('Synthet
 if (restored) for (const name of ['settings.json','notifications.json']) fs.copyFileSync(path.join(home,name+'.before-decisions-2026-11-14'),path.join(home,name));
 const entry = path.join(root, restored ? 'old-restored-entry.txt' : 'old-entry.txt');
 if(fs.existsSync(entry)) throw Error('Use a fresh entry file');
-const env = {...process.env, DINAH_HOME:home, GKC_HOME:path.join(root,'unused-other-home'),
+const env = {...process.env, DINAH_HOME:home,
   DINAH_SHELL_ENTRY_FILE:entry, USERPROFILE:user, HOME:user, APPDATA:path.join(user,'roaming'),
   LOCALAPPDATA:path.join(user,'local'), CODEX_HOME:path.join(user,'.codex'),
   CLAUDE_CONFIG_DIR:path.join(user,'.claude'), XDG_CONFIG_HOME:path.join(user,'config'),

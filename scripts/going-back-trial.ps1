@@ -14,7 +14,6 @@ if (Test-Path -LiteralPath $testPath) {throw 'Refusing to replace an existing te
 New-Item -ItemType Directory -Path $outPath | Out-Null
 $env:DINAH_GOING_BACK_ROOT=$outPath
 $env:DINAH_HOME=Join-Path $outPath 'unused-home'
-$env:GKC_HOME=Join-Path $outPath 'unused-other-home'
 $toolchainRoot=& go env GOROOT
 if ($LASTEXITCODE -ne 0) {throw 'Cannot locate the installed Go toolchain'}
 $env:PATH=(Join-Path $toolchainRoot 'bin')+';'+$env:PATH

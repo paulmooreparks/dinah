@@ -158,6 +158,24 @@ func TestGoingBackYesterday(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A pending write must not replay a post-copy file after restoration.
+	for _, name := range []string{"settings.json", "notifications.json"} {
+		pending, err := json.Marshal(map[string]any{"version": 1, "previous": []byte(`{"afterCopy":true}`), "next": []byte(`{"afterCopy":false}`)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(configOverride, name+".pending"), pending, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if interrupted := NewApp(); interrupted.startupErr == nil {
+		t.Fatal("old startup ignored a conflicting pending write")
+	}
+	for _, name := range []string{"settings.json", "notifications.json"} {
+		if err = os.Rename(filepath.Join(configOverride, name+".pending"), filepath.Join(configOverride, name+".pending.kept-for-rollback")); err != nil {
+			t.Fatal(err)
+		}
+	}
 	restored := NewApp()
 	if restored.startupErr != nil {
 		t.Fatal(restored.startupErr)
