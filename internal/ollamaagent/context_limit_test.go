@@ -44,16 +44,16 @@ func TestAutomaticContextIsSentAndSettingsChangesReachOpenChats(t *testing.T) {
 		t.Fatal(err)
 	}
 	sendTurn(t, c, opened.SessionID, count, 100)
-	if got := (*seen)[0].Options["num_ctx"]; got != float64(65536) {
+	if got := (*seen)[0].Options["num_ctx"]; got != float64(32768) {
 		t.Fatalf("automatic request = %v", got)
 	}
-	cap := 32768
+	cap := 16384
 	c.SetContextCap(func() int { return cap })
 	sendTurn(t, c, opened.SessionID, count, 200)
-	if got := (*seen)[1].Options["num_ctx"]; got != float64(32768) {
+	if got := (*seen)[1].Options["num_ctx"]; got != float64(16384) {
 		t.Fatalf("changed request = %v", got)
 	}
-	if st := windowState(t, c, opened.SessionID); !st.Known || st.Size != 32768 {
+	if st := windowState(t, c, opened.SessionID); !st.Known || st.Size != 16384 {
 		t.Fatalf("meter = %+v", st)
 	}
 	cap = 262144

@@ -40,6 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
+ OllamaMemory
  ListSetAsidePrograms
  Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
