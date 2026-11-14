@@ -51,16 +51,23 @@ async function open(entry) {
   }
   await call(p,'Send',id,'fixture original work',null,null);
   await until(()=>read(path.join(out,'prompts.jsonl')).includes('fixture original work'),'original prompt');
+  if (process.env.RESTART_STEER) await until(()=>call(p,'CanSteer',id,null),'hook steering available');
   fs.renameSync(exe,exe+'.old');
   fs.copyFileSync(desktop,exe);
   fs.appendFileSync(exe,Buffer.from('\0restart fixture'));
   await until(async()=>(await call(p,'UpdateState')).ready,'update detected',30000);
   await call(p,'PauseAndRestart');
+  if (!process.env.RESTART_STEER) {
   const pending=await call(p,'UpdateState');
   assert.equal(pending.pending,true); assert.equal(pending.working,1);
   assert.equal(pending.pausing,true);
   receipts.push({waiting:pending});
-  if (process.env.RESTART_FINISH) {
+  }
+  if (process.env.RESTART_STEER) {
+   const steering=await until(()=>read(path.join(out,'steering.json')),'pause steering received');
+   assert.ok(steering.includes('Stop at the next safe point'));
+   receipts.push({steering:JSON.parse(steering)});
+  } else if (process.env.RESTART_FINISH) {
    fs.writeFileSync(path.join(out,'finish'),'finish the stand-in turn');
   } else {
    await call(p,'RestartToUpdate',true);
@@ -71,8 +78,22 @@ async function open(entry) {
   await until(()=>child.exitCode!==null,'old process exit');
   const next=await until(()=>{const v=read(entryFile).trim();return v && v!==entry && v;},'new process entry');
   const q=await open(next);
-  const expected=process.env.RESTART_FINISH ? 'Your last turn ended just before' : 'cut short';
+  const expected=process.env.RESTART_STEER ? 'You paused your work' : process.env.RESTART_FINISH ? 'Your last turn ended just before' : 'cut short';
   receipts.push({oldExited:true,newEntry:true});
+  if (process.env.RESTART_FIRST_TURN) {
+   const notices=await until(async()=>{const n=await call(q,'Notifications');return n.find(x=>x.kind==='restart-left') && n;},'restart recovery notification');
+   assert.equal(notices.filter(x=>x.kind==='restart-left').length,1);
+   assert.equal(notices.find(x=>x.kind==='restart-left').chats[0].id,id);
+   await q.evaluate(()=>dinahWorkbench.open('needs-you'));
+   const notice=notices.find(x=>x.kind==='restart-left');
+   const button=q.locator('[data-notice-id="'+notice.id+'"]').getByRole('button',{name:'Open '+notice.chats[0].title,exact:true});
+   await button.click();
+   await q.getByText('The first turn in this session could not finish.',{exact:true}).first().waitFor();
+   await q.getByRole('button',{name:'Continue from Saved History',exact:true}).first().waitFor();
+   receipts.push({recoveryButtonOpenedChat:true});
+   receipts.push({notifications:notices});
+   console.log(JSON.stringify(receipts,null,2));return;
+  }
   await until(()=>read(path.join(out,'prompts.jsonl')).includes(expected),'resume prompt');
   const lines=read(path.join(out,'prompts.jsonl')).trim().split('\n').map(JSON.parse);
   assert.equal(lines.filter(x=>JSON.stringify(x).includes(expected)).length,1);
