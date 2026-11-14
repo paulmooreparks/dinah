@@ -395,7 +395,22 @@ func upgrade(db *sql.DB) error {
  BEGIN SELECT RAISE(ABORT, 'the recipient chat was removed'); END;`); err != nil {
 		return err
 	}
-	return convertRooms(db)
+	if err := convertRooms(db); err != nil {
+		return err
+	}
+	// These indexes use columns added above, so they follow the column
+	// migration when an older database is opened. No stored row is changed.
+	_, err := db.Exec(`
+ CREATE INDEX IF NOT EXISTS deliveries_pending ON deliveries(recipient_kind,recipient,message_id)
+ WHERE delivered_at IS NULL AND cancelled_at IS NULL;
+ CREATE INDEX IF NOT EXISTS deliveries_human_cursor ON deliveries(recipient_kind,message_id)
+ WHERE recipient_kind='human' AND cancelled_at IS NULL;
+ CREATE INDEX IF NOT EXISTS deliveries_human_unread ON deliveries(recipient_kind,delivered_at,message_id)
+ WHERE recipient_kind='human' AND delivered_at IS NULL AND cancelled_at IS NULL;
+ CREATE INDEX IF NOT EXISTS deliveries_human_decisions ON deliveries(recipient_kind,message_id)
+ WHERE recipient_kind='human' AND cancelled_at IS NULL AND inbox_dismissed_at IS NULL;
+ `)
+	return err
 }
 
 // widenLinks lets a workspace trust itself in a bus file made when a link

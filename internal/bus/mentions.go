@@ -30,14 +30,18 @@ func (b *Bus) AttentionMentions(ctx context.Context, after int64) ([]Message, er
 	return b.mentions(ctx, after, false)
 }
 
-func (b *Bus) mentions(ctx context.Context, after int64, unread bool) ([]Message, error) {
+func mentionIDsQuery(unread bool) string {
 	readClause := ""
 	if unread {
 		readClause = " AND d.delivered_at IS NULL"
 	}
-	rows, err := b.db.QueryContext(ctx, `SELECT m.id FROM deliveries d JOIN messages m ON m.id = d.message_id
-		WHERE d.recipient_kind = 'human' AND d.cancelled_at IS NULL AND m.from_session <> '' AND m.id > ?`+readClause+`
-			AND m.kind NOT IN `+kindsNotMentions+` ORDER BY m.id`, after)
+	return `SELECT m.id FROM deliveries d JOIN messages m ON m.id = d.message_id
+		WHERE d.recipient_kind = 'human' AND d.cancelled_at IS NULL AND m.from_session <> '' AND d.message_id > ?` + readClause + `
+			AND m.kind NOT IN ` + kindsNotMentions + ` ORDER BY d.message_id`
+}
+
+func (b *Bus) mentions(ctx context.Context, after int64, unread bool) ([]Message, error) {
+	rows, err := b.db.QueryContext(ctx, mentionIDsQuery(unread), after)
 	if err != nil {
 		return nil, err
 	}

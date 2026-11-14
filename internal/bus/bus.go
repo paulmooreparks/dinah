@@ -1474,14 +1474,7 @@ type Wake struct {
 // (questions.go). The window opens a closed chat for the chats this returns
 // (bus_wake.go).
 func (b *Bus) Waking(ctx context.Context) ([]Wake, error) {
-	limit := hopLimitSQL("m.from_workspace", "s.workspace")
-	rows, err := b.db.QueryContext(ctx, `SELECT s.id, w.path, MAX(d.message_id) FROM deliveries d
-		JOIN messages m ON m.id = d.message_id
-		JOIN sessions s ON d.recipient_kind = 'session' AND s.id = d.recipient
-		JOIN workspaces w ON w.key = s.workspace
-		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.removed_at IS NULL AND m.kind <> '`+MemberKind+`' AND (m.kind = '`+QuestionKind+`' OR (`+budgetOpenSQL+` AND (m.room <> '' OR `+limit+` = `+fmt.Sprint(NoHopLimit)+` OR m.hops <= `+limit+`))) AND
-			(m.room = '' OR m.mentions LIKE '%,' || s.id || ',%' OR m.mentions LIKE '%,*,%')
-		GROUP BY s.id, w.path ORDER BY MIN(d.message_id)`)
+	rows, err := b.db.QueryContext(ctx, wakingQuery())
 	if err != nil {
 		return nil, err
 	}
@@ -1495,6 +1488,17 @@ func (b *Bus) Waking(ctx context.Context) ([]Wake, error) {
 		out = append(out, w)
 	}
 	return out, rows.Err()
+}
+
+func wakingQuery() string {
+	limit := hopLimitSQL("m.from_workspace", "s.workspace")
+	return `SELECT s.id, w.path, MAX(d.message_id) FROM deliveries d
+		JOIN messages m ON m.id = d.message_id
+		JOIN sessions s ON d.recipient_kind = 'session' AND s.id = d.recipient
+		JOIN workspaces w ON w.key = s.workspace
+		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.removed_at IS NULL AND m.kind <> '` + MemberKind + `' AND (m.kind = '` + QuestionKind + `' OR (` + budgetOpenSQL + ` AND (m.room <> '' OR ` + limit + ` = ` + fmt.Sprint(NoHopLimit) + ` OR m.hops <= ` + limit + `))) AND
+			(m.room = '' OR m.mentions LIKE '%,' || s.id || ',%' OR m.mentions LIKE '%,*,%')
+		GROUP BY s.id, w.path ORDER BY MIN(d.message_id)`
 }
 
 // Waiting returns the undelivered messages per workspace or chat, by label
