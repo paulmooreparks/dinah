@@ -172,10 +172,17 @@ func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (D
 	return out, err
 }
 
-const openDecisionSQL = ` FROM messages m LEFT JOIN person_requests p ON p.message_id=m.id
+// The indexed candidate range excludes history before materializing message
+// bodies. Structured requests are independent of the plain-mention watermark.
+// List, entry count and individual resolution all use this predicate.
+const openDecisionSQL = ` FROM messages m JOIN (
+ SELECT message_id AS id FROM person_requests WHERE closed=0
+ UNION SELECT id FROM messages WHERE id>(SELECT after_message FROM decision_start WHERE id=1)
+) candidates ON candidates.id=m.id LEFT JOIN person_requests p ON p.message_id=m.id
  WHERE ( (p.message_id IS NOT NULL AND p.closed=0) OR
  (p.message_id IS NULL AND m.room<>'' AND m.from_session<>'' AND m.kind='text'
  AND EXISTS (SELECT 1 FROM deliveries d WHERE d.message_id=m.id AND d.recipient_kind='human' AND d.cancelled_at IS NULL AND d.inbox_dismissed_at IS NULL)
+ AND NOT EXISTS (SELECT 1 FROM messages later WHERE later.room=m.room AND later.id>m.id AND later.from_session='' AND later.from_name='paul')
  AND NOT EXISTS (SELECT 1 FROM messages reply WHERE reply.reply_to=m.id AND reply.from_session='' AND reply.from_name='paul' AND reply.kind='text'))) `
 
 func decisionMessageID(id string) (int64, error) {
