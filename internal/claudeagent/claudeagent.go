@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"studio/internal/acp"
@@ -433,6 +434,7 @@ func Env(base []string, apiKey string) []string {
 // Prefix on Dinah's side and not on the adapter's.
 type Conn struct {
 	*acp.Conn
+	steering atomic.Bool
 }
 
 // Start runs the pinned adapter with node in dir. apiKey, when not empty, is
@@ -453,12 +455,15 @@ func StartRelease(node, state, version, dir, apiKey string, h acp.Handler, trace
 	if apiKey != "" {
 		c.RegisterTraceSecret(apiKey)
 	}
-	return &Conn{c}, nil
+	return &Conn{Conn: c}, nil
 }
 
 // Call sends a request with the prefix taken off its session IDs, and puts
 // the prefix on the session IDs of the answer.
 func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
+	if method == "initialize" {
+		c.steering.Store(false)
+	}
 	p, err := rewrite(params, strip)
 	if err != nil {
 		return err
@@ -466,6 +471,17 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 	var raw json.RawMessage
 	if err := c.Conn.Call(ctx, method, p, &raw); err != nil {
 		return err
+	}
+	if method == "initialize" {
+		var offered struct {
+			Meta struct {
+				Steering struct {
+					Supported bool `json:"supported"`
+				} `json:"steering"`
+			} `json:"_meta"`
+		}
+		err := json.Unmarshal(raw, &offered)
+		c.steering.Store(err == nil && offered.Meta.Steering.Supported)
 	}
 	if out == nil || len(raw) == 0 {
 		return nil
