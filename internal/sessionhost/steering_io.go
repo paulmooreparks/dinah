@@ -204,7 +204,9 @@ func (t *TurnIO) CanSteer(id string, atts []Attachment) bool {
 					return false
 				}
 			}
-			return capability.CanSteer(id)
+			if capability.CanSteer(id) {
+				return true
+			}
 		}
 	}
 	return len(atts) == 0 && t.HooksReach(s)
