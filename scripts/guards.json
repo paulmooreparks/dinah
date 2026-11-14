@@ -388,6 +388,9 @@
     "decisions-narrow",
     "decisions-pages",
     "decisions-saved-state",
-    "decisions-reading"
+    "decisions-reading",
+    "settings-set-aside-list",
+    "settings-set-aside-remove",
+    "settings-set-aside-errors"
   ]
 }
