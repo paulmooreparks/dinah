@@ -60,11 +60,26 @@ async function setup(items, extra = {}) {
         return copy(receipt);
       }
     };
+    if (args.entryPoints) {
+      api.DecisionEntries = async () => {
+        const snapshot = { count: __decisionItems.length, items: __decisionItems.map(i => ({ id: i.id, messageId: i.messageId })) };
+        if (window.__holdEntries) await new Promise(resolve => { window.__releaseEntries = resolve; });
+        if (window.__entriesFailure) throw new Error('Entry service unavailable');
+        return window.__malformedEntries ? { count: 1, items: [] } : snapshot;
+      };
+      api.Notifications = async () => JSON.parse(sessionStorage.getItem('attention') || '[]');
+      api.DismissNotification = async id => {
+        window.__dismissed = (window.__dismissed || []).concat(id);
+        sessionStorage.setItem('attention', JSON.stringify(JSON.parse(sessionStorage.getItem('attention') || '[]').filter(n => n.id !== id)));
+      };
+    }
     if (args.unavailable) delete api.Decisions;
     return api;
   }});
-  await t.page.evaluate(() => dinahWorkbench.open('decisions'));
-  await t.page.locator('.decisions').waitFor();
+  if (!extra.noOpen) {
+    await t.page.evaluate(() => dinahWorkbench.open('decisions'));
+    await t.page.locator('.decisions').waitFor();
+  }
   return t;
 }
 async function choose(t, id) {

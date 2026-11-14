@@ -160,6 +160,7 @@
   <script src="judgements-applet.js" defer></script>
   <script src="decision-drafts.js" defer></script>
   <script src="decisions-applet.js" defer></script>
+  <script src="decisions-entry.js" defer></script>
   <script src="update.js" defer></script>
   <script src="pudl/pudl-native.js" defer></script>
   <script src="native-window.js" defer></script>
@@ -464,6 +465,7 @@
            <span class="loading status-starting" id="status-starting" role="status"><span class="spinner" aria-hidden="true"></span> Starting…</span>
            <button type="button" class="status-item workspace-status" id="status-workspace" popovertarget="workspace-status-menu" title="Workspace Menu"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span id="status-workspace-name">Workspace</span></button>
            <button type="button" class="status-item status-count" id="status-needs" popovertarget="notifications-status-menu" aria-label="Notifications: nothing waiting" title="Notifications: nothing waiting" data-empty><span class="glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="status-words">Notifications</span><span data-status-badge data-status-reserve="99+" class="badge warn" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
+           <button type="button" class="status-item status-count" id="status-decisions" hidden aria-label="Decisions: reading open requests" title="Decisions: reading open requests" data-status-state="idle" data-status-glyph="comments" data-status-colour="warn"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="status-words">Decisions</span><span data-status-badge data-status-reserve="99+" class="badge warn" aria-hidden="true">&hellip;</span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
            <button type="button" class="status-item status-count" id="status-agent" popovertarget="agent-menu" aria-label="Agent: not started" title="Agent: not started"><span class="glyph" style="--glyph: var(--glyph-ring)" aria-hidden="true"></span><span class="status-words">Agent</span><span data-status-badge data-status-reserve="starting" class="badge" id="status-agent-badge" aria-hidden="true">off</span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>starting</span></button>
            <button type="button" class="status-item status-count" id="status-judgements" popovertarget="judgements-status-menu" hidden aria-label="Judgements" title="Judgements"><span class="glyph" style="--glyph: var(--glyph-tick)" aria-hidden="true"></span><span class="status-words">Judgements</span><span data-status-badge data-status-reserve="99+" class="badge" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
          </nav>

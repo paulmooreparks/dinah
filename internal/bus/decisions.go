@@ -219,7 +219,7 @@ func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 	} else {
 		return out, false, err
 	}
-	out.ID = out.Kind + ":" + strconv.FormatInt(id, 10)
+	out.ID = decisionIdentity(out.Kind, id)
 	if !closed {
 		out.CanDismiss = out.Kind == "mention"
 		if out.Kind == "request" {

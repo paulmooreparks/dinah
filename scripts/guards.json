@@ -92,6 +92,8 @@
     {
       "package": "./internal/bus",
       "tests": [
+        "TestDecisionEntriesCompleteAndPartialLifecycle",
+        "TestDecisionEntriesMentionAndEmpty",
         "TestWebCodesAreSingleUse",
         "TestWebSessionLifetimeAndRevocation",
         "TestLegacyWebTokenMigrationInvalidatesPlaintext",
@@ -129,6 +131,8 @@
     {
       "package": "./cmd/dinah-desktop",
       "tests": [
+        "TestDecisionEntriesReuseDurableAttention",
+        "TestDirectDecisionMakesRetainedAttention",
         "TestThePaneShowsAndAnswersAThread",
         "TestAFailedCompactionPutsTheHoldAndTheQueueBack",
         "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart",
@@ -371,6 +375,8 @@
     "settings-updates-missing-services",
     "settings-updates-service",
     "attention-kept",
+    "decisions-status",
+    "decisions-attention-entry",
     "decisions-list",
     "decisions-answers",
     "decisions-drafts",

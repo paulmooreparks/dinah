@@ -1,6 +1,7 @@
 /* The Decisions view consumes docs/design/decisions.md. The engine owns delivery. */
 (function () {
   'use strict';
+  var page = null;
   var node = window.dinahHelpers.node;
   function app() { return window.dinahHelpers.app(); }
   function available() { return !!(app() && app().Decisions); }
@@ -24,7 +25,7 @@
       Number.isSafeInteger(receipt.revision) && receipt.revision >= 0 && typeof receipt.closed === 'boolean' && Array.isArray(receipt.messageIds) && receipt.messageIds.every(Number.isSafeInteger) && (receipt.state === 'committed' ? receipt.reason === null : receipt.reason && typeof receipt.reason.code === 'string' && typeof receipt.reason.message === 'string' && !!receipt.reason.message && receipt.messageIds.length === 0);
   }
   function init(root, opts) {
-    var disposed = false, ready = false, readNumber = 0, refreshing = false, refreshAgain = false, moreBefore = 0, loadedPages = 1;
+    var disposed = false, ready = false, readNumber = 0, refreshing = false, refreshAgain = false, moreBefore = 0, loadedPages = 1, readPromise = null, readValid = false;
     var items = new Map(), order = [], selected = '', selectedCopy = null, filter = '', view = 'requests';
     var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', pending = new Set();
     root.classList.add('decisions');
@@ -252,29 +253,30 @@
     function load(append) {
       if (!ready || disposed) return Promise.resolve();
       if (!available()) { say('Decisions are not available in this build.'); refresh.disabled = true; return Promise.resolve(); }
-      if (refreshing) { refreshAgain = true; return Promise.resolve(); }
+      if (refreshing) { refreshAgain = true; return readPromise; }
       var before = append ? moreBefore : 0, sequence = ++readNumber;
-      refreshing = true; refresh.disabled = true; more.disabled = true;
-      var collected = [], pages = 0, keepSelection = !append && items.has(selected), targetPages = append ? 1 : loadedPages;
+      refreshing = true; readValid = false; refresh.disabled = true; more.disabled = true;
+      var collected = [], pages = 0, keepSelection = !append && !!selected, targetPages = append ? 1 : loadedPages;
       function readPage(cursor) {
         return Promise.resolve().then(function () { return app().Decisions(cursor); }).then(function (page) {
           if (!page || !Array.isArray(page.items) || !page.items.every(validItem) || !Number.isSafeInteger(page.nextBefore) || page.nextBefore < 0 || cursor && page.nextBefore >= cursor) throw new Error('The request list is invalid.');
           collected.push.apply(collected, page.items); pages++;
-          if (page.nextBefore && (pages < targetPages || keepSelection && pages < targetPages + 1 && !collected.some(function (item) { return item.id === selected; }))) return readPage(page.nextBefore);
+          if (page.nextBefore && (pages < targetPages || keepSelection && !collected.some(function (item) { return item.id === selected; }))) return readPage(page.nextBefore);
           return { items: collected, nextBefore: page.nextBefore };
         });
       }
-      return readPage(before).then(function (result) {
+      readPromise = readPage(before).then(function (result) {
         if (disposed || sequence !== readNumber) return;
         if (!result || !Array.isArray(result.items) || !result.items.every(validItem) || new Set(result.items.map(function (item) { return item.id; })).size !== result.items.length || !Number.isSafeInteger(result.nextBefore) || result.nextBefore < 0) throw new Error('The request list is invalid.');
         if (!append) { if (items.has(selected)) selectedCopy = items.get(selected); items.clear(); }
         result.items.forEach(function (item) { items.set(item.id, item); if (!order.includes(item.id)) order.push(item.id); });
         order = order.filter(function (id) { return items.has(id); }); moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
-        say(items.size ? items.size + ' open requests loaded.' : 'No open requests.'); draw();
+        say(items.size ? items.size + ' open requests loaded.' : 'No open requests.'); draw(); readValid = true;
       }).catch(function (error) { say('Requests could not be read. ' + errorText(error)); }).finally(function () {
         refreshing = false; if (!disposed) { refresh.disabled = false; more.disabled = !moreBefore; }
         if (refreshAgain) { refreshAgain = false; return load(false); }
       });
+      return readPromise;
     }
     search.addEventListener('input', function () { filter = search.value; opts.changed(address()); drawList(); });
     stateRead(opts.state);
@@ -285,12 +287,22 @@
       if (window.dinahUIState.initializationError()) { say('Saved drafts could not be read. Sending is disabled.'); return; }
       ready = true; draw(); load(false);
     });
-    return { state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; unsubscribe(); unresync(); }, commands: function () {
+    function ensureRequest(id) {
+      return window.dinahUIState.ready.then(function () { return load(false); }).then(function () {
+        if (disposed || !ready || !readValid || view !== 'requests' || selected !== id || !items.has(id) || !form || draftKey !== 'request:' + id) throw new Error('This request could not be shown. It may no longer be open.');
+        var row = Array.from(list.children).find(function (entry) { return entry.dataset.requestId === id; });
+        if (!row) throw new Error('This request could not be shown.');
+        row.scrollIntoView({ block: 'nearest' });
+        return true;
+      });
+    }
+    return { ensureRequest: ensureRequest, state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; unsubscribe(); unresync(); }, commands: function () {
       return [{ label: 'Refresh Requests', run: function () { return load(false); } }, { label: 'Broadcast to Active…', run: function () { navigate('broadcast-active'); } }, { label: 'Broadcast to All…', run: function () { navigate('broadcast-all'); } }];
     } };
   }
-  window.dinahWorkbench.register('decisions', { applet: { id: 'dinah.decisions', title: 'Decisions', glyph: 'comments', workspace: false }, singleton: true, title: 'Decisions', glyph: 'comments', mode: 'maximized', init: init,
+  window.dinahWorkbench.register('decisions', { applet: { id: 'dinah.decisions', title: 'Decisions', glyph: 'comments', workspace: false }, singleton: true, title: 'Decisions', glyph: 'comments', mode: 'maximized', init: function (root, opts) { var instance = init(root, opts); page = instance; var destroy = instance.destroy; instance.destroy = function () { destroy(); if (page === instance) page = null; }; return instance; },
     launcher: { title: 'Decisions', run: function () { return window.dinahWorkbench.open('decisions'); } } });
+  window.dinahDecisions = { openRequest: function (id) { return window.dinahWorkbench.open('decisions', new URLSearchParams({ request: id }).toString()).then(function () { if (!page) throw new Error('Decisions could not be opened.'); return page.ensureRequest(id); }); } };
   function open(state) { return window.dinahWorkbench.open('decisions', state || '').catch(window.dinahHost.fail); }
   window.dinahCommands.register({ id: 'decisions', menu: 'view', label: 'Decisions', visible: available, run: function () { return open(); } });
   ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'view', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,

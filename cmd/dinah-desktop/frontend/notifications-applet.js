@@ -330,19 +330,26 @@
       var latest = items[items.length - 1], ids = items.map(function (item) { return item.id; });
       var firstLine = String(latest.body || '').trim().split(/\r?\n/)[0];
       var title = latest.title + (items.length > 1 ? ' (' + items.length + ' requests)' : '');
+      var entries = window.dinahDecisionEntries, decisionId = entries && latest.message ? entries.get(latest.message) : null;
+      function openSource() {
+        return latest.group ? window.dinahBus.openGroup(latest.group, { message: latest.message || 0 }) : latest.message ?
+          window.dinahWorkbench.open({ kind: 'bus-thread', path: String(latest.message), title: 'Message From ' + latest.sessionTitle }) : latest.sessionId ? openSession(latest.sessionId) : Promise.reject(new Error('The requesting chat is no longer available.'));
+      }
       function open() {
         attentionNavigation++;
-        var opening = latest.group ? window.dinahBus.openGroup(latest.group, { message: latest.message || 0 }) : latest.message ?
-          window.dinahWorkbench.open({ kind: 'bus-thread', path: String(latest.message), title: 'Message From ' + latest.sessionTitle }) : latest.sessionId ? openSession(latest.sessionId) : Promise.reject(new Error('The requesting chat is no longer available.'));
-        return Promise.resolve(opening).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return dismissAttention(ids); }).finally(function () { attentionNavigation--; });
+        return Promise.resolve().then(function () {
+          var index = window.dinahDecisionEntries;
+          if (!latest.message || !index || !index.available()) return openSource();
+          return index.resolve(latest.message).then(function (id) { return id ? window.dinahDecisions.openRequest(id) : openSource(); });
+        }).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return dismissAttention(ids); }).finally(function () { attentionNavigation--; });
       }
-      var actions = [{ label: latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
+      var actions = [{ label: decisionId ? 'Open Decision' : latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
       if (latest.kind === 'relay' && latest.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(latest.lead); } });
       notices.add({ id: group.id, type: latest.kind === 'attention' ? 'question' : latest.kind === 'relay' ? 'warning' : 'info', needsPerson: true,
         title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,
         details: [items.length + (items.length === 1 ? ' request' : ' requests') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')],
         actions: actions, dismissible: true, dismiss: function () { return dismissAttention(ids); }, announced: true,
-        className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, requestCount: items.length } });
+        className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, decisionId: decisionId, requestCount: items.length } });
     }
     function keepAttention(item) {
       if (!item || item.dismissed) return;
@@ -350,6 +357,14 @@
       if (item.permissionKey) notices.remove('question-' + item.permissionKey);
       drawAttention(attentionSource(item));
     }
+    document.addEventListener('dinah:decision-entries', function () {
+      var index = window.dinahDecisionEntries;
+      if (!index) return;
+      attentionGroups.forEach(function (group, key) {
+        var entry = notices.get(group.id);
+        if (entry && entry.data.decisionId !== index.get(entry.data.message)) drawAttention(key);
+      });
+    });
     // Restoring an applet or refreshing a covered group is not acknowledgement.
     // Only a new foreground target or direct interaction acknowledges its snapshot.
     var lastAttentionWindow = '';
