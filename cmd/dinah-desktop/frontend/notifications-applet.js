@@ -229,7 +229,7 @@
     }
     $('needs-clear').addEventListener('click', clearNotifications);
 
-    var notificationWrites = new Map(), notificationSerial = 0;
+    var notificationWrites = new Map(), notificationSerial = 0, featureGeneration = 0;
     function writeNotification(id, run) {
       var entry = { run: run, pending: true, promise: null };
       notificationWrites.set(id, entry);
@@ -247,6 +247,7 @@
     /* Dismisses a saved notification in Go, after any write of it still
        pending. The model takes its entry away when this resolves. */
     function dismissStoredNotification(id) {
+      if (window.dinahWhatsNew && id === window.dinahWhatsNew.id) featureGeneration++;
       var write = notificationWrites.get(id);
       var pending = write ? (write.pending ? write.promise : writeNotification(id, write.run)) : null;
       return Promise.resolve(pending).then(function () {
@@ -405,7 +406,9 @@
     function restoreNotifications() {
       if (!app().Notifications) return Promise.resolve();
       var requestedAttention = new Map(attentionItems);
+      var generation = ++featureGeneration;
       return app().Notifications().then(function (items) {
+        var features = [];
         var storedAttention = new Set((items || []).filter(function (item) { return !item.dismissed && /^(mention|relay|attention)$/.test(item.kind); }).map(function (item) { return item.id; }));
         Array.from(attentionItems.keys()).forEach(function (id) { if (requestedAttention.get(id) === attentionItems.get(id) && !storedAttention.has(id)) forgetAttention(id); });
         var waiting = new Set((items || []).filter(function (item) { return item.kind === 'delivery-failure' || item.kind === 'delivery-store-error'; }).map(function (item) { return item.id; }));
@@ -437,6 +440,18 @@
             notices.add(restartNotice); return;
           }
           if (item.kind === 'mention' || item.kind === 'relay' || item.kind === 'attention') { keepAttention(item); return; }
+          if (window.dinahWhatsNew && item.kind === 'app' && item.id === window.dinahWhatsNew.id) {
+            features.push(Promise.resolve().then(function () { return app().ProductServices ? app().ProductServices() : []; }).catch(function () { return []; }).then(function (names) {
+              if (generation !== featureGeneration) return;
+              var updates = Array.isArray(names) && names.includes('updates'), earlier = notices.get(item.id);
+              if (!earlier || earlier.data.updates !== updates) {
+                var feature = reportNotice(item); feature.actions = window.dinahWhatsNew.actions(updates);
+                feature.className += ' whats-new-card'; feature.data.updates = updates;
+                notices.add(feature);
+              }
+            }));
+            return;
+          }
           if (notices.get(item.id)) return;
           if (item.kind === 'document' || item.kind === 'app') { notices.add(reportNotice(item)); return; }
           if (item.kind !== 'turn-failure') return;
@@ -448,6 +463,7 @@
         });
         // The stored notifications are read, so a count of none is known.
         if (!noticesKnown) { noticesKnown = true; drawNoticeCounts(); }
+        return Promise.all(features);
       });
     }
 

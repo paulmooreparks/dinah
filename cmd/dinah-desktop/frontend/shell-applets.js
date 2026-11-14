@@ -20,6 +20,18 @@
     register: function (name, hook) { sectionHooks[name] = hook; },
     changed: function () { if (settingsChanged) settingsChanged(); }
   });
+  var backgroundChats = false;
+  sectionHooks.chat = {
+    state: function () { return backgroundChats ? 'background' : ''; },
+    shown: function (part) {
+      backgroundChats = part === 'background';
+      if (backgroundChats) requestAnimationFrame(function () {
+        if (!window.pudlWindows || window.pudlWindows.state().top !== 'settings') return;
+        document.getElementById('set-background-chats').closest('section').scrollIntoView({ block: 'start' });
+        document.getElementById('set-background-chat-limit').focus({ preventScroll: true });
+      });
+    }
+  };
   function retain(kind, title, glyph, node, mode, fields) {
     var content = document.querySelector(node);
     content.hidden = false;

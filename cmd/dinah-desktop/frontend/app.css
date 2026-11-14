@@ -627,7 +627,7 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .dinah-applet > .needs-you { height: 100%; box-sizing: border-box; overflow: hidden; }
 .needs-you > .needs-filters, .needs-you > #needs-empty { flex: none; }
 #needs-empty { height: 1.5em; min-height: 1.5em; margin: 0; overflow: hidden; }
-#questions { flex: 1 1 auto; min-height: 0; overflow: auto; overflow-anchor: none; }
+#questions { flex: 1 1 auto; min-height: 0; overflow: auto; overflow-anchor: none; scrollbar-gutter: stable; }
 #questions > .attention-kept { flex: none; box-sizing: border-box; height: 14rem; overflow: auto; }
 .needs-you h2 { margin: 0; font-size: var(--text-base); }
 /* The filter above the entries: the kind, the text, and Clear All. */

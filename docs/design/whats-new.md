@@ -1,0 +1,11 @@
+# The first-start feature card
+
+Startup saves one ordinary informational notification with the fixed identity `whats-new-20261114`. This identity describes the feature bundle rather than a build number, so later builds do not create another copy. Repeated creation calls share the existing notification-store lock and atomic write. The existing v1 app-notification shape remains unchanged. A storage failure is logged and preserves the original store.
+
+The feature record is exempt from ordinary retention and count pruning even after dismissal. Its dismissed record is the durable once-per-home marker. This costs one bounded record and keeps the card from returning after Clear All, seven days, or a busy notification history. No separate marker write or new store format is needed. Opening its links does not dismiss it.
+
+The card uses the usual Notifications model and PUDL appearance. The full pane already preserves arrival order, so the feature record appends after previously loaded cards. Its fixed-height scrolling content and the pane's reserved scrollbar gutter keep other regions from moving when its links change. It never raises Notifications, takes focus, emits a toast or starts a feature operation. Status controls retain their existing reserved geometry.
+
+Four buttons open Decisions, Working with Chats, Settings at Background Chats, and Settings at Set-aside Programs. Settings uses the address `chat?background` for the background section and focuses its limit control only while its window is in front. The Updates button is included only when ProductServices reports updates. Service discovery finishes before the feature card is drawn; other notifications restore immediately. A generation check prevents a delayed discovery from restoring a dismissed card or replacing a newer reading. A discovery failure leaves the other links usable; a later notification refresh can discover Updates again.
+
+Verification uses isolated Go homes for creation, concurrent creation, durable dismissal, pruning and storage failures, and headless synthetic browser responses for links, conditional Updates, refresh, dismissal and geometry. It does not touch the person's real home or start an installed program. The Architectural Principles remain at `C:\Users\paul\OneDrive\Documents\Architectural Principles.md`.
