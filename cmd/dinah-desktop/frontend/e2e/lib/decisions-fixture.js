@@ -38,6 +38,11 @@ async function setup(items, extra = {}) {
         const remaining = __decisionItems.filter(i => !before || i.messageId < before), items = copy(remaining.slice(0, window.__pageSize || 100));
         return { items, nextBefore: items.length && items.length < remaining.length ? items[items.length - 1].messageId : 0 };
       },
+      BusGroupMessageContext: async (group, id) => {
+        if (window.__holdContext) await new Promise(resolve => { (window.__contextPending || (window.__contextPending = [])).push(resolve); });
+        if (window.__contextFailure) throw new Error('The group could not be read');
+        return copy(window.__contextMessages || []);
+      },
       AnswerDecision: async input => {
         if (window.__beforeFailure) throw new Error('Receipt lost before commit');
         const receipt = commit(input);
@@ -74,6 +79,12 @@ async function setup(items, extra = {}) {
       };
     }
     if (args.unavailable) delete api.Decisions;
+    if (args.contextRoom) {
+      api.BusOverview = async () => ({ rooms: [{ name: 'review', title: 'Review Group', members: [] }], workspaces: [], inbox: [], links: [] });
+      api.BusGroupMessages = async () => copy(args.contextRoom);
+      api.BusGroupMessagesFrom = async () => copy(args.contextRoom);
+      api.BusMarkGroupRead = async () => {};
+    }
     return api;
   }});
   if (!extra.noOpen) {
