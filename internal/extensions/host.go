@@ -133,7 +133,7 @@ func (m *Manager) hostHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(extension.HostResponse{Error: err.Error()})
 	}
-	if r.Method != "POST" || r.URL.Path != "/host" || r.Host != m.listener.Addr().String() || r.Header.Get("Origin") != "" {
+	if (r.Method != http.MethodPost && r.Method != http.MethodOptions) || r.URL.Path != "/host" || r.Host != m.listener.Addr().String() || r.Header.Get("Origin") != "" {
 		fail(403, errors.New("host callback is not allowed"))
 		return
 	}
@@ -146,6 +146,10 @@ func (m *Manager) hostHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !helpercompat.For(helpercompat.ExtensionHost).Accept(w, r) {
+		return
+	}
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	var request extension.HostRequest
