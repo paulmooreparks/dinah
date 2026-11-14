@@ -10,6 +10,8 @@ The new guide uses static markup in index.html and a small help-content.js modul
 
 ## Verification
 
-Verification is pending the shared FIFO. Only the affected keyboard suite and the new guide navigation suite are queued, both headless. The latter checks Help menu access, an address that survives reload, a single guide window and absence of feature-operation calls while reading help. ESLint has passed for help-content.js.
+Source commit `4e8e28f5` passed both affected headless suites under the shared FIFO. The command was `./cmd/dinah-desktop/frontend/e2e/run.ps1 -Only keyboard,help-new-work -Jobs 1 -Out C:/Users/paul/AppData/Local/Temp/help-new-work-20261114`, with NODE_PATH pointing to the main checkout's existing test dependencies. Both suites passed on their first run, with no page errors; the runner exited zero after nine seconds of execution. The preceding wait was for other team tests in the FIFO. The artifact folder's failures.txt is empty.
+
+The guide suite checks Help menu access, an address that survives reload, a single guide window and absence of feature-operation calls while reading help. The keyboard suite checks the new command reference rows alongside its existing keyboard and menu coverage. ESLint passed for help-content.js. UTF-8, JavaScript syntax, added-text checks for the prohibited dash character, and git diff --check passed. No full browser or Go suite ran because feature behavior and backend code are unchanged.
 
 No visible window, desktop input, live recipient, real settings repair, restart, installation, push or merge has been used. The browser fixture cannot establish native installed-program behavior. Ownership stays with Front End until Lead accepts the branch.
