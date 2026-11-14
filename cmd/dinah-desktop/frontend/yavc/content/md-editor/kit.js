@@ -1274,11 +1274,35 @@
             /* A document that has closed keeps nothing new. */
             if (out === gone || !hostLive(pictures)) { if (entry.html == null && store.get(key) === entry) { store.delete(key); } return entry.html; }
             var html = out && typeof out.html === 'string' && !out.error && out.html.length <= HOST_HTML_LIMIT ? out.html : null;
-            if (html != null) { entry.html = html; entry.at = Date.now(); }
+            if (html != null) { entry.html = html; entry.flow = out.flow === true; entry.print = out.print === 'none' ? 'none' : 'screen'; entry.at = Date.now(); }
             else { entry.at = entry.html == null ? Date.now() : Date.now() - HOST_FILL_AGE + HOST_FILL_RETRY; }
             trimHostCache(store); return entry.html;
         });
         return entry.promise;
+    }
+    /* Whether the host said that the drawing kept for a host shortcode is flowing content, which a page may break between its children and between
+       the rows of its tables. Only the host's own answer, a boolean true, says so. */
+    function hostFlowing(pictures, request) {
+        var entry = hostService(pictures) && request ? pictures.hostFills.get(hostKey(pictures, request)) : null;
+        return !!(entry && entry.html != null && entry.flow === true);
+    }
+    /* Fills the host placeholders of a fragment that is being printed (docs/host-shortcodes-contract.md, "Print"). Each placeholder takes the drawing the
+       page holds for it at this moment, with no new request to the host; one that the page does not hold yet is asked for once, as the screen asks. It
+       resolves with the placeholders that could not be filled, each with the shortcode's name and a reason: 'none' when the host said its drawing is
+       not for paper, 'pending' while the host has not answered, and 'failed' when it gave no drawing. */
+    async function printHosts(fragment, pictures) {
+        var refused = [];
+        var list = Array.from(fragment.querySelectorAll('[data-host-shortcode]'));
+        for (var i = 0; i < list.length; i++) {
+            var el = list[i], name = el.getAttribute('data-host-shortcode'), request = hostService(pictures) ? hostRequest(el) : null;
+            if (!request) { refused.push({ name: name, reason: 'failed' }); continue; }
+            var key = hostKey(pictures, request), kept = hostDrawn(pictures, request);
+            if (kept == null) { await hostDrawing(pictures, request); kept = hostDrawn(pictures, request); }
+            if (kept == null) { var entry = pictures.hostFills.get(key); refused.push({ name: name, reason: entry && entry.promise ? 'pending' : 'failed' }); continue; }
+            if (pictures.hostFills.get(key).print === 'none') { refused.push({ name: name, reason: 'none' }); continue; }
+            if (!placeHost(el, kept, hostFlowing(pictures, request))) { refused.push({ name: name, reason: 'failed' }); }
+        }
+        return refused;
     }
     /* The drawing kept for a host shortcode, or null. */
     function hostDrawn(pictures, request) {
@@ -1290,7 +1314,8 @@
        is, and nothing in it is read as a placeholder of its own. */
     function hostFragment(html) {
         var drawing = window.yavcHTML.fragment(html);
-        drawing.querySelectorAll('*').forEach(function (n) { Array.from(n.attributes).forEach(function (a) { if (/^data-(?:host-|command|action|applet|choice)/.test(a.name)) n.removeAttribute(a.name); }); });
+        /* data-sc-frame, data-sc-body and data-sc-repeat are the host's to give (docs/host-shortcodes-contract.md); data-sc-piece is the page's, so a host's is taken away. */
+        drawing.querySelectorAll('*').forEach(function (n) { Array.from(n.attributes).forEach(function (a) { if (/^data-(?:host-|command|action|applet|choice|sc-piece)/.test(a.name)) n.removeAttribute(a.name); }); });
         drawing.querySelectorAll('.sc-host-body').forEach(function (n) { n.classList.remove('sc-host-body'); });
         return drawing;
     }
@@ -1301,7 +1326,8 @@
        says where the body goes with <slot name="content">, and the body
        that is on the page is moved there, so what is being edited in it is
        kept. False when the drawing has no place for the body. */
-    function placeHost(el, html) {
+    function placeHost(el, html, flowing) {
+        if (flowing) { el.setAttribute('data-host-flow', 'true'); } else { el.removeAttribute('data-host-flow'); }
         if (el.__hostHtml === html) { return true; }
         var drawing = hostFragment(html), kind = el.getAttribute('data-host-kind');
         if (kind === 'container' || kind === 'span') {
@@ -1327,11 +1353,11 @@
             var request = hostRequest(el);
             if (!request) { return; }
             var kept = hostDrawn(pictures, request);
-            if (kept != null && !placeHost(el, kept)) { el.classList.add('sc-host-failed'); }
+            if (kept != null && !placeHost(el, kept, hostFlowing(pictures, request))) { el.classList.add('sc-host-failed'); }
             if (cachedOnly) { return; }
             hostDrawing(pictures, request).then(function (html) {
                 if (el.getAttribute('data-host-source') !== request.source || !hostLive(pictures)) { return; }
-                if (html == null || !placeHost(el, html)) { if (!el.hasAttribute('data-host-drawn')) { el.classList.add('sc-host-failed'); } }
+                if (html == null || !placeHost(el, html, hostFlowing(pictures, request))) { if (!el.hasAttribute('data-host-drawn')) { el.classList.add('sc-host-failed'); } }
             });
         });
     }
@@ -2136,7 +2162,7 @@
         commands: commands, editing: editing, apply: apply, classesOf: classesOf, insertItem: insertItem, inserts: inserts, textFormat: textFormat, textInsert: textInsert,
         askText: askText, askFields: askFields, askChoice: askChoice, askProperties: askProperties, STOCK: STOCK, askColour: askColour, askColours: askColours, askClass: askClass,
         askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, sitePicture: sitePicture, pictureData: pictureData, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
-        fillHosts: fillHosts, prefillHosts: prefillHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
+        fillHosts: fillHosts, prefillHosts: prefillHosts, printHosts: printHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
         _page: null
     };
 })();

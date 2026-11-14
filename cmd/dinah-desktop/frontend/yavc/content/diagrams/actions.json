@@ -1215,6 +1215,262 @@
       "replay": "once"
     },
     {
+      "ref": "yavc.diagrams/canvas-contents@1",
+      "title": "Read a Canvas's Contents",
+      "description": "What one open canvas contains, as data, so that a drawing can be checked without reading the file. Nodes are the text, file and link nodes with their id, kind, text (or file path, or address), position, size and the group each lies in; groups have their label, box, the group they lie in and the ids of everything wholly inside them; edges have their ends, each a node and a side or, for an end on a free point, the point, and their label. A node is in a group when it lies wholly inside the group's box, and its group is the smallest such box. Read from the canvas's text as it is now, whichever diagram is in front, and nothing is changed.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A diagram's number among the open ones; the current one when left out."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "name",
+          "nodes",
+          "edges",
+          "groups"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "kind",
+                "text",
+                "file",
+                "url",
+                "group",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "text",
+                    "file",
+                    "link"
+                  ]
+                },
+                "text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "file": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "group": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "fromNode",
+                "fromSide",
+                "fromPoint",
+                "toNode",
+                "toSide",
+                "toPoint",
+                "label"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "fromNode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "fromSide": {
+                  "enum": [
+                    "top",
+                    "right",
+                    "bottom",
+                    "left",
+                    null
+                  ]
+                },
+                "fromPoint": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "toNode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "toSide": {
+                  "enum": [
+                    "top",
+                    "right",
+                    "bottom",
+                    "left",
+                    null
+                  ]
+                },
+                "toPoint": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "label": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "group",
+                "members",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "group": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "members": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "changes": "none",
+      "replay": "pure"
+    },
+    {
       "ref": "yavc.diagrams/render@1",
       "title": "Export a Diagram as a Picture",
       "description": "The drawing of a diagram, or the current one, as an SVG file or a PNG at one to three times its size.",

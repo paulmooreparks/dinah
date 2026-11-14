@@ -111,7 +111,14 @@
         fragment.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote,td,th,dt,dd').forEach(function (e) { if (!e.hasAttribute('dir')) { e.setAttribute('dir', 'auto'); } });
         // The HTML cleaner uses an inert template, so omitted assets have not loaded.
         fragment.querySelectorAll('[data-export="omit"],.sc-draft-note').forEach(function (node) { node.remove(); });
-        if (fragment.querySelector('[data-host-shortcode]')) { throw new Error('This document contains host-rendered shortcodes. This host must provide their export representation before printing or Office export.'); }
+        /* Word and PDF are built from a structure, which a host's drawing is not, so they refuse a document with host-drawn shortcodes and give them by name.
+           Print is filled from the drawings the page holds, further on (docs/host-shortcodes-contract.md, "Export boundary"). */
+        var hostNames = Array.from(new Set(Array.from(fragment.querySelectorAll('[data-host-shortcode]')).map(function (node) { return node.getAttribute('data-host-shortcode'); })));
+        function shortcodes(names) { return names.slice(0, 8).map(function (name) { return '{{' + name + '}}'; }).join(', ') + (names.length > 8 ? ' and ' + (names.length - 8) + ' more' : ''); }
+        if (hostNames.length && !options.renderPages) {
+            var refusal = new Error('This document has ' + shortcodes(hostNames) + ', which this host draws on the screen and has not given a form for Word or PDF. Take ' + (hostNames.length === 1 ? 'it' : 'them') + ' out of the document to export it.');
+            refusal.refusal = true; throw refusal;
+        }
         // Browser printing includes every disclosure body without its controls.
         // Office conversion retains its separate structural representation gate.
         if (options.renderPages) {
@@ -143,6 +150,15 @@
         K.scopeFootnotes(surface);
         var controller;
         try {
+            if (hostNames.length) {
+                var refused = await K.printHosts(surface, options.pictures);
+                if (options.current && !options.current()) { throw new Error('The document changed during print preparation.'); }
+                if (refused.length) {
+                    var why = { none: 'the host does not want it on paper', pending: 'the host has not drawn it yet', failed: 'the host gave no drawing for it' };
+                    var failure = new Error(refused.slice(0, 8).map(function (r) { return '{{' + r.name + '}} (' + why[r.reason] + ')'; }).join(', ') + (refused.length > 8 ? ' and ' + (refused.length - 8) + ' more' : '') + ' cannot be printed. ' + (refused.some(function (r) { return r.reason !== 'none'; }) ? 'Try Again prints the drawings as they are then.' : 'Take ' + (refused.length === 1 ? 'it' : 'them') + ' out of the document to print it.'));
+                    failure.refusal = true; failure.retry = refused.some(function (r) { return r.reason !== 'none'; }); throw failure;
+                }
+            }
             var D = await K.styles();
             controller = D.attach({ surfaces: [surface], boundaries: [boundary], read: options.read,
                 base: window.yavcDocumentPages.paper + ';' + S.typeCSS(values) });

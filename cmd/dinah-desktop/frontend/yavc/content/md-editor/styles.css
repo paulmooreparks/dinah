@@ -96,3 +96,11 @@ ins.host-suggestion-new { text-decoration:underline 2px var(--diff-add);text-und
 .host-suggestion-cell-changed { display:inline-flex;flex-wrap:wrap;gap:var(--space-1);color:var(--text); }
 .host-suggestion-stale { border-color:var(--warn);text-decoration-style:dotted; }
 @media (max-width:680px) { .md-gallery-layout {grid-template-columns:minmax(0,1fr);} .md-gallery-boundary {max-height:18rem;} }
+
+/* While a layout measures the page the gaps of the layout before it are not there (pages.js, measured). */
+.doc-measuring .doc-page-gap { display: none !important; }
+/* The text's caret and selection shown on the page in Split, while the page is not the pane being typed in (page-view.js, mirrorPlugin). */
+.pm-mirror-caret { display: inline-block; width: 0; height: 1.15em; margin-left: -1px; border-left: 2px solid var(--accent, #1f5fbf); vertical-align: text-bottom; pointer-events: none; }
+.pm-mirror-range { background: color-mix(in srgb, var(--accent, #1f5fbf) 28%, transparent); }
+.ProseMirror-focused .pm-mirror-caret { display: none; }
+.ProseMirror-focused .pm-mirror-range { background: transparent; }

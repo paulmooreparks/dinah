@@ -1,5 +1,5 @@
 {
-  "digest": "6bc3e240e8f616b9bf745265d0fe5aa74b1aeb51e4bf5650c5c6a68ed97a035a",
+  "digest": "3546910b5dead19a58aafe68397236e864cf1b3f6f80be877391a102d14872b4",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -105,13 +105,13 @@
     },
     {
       "path": "content/diagrams/actions.json",
-      "bytes": 35449,
-      "sha256": "be1b8e77995cf755fa881f5ea523853b2fb6ac6e73e2b064455cf2c4592829cc"
+      "bytes": 42599,
+      "sha256": "20f70ee0e254170dcaadbd4df47173c79180338b18f920ff3f8854f15e841be6"
     },
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "7ef7cd38008224f11845a6b339db871d62dabf34e6cb485e0f24cc4b38f19d58"
+      "sha256": "62503be67a8e20e4f25a7a1644b52199de64b809ab47341a66497188992d82df"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -125,8 +125,8 @@
     },
     {
       "path": "content/diagrams/canvas.js",
-      "bytes": 15135,
-      "sha256": "62382fad478861ca23743352953095fd8be00459bebbda303bda5fb2983ea871"
+      "bytes": 15556,
+      "sha256": "22d5802ecfc14e91ecc27d5eb2fb291d5c77b5e86859e20315656471735c5adc"
     },
     {
       "path": "content/diagrams/diagrams.css",
@@ -135,8 +135,8 @@
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 239072,
-      "sha256": "8b8fa3f495da023ee25f9666e2488e5470e3864eb0502b42a36f9aa2369fb96a"
+      "bytes": 243163,
+      "sha256": "b1bed81cc6ee096dae749881fdefa79197590538b4ddf7412305927048545a7e"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "af65a0f7ed3c1ed9821ef47e4a63acde36265483fbcf6b369fc90b299fd7d184"
+      "sha256": "737bf19e90c802db65ae0380e7f1e3e90e8a60fb9976ed0b882760e112098d23"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "d36ad6723dfabb03df80b4b5dd3c0fbdeb2ba9be43f12258eb8b4b28e9a2f075"
+      "sha256": "02ec73b810b9c158512355540830f21938cf8521f810620783ddcfaff3ac8095"
     },
     {
       "path": "content/editor/editor.css",
@@ -225,8 +225,8 @@
     },
     {
       "path": "content/md-editor/export.js",
-      "bytes": 34735,
-      "sha256": "c9b56879494d2f56c9d4982b69d352d57fb10aaf0dd601caf553b3f2ee0c0851"
+      "bytes": 36618,
+      "sha256": "3687485cb55eabbf6e54be40fe3f24a463a404e5029ba073e718628f407c4fb9"
     },
     {
       "path": "content/md-editor/host-suggestions.js",
@@ -275,8 +275,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 166076,
-      "sha256": "4512048687db7a95108ae9d0832e9e2296bef12cedfc55edf4a3cde45c781226"
+      "bytes": 168678,
+      "sha256": "09b1172e5a6d04adb3227f3f5277a6b2fff30648bab9516df2069153e883775d"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -355,8 +355,8 @@
     },
     {
       "path": "content/md-editor/page-lines.js",
-      "bytes": 13265,
-      "sha256": "f24672207b311937663f3c4455911a94f8b4d177ae57d49c9e656457effca4d9"
+      "bytes": 13861,
+      "sha256": "f60ace5e804a2feac98a393dc079e247bf9c5dd2f0c8cf4f56bede323f44bbee"
     },
     {
       "path": "content/md-editor/page-setup.js",
@@ -365,13 +365,13 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 155181,
-      "sha256": "2ab33f59cd7d44a9985b6bd1a28ab033fd8649202f2859277da610490e4952ac"
+      "bytes": 164373,
+      "sha256": "6ffcaf270533cff82d1ff447ea9235c56921814d00d5332c70b6d1a432799af7"
     },
     {
       "path": "content/md-editor/pages.js",
-      "bytes": 32277,
-      "sha256": "ba70c7956d7bec2726726f031212622608aeaa15a649dd0133fdaf485301b96e"
+      "bytes": 43084,
+      "sha256": "5a1d76a35268ebd317eefcf167943f0e54ea178503f7c6ccfe2b4bdb8de44eca"
     },
     {
       "path": "content/md-editor/paper-sizes.js",
@@ -395,8 +395,8 @@
     },
     {
       "path": "content/md-editor/styles.css",
-      "bytes": 9535,
-      "sha256": "3050b23069fbb7ea173b2de0a5f8b76b44565f23dffe041460e280f6953825a6"
+      "bytes": 10249,
+      "sha256": "8cc3b7a9e8d4492f46229916deb2c41c8c5a2401f6421355a002e4d541786a51"
     },
     {
       "path": "content/md-editor/typography-ui.js",
@@ -1270,8 +1270,8 @@
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 21949,
-      "sha256": "cb2e5eb9feaa3ddc409b59085d0433c709488147c33a15c68fe9748096f7dd91"
+      "bytes": 23179,
+      "sha256": "99ce9f70eba19b31537e71dc06ef45a79d3e857e178c4d286fee4fcae7364c76"
     },
     {
       "path": "content/md-engine/safe-html.js",
@@ -1400,8 +1400,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 257840,
-      "sha256": "7d988dd9812c97e8459c9fe2a85e177e3b370887e628478aafb3cb3105e4aeb2"
+      "bytes": 262689,
+      "sha256": "96371dd41402a660735ea978b764caaa7dcbb72456105c993799f00fbb030283"
     },
     {
       "path": "go.mod",
@@ -2460,8 +2460,8 @@
     },
     {
       "path": "workspace-lab/host.js",
-      "bytes": 7512,
-      "sha256": "339c683c4697a9ddd9934a666318f9819334bc9aecaaf4b5798396f022cff027"
+      "bytes": 7683,
+      "sha256": "a80835d42aad856a198fc4eeaf0b4846d5db7361e40a7f56e27846503bceecf8"
     },
     {
       "path": "workspace-lab/index.html",

@@ -13,7 +13,8 @@
         });
     }
     function lines(element, origin, scale, gaps, position, single) {
-        if (!element.matches('p,li,td,th') || element.closest('.pm-source') || blocked(element,position)) return null;
+        /* A host's flowing block is drawn inside a source block, which the page does not enter, but the page breaks its own lines and rows (decision 173). */
+        if (!element.matches('p,li,td,th') || element.closest('.pm-source') && !element.closest('[data-host-flow]') || blocked(element,position)) return null;
         var css = getComputedStyle(element);
         if (/^(avoid|avoid-page)$/.test(css.breakInside) || /^(pre|nowrap)$/.test(css.whiteSpace)) return null;
         function clean(y) { return (y - origin) / scale - gaps.reduce(function (sum, gap) { return sum + (gap.bottom <= y + .5 ? gap.height : 0); }, 0); }
@@ -77,7 +78,9 @@
     }
     function insert(flow, block, gap) {
         if (!block.anchor) { block.node.parentNode.insertBefore(gap, block.node); return; }
-        var range = document.createRange(); range.setStart(block.anchor, block.offset); range.collapse(true); range.insertNode(gap);
+        /* An anchor measured among the gaps of an earlier layout, which a host's drawing holds as elements (pages.js, applyFlowGaps), counts them among its
+           children, and they are taken out before the new ones go in; an anchor at the end of an element is at its end all the same. */
+        var range = document.createRange(); range.setStart(block.anchor, block.anchor.nodeType === Node.ELEMENT_NODE ? Math.min(block.offset, block.anchor.childNodes.length) : block.offset); range.collapse(true); range.insertNode(gap);
     }
     function fragment(flow, blocks, from, to) {
         var range = document.createRange(), first = blocks[from], last = blocks[to];

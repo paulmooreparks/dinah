@@ -177,16 +177,19 @@
             aim = r || null;
             if (aim) { aim.classList.add('is-target'); }
         }
-        layer.addEventListener('pointerdown', function (e) {
-            if (e.button !== 0 || !out) { return; }
+        /* The pointer is followed on the place and not on the layer. The D2 client draws a diagram again by replacing what the place holds,
+           which takes the layer out of the page until it is put back, and a pointer captured by a layer that leaves the page is released with
+           no pointerup, so a click made while a drawing was replaced selected nothing. The place stays. */
+        place.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0 || !out || !layer.contains(e.target)) { return; }
             var handle = e.target.classList && e.target.classList.contains('dg-handle');
             var key = handle ? sel : hitOf(e.target);
             press = { x: e.clientX, y: e.clientY, key: key, at: handle ? e.target.__at : null, kind: handle ? 'connect' : (key && key === sel && shapeBox(key) ? 'move' : null), moved: false };
             if (host.readOnly && host.readOnly()) press.kind = null;
-            layer.setPointerCapture(e.pointerId);
+            place.setPointerCapture(e.pointerId);
             e.preventDefault();
         });
-        layer.addEventListener('pointermove', function (e) {
+        place.addEventListener('pointermove', function (e) {
             if (!press) { return; }
             if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) { return; }
             press.moved = true;
@@ -224,8 +227,8 @@
             if (host.tool && host.tool() && (!key || shapeBox(key))) { host.place(key || null); return; }
             select(key, 'pointer');
         }
-        layer.addEventListener('pointerup', function (e) { release(e, false); });
-        layer.addEventListener('pointercancel', function (e) { release(e, true); });
+        place.addEventListener('pointerup', function (e) { release(e, false); });
+        place.addEventListener('pointercancel', function (e) { release(e, true); });
         layer.addEventListener('dblclick', function (e) {
             var key = hitOf(e.target);
             if (key) { select(key, 'pointer'); if (!(host.readOnly && host.readOnly())) host.activate(key); }

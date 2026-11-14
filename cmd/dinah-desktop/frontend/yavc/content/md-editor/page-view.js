@@ -358,7 +358,7 @@ var schemaCache = null;
        undo), and the Editor's undo history merges typing that is less than 500 ms apart. So that the placements do not change what one
        undo takes back, each placement says whether the typing it carries went on from the typing of the placement before it with no
        gap of 500 ms or more, as the page's own history would group it, and the Editor's history then joins the two. */
-    var PM = null, view = null, on = false, shown = null, loading = 0;
+    var PM = null, view = null, on = false, shown = null, loading = 0, mirrored = null;
     var lastEdit = 0, batchFirst = 0, batchBroke = false, batchLinked = false, placedEdit = 0;
     var footnoteNamespace='yavc-notes-'+crypto.randomUUID();
     var dirty = false, syncTimer = 0, syncing = null, reloadTimer = 0, sourceStale = false, refreshFocus = null, frozen = false;
@@ -497,6 +497,9 @@ var schemaCache = null;
       if (!view) return;
       if ((!on || sourceStale || frozen) && tr.docChanged && !tr.getMeta('fromText')) return;
       view.updateState(view.state.apply(tr));
+      seenSelection = domSelection();
+      /* The reader moved the selection (a click, an arrow key): the host maps it to the text. A selection the host itself mirrored is not told back. */
+      if (tr.selectionSet && !tr.docChanged && !tr.getMeta('mirror') && o.selected) { o.selected(); }
       var edited = tr.docChanged && !tr.getMeta('fromText');
       if (edited) {
         var editAt = tr.time || Date.now();
@@ -1164,6 +1167,10 @@ var schemaCache = null;
         return true;
       }
       return [
+        /* A key is handled with the selection the browser has now. A caret moved by the browser's own key (End, an arrow, a click) reaches the
+           state on a later selectionchange event, and a key that follows it at once, as a script sends them, found the old selection and
+           typed or broke a line there (docs/backlog.md; syncSelection). This runs before every other key handler of the page. */
+        new PM.Plugin({ props: { handleKeyDown: function () { syncSelection(); return false; } } }),
         listShortcuts(schema),
         taskBoxes(schema),
         footnoteNumbers(),
@@ -1171,6 +1178,7 @@ var schemaCache = null;
         window.yavcDocumentPages.plugin(PM, o),
         suggestionPlugin(),
         findPlugin(),
+        mirrorPlugin(),
         slashMenu(schema),
         emptyLineHint(schema),
         keys,
@@ -1439,6 +1447,21 @@ var schemaCache = null;
     }
 
     /* An empty line with the cursor in it says how to insert a block. */
+    /* Where the text's caret or selection is, drawn on the page while the page is not the pane being typed in (Split view): a thin caret, or a
+       highlight over a range. It is drawn only while the state's selection is still the one that was mirrored, so any move on the page
+       takes it away, and the stylesheet hides it while the page has the focus. */
+    function mirrorPlugin() {
+      return new PM.Plugin({
+        props: {
+          decorations: function (state) {
+            var m = mirrored, sel = state.selection;
+            if (!m || sel.from !== m.from || sel.to !== m.to || m.doc !== state.doc) return null;
+            if (sel.empty) return PM.DecorationSet.create(state.doc, [PM.Decoration.widget(sel.from, function () { var c = document.createElement('span'); c.className = 'pm-mirror-caret'; c.setAttribute('aria-hidden', 'true'); return c; }, { key: 'mirror-caret', side: -1, ignoreSelection: true })]);
+            return PM.DecorationSet.create(state.doc, [PM.Decoration.inline(sel.from, sel.to, { class: 'pm-mirror-range' })]);
+          }
+        }
+      });
+    }
     function emptyLineHint(schema) {
       return new PM.Plugin({
         props: {
@@ -2235,7 +2258,76 @@ var schemaCache = null;
     o.page.addEventListener('mousedown', staleInput, true);
     o.page.addEventListener('beforeinput', staleInput, true);
 
-    return {
+    /* ProseMirror takes the browser's selection into its state when the browser's selectionchange event comes, which is a task of its own
+       and can be several frames after the selection was made when the page is busy. A command that reads the page's selection in that
+       time acts on the one before. So each entry of the API that reads or changes the selection first reads the browser's own selection
+       (view.root.getSelection and posAtDOM, both documented) and, when it differs from the state's, makes it the state's. Only a text
+       selection outside a table is replaced (Firefox moves the browser's selection out of a table cell when the table is drawn again, and the state's is then the right one), and only while the page has the focus, which is where ProseMirror would take the browser's selection too. */
+    var seenSelection = null;
+    function domSelection() {
+      var dom = view && view.root && view.root.getSelection ? view.root.getSelection() : null;
+      return dom && dom.anchorNode ? { anchorNode: dom.anchorNode, anchorOffset: dom.anchorOffset, focusNode: dom.focusNode, focusOffset: dom.focusOffset } : null;
+    }
+    function sameDomSelection(a, b) {
+      return !!a && !!b && a.anchorNode === b.anchorNode && a.anchorOffset === b.anchorOffset && a.focusNode === b.focusNode && a.focusOffset === b.focusOffset;
+    }
+    function syncSelection() {
+      if (!view || !on || view.composing || !view.hasFocus()) return;
+      var current = view.state.selection;
+      if (!(current instanceof PM.TextSelection) || PM.isInTable(view.state)) return;
+      var dom = domSelection();
+      if (!dom || !view.dom.contains(dom.anchorNode) || !view.dom.contains(dom.focusNode)) return;
+      /* The state's selection is the page's own unless the browser's has changed since the state last took or set it: a selection the page set
+         itself may not be in the browser's yet, and the browser's then says nothing new. */
+      if (sameDomSelection(dom, seenSelection)) return;
+      var anchor, head;
+      try { anchor = view.posAtDOM(dom.anchorNode, dom.anchorOffset); head = view.posAtDOM(dom.focusNode, dom.focusOffset); } catch (err) { return; }
+      if (anchor === current.anchor && head === current.head) return;
+      var doc = view.state.doc;
+      if (anchor < 0 || head < 0 || anchor > doc.content.size || head > doc.content.size) return;
+      var next = PM.TextSelection.between(doc.resolve(anchor), doc.resolve(head));
+      if (!next.eq(current)) view.dispatch(view.state.tr.setSelection(next));
+    }
+    async function mirrorAt(from, to) {
+      if (!view || !on || sourceStale || frozen || dirty || syncing || view.composing) return false;
+      var target = view, doc = view.state.doc, text = o.text();
+      if (typeof from !== 'number' || typeof to !== 'number' || from < 0 || to < from || to > text.length) return false;
+      var bytes = new Uint8Array(8); crypto.getRandomValues(bytes);
+      var tag = Array.from(bytes, function (value) { return value.toString(16).padStart(2, '0'); }).join(''), begin = 'YavcMirrorBegin' + tag, end = 'YavcMirrorEnd' + tag;
+      if (text.includes('YavcMirror')) return false;
+      var marked = text.slice(0, from) + begin + text.slice(from, to) + (to > from ? end : '') + text.slice(to);
+      try {
+        var json = await o.docOf(marked);
+        if (view !== target || !on || sourceStale || frozen || dirty || view.state.doc !== doc || o.text() !== text) return false;
+        var made = view.state.schema.nodeFromJSON(json), first = -1, last = -1, firstCount = 0, lastCount = 0;
+        made.descendants(function (node, pos) {
+          if (!node.isText) return;
+          var i = node.text.indexOf(begin), j = node.text.indexOf(end);
+          if (i >= 0) { first = pos + i; firstCount++; }
+          if (j >= 0) { last = pos + j; lastCount++; }
+        });
+        if (firstCount !== 1 || (to > from && lastCount !== 1)) return false;
+        var removal = PM.EditorState.create({ doc: made }).tr;
+        if (to > from) removal.delete(last, last + end.length);
+        removal.delete(first, first + begin.length);
+        /* The two pages are the same page: the same blocks, marks and words. A block's own source and number are left out, since the source of
+           the block that holds a marker has the marker in it. */
+        function shape(node) {
+          if (node.isText) return JSON.stringify([node.text, node.marks.map(function (mark) { return [mark.type.name, mark.attrs]; })]);
+          var attrs = Object.assign({}, node.attrs); ['uid', 'gap', 'src', 'canonical', 'html'].forEach(function (name) { delete attrs[name]; });
+          var parts = []; node.forEach(function (child) { parts.push(shape(child)); });
+          return '[' + node.type.name + JSON.stringify(attrs) + parts.join(',') + ']';
+        }
+        if (shape(removal.doc) !== shape(doc)) return false;
+        var anchor = first, head = to > from ? last - begin.length : first;
+        var chosen = PM.TextSelection.between(doc.resolve(anchor), doc.resolve(head));
+        mirrored = { from: chosen.from, to: chosen.to, doc: doc };
+        view.dispatch(view.state.tr.setSelection(chosen).setMeta('mirror', true).setMeta('addToHistory', false));
+        api.scrollToSelection();
+        return true;
+      } catch (err) { return false; }
+    }
+    var api = {
       enable: enable,
       /* The place of the page's caret in the text, for keeping the
          reader's place when the page is left for Text: the spot itself
@@ -2278,6 +2370,22 @@ var schemaCache = null;
         } catch (err) { return null; }
       },
       /* Whether anything on the page is selected, said at once. */
+      /* Shows the text's selection, from and to as offsets in the text, on the page without taking the focus or changing the document: the
+         marker is put into the text at each end, the text is read as a page, and the markers' places in it are the places in the page the
+         selection is at. It is done only when the page is exactly the text (nothing typed since it was written), the page with the markers
+         taken out is the page that is shown, and each marker is found once; otherwise nothing is changed and false is given, so no other place
+         stands in for the one asked for. */
+      selectAtText: async function (from, to) {
+        var text = view && o.text();
+        if (typeof from !== 'number' || typeof to !== 'number' || typeof text !== 'string' || from < 0 || to < from || to > text.length) return false;
+        /* The place itself first. A caret inside a link's address or an emphasis mark cannot be shown as a place on the page, since a marker there
+           changes the page; then the start of the line it is on is the place, which is in the same paragraph, and a selection that cannot be shown
+           as it is becomes a caret there. Nothing else stands in for it. */
+        var lineStart = text.lastIndexOf(String.fromCharCode(10), Math.max(0, from) - 1) + 1, places = [[from, to]];
+        if (lineStart !== from || to > from) places.push([lineStart, lineStart]);
+        for (var i = 0; i < places.length; i++) { if (await mirrorAt(places[i][0], places[i][1])) return true; }
+        return false;
+      },
       hasSelection: function () { return !!(view && on && !view.state.selection.empty); },
       // Preserve a failed rich draft for selection/copy after its host revokes editing.
       freeze: function () { frozen = true; if (view) view.setProps({ editable: function () { return false; } }); },
@@ -2471,6 +2579,11 @@ var schemaCache = null;
         if (view) { view.destroy(); view = null; }
       }
     };
+    ['run', 'selectionText', 'selectedBlocks', 'sourceSelection', 'prepareEdit', 'insertMarkdown', 'insertInline', 'insertShortcode', 'wrap', 'paste'].forEach(function (name) {
+      var inner = api[name];
+      if (typeof inner === 'function') api[name] = function () { syncSelection(); return inner.apply(this, arguments); };
+    });
+    return api;
   }
 
   // Importers provide cleaned inert HTML; the shared schema supplies the

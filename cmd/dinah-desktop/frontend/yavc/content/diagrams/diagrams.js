@@ -125,6 +125,10 @@
         if (H.contentResources && H.snapshot && (H.snapshot.version !== 2 || typeof H.snapshot.join !== 'function')) throw new Error('This resource host needs snapshot version 2 before it can restore diagrams.');
         var resources = null, recovery = null, recoveryReady = false, recoveryKept = null;
         var documentWindows = H.documentWindows, documentReady = false, receivingDocument = false, unbindDocuments = null;
+        /* What the receiving window answered, as an action's result: {output}. The host passes on what the receiving mount's accept returned, which is
+           an action's result already; a host that passes on the output itself is answered the same way, so that the call never fails the output schema
+           of the action while the drawing exists. */
+        function routedResult(routed) { var r = routed.result; return r && typeof r === 'object' && !Array.isArray(r) && 'output' in r ? r : { output: r }; }
         async function routeDocument(operation, input) {
             if (!documentWindows || documentWindows.mode(root) !== 'single' || !documentReady || receivingDocument) return null;
             if (operation === 'open-file') {
@@ -2693,7 +2697,7 @@
             },
             'new@1': async function (input) {
                 await booted;
-                var routed = await routeDocument('new', input); if (routed) return routed.result;
+                var routed = await routeDocument('new', input); if (routed) return routedResult(routed);
                 var kind = input.kind === 'mermaid' || input.kind === 'canvas' ? input.kind : 'd2';
                 var text;
                 if (kind === 'canvas') { await canvasEditor(); text = window.yavcCanvasModel.template(input.style || 'basic').text; }
@@ -2707,7 +2711,7 @@
             },
             'open-file@1': async function (input) {
                 await booted;
-                if(!tabs.some(function (t) {return t.path===input.path;})){var routed=await routeDocument('open-file',input);if(routed)return routed.result;}
+                if(!tabs.some(function (t) {return t.path===input.path;})){var routed=await routeDocument('open-file',input);if(routed)return routedResult(routed);}
                 var ok = await openPath(String(input.path), input.view);
                 if (!ok) { throw new Error('there is no file at ' + input.path); }
                 return { output: summary(current(), active) };
@@ -2828,6 +2832,47 @@
                 else if (input.op === 'actual') { t.cv.actual(); }
                 else { throw new Error('Unknown canvas view operation.'); }
                 return { output: { applied: true } };
+            },
+            /* What the open canvas contains, as data: the nodes (not the groups, and not the invisible points that connectors end on) with
+               the group each is in, the edges, and the groups with what each holds. A node is in a group when it lies wholly inside the
+               group's box, the rule that moving a group already follows (canvas-model.js), and its group is the smallest such box. */
+            'canvas-contents@1': async function (input) {
+                await booted;
+                var i = tabNo(input.index), t = tabs[i];
+                if (i === active) { stash(); }
+                if (t.kind !== 'canvas') { throw new Error('This diagram is not a canvas.'); }
+                await canvasEditor();
+                if (destroyed || tabs.indexOf(t) < 0) { throw new Error('The canvas was closed.'); }
+                /* The tab's own text is read, so that a canvas that is not in front is read as it is and no tab is changed. */
+                var C = window.yavcCanvas, M = window.yavcCanvasModel, read = C.read(t.text), doc = read.doc, byId = {}, mistake = read.problems.find(function (x) { return !x.warning; });
+                if (!doc || mistake) { throw new Error('The canvas has a mistake: ' + (mistake ? mistake.message : 'it could not be read.')); }
+                doc.nodes.forEach(function (n) { byId[n.id] = n; });
+                var groups = doc.nodes.filter(function (n) { return n.type === 'group'; });
+                function area(n) { return n.width * n.height; }
+                function groupOf(n) {
+                    var home = null;
+                    groups.forEach(function (g) {
+                        if (g.id !== n.id && n.x >= g.x && n.y >= g.y && n.x + n.width <= g.x + g.width && n.y + n.height <= g.y + g.height && (!home || area(g) < area(home))) { home = g; }
+                    });
+                    return home ? home.id : null;
+                }
+                function box(n) { return { x: n.x, y: n.y, width: n.width, height: n.height }; }
+                function end(id, side) {
+                    var n = byId[id];
+                    if (n && C.isAnchor(n)) { return { node: null, side: side || null, point: { x: n.x, y: n.y } }; }
+                    return { node: id == null ? null : String(id), side: side || null, point: null };
+                }
+                var nodes = doc.nodes.filter(function (n) { return n.type !== 'group' && !C.isAnchor(n); }).map(function (n) {
+                    return Object.assign({ id: n.id, kind: n.type, text: n.type === 'text' ? String(n.text == null ? '' : n.text) : null, file: n.type === 'file' ? String(n.file || '') : null, url: n.type === 'link' ? String(n.url || '') : null, group: groupOf(n) }, box(n));
+                });
+                var edges = doc.edges.map(function (e) {
+                    var from = end(e.fromNode, e.fromSide), to = end(e.toNode, e.toSide);
+                    return { id: e.id, fromNode: from.node, fromSide: from.side, fromPoint: from.point, toNode: to.node, toSide: to.side, toPoint: to.point, label: e.label == null ? null : String(e.label) };
+                });
+                var out = groups.map(function (g) {
+                    return Object.assign({ id: g.id, label: g.label == null ? null : String(g.label), group: groupOf(g), members: M.members(doc, g.id).filter(function (id) { return !C.isAnchor(byId[id]); }) }, box(g));
+                });
+                return { output: { index: i + 1, name: tabTitle(t), nodes: nodes, edges: edges, groups: out } };
             },
             'canvas-edit@1': async function (input) {
                 await booted;

@@ -268,3 +268,14 @@
 .md-figure-width { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
 .md-figure-width .number-field { min-width: 0; }
 .md-figure-width .form-select { width: auto; }
+
+/* A frame that a page gap runs through is drawn in pieces (pages.js, applyPieces). The glyph stays only on the first piece, in the room it takes, and the
+   edges that would close the frame at a break are left open: a piece has no bottom edge where the next begins and no top edge where the last ended. */
+.doc-paginated [data-sc-piece="middle"].notice::before, .doc-paginated [data-sc-piece="last"].notice::before { visibility: hidden; }
+.doc-paginated .notice[data-sc-piece="first"] { border-bottom-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.doc-paginated .notice[data-sc-piece="middle"] { border-top-width: 0; border-bottom-width: 0; border-radius: 0; }
+.doc-paginated .notice[data-sc-piece="last"] { border-top-width: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.doc-paginated .doc-gap-cap { margin: 0; min-height: 0; height: auto; overflow: hidden; }
+.doc-paginated .doc-gap-cap::before { display: none; }
+.doc-paginated .doc-gap-cap-end { border-top-width: 0; padding-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.doc-paginated .doc-gap-cap-start { border-bottom-width: 0; padding-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }

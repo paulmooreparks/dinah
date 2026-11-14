@@ -173,6 +173,8 @@
         var H = window.pudlHost || {}, resourceSession = null, resources = null, recovery = null;
         /* The host's editing settings (docs/editing-settings-contract.md), read once here and used for every editing area for as long as this applet lives. Only a version 1 service whose spellcheck is the boolean false changes anything. */
         var spellcheckOff = !!(H.editing && H.editing.version === 1 && H.editing.spellcheck === false);
+        /* documentName (docs/editing-settings-contract.md): false leaves the document's name out of the status line, and 'resource' shows the resource's ID, which a host whose IDs are readable addresses uses. */
+        var nameSetting = H.editing && H.editing.version === 1 ? H.editing.documentName : undefined;
         var documentWindows = H.documentWindows, documentReady = false, receivingDocument = false, unbindDocuments = null;
         /* Commands the host adds to the File menu, to publish a document
            somewhere of the host's say (docs/document-commands-contract.md).
@@ -469,6 +471,8 @@
                         if (u.docChanged && tabs[active] === tab && !visual.fromVisual) { textChangedForPage(); }
                         /* The paragraph style shows the line the cursor is on. */
                         if (u.selectionSet || u.docChanged) { showPos(); showCount(); commandsChanged(); }
+                        /* In Split, the page shows where the text's caret is. */
+                        if (u.selectionSet && !u.docChanged && tabs[active] === tab && mirror.text === null) { mirrorToPage(); }
                         if (tabs[active] === tab && (u.selectionSet || u.docChanged ||
                             CM.searchPanelOpen(u.state) !== CM.searchPanelOpen(u.startState))) { keep(); }
                     })
@@ -524,7 +528,8 @@
         function renderTabs() {
             if (tabRow) { tabRow.render(); }
             var t = current();
-            el.where.textContent = t ? (t.path || 'Not saved yet') : '';
+            /* A document a host gave is shown by the name the host gave it, and not by the resource's ID, which a host need not make readable. */
+            el.where.textContent = !t || nameSetting === false ? '' : nameSetting === 'resource' ? (t.path || 'Not saved yet') : ((t.resource && t.name) || t.path || 'Not saved yet');
             el.where.title = el.where.textContent;
             el.lang.textContent = t ? LANG_NAMES[t.lang] : '';
             showCount();
@@ -917,13 +922,16 @@
             (front.entries || []).forEach(function (entry) { if (entry.key === 'stylesheet') { path = entry.value; } });
             var result = await E.build(format, { text: output, engine: m, stylesheet: path ? resolveReference(path, 'stylesheet', directory) : '',
                 read: function (path) { if (!unchanged()) { throw new Error('The document changed during export.'); } return window.pudlHost.fs.readText(path); }, pictures: pictures, current: unchanged });
-            result.name = (tab.path ? tab.path.split('/').pop().replace(/(?:\.docs)?\.md$/i, '') : 'document') + '.' + format;
+            /* The file is named after the document's name, which a host gives with the resource, and not after the resource's ID. */
+            var shown = tab.name || (tab.path ? tab.path.split('/').pop() : ''), stem = String(shown).replace(/(?:\.docs)?\.md$/i, '').replace(/[\\/:*?"<>|\x00-\x1f]+/g, '_').replace(/^[\s._]+|[\s.]+$/g, '');
+            result.name = (stem || 'document') + '.' + format;
             return result;
         }
         async function downloadDocument(format) {
+            window.yavcUtil.notice(el.tabs, '');
             say('Writing the ' + format.toUpperCase() + ' file…');
             try { var result = await exportDocument(format); download(result.name, result.blob); say('Downloaded ' + result.name + '. ' + result.warnings.join(' ')); }
-            catch (err) { if(err.name!=='AbortError')say('The document could not be exported: ' + err.message, true);else say('Export cancelled.'); }
+            catch (err) { if (err.refusal) { say('Download as ' + format.toUpperCase() + ': ' + err.message, 'warn'); retryButton(false); } else if(err.name!=='AbortError')say('The document could not be exported: ' + err.message, true);else say('Export cancelled.'); }
         }
 
         /* === Dialogs ====================================================== */
@@ -1382,8 +1390,17 @@
             var source=await G.template({engine:m,read:H.fs&&H.fs.readText,host:picturesHost(),signal:styleLifetime.signal,current:unchanged});
             if(source!==null&&source!==undefined&&unchanged())return liveActions['new@1']({text:source});
         }
+        /* A refusal that trying again could change has a Try Again button, which a refusal that it could not change does not. */
+        function retryButton(again) {
+            var n = el.tabs.previousElementSibling; if (!n || !n.classList.contains('yavc-notice')) { return; }
+            n.querySelectorAll('.notice-actions').forEach(function (x) { x.remove(); });
+            if (!again) { return; }
+            var actions = document.createElement('div'), button = document.createElement('button'); actions.className = 'notice-actions'; button.type = 'button'; button.className = 'btn'; button.textContent = 'Try Again';
+            button.addEventListener('click', function () { again(); }); actions.append(button); n.querySelector('.notice-content').append(actions);
+        }
         async function printDocument() {
             var t = current(); if (!t || t.lang !== 'markdown') { return; }
+            window.yavcUtil.notice(el.tabs, '');
             try {
                 if (pageActive()) { await visual.api.sync(); }
                 var text = view.state.doc.toString(), K = await loadKit(), E = await K.exports(), P = await K.pages(), m = await documentEngine(text);
@@ -1398,7 +1415,7 @@
                         Array.from(surface.querySelectorAll('.dinah-src[data-start],.doc-block,.dinah-block')).reverse().forEach(function (node) { node.replaceWith.apply(node, Array.from(node.childNodes)); });
                         flow.append.apply(flow, Array.from(surface.childNodes)); surface.append(flow);
                         await document.fonts.ready;
-                        var blocks = P.blocks(flow), layout = P.plan(blocks, page);
+                        var frameTitles = P.tagFrames(flow), blocks = P.blocks(flow), layout = P.plan(blocks, page);
                         if(layout.problem)throw new Error(layout.problem);
                         if (layout.oversized) { throw new Error('A block is taller than the page. Shorten it or enlarge the page before printing.'); }
                         var frame = document.createElement('iframe'); frame.className = 'ed-print-frame'; frame.title = 'Document Print'; frame.inert = true; frame.tabIndex = -1; frame.setAttribute('aria-hidden', 'true'); document.body.append(frame); printFrame = frame;
@@ -1413,7 +1430,7 @@
                         var at = 0, starts = [0].concat(layout.gaps.map(function (gap) { return gap.index; })).concat(blocks.length);while(starts.length<layout.count+1)starts.push(blocks.length);
                         for (var i = 0; i < starts.length - 1; i++) {
                             var sheet = surface.cloneNode(false); sheet.classList.add('doc-print-sheet'); var body = doc.createElement('div'); body.className = 'doc-page-flow'; sheet.append(body);
-                            body.append(window.yavcPageLines.fragment(flow, blocks, starts[i], starts[i + 1]));
+                            body.append(window.yavcPageLines.fragment(flow, blocks, starts[i], starts[i + 1])); P.printPieces(body, frameTitles);
                             (layout.footnotes||[]).filter(function(note){return note.page===i+1;}).forEach(function(note){var copy=P.noteFragment(note,blocks);copy.classList.add('doc-print-footnote');copy.style.position='absolute';copy.style.marginTop='0';copy.style.top=(d.top+note.top-i*(d.height+24))+'px';copy.style.left=d.left+'px';copy.style.width=(d.width-d.left-d.right)+'px';sheet.append(copy);});
                             var layer = doc.createElement('div'); layer.className = 'doc-furniture';
                             var header = window.yavcDocumentSettings.row(page, 'header', i + 1, starts.length - 1, doc), footer = window.yavcDocumentSettings.row(page, 'footer', i + 1, starts.length - 1, doc);
@@ -1426,7 +1443,7 @@
                         frame.contentWindow.print(); say('Print uses the document page size and margins. Turn off browser headers and footers and select the matching paper size.');
                     }
                 });
-            } catch (err) { if (printFrame) { printFrame.remove(); printFrame = null; } say('The document could not be printed: ' + err.message, true); }
+            } catch (err) { if (printFrame) { printFrame.remove(); printFrame = null; } if (err.refusal) { say('Print: ' + err.message, 'warn'); retryButton(err.retry && printDocument); } else { say('The document could not be printed: ' + err.message, true); } }
         }
 
         /* A call to one of the server's admin APIs, signing in again when the
@@ -1642,6 +1659,7 @@
                 pagination: function () { return pagedView(viewMode) ? pageSettings : null; },
                 paginated: pageLayout,
                 paginationProblem: pageNotice,
+                selected: function () { mirrorToText(); },
                 customName: function (name) { return customShortcodes().some(function (item) { return item.name === name; }); },
                 text: function () { return view.state.doc.toString(); },
                 /* The text's caret, for the page to open at the block it
@@ -1679,6 +1697,38 @@
                 keys.push({key:key,run:function(){if(name!==null){try{Promise.resolve(COMMANDS[name]()).catch(function(err){say(err.message,true);});}catch(err){say(err.message,true);}}return true;}});
             });
             return keys;
+        }
+        /* Split shows the caret of one pane in the other (decision 168), without moving the keyboard and without a change to the document. A caret
+           moved in the text is shown on the page, and one moved on the page is shown in the text, a moment after it stops moving. The page's
+           selection is mapped to the text exactly or not at all, and the text's selection is mapped to the page the same way, so no other
+           place stands in for one that cannot be mapped. A move that one pane makes in the other is not told back, so the two cannot chase each other. */
+        var mirror = { text: null, page: null, timer: 0, turn: 0 };
+        function mirrorOn() { return viewMode === 'split' && pageActive() && !!view; }
+        function mirrorToPage() {
+            if (!mirrorOn() || editingPane !== 'text') { return; }
+            clearTimeout(mirror.timer); var turn = ++mirror.turn, tab = current();
+            mirror.timer = setTimeout(async function () {
+                if (turn !== mirror.turn || destroyed || !mirrorOn() || current() !== tab) { return; }
+                var main = view.state.selection.main;
+                mirror.page = turn;
+                try { await visual.api.selectAtText(main.from, main.to); } finally { if (mirror.page === turn) { mirror.page = null; } }
+            }, 120);
+        }
+        function mirrorToText() {
+            if (!mirrorOn() || editingPane !== 'visual') { return; }
+            clearTimeout(mirror.timer); var turn = ++mirror.turn, tab = current();
+            mirror.timer = setTimeout(async function () {
+                if (turn !== mirror.turn || destroyed || !mirrorOn() || current() !== tab) { return; }
+                try {
+                    await visual.api.sync();
+                    if (turn !== mirror.turn || !mirrorOn() || current() !== tab) { return; }
+                    var range = await visual.api.sourceSelection();
+                    if (!range || turn !== mirror.turn || !mirrorOn() || current() !== tab) { return; }
+                    var at = Math.max(0, Math.min(range.from, view.state.doc.length)), to = Math.max(at, Math.min(range.to, view.state.doc.length));
+                    mirror.text = turn;
+                    try { view.dispatch({ selection: { anchor: at, head: to }, effects: CM.EditorView.scrollIntoView(at, { y: 'nearest' }), userEvent: 'select.mirror' }); } finally { mirror.text = null; }
+                } catch (err) { /* the page changed while it was mapped; the next move maps again */ }
+            }, 120);
         }
         function textChangedForPage() {
             if (pageActive()) { visual.api.textChanged(); }

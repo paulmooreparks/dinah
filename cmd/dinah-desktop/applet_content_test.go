@@ -27,7 +27,7 @@ func TestTheContentApplicationsActionsAreOfferedWithDinahsCapabilities(t *testin
 	if _, err := applet.New(bundles...); err != nil {
 		t.Fatalf("the registry refused the content actions: %v", err)
 	}
-	if counts["yavc.editor"] != 25 || counts["yavc.docs"] != 27 || counts["yavc.diagrams"] != 16 || counts["yavc.slides"] != 31 {
+	if counts["yavc.editor"] != 25 || counts["yavc.docs"] != 27 || counts["yavc.diagrams"] != 17 || counts["yavc.slides"] != 31 {
 		t.Fatalf("action counts %v", counts)
 	}
 	caps := map[string][]string{}

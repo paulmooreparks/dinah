@@ -100,13 +100,16 @@
        WebKit lays text out differently with the property set to 1 than with none. The zoom is put back before anything is painted. */
     function measured(dom, measure) {
         var host = dom.closest('.doc-paginated'), was = host && host.style.zoom;
-        if (!host || was === '1') { return measure(); }
-        /* Measuring at 100 percent can make the page shorter than the place a reader has scrolled to, and the browser then moves the
-           scroll back. Every scroll position above the page is put back with the zoom. */
+        if (!host) { return measure(); }
+        /* The page is measured as the document and the page size make it, without the gaps an earlier layout put in: the gaps are hidden while
+           it is measured, so that a layout is a function of the document and the page and not of the layout before it, and a layout that
+           is made again gives the same answer. Hiding them changes the heights that scrolling has, and the browser then moves the scroll
+           back; every scroll position above the page is put back with the gaps. */
         var kept = [];
         for (var node = host.parentElement; node; node = node.parentElement) { if (node.scrollTop || node.scrollLeft) { kept.push([node, node.scrollTop, node.scrollLeft]); } }
-        host.style.zoom = '1';
-        try { return measure(); } finally { host.style.zoom = was; kept.forEach(function (k) { k[0].scrollTop = k[1]; k[0].scrollLeft = k[2]; }); }
+        host.classList.add('doc-measuring');
+        if (was !== '1') { host.style.zoom = '1'; }
+        try { return measure(); } finally { host.classList.remove('doc-measuring'); if (was !== '1') { host.style.zoom = was; } kept.forEach(function (k) { k[0].scrollTop = k[1]; k[0].scrollLeft = k[2]; }); }
     }
     function blocksOf(dom, positions, position) {
         var host = dom.closest('.doc-paginated'), scale = host ? Number(host.style.zoom) || 1 : 1;
@@ -130,18 +133,32 @@
             if (node.classList.contains('doc-page-gap')) return;
             if(noteNodes.indexOf(node)>=0)return;
             var rect = node.getBoundingClientRect(), css = getComputedStyle(node), content=node;
-            while(content.matches('.doc-block,.pm-source,.dinah-src,.dinah-block')&&content.childElementCount===1)content=content.firstElementChild;
+            while((content.matches('.doc-block,.pm-source,.dinah-src,.dinah-block,[data-host-shortcode]')||content.matches('div:not([class])')&&!!content.querySelector(':scope > .doc-block > [data-host-flow]'))&&content.childElementCount===1)content=content.firstElementChild;
             var boxBody=content.matches('.pm-box')&&content.querySelector('.pm-box-frame:not(.sc-columns) .pm-box-body');
             if(boxBody&&!/^(avoid|avoid-page)$/.test(getComputedStyle(boxBody.parentElement).breakInside))content=boxBody;
             var contentCSS=getComputedStyle(content),previous=blocks[blocks.length-1];
             var shortcodeBody=content.matches('div,section,aside,article,details,figure')&&Array.from(content.classList).some(function(name){return name.startsWith('sc-');})&&/^(block|flow-root)$/.test(contentCSS.display)&&content.childElementCount>0;
-            var container = shortcodeBody || content.matches('ul,ol,blockquote,.pm-task-body,.pm-box-body,.sc-notice,.notice-content,.notice-body,table,thead,tbody') || content.matches('li') && !!content.querySelector(':scope > p,:scope > ul,:scope > ol,:scope > blockquote,:scope > .pm-task-body');
-            if (!node.matches('.pm-source') && !/^(avoid|avoid-page)$/.test(contentCSS.breakInside) && container) {
+            /* A host's drawing is broken between its children when the host marked its frame or body (data-sc-frame, data-sc-body), or said that it is flowing content (the host's answer, kept as data-host-flow on its place), as a built-in container is. */
+            var hostFlow = content.matches('[data-sc-frame],[data-sc-body]') || !!(content.parentElement && content.parentElement.matches('[data-host-flow]') && content.childElementCount > 0);
+            var container = hostFlow || shortcodeBody || content.matches('ul,ol,blockquote,.pm-task-body,.pm-box-body,.sc-notice,.notice-content,.notice-body,table,thead,tbody') || content.matches('li') && !!content.querySelector(':scope > p,:scope > ul,:scope > ol,:scope > blockquote,:scope > .pm-task-body');
+            /* A block the host drew as flowing content is a source block of the page, which the page does not enter, and its own children are laid out
+               as the units of its pages all the same: the gaps that break it go into its drawing as elements (applyFlowGaps), since the page cannot
+               hold a widget inside a node it does not enter. */
+            var flowHost = node.matches('.pm-source') && !!(content.parentElement && content.parentElement.matches('[data-host-flow]')) && content.childElementCount > 0;
+            if ((!node.matches('.pm-source') || flowHost) && !/^(avoid|avoid-page)$/.test(contentCSS.breakInside) && container) {
                 var firstBlock = blocks.length;
                 Array.from(content.children).forEach(function (child) {
                     var before = position ? position(child.parentNode, Array.prototype.indexOf.call(child.parentNode.childNodes, child)) : 0;
                     emit(child, before);
                 });
+                if (flowHost) { for (var fi = firstBlock; fi < blocks.length; fi++) { blocks[fi].flow = true; } }
+                /* A title the host marked data-sc-repeat is drawn again at the head of each later piece, so each block after it makes room for it at a break. */
+                if (content.matches('[data-sc-frame]')) {
+                    var titles = Array.from(content.querySelectorAll('[data-sc-repeat]')).filter(function (t) { return !t.closest('[data-sc-body]') || t.closest('[data-sc-body]') === t; });
+                    var titleHeight = titles.reduce(function (sum, t) { var r = t.getBoundingClientRect(), c = getComputedStyle(t); return sum + r.height / scale + Math.max(0, parseFloat(c.marginBottom) || 0); }, 0);
+                    if (titleHeight > 0) { titleHeight += Math.max(0, parseFloat(getComputedStyle(content).paddingTop) || 0); }
+                    if (titleHeight > 0) { for (var ri = firstBlock; ri < blocks.length; ri++) { if (!titles.some(function (t) { return blocks[ri].node === t || blocks[ri].node.contains(t) || t.contains(blocks[ri].node); })) { blocks[ri].repeatHeader = blocks[ri].repeatHeader || titleHeight; } } }
+                }
                 if (blocks.length > firstBlock) {
                     blocks[firstBlock].breakBefore = blocks[firstBlock].breakBefore || /^(page|always)$/.test(contentCSS.breakBefore);
                     var lastBlock = blocks[blocks.length - 1];
@@ -190,7 +207,7 @@
     }
     function spacer(height, inline, block, header) {
         var list = block && block.node.parentElement && block.node.parentElement.matches('ul,ol');
-        var node = document.createElement(inline ? 'span' : block && block.row ? 'tr' : list ? 'li' : 'div'); node.className = 'doc-page-gap' + (inline ? ' doc-page-gap-inline' : ''); node.style.height = height + 'px';
+        var node = document.createElement(inline ? 'span' : block && block.row ? 'tr' : list ? 'li' : 'div'); node.className = 'doc-page-gap' + (inline ? ' doc-page-gap-inline' : ''); node.style.height = (height + (!(block && block.row) && header ? header : 0)) + 'px';
         if (block && block.row) {
             var cell = document.createElement('td'); cell.colSpan = block.columns; node.append(cell);
             if(header&&block.headerRows&&block.headerRows.length){
@@ -204,6 +221,84 @@
             }
         }
         node.setAttribute('aria-hidden', 'true'); node.contentEditable = 'false'; return node;
+    }
+    /* The gaps inside the drawings of the host's flowing blocks: put in as elements before the child they come before, and put in again each time
+       the page is laid out, since a drawing the page redraws has lost them. The page does not enter these nodes, so nothing of the editor sees them. */
+    function applyFlowGaps(dom, layout, blocks) {
+        dom.querySelectorAll('.doc-page-gap[data-flow-gap]').forEach(function (node) { node.remove(); });
+        layout.gaps.slice().reverse().forEach(function (gap) {
+            var block = blocks[gap.index];
+            if (!block || !block.flow || !block.node || !block.node.parentNode) { return; }
+            /* A row cut inside, and a line of text cut, are given their gaps in the DOM, as the host's drawing is not the page's own content. */
+            if (block.rowNode && block.band) { block.anchors.forEach(function (anchor, column) { if (anchor) { var cell = rowSpacer(gap, block, column); cell.setAttribute('data-flow-gap', ''); window.yavcPageLines.insert(dom, anchor, cell); } }); return; }
+            var node = spacer(gap.height, !!block.anchor, block, gap.header); node.setAttribute('data-flow-gap', '');
+            if (block.anchor) { window.yavcPageLines.insert(dom, block, node); } else { block.node.before(node); }
+        });
+    }
+    /* Printing cuts a document into sheets with no gaps, so it marks the pieces of a frame itself, as applyPieces does on the page. tagFrames numbers the
+       frames of the flow before it is cut, and keeps a copy of each one's repeated titles; printPieces marks the frames of one cut sheet first, middle, last
+       or only by the edges the cut left open (page-lines.js, fragment), and puts a title copy at the head of a piece that continues. */
+    function tagFrames(flow) {
+        var titles = new Map();
+        Array.from(flow.querySelectorAll('.sc-notice, [data-sc-frame]')).forEach(function (frame, index) {
+            frame.setAttribute('data-print-frame', String(index));
+            titles.set(String(index), Array.from(frame.querySelectorAll('[data-sc-repeat]')).filter(function (t) { return !t.closest('[data-sc-body]') || t.closest('[data-sc-body]') === t; }));
+        });
+        return titles;
+    }
+    function printPieces(sheet, titles) {
+        sheet.querySelectorAll('[data-print-frame]').forEach(function (frame) {
+            var start = frame.classList.contains('doc-fragment-open-start'), end = frame.classList.contains('doc-fragment-open-end');
+            frame.setAttribute('data-sc-piece', start && end ? 'middle' : start ? 'last' : end ? 'first' : 'only');
+            if (!start) { return; }
+            (titles.get(frame.getAttribute('data-print-frame')) || []).slice().reverse().forEach(function (title) {
+                var copy = title.cloneNode(true); copy.removeAttribute('id'); copy.removeAttribute('data-sc-repeat'); copy.setAttribute('aria-hidden', 'true');
+                copy.querySelectorAll('[id]').forEach(function (item) { item.removeAttribute('id'); });
+                frame.insertBefore(copy, frame.firstChild);
+            });
+        });
+    }
+    /* A frame that a page gap runs through is drawn as pieces (docs/host-shortcodes-contract.md, "Long shortcodes across pages"). The frame stays one
+       element, marked data-sc-piece="first", with "only" on a frame no gap runs through. Each gap inside it holds two caps, shells cloned from the
+       frame with nothing in them and marked "first" or "middle" above the gap and "middle" or "last" below it, which carry the frame's own styling for
+       the foot of one piece and the head of the next, and a cover between them, painted as the page and its gutter are, which hides what the frame
+       draws behind the gap. The caps and the cover take no room of their own: the gap is as tall as it was. They are put in again at every layout. */
+    function applyPieces(host, d) {
+        host.querySelectorAll('.doc-gap-cap, .doc-gap-cover').forEach(function (node) { node.remove(); });
+        var scale = Number((host.closest('.doc-paginated') || host).style.zoom) || 1, top = (host.closest('.doc-paginated') || host).getBoundingClientRect().top, period = d.height + GAP;
+        host.querySelectorAll('.sc-notice, [data-sc-frame]').forEach(function (frame) {
+            if (frame.closest('.doc-page-gap') || frame.closest('.doc-footnote')) { return; }
+            var gaps = Array.from(frame.querySelectorAll('.doc-page-gap')).filter(function (gap) { return /^(DIV|SPAN)$/.test(gap.tagName) && !gap.closest('.doc-gap-cap'); });
+            /* The frame is one element from the first piece to the last, so it draws the box's real top and real bottom; the caps draw the edges that a gap opens. */
+            frame.setAttribute('data-sc-piece', 'only');
+            var frameLine = getComputedStyle(frame).lineHeight;
+            var box = frame.getBoundingClientRect();
+            gaps.forEach(function (gap, index) {
+                var rect = gap.getBoundingClientRect(), at = (rect.top - top) / scale, sheet = Math.floor(at / period), gutter = sheet * period + d.height - at;
+                gap.style.position = 'relative';
+                var left = (box.left - rect.left) / scale, width = box.width / scale;
+                var cover = document.createElement('div'); cover.className = 'doc-gap-cover'; cover.setAttribute('aria-hidden', 'true');
+                cover.style.cssText = 'position:absolute;top:0;bottom:0;left:' + left + 'px;width:' + width + 'px;pointer-events:none;background:linear-gradient(to bottom,var(--doc-page) 0,var(--doc-page) ' + Math.max(0, gutter) + 'px,var(--sheet-gutter,var(--surface-alt)) ' + Math.max(0, gutter) + 'px,var(--sheet-gutter,var(--surface-alt)) ' + Math.max(0, gutter + GAP) + 'px,var(--doc-page) ' + Math.max(0, gutter + GAP) + 'px)';
+                function cap(kind, piece) {
+                    var shell = frame.cloneNode(false);
+                    Array.from(shell.attributes).forEach(function (a) { if (/^(id|data-host|data-line|contenteditable|tabindex)/i.test(a.name)) { shell.removeAttribute(a.name); } });
+                    shell.removeAttribute('data-sc-frame'); shell.removeAttribute('data-sc-body');
+                    shell.className = (frame.className ? frame.className + ' ' : '') + 'doc-gap-cap doc-gap-cap-' + kind; shell.setAttribute('data-sc-piece', piece); shell.setAttribute('aria-hidden', 'true');
+                    /* A gap inside a paragraph has line-height 0, which a cap would inherit and so lose the height of its title. */
+                    shell.style.cssText = 'line-height:' + frameLine + ';max-width:none;position:absolute;left:' + left + 'px;width:' + width + 'px;box-sizing:border-box;pointer-events:none;' + (kind === 'end' ? 'top:0;' : 'bottom:0;');
+                    return shell;
+                }
+                var head = cap('start', index === gaps.length - 1 ? 'last' : 'middle');
+                /* A title the host marked data-sc-repeat comes again at the head of the piece, as a copy no one can reach. */
+                frame.querySelectorAll('[data-sc-repeat]').forEach(function (title) {
+                    if (title.closest('[data-sc-body]') && title.closest('[data-sc-body]') !== title) { return; }
+                    var copy = title.cloneNode(true); copy.style.marginBottom = getComputedStyle(title).marginBottom; copy.removeAttribute('id'); copy.removeAttribute('data-sc-repeat'); copy.setAttribute('aria-hidden', 'true');
+                    copy.querySelectorAll('[id]').forEach(function (item) { item.removeAttribute('id'); }); copy.querySelectorAll('a,button,input,[tabindex]').forEach(function (item) { item.setAttribute('tabindex', '-1'); });
+                    head.append(copy);
+                });
+                gap.append(cover, cap('end', index === 0 ? 'first' : 'middle'), head);
+            });
+        });
     }
     function rowSpacer(gap,block,column){
         var node=spacer(gap.height,true,null);node.setAttribute('data-page-gap-key','body:'+gap.index);
@@ -300,7 +395,7 @@
                     if (next !== signature) {
                         signature = next;
                         if (window.yavcDocumentSettings) { window.yavcDocumentSettings.decorate(o.page, page, layout.count); }
-                        var scale=Number(o.page.style.zoom)||1,widgets=tableDecorations(v,scale);layout.gaps.forEach(function(gap){var block=blocks[gap.index];
+                        var scale=Number(o.page.style.zoom)||1,widgets=tableDecorations(v,scale);layout.gaps.forEach(function(gap){var block=blocks[gap.index];if(block.flow)return;
                             var identity=gapIdentity(block)+':'+gap.index+':'+gap.height+':'+gap.header+':'+(gap.header?headerIdentity(block):'');
                             if(block.rowNode&&block.band){block.anchors.forEach(function(anchor,column){if(anchor)widgets.push(PM.Decoration.widget(anchor.pos,function(){return rowSpacer(gap,block,column);},{side:gap.index,key:'cell:'+identity+':'+column+':'+gap.rowHeaderTop+':'+!!anchor.exhausted,ignoreSelection:true}));});}
                             else widgets.push(PM.Decoration.widget(gap.pos,function(){return spacer(gap.height,!!block.anchor,block,gap.header);},{side:-1,key:'gap:'+identity+':'+!!block.anchor,ignoreSelection:true}));
@@ -309,6 +404,8 @@
                         noteGaps(layout,blocks).forEach(function(gap){widgets.push(PM.Decoration.widget(gap.block.pos,function(){return spacer(gap.height,!!gap.block.anchor,gap.block);},{side:-1,key:'note:'+gap.key+':'+gap.height,ignoreSelection:true}));});
                         v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.create(v.state.doc, widgets)).setMeta('addToHistory', false));
                     }
+                    applyFlowGaps(v.dom, layout, blocks);
+                    applyPieces(v.dom, d);
                 } catch (err) { if (o.paginationProblem) { o.paginationProblem(err.message); } }
             });
         }
@@ -323,5 +420,5 @@
             }
         });
     }
-    window.yavcDocumentPages = { paper: '--doc-size:11pt;--doc-ink:#202124;--doc-muted:#555555;--doc-accent:#2355a0;--doc-page:#ffffff;--doc-rule:#cfd4da;--doc-code:#e4e7eb;--doc-warning:#b86e1c;--doc-danger:#b42318;--doc-positive:#2e7d4f;', lookup: paper, length: length, settings: settings, properties: properties, dimensions: dimensions, surface: surface, plan: plan, blocks: blocksOf, spacer: spacer,noteFragment:noteFragment,preview: preview, plugin: plugin };
+    window.yavcDocumentPages = { paper: '--doc-size:11pt;--doc-ink:#202124;--doc-muted:#555555;--doc-accent:#2355a0;--doc-page:#ffffff;--doc-rule:#cfd4da;--doc-code:#e4e7eb;--doc-warning:#b86e1c;--doc-danger:#b42318;--doc-positive:#2e7d4f;', lookup: paper, length: length, settings: settings, properties: properties, dimensions: dimensions, surface: surface, plan: plan, blocks: blocksOf, spacer: spacer,noteFragment:noteFragment,preview: preview, plugin: plugin, tagFrames: tagFrames, printPieces: printPieces };
 })();
