@@ -764,6 +764,7 @@
     function deliveredHeading(d) {
       d = d || {};
       var from = deliveredSender(d);
+      if (window.dinahDecisionAnswerCard.valid(d.answerOrigin)) return 'Answer from ' + from + ' in Decisions';
       if (d.kind === 'result') return d.from ? 'Reply from ' + from : 'Completion report from ' + productName();
       if (d.kind === 'release') return 'Release notice from ' + from;
       if (d.kind === 'verdict') return 'Verdict from ' + from;
@@ -1974,13 +1975,16 @@
       if (waiting) { waiting.replaceWith(li); delete s.arriving[d.id]; tidyArriving(s); }
       var at = d.time ? new Date(d.time) : null, t = li.querySelector('.activity-time');
       if (at && !isNaN(at)) dinahRegional.stamp(t, at, 'clock');
-      var long = text.length > DELIVERED_FOLD_CHARS || text.split('\n').length > DELIVERED_FOLD_LINES;
-      var card = document.createElement('section');
-      card.className = 'card disclosure delivered-card';
-      card.dataset.kind = d.kind || 'text';
-      card.innerHTML = '<div class="card-head"><button type="button" class="card-toggle" aria-expanded="' + !long + '"></button>' +
-        '<span class="card-title delivered-heading"></span><span class="card-summary delivered-summary"></span></div><div class="card-body msg-text delivered-text"></div>';
       var heading = deliveredHeading(d);
+      var decisionAnswer = window.dinahDecisionAnswerCard.valid(d.answerOrigin);
+      var long = text.length > DELIVERED_FOLD_CHARS || text.split('\n').length > DELIVERED_FOLD_LINES;
+      var card = decisionAnswer ? window.dinahDecisionAnswerCard.create(d.answerOrigin, heading) : document.createElement('section');
+      if (!decisionAnswer) {
+        card.className = 'card disclosure delivered-card';
+        card.innerHTML = '<div class="card-head"><button type="button" class="card-toggle" aria-expanded="' + !long + '"></button>' +
+          '<span class="card-title delivered-heading"></span><span class="card-summary delivered-summary"></span></div><div class="card-body msg-text delivered-text"></div>';
+      }
+      card.dataset.kind = d.kind || 'text';
       card.querySelector('.delivered-heading').textContent = heading;
       if (d.status) {
         var badge = document.createElement('span');
@@ -1989,10 +1993,10 @@
         card.querySelector('.card-title').after(badge);
       }
       var first = text.trim().split('\n').find(function (l) { return l.trim(); }) || '';
-      card.querySelector('.delivered-summary').textContent = first.length > 160 ? first.slice(0, 160) + '…' : first;
+      if (!decisionAnswer) card.querySelector('.delivered-summary').textContent = first.length > 160 ? first.slice(0, 160) + '…' : first;
       li.appendChild(card);
       timeInHead(li, card.querySelector('.card-head'));
-      var m = { kind: 'delivered', li: li, text: text, el: card.querySelector('.delivered-text'), label: heading, s: s, cwd: function () { return chatFolder(s); } };
+      var m = { kind: decisionAnswer ? 'decision-answer' : 'delivered', li: li, text: text, el: card.querySelector(decisionAnswer ? '.decision-answer-body' : '.delivered-text'), label: heading, s: s, cwd: function () { return chatFolder(s); } };
       li._msg = m; li._delivered = d;
       dirty.add(m);
       if (!s.loading) scheduleDraw();
@@ -2025,6 +2029,7 @@
       li.className = 'activity-row arriving-row'; li.dataset.arriving = String(msg.id);
       var card = document.createElement('section');
       card.className = 'card arriving-card';
+      if (msg.decisionAnswer === true) card.classList.add('decision-answer-card');
       card.innerHTML = '<div class="card-head"><span class="badge" data-state="waiting" title="Waiting to be delivered" aria-label="Waiting to be delivered">Waiting</span><span class="card-title arriving-heading"></span></div><div class="card-body msg-text arriving-text"></div>';
       card.querySelector('.arriving-heading').textContent = 'Arriving: message from ' + arrivingFrom(msg);
       card.querySelector('.arriving-text').textContent = msg.text || '';
@@ -2075,6 +2080,7 @@
        renderer (chat-text.js), which draws only the block still arriving
        while a message streams in and shows the foot once it is long. */
     function draw(m) {
+      if (m.kind === 'decision-answer') return;
       if (m.kind === 'thought') window.dinahBoundedText.draw(m.el, m.text, function (text) { m.el.textContent = text; });
       else window.dinahChatText.draw(m);
       drawMessageImages(m);

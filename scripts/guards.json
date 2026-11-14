@@ -390,6 +390,8 @@
     "decisions-saved-state",
     "decisions-reading",
     "decisions-context",
+    "decisions-answer-card",
+    "decisions-answer-layout",
     "settings-set-aside-list",
     "settings-updates-set-aside",
     "settings-set-aside-remove",

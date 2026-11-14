@@ -180,6 +180,15 @@
 .delivered-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; }
 .delivered-card > .card-body > :first-child { margin-top: 0; }
 .delivered-card > .card-body > :last-child { margin-bottom: 0; }
+.decision-answer-card { height: 20rem; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; }
+.decision-answer-card > .card-head { flex: none; box-sizing: border-box; height: 4rem; overflow: auto; display: flex; align-items: center; gap: var(--space-2); }
+.decision-answer-card > .card-head > .delivered-heading { flex: 1; min-width: 0; }
+.decision-answer-card > .card-head > .activity-time { flex: none; }
+.decision-answer-card > .card-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; overflow-anchor: none; }
+.decision-answer-footer { flex: none; box-sizing: border-box; height: 3rem; padding: var(--space-2) var(--space-4); overflow: auto; }
+.decision-answer-question { border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); margin-bottom: var(--space-2); }
+.decision-answer-question h4 { margin: var(--space-2) 0; font-size: var(--text-sm); }
+.decision-answer-question p { margin: var(--space-2) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* A message waiting for a chat that is still replaying: display, not part of the
    conversation yet, so it has a dashed edge and says Waiting in a badge. */
 .arriving-card { grid-column: 1 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); border-style: dashed; }
