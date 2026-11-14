@@ -86,6 +86,7 @@
       if (receiptLine) {
         var op = draft.operation;
         receiptLine.textContent = deliveryStatus();
+        receiptLine.classList.toggle('danger', !!draftError || !!op && op.status === 'rejected');
         detail.querySelectorAll('[data-operation]').forEach(function (el) { el.disabled = !workingOp(draft) || pending.has(op.input.operationId); });
       }
     }

@@ -9,6 +9,7 @@
     var content = node('div', 'decisions-content'); frame.append(source, status, content); detail.replaceChildren(frame);
     function active() { return frame.isConnected && current(); }
     function read() {
+      status.classList.remove('danger');
       status.textContent = 'Reading the original request without changing it.'; content.replaceChildren();
       Promise.resolve().then(function () {
         var app = window.dinahHelpers.app();
@@ -34,6 +35,7 @@
       }).catch(function (error) {
         if (!active()) return;
         status.textContent = 'This request is unavailable. Its answer remains in the transcript.';
+        status.classList.add('danger');
         content.replaceChildren(node('p', 'text-muted', window.dinahHelpers.message(error, 'sentence')));
         var retry = node('button', 'btn btn-sm', 'Retry Request Lookup'); retry.type = 'button'; retry.addEventListener('click', read); content.appendChild(retry);
       });

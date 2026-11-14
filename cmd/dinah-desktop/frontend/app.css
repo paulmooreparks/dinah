@@ -872,3 +872,24 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
    long passage does not push the dialog's fields away. */
 .request-change-passage { margin: 0; padding: var(--space-2); max-height: 9rem; min-height: 3rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 #request-change { width: min(36rem, calc(100vw - 2rem)); }
+
+/* These surfaces keep a solid token-coloured focus edge above skin paints. */
+:is(.decisions, .decision-answer-card, #questions, #settings-updates, #settings-set-aside, [data-win="help-chats"], #update-menu, #ask) :is(button, a, input, textarea, select, [tabindex]):focus-visible,
+#set-background-chat-limit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:is(.updates-status, #set-aside-status, .decisions-receipt, .decisions-status, .decisions-delivery[role="status"])::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-inline-end: var(--space-1);
+  vertical-align: -0.1em;
+  background: var(--accent);
+  mask: var(--glyph-info) no-repeat center / contain;
+}
+:is(.updates-status, #set-aside-status, .decisions-receipt, .decisions-delivery).danger::before {
+  background: var(--danger);
+  mask-image: var(--glyph-warning);
+}

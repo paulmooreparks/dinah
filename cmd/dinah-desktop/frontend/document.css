@@ -8,3 +8,8 @@ body.document-page { display: flex; flex-direction: column; background: var(--bg
 .document-help { width: min(44rem, calc(100% - 2rem)); max-height: calc(100% - 2rem); }
 .document-help form { display: flex; flex-direction: column; max-height: calc(100dvh - 5rem); }
 .document-help-body { overflow: auto; min-height: 0; }
+
+.document-page :is(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
