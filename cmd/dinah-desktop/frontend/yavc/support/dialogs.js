@@ -51,14 +51,14 @@
         dlg.setAttribute('aria-labelledby', 'yavc-dlg-' + n + '-title');
         var buttons = (o.buttons || []).map(function (b) {
             var cls = 'btn' + (b.danger ? ' btn-danger' : b.primary ? ' btn-primary' : '');
-            var glyph = b.danger ? '<span class="glyph" style="--glyph: var(--glyph-yavc-bin)" aria-hidden="true"></span>' : '';
+            var glyph = b.danger ? '<span class="glyph" data-glyph="yavc-bin" aria-hidden="true"></span>' : '';
             return b.primary || b.submit === true || (b.danger && b.submit !== false)
                 ? '<button class="' + cls + '" type="submit" value="' + esc(b.id) + '">' + glyph + esc(b.label) + '</button>'
                 : '<button class="' + cls + '" type="button" data-choice="' + esc(b.id) + '">' + glyph + esc(b.label) + '</button>';
         }).join('');
         /* A destructive question is PUDL's danger confirmation: the warning
            glyph in the danger colour beside its title. */
-        var warn = o.warn ? '<span class="glyph yavc-dlg-warn" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span>' : '';
+        var warn = o.warn ? '<span class="glyph yavc-dlg-warn" data-glyph="warning" aria-hidden="true"></span>' : '';
         dlg.innerHTML = '<form method="dialog"><h3 class="dialog-title" id="yavc-dlg-' + n + '-title">' + warn + esc(o.title) + '</h3>' +
             '<div class="dialog-body">' + (o.body || '') + '</div><div class="dialog-actions">' + buttons + '</div></form>';
         document.body.appendChild(dlg);
@@ -101,7 +101,7 @@
 
     function pathField(o) {
         return '<div class="form-group"><label class="form-label" for="' + esc(o.id) + '">' + esc(o.label) + '</label><div class="yavc-path-field"><input class="form-input" id="' + esc(o.id) + '" data-file-path data-accept="' + esc(o.accept || '') + '"' +
-            (o.maxBytes!=null?' data-max-bytes="'+esc(o.maxBytes)+'"':'') + (o.help?' aria-describedby="'+esc(o.id)+'-help"':'') + ' value="' + esc(o.value || '') + '" autocomplete="off"><button class="btn" type="button" data-browse-for="' + esc(o.id) + '"><span class="glyph" style="--glyph:var(--glyph-folder)" aria-hidden="true"></span>Browse…</button></div>' + (o.help ? '<p class="form-help" id="'+esc(o.id)+'-help">' + esc(o.help) + '</p>' : '') + '</div>';
+            (o.maxBytes!=null?' data-max-bytes="'+esc(o.maxBytes)+'"':'') + (o.help?' aria-describedby="'+esc(o.id)+'-help"':'') + ' value="' + esc(o.value || '') + '" autocomplete="off"><button class="btn" type="button" data-browse-for="' + esc(o.id) + '"><span class="glyph" data-glyph="folder" aria-hidden="true"></span>Browse…</button></div>' + (o.help ? '<p class="form-help" id="'+esc(o.id)+'-help">' + esc(o.help) + '</p>' : '') + '</div>';
     }
     /* A chosen file as a document writes it (docs/file-fields-contract.md).
        A path from the document's own folder goes with the document when it

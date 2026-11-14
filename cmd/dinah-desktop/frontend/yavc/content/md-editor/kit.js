@@ -1765,7 +1765,7 @@
         dom.className = 'ed-find';
         dom.setAttribute('role', 'search');
         dom.setAttribute('aria-label', 'Find and Replace');
-        var g = function (name) { return '<span class="glyph" style="--glyph: var(--glyph-' + name + ')" aria-hidden="true"></span>'; };
+        var g = function (name) { return '<span class="glyph" data-glyph="' + name + '" aria-hidden="true"></span>'; };
         /* The grid inside the bar, so the bar's own width can set it out
            (a container query in the site's stylesheet). */
         dom.innerHTML = '<div class="ed-find-grid">' +

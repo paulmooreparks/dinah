@@ -835,7 +835,7 @@
     {
       "ref": "yavc.docs/insert@1",
       "title": "Insert Text",
-      "description": "Insert text at the cursor of the current document, replacing a selection.",
+      "description": "Insert text at the cursor of the current document, replacing a selection. As Markdown, the default, the text is read as Markdown: on the page as blocks that replace the selection and go after the block the cursor is in, in the text as it is. As plain, the words are inserted as they are in either view, with no reading as Markdown, inline at the cursor, with the cursor after them, in one step of Undo, and never through the clipboard.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -843,6 +843,14 @@
         "properties": {
           "text": {
             "type": "string"
+          },
+          "format": {
+            "enum": [
+              "markdown",
+              "plain"
+            ],
+            "default": "markdown",
+            "description": "markdown reads the text as Markdown; plain inserts the words as they are."
           }
         },
         "required": [
@@ -1148,7 +1156,7 @@
       },
       "capabilities": [],
       "changes": "none",
-      "replay": "once"
+      "replay": "pure"
     },
     {
       "ref": "yavc.docs/print@1",

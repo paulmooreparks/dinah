@@ -78,7 +78,7 @@
         opts = opts || {};
         var key = 'document-' + (++sequence), bound = new Set(), contained = new Set(), disposed = false, revision = 0, base = String(opts.base || '');
         var identity = null, path = null, shared = null, readToken = null, cached = '', result = { css: '', classes: [], problems: [] };
-        var style = document.createElement('style'); style.setAttribute('data-md-style-owner', key); document.head.appendChild(style);
+        var style = document.createElement('style'); style.setAttribute('data-md-style-owner', key); if (window.yavcUtil.nonce()) { style.nonce = window.yavcUtil.nonce(); } document.head.appendChild(style);
         function refresh() {
             if (disposed) { return; }
             var wanted = new Set(Array.from(typeof opts.surfaces === 'function' ? opts.surfaces() : (opts.surfaces || [])));

@@ -1602,7 +1602,7 @@
             return '<fieldset class="form-group dg-choice" id="' + id + '-group"><legend class="form-label" id="' + id + '-label">' + esc(label) + '</legend><div class="seg sm">' +
                 options.map(function (o, i) { return '<button type="button" id="' + id + '-' + i + '" data-set="' + esc(key) + '" value="' + esc(o[0]) + '" data-was="' + esc(value == null ? '__mixed__' : value) + '" aria-label="' + esc(o[1]) + '" title="' + esc(o[1]) + '" aria-pressed="' + (value != null && o[0] === value) + '">' + optionGlyph(o) + '<span>' + esc(o[1]) + '</span></button>'; }).join('') + '</div>' + (value == null ? '<p class="form-help">Mixed values</p>' : '') + '</fieldset>';
         }
-        function optionGlyph(option) { return option[2] ? '<span class="glyph" style="--glyph:var(--glyph-' + esc(option[2]) + ')" aria-hidden="true"></span>' : ''; }
+        function optionGlyph(option) { return option[2] ? '<span class="glyph" data-glyph="' + esc(option[2]) + '" aria-hidden="true"></span>' : ''; }
         function pickerField(id, key, label, value, options) {
             var selected = options.find(function (o) { return o[0] === value; }), mixed = value == null;
             return '<div class="form-group" id="' + id + '-group"><span class="form-label" id="' + id + '-label">' + esc(label) + '</span><div class="menu dg-property-menu-wrap">' +

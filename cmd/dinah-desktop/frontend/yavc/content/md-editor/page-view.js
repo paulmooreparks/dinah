@@ -1492,10 +1492,14 @@ var schemaCache = null;
     /* Inserts blocks and puts the cursor in them: on the placeholder, in
        the first cell, or, for a code block, in its Markdown; with drawn, a
        block drawn as the preview draws it, such as an image, stays drawn. */
-    function insertBlocks(nodes, placeholder, drawn) {
+    function insertBlocks(nodes, placeholder, drawn, replacing) {
       var v = view, hole = placeholder || PLACEHOLDER;
       if (!v || !nodes.length) return;
-      var place = insertPlace(v.state), tr = v.state.tr.replaceWith(place.from, place.to, nodes);
+      /* With replacing, a selected passage of text goes first, in the same transaction, so that it is one step of Undo. */
+      var tr = v.state.tr;
+      if (replacing && v.state.selection instanceof PM.TextSelection && !v.state.selection.empty) { tr.deleteSelection(); }
+      var place = insertPlace({ selection: tr.selection, schema: v.state.schema });
+      tr = tr.replaceWith(place.from, place.to, nodes);
       var end = place.from + nodes.reduce(function (s, nd) { return s + nd.nodeSize; }, 0), sel = null, cell = null;
       // The placeholder anywhere in the new blocks is selected to be typed
       // over; failing that, the cursor goes into the first cell of a table.
@@ -1548,11 +1552,30 @@ var schemaCache = null;
           if(on)o.say('The document or selection changed before insertion. Try again.',true);
           return false;
         }
-        insertBlocks((json || []).map(function (j) { return view.state.schema.nodeFromJSON(j); }), null, true);
+        insertBlocks((json || []).map(function (j) { return view.state.schema.nodeFromJSON(j); }), null, true, true);
         return true;
       }).catch(function(err){if(on)o.say(String(err && err.message || err),true);return false;});
     }
 
+    /* Inserts words as they are, with no reading as Markdown (docs/editing-settings-contract.md, "Inserting text"): inline at the caret, replacing a selection, in one step of Undo, the
+       caret after the words. A line break in them is a hard break and a blank line starts a new paragraph. */
+    function insertPlain(text) {
+      if (!view || !on || sourceStale || frozen || view.composing) return Promise.resolve(false);
+      var sel = view.state.selection, s = view.state.schema;
+      if (!(sel instanceof PM.TextSelection) || !sel.$from.parent.inlineContent || !sel.$to.parent.inlineContent) { o.say('The caret is not in text, so nothing can be inserted there.', true); return Promise.resolve(false); }
+      var marks = sel.$from.marks();
+      function inline(paragraph) {
+        var nodes = [];
+        paragraph.split('\n').forEach(function (line, i) { if (i) { nodes.push(s.nodes.hard_break.create()); } if (line) { nodes.push(s.text(line, marks)); } });
+        return nodes;
+      }
+      var paragraphs = String(text).replace(/\r\n?/g, '\n').split(/\n{2,}/);
+      var slice = paragraphs.length === 1 ? new PM.Slice(PM.Fragment.from(inline(paragraphs[0])), 0, 0)
+        : new PM.Slice(PM.Fragment.from(paragraphs.map(function (p) { return s.nodes.paragraph.create(null, inline(p)); })), 1, 1);
+      view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+      view.focus();
+      return Promise.resolve(true);
+    }
     /* A block drawn as the preview draws it; a click edits its source in
        place, and leaving the box draws it again. */
     function hiddenStyles(root) {
@@ -1674,7 +1697,7 @@ var schemaCache = null;
        Markdown (docs/page-view-design.md, decision 5). */
     function criticView(node){
       var current=node,dom=document.createElement('span');dom.className='pm-critic';dom.contentEditable='false';
-      function draw(){dom.replaceChildren(window.yavcHTML.fragment(current.attrs.html));if(!o.review)return;var button=document.createElement('button');button.type='button';button.className='btn btn-sm pm-critic-open';button.setAttribute('aria-label','Review '+current.attrs.kind);button.title='Review '+current.attrs.kind;button.innerHTML='<span class="glyph" style="--glyph:var(--glyph-comments)" aria-hidden="true"></span>';button.addEventListener('mousedown',function(event){event.preventDefault();});button.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();o.review(current.attrs.src);});dom.appendChild(button);}
+      function draw(){dom.replaceChildren(window.yavcHTML.fragment(current.attrs.html));if(!o.review)return;var button=document.createElement('button');button.type='button';button.className='btn btn-sm pm-critic-open';button.setAttribute('aria-label','Review '+current.attrs.kind);button.title='Review '+current.attrs.kind;button.innerHTML='<span class="glyph" data-glyph="comments" aria-hidden="true"></span>';button.addEventListener('mousedown',function(event){event.preventDefault();});button.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();o.review(current.attrs.src);});dom.appendChild(button);}
       draw();return {dom:dom,update:function(next){if(next.type.name!=='critic')return false;current=next;draw();return true;},ignoreMutation:function(){return true;},stopEvent:function(event){return !!event.target.closest('button');}};
     }
     var BOX_TITLED = { info: 'Title', note: 'Title', tip: 'Title', warning: 'Title', expand: 'Title', 'class': 'Class' };
@@ -2478,6 +2501,7 @@ var schemaCache = null;
       run: run,
       insertMarkdown: insertMarkdown,
       insertInline: insertInline,
+      insertPlain: insertPlain,
       /* A shortcode from the Insert menu: an inline one at the cursor, and
          any other as blocks where a new block goes. */
       insertShortcode: function (kind, src) { return kind === 'inline' ? insertInline(src) : insertMarkdown(src); },
@@ -2579,7 +2603,7 @@ var schemaCache = null;
         if (view) { view.destroy(); view = null; }
       }
     };
-    ['run', 'selectionText', 'selectedBlocks', 'sourceSelection', 'prepareEdit', 'insertMarkdown', 'insertInline', 'insertShortcode', 'wrap', 'paste'].forEach(function (name) {
+    ['run', 'selectionText', 'selectedBlocks', 'sourceSelection', 'prepareEdit', 'insertMarkdown', 'insertInline', 'insertPlain', 'insertShortcode', 'wrap', 'paste'].forEach(function (name) {
       var inner = api[name];
       if (typeof inner === 'function') api[name] = function () { syncSelection(); return inner.apply(this, arguments); };
     });

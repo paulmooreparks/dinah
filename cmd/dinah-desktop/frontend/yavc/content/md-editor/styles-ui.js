@@ -27,7 +27,7 @@
         function state(i) {
             return states[i] || (states[i] = CM.EditorState.create({ doc: entries[i].css, extensions: [editability.of([]), CM.lineNumbers(), CM.history(), CM.css(), CM.autocompletion(),
                 CM.keymap.of([{ key: 'Mod-s', run: function () { if (!pending) { api.dialog.querySelector('form').requestSubmit(); } return true; } }].concat(CM.defaultKeymap, CM.historyKeymap, CM.completionKeymap, [CM.indentWithTab])), CM.EditorView.lineWrapping,
-                CM.EditorView.contentAttributes.of({ 'aria-label': 'Stylesheet CSS' }), window.yavcMdEditor.codeTheme(CM),
+                CM.EditorView.contentAttributes.of({ 'aria-label': 'Stylesheet CSS' }), window.yavcUtil.nonce() ? CM.EditorView.cspNonce.of(window.yavcUtil.nonce()) : [], window.yavcMdEditor.codeTheme(CM),
                 CM.EditorView.updateListener.of(function (u) { if (u.docChanged) { diagnostics(); } })] }));
         }
         function diagnostics() {

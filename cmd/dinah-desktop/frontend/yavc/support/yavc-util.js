@@ -13,7 +13,9 @@
      yavcUtil.notice(ref, text, kind) PUDL's persistent notice before ref
      yavcUtil.toast(text, kind)      a transient operation result, with a dialog fallback
      yavcUtil.documentCommands(service, application)   a host's commands for a document application, checked
-     yavcUtil.hostPath(answer)        a host's answer to where a file is, if it is a path to use, else null */
+     yavcUtil.hostPath(answer)        a host's answer to where a file is, if it is a path to use, else null
+     yavcUtil.nonce()                 the Content-Security-Policy nonce the host gave (pudlHost.editing.nonce), or ''; a style element the page makes carries it
+     yavcUtil.glyph(name)             markup for a glyph, drawn without a style attribute, which a policy without 'unsafe-inline' blocks */
 (function () {
     'use strict';
     if (window.yavcUtil) { return; }
@@ -234,5 +236,23 @@
 
     /* The font families a font field suggests. A person may type any other family, or a list of them. */
     var fontChoices = Object.freeze(['Arial', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Courier New', 'Garamond', 'Georgia', 'Helvetica', 'Inter', 'Liberation Sans', 'Liberation Serif', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'monospace', 'sans-serif', 'serif', 'system-ui']);
-    window.yavcUtil = Object.freeze({ hostPath: hostPath, fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
+    /* The nonce a host that sends style-src 'self' 'nonce-...' gives Docs (docs/editing-settings-contract.md, "A nonce"): a string of the characters a nonce has, from
+       pudlHost.editing, version 1. Anything else is no nonce. */
+    function nonce() {
+        var e = (window.pudlHost || {}).editing;
+        return e && e.version === 1 && typeof e.nonce === 'string' && /^[A-Za-z0-9+/_=-]{8,200}$/.test(e.nonce) ? e.nonce : '';
+    }
+    /* A glyph is markup with its name, and the style that gives it its picture is set here with the style object, since an inline style attribute is blocked by a policy
+       with no 'unsafe-inline' and a nonce does not cover one. Every glyph that is added to the page, now or later, gets its picture. */
+    function glyph(name) { return '<span class="glyph" data-glyph="' + esc(name) + '" aria-hidden="true"></span>'; }
+    function paintGlyphs(node) {
+        if (!node || node.nodeType !== 1) { return; }
+        var list = node.matches('[data-glyph]') ? [node] : [];
+        if (node.firstElementChild) { list = list.concat(Array.from(node.querySelectorAll('[data-glyph]'))); }
+        list.forEach(function (g) { var name = g.getAttribute('data-glyph'); if (/^[a-z0-9-]+$/.test(name) && g.style.getPropertyValue('--glyph') === '') { g.style.setProperty('--glyph', 'var(--glyph-' + name + ')'); } });
+    }
+    paintGlyphs(document.documentElement);
+    if (typeof MutationObserver === 'function') { new MutationObserver(function (records) { records.forEach(function (r) { Array.prototype.forEach.call(r.addedNodes, paintGlyphs); }); }).observe(document, { childList: true, subtree: true }); }
+
+    window.yavcUtil = Object.freeze({ nonce: nonce, glyph: glyph, hostPath: hostPath, fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

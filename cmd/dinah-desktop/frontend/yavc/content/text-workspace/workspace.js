@@ -144,7 +144,7 @@
               '</div>' +
             '</div>' +
             '<div class="ed-status" data-role="status-bar">' +
-              '<span class="ed-readonly" data-role="readonly" hidden><span class="glyph" style="--glyph: var(--glyph-pencil-off)" aria-hidden="true"></span>Read-only</span>' +
+              '<span class="ed-readonly" data-role="readonly" hidden><span class="glyph" data-glyph="pencil-off" aria-hidden="true"></span>Read-only</span>' +
               '<span data-role="where"></span><span data-role="lang"></span><span data-role="count"></span><span data-role="pages"></span><span data-role="pos"></span>' +
               '<span class="ed-message" data-role="message" role="status" aria-live="polite"></span>' +
             '</div></div></div>';
@@ -476,6 +476,7 @@
                     CM.EditorState.transactionFilter.of(function (tr) { return tr.docChanged && tab.readOnly ? [] : tr; }),
                     // Each line takes its direction from its own first strong character, so a Hebrew or Arabic line sits at the right (docs: CodeMirror's perLineTextDirection).
                     CM.EditorView.perLineTextDirection.of(true),
+                    window.yavcUtil.nonce() ? CM.EditorView.cspNonce.of(window.yavcUtil.nonce()) : [],
                     CM.EditorView.contentAttributes.of(spellcheckOff ? { 'aria-label': 'Text of ' + tab.name, spellcheck: 'false' } : { 'aria-label': 'Text of ' + tab.name }),
                     CM.EditorView.updateListener.of(function (u) {
                         if(u.docChanged&&u.startState.field(longLineField)!==u.state.field(longLineField))refreshWrap();
@@ -1041,8 +1042,8 @@
         /* === The Explorer pane ============================================ */
 
         function setupExplorer() {
-            var back='<button type="button" class="btn btn-sm ed-navigation-back" data-close-navigation><span class="glyph" style="--glyph:var(--glyph-back)" aria-hidden="true"></span>Back to Document</button>';
-            el.outline.innerHTML=back+'<h3 class="ed-pane-title">Outline</h3><div class="ed-outline-tools" role="group" aria-label="Section Order"><button type="button" class="btn btn-sm" data-section-move="up"><span class="glyph" style="--glyph:var(--glyph-arrow-up)" aria-hidden="true"></span>Move Up</button><button type="button" class="btn btn-sm" data-section-move="down"><span class="glyph" style="--glyph:var(--glyph-arrow-down)" aria-hidden="true"></span>Move Down</button></div><div class="ed-outline-panel" data-outline-tree></div>';
+            var back='<button type="button" class="btn btn-sm ed-navigation-back" data-close-navigation><span class="glyph" data-glyph="back" aria-hidden="true"></span>Back to Document</button>';
+            el.outline.innerHTML=back+'<h3 class="ed-pane-title">Outline</h3><div class="ed-outline-tools" role="group" aria-label="Section Order"><button type="button" class="btn btn-sm" data-section-move="up"><span class="glyph" data-glyph="arrow-up" aria-hidden="true"></span>Move Up</button><button type="button" class="btn btn-sm" data-section-move="down"><span class="glyph" data-glyph="arrow-down" aria-hidden="true"></span>Move Down</button></div><div class="ed-outline-panel" data-outline-tree></div>';
             if(F && FB){
             el.explorer.innerHTML=back+'<h3 class="ed-pane-title">Files</h3><div class="ed-files-panel">'+FB.markup.body({list:false,treeLabel:'Files'})+'</div>';
 
@@ -1441,8 +1442,8 @@
                         doc.open();doc.write('<!doctype html><html><head></head><body></body></html>');doc.close();
                         frame.contentWindow.addEventListener('afterprint', function () { frame.remove(); if (printFrame === frame) { printFrame = null; } }, { once: true });
                         doc.title = t.name || 'Document';
-                        document.querySelectorAll('head link[rel="stylesheet"], head style').forEach(function (node) { doc.head.append(node.cloneNode(true)); });
-                        var css = doc.createElement('style'); css.textContent = '@page{size:' + page.width + 'pt ' + page.height + 'pt;margin:0}html,body{margin:0;padding:0;background:white} .doc-print-sheet{box-sizing:border-box;break-after:page;break-inside:avoid;margin:0!important;min-height:0!important;height:' + d.height + 'px!important;background-image:none!important;print-color-adjust:exact;-webkit-print-color-adjust:exact} .doc-print-sheet:last-child{break-after:auto} .doc-print-sheet .sc-page-break{display:none}'; doc.head.append(css);
+                        document.querySelectorAll('head link[rel="stylesheet"], head style').forEach(function (node) { var copy = node.cloneNode(true); if (copy.tagName === 'STYLE' && window.yavcUtil.nonce()) { copy.nonce = window.yavcUtil.nonce(); } doc.head.append(copy); });
+                        var css = doc.createElement('style'); if (window.yavcUtil.nonce()) { css.nonce = window.yavcUtil.nonce(); } css.textContent = '@page{size:' + page.width + 'pt ' + page.height + 'pt;margin:0}html,body{margin:0;padding:0;background:white} .doc-print-sheet{box-sizing:border-box;break-after:page;break-inside:avoid;margin:0!important;min-height:0!important;height:' + d.height + 'px!important;background-image:none!important;print-color-adjust:exact;-webkit-print-color-adjust:exact} .doc-print-sheet:last-child{break-after:auto} .doc-print-sheet .sc-page-break{display:none}'; doc.head.append(css);
                         var at = 0, starts = [0].concat(layout.gaps.map(function (gap) { return gap.index; })).concat(blocks.length);while(starts.length<layout.count+1)starts.push(blocks.length);
                         for (var i = 0; i < starts.length - 1; i++) {
                             var sheet = surface.cloneNode(false); sheet.classList.add('doc-print-sheet'); var body = doc.createElement('div'); body.className = 'doc-page-flow'; sheet.append(body);
@@ -1611,7 +1612,7 @@
         }
         function reviewProposable(){var t=current();return !!(CM&&view&&t&&t.lang==='markdown'&&!t.readOnly&&(!readsAsPreview()||editingPane==='text'));}
         function wireReview(target){
-            target.querySelectorAll('[data-critic-raw]').forEach(function(mark){if(mark.querySelector(':scope > .pm-critic-open'))return;var button=document.createElement('button');button.type='button';button.className='btn btn-sm pm-critic-open';button.setAttribute('aria-label','Review annotation');button.title='Review annotation';button.innerHTML='<span class="glyph" style="--glyph:var(--glyph-comments)" aria-hidden="true"></span>';button.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();reviewTools().then(function(controller){return controller.browse(mark.getAttribute('data-critic-raw'));}).catch(function(err){say(err.message,true);});});mark.appendChild(button);});
+            target.querySelectorAll('[data-critic-raw]').forEach(function(mark){if(mark.querySelector(':scope > .pm-critic-open'))return;var button=document.createElement('button');button.type='button';button.className='btn btn-sm pm-critic-open';button.setAttribute('aria-label','Review annotation');button.title='Review annotation';button.innerHTML='<span class="glyph" data-glyph="comments" aria-hidden="true"></span>';button.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();reviewTools().then(function(controller){return controller.browse(mark.getAttribute('data-critic-raw'));}).catch(function(err){say(err.message,true);});});mark.appendChild(button);});
         }
         function pageActive() { return !!(visual.api && visual.api.active()); }
         function pageHost() {
@@ -2787,9 +2788,26 @@
             return key ? keyLabel(key) : undefined;
         }
 
-        function insertText(text) {
+        /* Words as Markdown that reads back as the same words (docs/editing-settings-contract.md, "Inserting text"): what would be taken for Markdown is escaped with a backslash, a line break
+           is a backslash break, and a blank line is a blank line. A mark at the start of a line, such as a heading's or a list's, is escaped only there. */
+        function plainToMarkdown(text, atLineStart) {
+            var lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+            var escaped = lines.map(function (line, i) {
+                var s = line.replace(/[\\`*_\[\]<>|~&{}]/g, '\\$&');
+                if (i > 0 || atLineStart) { s = s.replace(/^(\s*)([#+\-=])/, '$1\\$2').replace(/^(\s*)(\d+)([.)])/, '$1$2\\$3'); }
+                return s;
+            });
+            return escaped.reduce(function (out, line, i) { return i === 0 ? line : out + (escaped[i - 1] !== '' && line !== '' ? '\\\n' : '\n') + line; }, '');
+        }
+        function insertText(text, format) {
             var t = current();
             if (!t || t.readOnly) { say('This file is read-only, so nothing can be added to it.', true); return; }
+            if (format === 'plain') {
+                if (formatsThePage()) { return visual.api.insertPlain(text); }
+                var from = view.state.selection.main.from;
+                view.dispatch(view.state.replaceSelection(plainToMarkdown(text, from === view.state.doc.lineAt(from).from)), { scrollIntoView: true, userEvent: 'input' });
+                view.focus(); return;
+            }
             if (formatsThePage()) { return visual.api.insertMarkdown(text); }
             view.dispatch(view.state.replaceSelection(text), { scrollIntoView: true, userEvent: 'input' });
             view.focus();
@@ -3169,7 +3187,8 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 if(!tr.docChanged)return value;var found=false;tr.changes.iterChangedRanges(function(a,b,from,to){for(var at=from;at<=to;){var line=tr.newDoc.lineAt(at);if(line.length>WRAP_LINE_LIMIT){found=true;break;}if(line.to>=to)break;at=line.to+1;}});return found||value&&docLongLine(tr.newDoc);
             }});
             keyComp = new CM.Compartment();
-            view = new CM.EditorView({ parent: el.surface });
+            /* CodeMirror makes its own style element when the first editor is drawn, and gives it the nonce its state has (docs/editing-settings-contract.md, "A nonce"). */
+            view = new CM.EditorView(window.yavcUtil.nonce() ? { parent: el.surface, state: CM.EditorState.create({ extensions: [CM.EditorView.cspNonce.of(window.yavcUtil.nonce())] }) } : { parent: el.surface });
             view.scrollDOM.addEventListener('scroll', keep, { passive: true });
             unsubscribe = F ? F.onChange(onFsChange) : null;
             /* A host that reports changes to files is also saying that the
@@ -3340,7 +3359,8 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             'set-text@1': async function (input) { var i = docNo(input.index); await setDocText(i, input.text); return { output: docView(i, false) }; },
             'insert@1': async function (input) {
                 docNo();var tab=current();if(tab.readOnly)throw new Error('the document is read-only');
-                if(await insertText(String(input.text))===false || current()!==tab)throw new Error('The document or selection changed before insertion.');
+                if(input.format!==undefined&&input.format!=='markdown'&&input.format!=='plain')throw new Error('format is markdown or plain');
+                if(await insertText(String(input.text),input.format)===false || current()!==tab)throw new Error('The document or selection changed before insertion.');
                 if(pageActive())await visual.api.sync();
                 if(current()!==tab)throw new Error('The document changed before insertion was acknowledged.');
                 return {output:docView(active,false)};
@@ -3399,7 +3419,31 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 return await liveActions[request.operation + '@1'](request.input);
             } finally { receivingDocument = false; } }, flush: function () { return !!snap && snap.flush(); }
         });
-        var detachLive = window.pudlApplets && window.pudlApplets.attach ? window.pudlApplets.attach('yavc.' + app, liveActions) : null;
+        /* Actions go to the instance that started last (PUDL attaches handlers by provider), so a host with several instances addresses one by an event on its root
+           (docs/editing-settings-contract.md, "Running an action on one instance"): the instance runs the action with PUDL's own run, which checks the input and the
+           grants as for any action, and PUDL hands the call to the newest instance, whose handlers look at the owner of the call and pass it on to the instance it names. */
+        var instances = window.yavcDocsInstances || (window.yavcDocsInstances = new Map()), token = 'docs-' + n + '-' + Math.random().toString(36).slice(2, 10);
+        instances.set(token, liveActions);
+        var routed = {};
+        Object.keys(liveActions).forEach(function (id) {
+            routed[id] = function (input, ctx) {
+                var owner = ctx && ctx.owner, target = owner && owner.kind === 'docs-instance' ? instances.get(owner.id) : liveActions;
+                if (!target || typeof target[id] !== 'function') { return Promise.reject(new Error('That Docs instance is no longer there.')); }
+                return target[id](input, ctx);
+            };
+        });
+        function onActionRequest(event) {
+            var d = event.detail;
+            if (!d || typeof d !== 'object' || event.target !== root) { return; }
+            event.stopPropagation();
+            d.result = Promise.resolve().then(function () {
+                if (typeof d.ref !== 'string' || !/^yavc\.docs\/[a-z0-9-]+@\d+$/.test(d.ref)) { throw new Error('ref is the reference of a yavc.docs action'); }
+                if (destroyed) { throw new Error('That Docs instance is no longer there.'); }
+                return window.pudlActions.run(d.ref, d.input === undefined ? {} : d.input, { grant: d.grant, owner: { kind: 'docs-instance', id: token } });
+            });
+        }
+        if (isDocs) { root.addEventListener('yavc-docs-action', onActionRequest); }
+        var detachLive = window.pudlApplets && window.pudlApplets.attach ? window.pudlApplets.attach('yavc.' + app, routed) : null;
         var commonToolbar = window.pudlHost && window.pudlHost.commandToolbar ? window.pudlHost.commandToolbar.attach(root, { app: app, label: isDocs ? 'Docs' : 'Editor', table: commandTable,
             defaults: ['save', '-', 'undo', 'redo', '-', 'style', 'bold', 'italic', 'link', 'insert', '-', 'find'].concat(SEVERAL_VIEWS ? ['-', 'view-mode'] : []) }) : null;
         /* Without the host's toolbar service the workspace draws its own, once it has started. */
@@ -3434,6 +3478,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 if (fallbackBar) { document.removeEventListener('pudl:commands-change', drawFallbackToolbar); cancelAnimationFrame(fallbackFocusFrame); fallbackBar.remove(); fallbackBar = null; }
                 /* The session as the Editor closes, for when it opens again. */
                 if (detachLive) { detachLive(); }
+                instances.delete(token); root.removeEventListener('yavc-docs-action', onActionRequest);
                 keepSession();
                 if (snap) snap.flush();
                 destroyed = true;
