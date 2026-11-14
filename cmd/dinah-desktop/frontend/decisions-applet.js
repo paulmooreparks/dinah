@@ -34,7 +34,7 @@
     var toolbar = node('div', 'decisions-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Decisions');
     var listCommand = button('Requests', function () { navigate('requests', ''); });
     var search = node('input', 'form-input'); search.type = 'search'; search.placeholder = 'Filter Requests'; search.setAttribute('aria-label', 'Filter Requests');
-    var refresh = button('Refresh', function () { return load(false); });
+    var refresh = button('Refresh', function () { if (view === 'record') { rendered = ''; draw(); } return load(false); });
     var more = button('Earlier Requests', function () { return load(true); }); more.disabled = true;
     toolbar.append(listCommand, search, refresh, more);
     var status = node('p', 'decisions-status text-muted', 'Reading requests.'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
@@ -48,7 +48,7 @@
     function current() { return items.get(selected) || selectedCopy; }
     function stateRead(value) {
       var p = new URLSearchParams(value || ''); selected = p.get('request') || ''; filter = p.get('q') || '';
-      view = /^(broadcast-active|broadcast-all)$/.test(p.get('view')) ? p.get('view') : 'requests'; search.value = filter; rendered = '';
+      view = /^(broadcast-active|broadcast-all|record)$/.test(p.get('view')) ? p.get('view') : 'requests'; search.value = filter; rendered = '';
     }
     function draftFor(id) { return window.dinahDecisionDrafts.read(id); }
     function store(id, value) { return window.dinahDecisionDrafts.write(id, value); }
@@ -260,7 +260,16 @@
       if (disposed || !ready) return;
       root.dataset.decisionDetail = String(view !== 'requests' || !!selected);
       drawList();
-      try { if (view === 'requests') drawRequest(); else drawBroadcast(); } catch (error) { form = null; say(errorText(error)); detail.replaceChildren(node('p', 'text-muted', 'The saved draft could not be read. It has not been replaced.')); }
+      try {
+        if (view === 'record') {
+          form = null;
+          var recordId = selected, shape = 'record|' + recordId;
+          if (rendered !== shape) {
+            rendered = shape;
+            window.dinahDecisionRecord(detail, recordId, validItem, function () { return !disposed && view === 'record' && selected === recordId; });
+          }
+        } else if (view === 'requests') drawRequest(); else drawBroadcast();
+      } catch (error) { form = null; say(errorText(error)); detail.replaceChildren(node('p', 'text-muted', 'The saved draft could not be read. It has not been replaced.')); }
     }
     function load(append) {
       if (!ready || disposed) return Promise.resolve();
@@ -268,7 +277,7 @@
       if (refreshing) { refreshAgain = true; return readPromise; }
       var before = append ? moreBefore : 0, sequence = ++readNumber;
       refreshing = true; readValid = false; refresh.disabled = true; more.disabled = true;
-      var collected = [], pages = 0, keepSelection = !append && !!selected, targetPages = append ? 1 : loadedPages;
+      var collected = [], pages = 0, keepSelection = !append && !!selected && view === 'requests', targetPages = append ? 1 : loadedPages;
       function readPage(cursor) {
         return Promise.resolve().then(function () { return app().Decisions(cursor); }).then(function (page) {
           if (!page || !Array.isArray(page.items) || !page.items.every(validItem) || !Number.isSafeInteger(page.nextBefore) || page.nextBefore < 0 || cursor && page.nextBefore >= cursor) throw new Error('The request list is invalid.');
