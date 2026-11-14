@@ -29,6 +29,8 @@
     var items = new Map(), order = [], selected = '', selectedCopy = null, filter = '', view = 'requests';
     var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', pending = new Set();
     root.classList.add('decisions');
+    // PUDL temporarily makes automatic docks rails while this window needs room.
+    root.closest('[data-win]').setAttribute('data-win-room', '84rem');
     var toolbar = node('div', 'decisions-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Decisions');
     var listCommand = button('Requests', function () { navigate('requests', ''); });
     var search = node('input', 'form-input'); search.type = 'search'; search.placeholder = 'Filter Requests'; search.setAttribute('aria-label', 'Filter Requests');
@@ -115,7 +117,7 @@
     function question(q, item) {
       var field = node('fieldset', 'decisions-question'); field.dataset.question = String(q.number);
       field.appendChild(node('legend', '', item.kind === 'mention' ? 'Your Reply' : 'Question ' + q.number));
-      field.appendChild(node('p', '', q.text));
+      field.appendChild(node('p', 'decisions-question-text', q.text));
       if (q.answered) { field.appendChild(node('p', 'text-muted', 'Answered: ' + q.answer)); return field; }
       if (item.kind === 'request') field.appendChild(node('p', 'decisions-recommendation', 'Recommendation: ' + q.recommendation));
       var a = draft.answers[q.number] || { text: '', asRecommended: false }, label = node('label', '', item.kind === 'mention' ? 'Your Reply' : 'Answer ' + q.number), input = node('textarea', 'form-input');
@@ -135,6 +137,11 @@
       var actions = node('div', 'decisions-actions'), check = button('Check Delivery', reconcile);
       check.dataset.operation = 'check'; actions.appendChild(check); return actions;
     }
+    function deliveryPanel() {
+      var panel = node('div', 'decisions-delivery');
+      receiptLine = node('p', 'decisions-receipt'); receiptLine.setAttribute('role', 'status');
+      panel.append(receiptLine, operationActions()); return panel;
+    }
     function drawRequest() {
       var item = items.get(selected) || selectedCopy;
       if (selected && (!item || item.id !== selected)) { var saved = draftFor('request:' + selected); if (validItem(saved.request) && saved.request.id === selected) item = saved.request; }
@@ -145,16 +152,18 @@
       rendered = shape; draftKey = 'request:' + item.id; draft = draftFor(draftKey); draft.request = item; draftError = '';
       if (!draft.reviewed && !workingOp(draft)) draft.reviewed = signature(item);
       form = node('form'); form.addEventListener('submit', function (event) { event.preventDefault(); if (!send.disabled) answer(); });
-      form.appendChild(node('h2', '', item.kind === 'request' ? 'Questions for You' : 'Message for You'));
-      form.appendChild(node('p', 'decisions-source', item.asker + ' · ' + item.workspace + (item.groupTitle ? ' · ' + item.groupTitle : '') + ' · ' + window.dinahRegional.format(new Date(item.createdAt), 'dayTime')));
+      var source = node('header', 'decisions-source');
+      source.appendChild(node('h2', '', item.asker));
+      source.appendChild(node('p', 'text-muted', (item.kind === 'request' ? 'Questions for You' : item.group ? 'Group Mention' : 'Message for You') + ' · ' + item.workspace + (item.groupTitle ? ' · ' + item.groupTitle : '') + ' · ' + window.dinahRegional.format(new Date(item.createdAt), 'dayTime')));
+      form.append(source, deliveryPanel());
+      var content = node('div', 'decisions-content'); form.appendChild(content);
       changedLine = node('p', 'text-warning'); review = button('I Have Reviewed the Updated Request', function () { draft.reviewed = signature(item); saveEdited(); });
-      form.append(changedLine, review);
-      if (item.dismissalReason) form.appendChild(node('p', 'decisions-recommendation', item.dismissalReason));
-      (item.kind === 'mention' ? [{ number: 0, text: item.text, choices: [], answered: false }] : item.questions).forEach(function (q) { form.appendChild(question(q, item)); });
-      destination = node('p', 'decisions-destination', 'Send to ' + item.destination + '. Reply to message ' + item.messageId + '.'); form.appendChild(destination);
+      var reviewPanel = node('div', 'decisions-review'); reviewPanel.append(changedLine, review); content.appendChild(reviewPanel);
+      if (item.dismissalReason) content.appendChild(node('p', 'decisions-recommendation', item.dismissalReason));
+      (item.kind === 'mention' ? [{ number: 0, text: item.text, choices: [], answered: false }] : item.questions).forEach(function (q) { content.appendChild(question(q, item)); });
+      destination = node('p', 'decisions-destination', 'Send to ' + item.destination + '. Reply to message ' + item.messageId + '.'); content.appendChild(destination);
       send = button('Send Answers', answer, true); var actions = node('div', 'decisions-actions'); actions.appendChild(send);
-      if (item.canDismiss) { var dismissButton = button(item.kind === 'mention' ? 'Dismiss Message' : 'Dismiss Request', dismiss); dismissButton.dataset.dismissDecision = ''; actions.appendChild(dismissButton); } form.appendChild(actions);
-      receiptLine = node('p', 'decisions-receipt'); receiptLine.setAttribute('role', 'status'); form.append(receiptLine, operationActions());
+      if (item.canDismiss) { var dismissButton = button(item.kind === 'mention' ? 'Dismiss Message' : 'Dismiss Request', dismiss); dismissButton.dataset.dismissDecision = ''; actions.appendChild(dismissButton); } content.appendChild(actions);
       var oldActive = detail.contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA' ? document.activeElement : null;
       var oldLabel = oldActive && oldActive.getAttribute('aria-label'), oldStart = oldActive && oldActive.selectionStart, oldEnd = oldActive && oldActive.selectionEnd;
       detail.replaceChildren(form); controls();
@@ -209,13 +218,15 @@
       rendered = key; draftKey = key; draft = draftFor(key); draftError = '';
       form = node('form', 'decisions-broadcast'); form.addEventListener('submit', function (e) { e.preventDefault(); });
       form.appendChild(node('h2', '', scope === 'active' ? 'Broadcast to Active' : 'Broadcast to All'));
-      form.appendChild(node('p', '', scope === 'active' ? 'The preview lists chats working when the engine reads them.' : 'The preview lists every eligible chat on the bus. Closed chats wait for a background place. External terminals cannot be opened by Dinah.'));
-      var label = node('label', '', 'Message'), input = node('textarea', 'form-input'); input.setAttribute('aria-label', 'Broadcast Message'); input.maxLength = 16000; input.value = draft.text || ''; label.appendChild(input); form.appendChild(label);
+      form.appendChild(deliveryPanel());
+      var content = node('div', 'decisions-content'); form.appendChild(content);
+      content.appendChild(node('p', '', scope === 'active' ? 'The preview lists chats working when the engine reads them.' : 'The preview lists every eligible chat on the bus. Closed chats wait for a background place. External terminals cannot be opened by Dinah.'));
+      var label = node('label', '', 'Message'), input = node('textarea', 'form-input'); input.setAttribute('aria-label', 'Broadcast Message'); input.maxLength = 16000; input.value = draft.text || ''; label.appendChild(input); content.appendChild(label);
       var previewBox = node('div', 'decisions-preview'), previewButton = button('Preview Recipients', preview), confirmButton = button('Confirm Broadcast…', confirmBroadcast, true); confirmButton.disabled = true;
       input.addEventListener('input', function () { draft.text = input.value; draft.preview = null; previewBox.replaceChildren(); confirmButton.disabled = true; saveEdited(); });
       previewButton.dataset.broadcast = 'preview'; confirmButton.dataset.broadcast = 'confirm';
-      var actions = node('div', 'decisions-actions'); actions.append(previewButton, confirmButton); form.append(actions, previewBox);
-      receiptLine = node('p', 'decisions-receipt'); receiptLine.setAttribute('role', 'status'); form.append(receiptLine, operationActions()); detail.replaceChildren(form);
+      var actions = node('div', 'decisions-actions'); actions.append(previewButton, confirmButton); content.append(actions, previewBox);
+      detail.replaceChildren(form);
       function paintPreview() {
         var value = draft.preview; previewBox.replaceChildren(); confirmButton.disabled = true;
         if (!value) return;
