@@ -45,15 +45,16 @@ func Effectful(capability string) bool {
 	return false
 }
 
-// Asks says whether Dinah asks the person before a chat runs this action.
-// An action with a declared effect level asks for "history" and "network"
-// only; one without a level asks when any capability is Effectful.
 // RequiresFreshApproval marks actions whose agent callers need a new window
 // approval for every invocation, regardless of blanket or saved grants.
 func RequiresFreshApproval(action Action) bool {
 	return slices.Contains(action.Capabilities, "person.approval")
 }
 
+// Asks says whether Dinah asks the person before a chat runs this action.
+// Fresh approval takes precedence over effect levels. Otherwise, an action
+// with a declared effect level asks for "history" and "network"
+// only; one without a level asks when any capability is Effectful.
 func Asks(action Action) bool {
 	if RequiresFreshApproval(action) {
 		return true
