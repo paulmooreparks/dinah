@@ -79,30 +79,26 @@ func TestWatcherCallbacksAndTwoPhaseShutdown(t *testing.T) {
 	o.Wake = func(context.Context, *bus.Bus) { free(); order = append(order, "wake") }
 	s = New(o)
 	defer s.CloseHandle()
-	s.StartWatcher(context.Background())
-	select {
-	case <-entered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("watcher did not run")
-	}
+	// Drive one round explicitly. Database initialization and goroutine
+	// scheduling have no per-step deadline; the test runner bounds hangs.
+	ticks := make(chan time.Time)
+	s.startWatcher(context.Background(), ticks)
+	ticks <- time.Time{}
+	<-entered
 	stopped := make(chan struct{})
 	go func() { s.StopWatcher(); close(stopped) }()
-	select {
-	case <-s.stop:
-	case <-time.After(5 * time.Second):
-		t.Fatal("stop was not signalled")
-	}
+	<-s.stop
+	// Closing stop happens under mu. Let StopWatcher leave that critical
+	// section before asking the callbacks to check their own lock freedom.
+	s.mu.Lock()
+	s.mu.Unlock()
 	select {
 	case <-stopped:
 		t.Fatal("stop did not join callback")
 	default:
 	}
 	close(release)
-	select {
-	case <-stopped:
-	case <-time.After(5 * time.Second):
-		t.Fatal("stop did not finish")
-	}
+	<-stopped
 	if !reflect.DeepEqual(order, []string{"labels", "reconcile", "changed", "deliver", "wake"}) {
 		t.Fatal(order)
 	}
