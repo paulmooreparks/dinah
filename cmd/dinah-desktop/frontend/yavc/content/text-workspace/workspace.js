@@ -178,6 +178,9 @@
         /* The host's editing settings (docs/editing-settings-contract.md), read once here and used for every editing area for as long as this applet lives. Only a version 1 service whose spellcheck is the boolean false changes anything. */
         /* fileCommands: false takes away New, Open, Save As, Export and Print, and save: "host" Docs' own Save (docs/editing-settings-contract.md). */
         var fileCommandsOff = !!(H.editing && H.editing.version === 1 && H.editing.fileCommands === false), saveByHost = !!(H.editing && H.editing.version === 1 && H.editing.save === 'host');
+        /* menus (docs/editing-settings-contract.md, "Where the menus are"): "host" leaves Docs' menus to the host's PUDL menu bar; "own" has Docs draw them in its own area; with neither, they are the host's when the page has a PUDL menu bar and Docs' own when it has none, so that Docs always has its menus. A read-only instance has none. */
+        var menusSetting = H.editing && H.editing.version === 1 ? H.editing.menus : undefined;
+        var ownMenus = isDocs && !readMode && (menusSetting === 'own' || menusSetting !== 'host' && !document.querySelector('[data-menubar]'));
         var FILE_COMMANDS = ['new', 'new-template', 'new-markdown', 'open', 'open-other', 'save-as', 'save-encoded-copy', 'import-docx', 'export-docx', 'export-pdf'], READ_COMMANDS = ['find', 'toggle-outline', 'copy', 'select-all', 'print-document'];
         /* Whether a command, and the key bound to it, exists at all in this instance. */
         function commandExists(id) {
@@ -552,7 +555,7 @@
             var t = current();
             /* A document a host gave is shown by the name the host gave it, and not by the resource's ID, which a host need not make readable. */
             el.where.textContent = !t ? '' : shownName(t, true);
-            el.where.title = el.where.textContent;
+            el.where.title = el.where.textContent; el.where.setAttribute('data-tooltip', el.where.textContent);
             el.lang.textContent = t ? LANG_NAMES[t.lang] : '';
             showCount();
             showFormat(viewMode);
@@ -3023,7 +3026,15 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                     /* A view the reader chooses is the tab's from then on. */
                     run: function () { var t = current(); if (t) { t.view = v[0]; } setView(v[0]); } });
             });
-            return table.concat(readMode ? [] : hostCommands.rows(ready), editing() ? editing().commands() : [], readMode ? [] : commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []).filter(function (c) { return !c || typeof c.id !== 'string' || commandExists(c.id); });
+            var all = table.concat(readMode ? [] : hostCommands.rows(ready), editing() ? editing().commands() : [], readMode ? [] : commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []).filter(function (c) { return !c || typeof c.id !== 'string' || commandExists(c.id); });
+            /* Docs' own menus are commands with items, which PUDL draws as menu buttons and menus (docs/editing-settings-contract.md, "Where the menus are"). */
+            if (ownMenus) {
+                var byId = {}; all.forEach(function (c) { if (c && typeof c.id === 'string') { byId[c.id] = c; } });
+                ownMenuTitles().forEach(function (t) {
+                    all.push({ id: 'menu-' + t.id, label: t.label, glyph: t.glyph, items: function () { /* A copy without its choice, since PUDL fills a segmented control with every command of a choice, those in a menu's items too, and the view switch would be drawn twice. */ return t.items.map(function (i) { var c = i === '-' ? '-' : typeof i === 'string' ? byId[i] : i; return c && c !== '-' && c.choice ? Object.assign({}, c, { choice: undefined, choiceLabel: undefined }) : c; }).filter(Boolean); } });
+                });
+            }
+            return all;
         }
 
         /* The toolbar a host without the toolbar service gets: what is used
@@ -3102,9 +3113,16 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
         }
 
         var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-'].concat(SEVERAL_VIEWS ? MARKDOWN_VIEWS.map(function (v) { return 'view-' + v[0]; }).concat(['document-zoom', 'md-default', '-']) : [], ['source', 'preview']);
-        function menus() {
+        /* Where the menus are drawn is the host's menu bar, by menus(), or Docs' own area, by ownMenuTitles(). */
+        function menus() { return ownMenus || readMode ? { titles: [], into: {} } : menuDefinition(); }
+        function ownMenuTitles() {
+            var def = menuDefinition(true), titles = def.titles.map(function (t) { return { id: t.id || 'docs', label: t.label, glyph: t.glyph, items: t.items }; });
+            if (def.into.view && def.into.view.length) { titles.push({ id: 'view', label: 'View', glyph: 'panel', items: def.into.view }); }
+            return titles;
+        }
+        function menuDefinition(own) {
             var titles = [
-                { label: isDocs ? 'Docs' : 'Editor', glyph: isDocs ? 'document' : 'code', items: H.identity(root, ['key-bindings']) },
+                { label: isDocs ? 'Docs' : 'Editor', glyph: isDocs ? 'document' : 'code', items: own ? ['key-bindings'] : H.identity(root, ['key-bindings']) },
                 { id: 'file', label: 'File', glyph: 'file', items: ['new', 'new-template', 'new-markdown', 'open', 'open-other', 'import-docx', 'save', 'save-as', 'save-encoded-copy', '-', 'export-docx', 'export-pdf', 'print-document', '-', 'properties', 'present', '-', 'close-document'] },
                 { id: 'edit', label: 'Edit', glyph: 'pencil', items: ['undo', 'redo', '-', 'cut', 'copy', 'paste', '-', 'select-all', '-', 'find', 'go-to-line', 'section-up', 'section-down', '-', 'json-format', 'language-restart'] },
                 { id: 'insert', label: 'Insert', glyph: 'plus', items: ['link', 'insert', 'table', 'box', 'footnote', '-', 'insert-timestamp', 'insert-date', 'stamp-modified'] }
@@ -3488,6 +3506,38 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             drawFallbackToolbar();
         }
 
+        /* Docs' own menus: a bar of menu buttons at the top of its area, each the button of a command with items, so PUDL draws the menu as it opens. */
+        var ownBar = null, ownSignature = '';
+        function drawOwnMenus() {
+            if (!ownBar || destroyed) { return; }
+            var titles = ownMenuTitles(), signature = titles.map(function (t) { return t.id; }).join(',');
+            if (signature === ownSignature) { return; }
+            ownSignature = signature; ownBar.replaceChildren();
+            titles.forEach(function (t) { var button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-sm'; button.setAttribute('data-command', 'menu-' + t.id); ownBar.appendChild(button); });
+            if (window.pudlCommands) { window.pudlCommands.changed(); }
+        }
+        if (ownMenus) {
+            ownBar = document.createElement('div'); ownBar.className = 'toolbar ed-own-menubar'; ownBar.setAttribute('role', 'toolbar'); ownBar.setAttribute('aria-label', 'Docs Menus');
+            root.insertBefore(ownBar, root.firstChild);
+            document.addEventListener('pudl:commands-change', drawOwnMenus); drawOwnMenus();
+        }
+
+        /* A hint on a control is PUDL's data-tooltip, which PUDL's tooltip script shows in its own style. The commands of PUDL put a title on every button they fill, so Docs gives each title on its
+           bars a data-tooltip of the same words and keeps the title. PUDL documents what follows (README, "Tooltips"): with its tooltip script on the page, a title on a control that has a data-tooltip is
+           moved into it so that the browser shows no second hint, and without the script the title is the hint, so no glyph-only button is left without one. Nothing is asked of the page about the script. */
+        var tooltipObservers = [];
+        function tooltipsOn(bar) {
+            if (!bar) { return; }
+            function move(node) {
+                var list = node.matches && node.matches('[title]') ? [node] : [];
+                if (node.querySelectorAll) { list = list.concat(Array.from(node.querySelectorAll('[title]'))); }
+                list.forEach(function (n) { var t = n.getAttribute('title'); if (t && n.getAttribute('data-tooltip') !== t) { n.setAttribute('data-tooltip', t); } });
+            }
+            var observer = new MutationObserver(function (records) { records.forEach(function (r) { if (r.type === 'attributes') { move(r.target); } else { r.addedNodes.forEach(function (n) { if (n.nodeType === 1) { move(n); } }); } }); });
+            observer.observe(bar, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] }); tooltipObservers.push(observer); move(bar);
+        }
+        tooltipsOn(ownBar); tooltipsOn(fallbackBar);
+
         return {
             state: function () { return stateString() || null; },
             setState: takeFile,
@@ -3504,6 +3554,8 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 outlineRevision++; clearTimeout(outlineTimer);
                 window.removeEventListener('popstate', locationChanged);
                 if (commonToolbar) { commonToolbar.destroy(); }
+                tooltipObservers.forEach(function (o) { o.disconnect(); });
+                if (ownBar) { document.removeEventListener('pudl:commands-change', drawOwnMenus); ownBar.remove(); ownBar = null; }
                 if (fallbackBar) { document.removeEventListener('pudl:commands-change', drawFallbackToolbar); cancelAnimationFrame(fallbackFocusFrame); fallbackBar.remove(); fallbackBar = null; }
                 /* The session as the Editor closes, for when it opens again. */
                 if (detachLive) { detachLive(); }
