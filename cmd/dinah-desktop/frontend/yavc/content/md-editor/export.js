@@ -139,6 +139,18 @@
                 printDiagrams.push({ place: place, source: diagram.source });
             }); });
         }
+        /* A diagram that a reduced package leaves out cannot be drawn on paper, and a person still has the rest of the note, so each reference to one is printed as a sentence that says
+           what the build says on the page where the diagram would be (docs/content-release-downloads.md, "Profiles"). Where the build has diagrams they are still refused here. */
+        if (options.renderPages && fragment.querySelector('[data-diagram-src]')) {
+            var gone = await window.yavcUtil.loadScript(window.yavcUtil.versioned(new URL('../diagram-kit/references.js', K.here).href)).then(function () { return ''; }, function (err) { return err && err.omitted ? err.message : ''; });
+            if (gone) {
+                fragment.querySelectorAll('[data-diagram-src]').forEach(function (node) {
+                    var holder = node.closest('figure, .dinah-block, .doc-block') || node, note = document.createElement('p');
+                    note.className = 'doc-print-omitted'; note.textContent = 'Diagram not printed. ' + gone;
+                    holder.replaceWith(note);
+                });
+            }
+        }
         if (fragment.querySelector('.sc-problem,.sc-glyph,.dinah-diagram-placeholder,[data-diagram-src],[data-applet],iframe,video,audio,svg,canvas,math,details,code[data-code-src]')) { throw new Error('This document contains an invalid shortcode, diagram, glyph, embedded app, SVG, interactive element or external code listing that this export cannot represent yet.'); }
         var pictures = new Map();
         fragment.querySelectorAll('img').forEach(function (img) { pictures.set(img, { source: img.getAttribute('src'), path: img.dataset.attachment }); img.removeAttribute('src'); img.removeAttribute('srcset'); img.removeAttribute('loading'); });

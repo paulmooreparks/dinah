@@ -535,16 +535,23 @@
         });
         var tabRow = window.yavcDocTabs ? window.yavcDocTabs.attach(el.tabs, {
             application: isDocs ? 'Docs' : 'Editor',
-            tabs: function () { return tabs.map(function (t) { return { name: t.name, path: t.path, modified: dirtyTab(t), note: t.readOnly ? '(read-only)' : '' }; }); },
+            /* A tab's tooltip is the name the host gave the document, as the status line shows it, and not the resource's ID (docs/editing-settings-contract.md, documentName). */
+            tabs: function () { return tabs.map(function (t) { return { name: t.name, path: shownName(t, false) || undefined, modified: dirtyTab(t), note: t.readOnly ? '(read-only)' : '' }; }); },
             active: function () { return active; },
             activate: async function (i) { await activate(i); view.focus(); },
             close: closeTab
         }) : null;
+        /* What names a document to a person: the name the host gave it, unless the host's documentName says otherwise (false: no name; "resource": the resource's ID). */
+        function shownName(t, unsaved) {
+            if (nameSetting === false) { return ''; }
+            if (nameSetting === 'resource') { return t.path || (unsaved ? 'Not saved yet' : ''); }
+            return (t.resource && t.name) || t.path || (unsaved ? 'Not saved yet' : '');
+        }
         function renderTabs() {
             if (tabRow) { tabRow.render(); }
             var t = current();
             /* A document a host gave is shown by the name the host gave it, and not by the resource's ID, which a host need not make readable. */
-            el.where.textContent = !t || nameSetting === false ? '' : nameSetting === 'resource' ? (t.path || 'Not saved yet') : ((t.resource && t.name) || t.path || 'Not saved yet');
+            el.where.textContent = !t ? '' : shownName(t, true);
             el.where.title = el.where.textContent;
             el.lang.textContent = t ? LANG_NAMES[t.lang] : '';
             showCount();
@@ -1415,14 +1422,17 @@
             var actions = document.createElement('div'), button = document.createElement('button'); actions.className = 'notice-actions'; button.type = 'button'; button.className = 'btn'; button.textContent = 'Try Again';
             button.addEventListener('click', function () { again(); }); actions.append(button); n.querySelector('.notice-content').append(actions);
         }
+        /* printProblem is the reason the last try printed nothing, for print@1, which must not answer as if it had printed. */
+        var printProblem = '';
         async function printDocument() {
-            var t = current(); if (!t || t.lang !== 'markdown') { return; }
+            printProblem = 'Nothing was printed.';
+            var t = current(); if (!t || t.lang !== 'markdown') { printProblem = 'There is no Markdown document to print.'; return false; }
             window.yavcUtil.notice(el.tabs, '');
             try {
                 if (pageActive()) { await visual.api.sync(); }
                 var text = view.state.doc.toString(), K = await loadKit(), E = await K.exports(), P = await K.pages(), m = await documentEngine(text);
                 function unchanged() { return !destroyed && current() === t && view.state.doc.toString() === text; }
-                var R=await reviewModule(),output=await R.project({text:text,engine:m,root:root,signal:styleLifetime.signal,current:unchanged});if(output===null)return;
+                var R=await reviewModule(),output=await R.project({text:text,engine:m,root:root,signal:styleLifetime.signal,current:unchanged});if(output===null){printProblem='Printing was cancelled.';return false;}
                 m=m.withMacros(output,sharedMacros);
                 if (printFrame) { printFrame.remove(); printFrame = null; }
                 await E.prepare({ text: output, engine: m, stylesheet: currentSharedStyle, pictures: picturesHost(), read: window.pudlHost.fs.readText, current: unchanged,
@@ -1457,10 +1467,10 @@
                         await Promise.all(Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map(function (link) { return link.sheet ? Promise.resolve() : new Promise(function (resolve, reject) { link.onload = resolve; link.onerror = function () { reject(new Error('A print stylesheet could not load.')); }; }); }));
                         await doc.fonts.ready; await Promise.all(Array.from(doc.images).map(function (img) { return img.decode(); }));
                         if (!unchanged()) { frame.remove(); throw new Error('The document changed during print preparation.'); }
-                        frame.contentWindow.print(); say('Print uses the document page size and margins. Turn off browser headers and footers and select the matching paper size.');
+                        printProblem = ''; frame.contentWindow.print(); say('Print uses the document page size and margins. Turn off browser headers and footers and select the matching paper size.');
                     }
                 });
-            } catch (err) { if (printFrame) { printFrame.remove(); printFrame = null; } if (err.refusal) { say('Print: ' + err.message, 'warn'); retryButton(err.retry && printDocument); } else { say('The document could not be printed: ' + err.message, true); } }
+            } catch (err) { printProblem = err.message; if (printFrame) { printFrame.remove(); printFrame = null; } if (err.refusal) { say('Print: ' + err.message, 'warn'); retryButton(err.retry && printDocument); } else { say('The document could not be printed: ' + err.message, true); } }
         }
 
         /* A call to one of the server's admin APIs, signing in again when the
@@ -2136,7 +2146,7 @@
         /* Find in whichever the reader is working in: the page in Visual, or
            in Split while the text does not have the keyboard; else the text. */
         /* Find in a read-only instance: the drawn document is searched as text and each match is selected in turn, so the page itself is not changed and there is no Replace. */
-        var readFindBar = null;
+        var readFindBar = null, readFindApi = null;
         function openReadFind() {
             if (!readFindBar) {
                 readFindBar = document.createElement('div'); readFindBar.className = 'ed-read-find'; readFindBar.setAttribute('role', 'search');
@@ -2165,6 +2175,7 @@
                 }
                 input.addEventListener('input', function () { collect(); });
                 input.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); go(event.shiftKey ? -1 : 1); } else if (event.key === 'Escape') { event.preventDefault(); el.findPlace.hidden = true; el.scroll.focus(); } });
+                readFindApi = { set: function (words) { input.value = words; collect(); go(1); /* The match stays selected, which a browser keeps only while the focus is not in the Find field. */ if (hits.length) { el.scroll.focus({ preventScroll: true }); } return { matches: hits.length, index: hits.length ? at + 1 : 0 }; } };
                 readFindBar.querySelector('[data-role="read-find-next"]').addEventListener('click', function () { go(1); });
                 readFindBar.querySelector('[data-role="read-find-previous"]').addEventListener('click', function () { go(-1); });
                 readFindBar.querySelector('[data-role="read-find-close"]').addEventListener('click', function () { el.findPlace.hidden = true; el.scroll.focus(); });
@@ -3136,7 +3147,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                     prepare:async function(){if(pageActive())await visual.api.sync();},say:say,changed:commandsChanged,
                     focus:function(){if(pageActive())visual.api.focus();else if(view)view.focus();},
                     edit:async function(value,unchanged){var answer=await window.yavcDialog.open({title:'Edit Suggested Replacement',body:'<div class="form-group"><label class="form-label" for="host-suggestion-edit-'+n+'">Replacement</label><textarea class="form-input" id="host-suggestion-edit-'+n+'" rows="6" maxlength="65536">'+esc(value)+'</textarea></div>',buttons:[{id:'cancel',label:'Cancel'},{id:'apply',label:'Apply',primary:true}],signal:styleLifetime.signal});return answer.value==='apply'&&unchanged()?answer.body.querySelector('textarea').value:null;},
-                    navigate:async function(item){if(pageActive()&&visual.api.goToSuggestion(item.id))return;await setView('text');view.dispatch({selection:{anchor:item.from,head:item.to},scrollIntoView:true});view.focus();}});
+                    navigate:async function(item){if(pageActive()&&visual.api.goToSuggestion(item.id)){/* In Split the text shows the suggestion too: its range is selected there and the mirror (decision 168) takes the page to it. */if(mirrorOn()){view.dispatch({selection:{anchor:item.from,head:item.to},effects:CM.EditorView.scrollIntoView(item.from,{y:'center'})});}return;}await setView('text');view.dispatch({selection:{anchor:item.from,head:item.to},scrollIntoView:true});view.focus();}});
             }
             await loadScript(resourceAsset('source-history.js'));sourceHistory=window.yavcSourceHistory.create(CM);await loadScript(resourceAsset('resources.js'));
             await loadScript(resourceAsset('resource-session.js'));
@@ -3357,6 +3368,24 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 return { output: docView(active, false) };
             },
             'set-text@1': async function (input) { var i = docNo(input.index); await setDocText(i, input.text); return { output: docView(i, false) }; },
+            /* The host's own search lands on a match (docs/editing-settings-contract.md, "Finding words"): the Find bar opens with the words and the first match is selected. */
+            'find@1': async function (input) {
+                docNo(); var words = String(input.text);
+                if (!words) { throw new Error('text is the words to find'); }
+                if (input.select !== undefined && input.select !== 'first') { throw new Error('select is "first"'); }
+                var found;
+                if (readMode) { openReadFind(); found = readFindApi.set(words); }
+                else if (formatsThePage() && pageActive()) { openPageFind(); pageFind.set(new CM.SearchQuery({ search: words })); found = { matches: pageMatches.total, index: pageMatches.total ? pageMatches.at : 0 }; }
+                else {
+                    var query = new CM.SearchQuery({ search: words }), count = 0, cursor = query.getCursor(view.state);
+                    while (!cursor.next().done && count < 100000) { count++; }
+                    view.dispatch({ effects: CM.setSearchQuery.of(query) }); CM.openSearchPanel(view);
+                    if (count) { CM.findNext(view); }
+                    found = { matches: count, index: count ? 1 : 0 };
+                }
+                if (!found.matches) { throw new Error('There is no match for "' + words + '".'); }
+                return { output: found };
+            },
             'insert@1': async function (input) {
                 docNo();var tab=current();if(tab.readOnly)throw new Error('the document is read-only');
                 if(input.format!==undefined&&input.format!=='markdown'&&input.format!=='plain')throw new Error('format is markdown or plain');
@@ -3400,7 +3429,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
         /* A place in the document, and printing, which a host asks for with an action since its own command may be gone (docs/editing-settings-contract.md). */
         if (isDocs) {
             liveActions['position@1'] = async function () { docNo(); return { output: { position: positionNow() } }; };
-            liveActions['print@1'] = async function () { docNo(); await printDocument(); return { output: {} }; };
+            liveActions['print@1'] = async function () { docNo(); await printDocument(); if (printProblem) { throw new Error(printProblem); } return { output: {} }; };
         }
         /* A read-only instance has no action that changes the text, the file or the view, and a host that took the file commands away has none that does their work. */
         if (readMode) {

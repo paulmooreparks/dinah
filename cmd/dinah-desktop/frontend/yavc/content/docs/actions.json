@@ -1177,6 +1177,53 @@
       "replay": "once"
     },
     {
+      "ref": "yavc.docs/find@1",
+      "title": "Find Words",
+      "description": "Open Find with the words and select the first match, so that a search of the host's own lands on it. A document with no match refuses and says so. It changes no text, and works in a read-only instance.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The words to find, as they are; capital letters do not matter."
+          },
+          "select": {
+            "enum": [
+              "first"
+            ],
+            "default": "first"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "matches",
+          "index"
+        ],
+        "properties": {
+          "matches": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The match that is selected, counted from 1."
+          }
+        }
+      },
+      "capabilities": [],
+      "changes": "none",
+      "replay": "pure"
+    },
+    {
       "ref": "yavc.docs/header-footer@1",
       "title": "Set Header and Footer",
       "description": "Change the current document settings as one undoable source edit.",

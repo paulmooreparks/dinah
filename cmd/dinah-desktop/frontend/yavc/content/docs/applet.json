@@ -1,7 +1,7 @@
 {
   "name": "docs",
   "title": "Docs",
-  "version": "1.37.36",
+  "version": "1.37.41",
   "description": "Write and format Markdown documents.",
   "license": "Apache-2.0",
   "src": "docs.js",
