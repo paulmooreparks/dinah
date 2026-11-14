@@ -43,6 +43,17 @@
   <p class="form-help">This confines Ollama's file tools (read, write, list, find and search) and the folder a command starts in. It does not confine what a command reads once it runs, and a limit does not make commands ask. To confine commands as well, choose an approval level that asks, under Ollama Approvals. A new install starts with the workspace folders; an existing install keeps Anywhere until you change it.</p>
   <p class="settings-status" id="ollama-file-status" role="status"></p>
 </section>
+<section class="card vstack gap-3" aria-labelledby="set-ollama-context">
+  <h3 class="card-title" id="set-ollama-context">Ollama Context Limit</h3>
+  <label class="form-label" for="ollama-context-cap">Maximum tokens for a local model</label>
+  <div class="hstack gap-2">
+    <input class="form-input" id="ollama-context-cap" type="number" min="1024" max="2147483647" step="1" inputmode="numeric">
+    <button type="button" class="btn btn-sm" id="ollama-context-save">Save</button>
+    <button type="button" class="btn btn-sm" id="ollama-context-reset">Use Default</button>
+  </div>
+  <p class="form-help">A local chat uses the context length its model reports, up to this limit. The default is 65,536 tokens. A smaller choice in the chat still applies. Larger windows need more memory. Changes apply to the next model response. Cloud models keep their own context settings.</p>
+  <p class="settings-status" id="ollama-context-status" role="status"></p>
+</section>
 <section class="card vstack gap-3" aria-labelledby="set-ollama-rounds">
   <h3 class="card-title" id="set-ollama-rounds">Ollama Steps per Turn</h3>
   <div class="form-group">
@@ -179,6 +190,34 @@
     });
     $('ollama-round-limit').addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); $('ollama-round-save').click(); } });
     $('ollama-round-clear').addEventListener('click', function () { saveRounds(0); });
+    var contextCap = 65536;
+    function drawContextCap() {
+      var input = $('ollama-context-cap');
+      if (document.activeElement !== input) input.value = String(contextCap);
+    }
+    function saveContextCap(n) {
+      ['ollama-context-cap', 'ollama-context-save', 'ollama-context-reset'].forEach(function (id) { $(id).disabled = true; });
+      settingsStatus('ollama-context-status', 'Saving…');
+      Promise.resolve().then(function () { return app().SetOllamaContextCap(n); }).then(function () {
+        settingsStatus('ollama-context-status', 'Saved. The limit applies to the next model response.');
+        return reload('ollama-context-status');
+      }, function (error) {
+        settingsStatus('ollama-context-status', 'The context limit could not be saved: ' + error, true);
+      }).finally(function () {
+        ['ollama-context-cap', 'ollama-context-save', 'ollama-context-reset'].forEach(function (id) { $(id).disabled = false; });
+        drawContextCap();
+      });
+    }
+    $('ollama-context-save').addEventListener('click', function () {
+      var n = Number($('ollama-context-cap').value);
+      if (!Number.isInteger(n) || n < 1024 || n > 2147483647) {
+        settingsStatus('ollama-context-status', 'Enter a whole number from 1024 to 2147483647 tokens.', true); return;
+      }
+      saveContextCap(n);
+    });
+    $('ollama-context-reset').addEventListener('click', function () { saveContextCap(0); });
+    $('ollama-context-cap').addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); $('ollama-context-save').click(); } });
+    drawContextCap();
     setFileAccess('anywhere', []);
 
     // What State says, at start and after each save.
@@ -187,6 +226,7 @@
         setApprovals(state.ollamaApprovals || 'chat');
         if (state.ollamaFileScope) setFileAccess(state.ollamaFileScope, state.ollamaFileFolders);
         if (state.ollamaRoundLimit) setRounds(state.ollamaRoundLimit);
+        contextCap = state.ollamaContextCap || 65536; drawContextCap();
       }
     };
   }

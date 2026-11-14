@@ -70,15 +70,14 @@ func TestTheContextOptionSaysWhenTheLimitIsNotReported(t *testing.T) {
 	}
 }
 
-// The meter says whether the window is known: a chosen size is, a cloud model on
-// Ollama's setting is (by Paul's decision of 30 October 2026 that a name ending in
-// :cloud or -cloud is one), and a local model on Ollama's setting is not.
+// The meter uses the explicit local request size. Cloud defaults keep their
+// existing maximum-context interpretation.
 func TestTheMeterSaysWhetherTheWindowIsKnown(t *testing.T) {
 	for _, tc := range []struct {
 		name, model, size string
 		known, kind       string
 	}{
-		{"a local model on Ollama's setting", "nano:4b", "", `"windowKnown":false`, `"sizeKind":"model"`},
+		{"a local model on automatic context", "nano:4b", "", `"windowKnown":true`, `"sizeKind":"model"`},
 		{"a cloud model on Ollama's setting", "glm:cloud", "", `"windowKnown":true`, `"sizeKind":"model"`},
 		{"a size chosen for a local model", "nano:4b", "16384", `"windowKnown":true`, `"sizeKind":"chosen"`},
 	} {

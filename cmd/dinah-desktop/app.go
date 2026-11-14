@@ -406,6 +406,7 @@ type State struct {
 	// OllamaRoundLimit is how many rounds of tool calls an Ollama turn may take
 	// (ollama_rounds.go).
 	OllamaRoundLimit OllamaRoundLimit `json:"ollamaRoundLimit"`
+	OllamaContextCap int              `json:"ollamaContextCap"`
 	// CodexApprovals is how far a Codex chat may go without asking
 	// (codex_approvals.go).
 	CodexApprovals string `json:"codexApprovals"`
@@ -469,7 +470,7 @@ func (a *App) stateLocked() State {
 		WorkspaceID: a.settings.WorkspaceID, WorkspaceRecords: workspaces.Copy(a.settings.WorkspaceRecords),
 		NewWindowMode: a.settings.NewWindowMode, WindowModes: effectiveWindowModes(a.settings), WindowModesShipped: effectiveWindowModes(Settings{}), NotifyWhenNeeded: !a.settings.HostNotificationsOff, PromptSendKey: promptSendKey(a.settings), BackgroundChatLimit: backgroundChatLimit(a.settings),
 		AccountName: accountName(), BusHandle: bus.Human,
-		DocumentViews: documentViews(a.settings), OllamaApprovals: ollamaApprovals(a.settings), OllamaFileScope: ollamaFileScope(a.settings), OllamaFileFolders: ollamaFileFolders(a.settings), OllamaRoundLimit: ollamaRoundLimit(a.settings), CodexApprovals: codexApprovals(a.settings),
+		DocumentViews: documentViews(a.settings), OllamaApprovals: ollamaApprovals(a.settings), OllamaFileScope: ollamaFileScope(a.settings), OllamaFileFolders: ollamaFileFolders(a.settings), OllamaRoundLimit: ollamaRoundLimit(a.settings), OllamaContextCap: ollamaContextCap(a.settings), CodexApprovals: codexApprovals(a.settings),
 		FileLimits: fileLimitViews(a.settings), OptionSubstitutions: optionSubstitutionViews(a.settings),
 		Workspaces: append([]string{}, a.settings.Workspaces...),
 		// Copies, since the state is encoded for the page after the lock is

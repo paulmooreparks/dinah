@@ -142,6 +142,7 @@ var ollamaAdapter = &providerAdapter{
 			}
 			a.useOllamaFileScope(conn)
 			a.useOllamaRounds(conn)
+			a.useOllamaContextCap(conn)
 			return conn, nil
 		}}, nil
 	},

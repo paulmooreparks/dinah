@@ -88,17 +88,17 @@ func (c *Conn) roundLimit() int {
 // defaultContext is the length every conversation was given before a
 // conversation could use Ollama's own setting. A record saved with it and
 // without a revision is taken to be on that default, and becomes one that
-// leaves the length to Ollama (contextRevision).
+// selects automatic context (contextRevision).
 const defaultContext = 65536
 
 // OldDefaultContext is defaultContext for the window, which releases it from the
 // options it saved for a chat while it was the default.
 const OldDefaultContext = defaultContext
 
-// contextRevision marks a record made, or settled, when a context of 0 meant
-// the length set in Ollama (its app's slider or OLLAMA_CONTEXT_LENGTH), for
-// which Dinah sends no num_ctx. A record with an older revision that holds the
-// old default has it replaced by 0 once; a length the person chose is kept.
+// contextRevision marks how automatic context was saved. In revisions 1 to 3,
+// zero inherited Ollama's setting without sending num_ctx. Revision 4 keeps zero
+// as automatic, now following the model and Settings ceiling for local models.
+// The older fixed-default migrations remain limited to revisions before 3.
 //
 // Revision 2 added the flags and costs of the full-window action (Turn, Cost and
 // Aside on a message, and Used and Choice on the record), which an older record
@@ -111,7 +111,7 @@ const OldDefaultContext = defaultContext
 // back on 64K (30 October 2026). A record with an older revision that holds the
 // old default has it released once more. The window releases the saved options
 // the same way (provider_ollama.go).
-const contextRevision = 3
+const contextRevision = 4
 
 // record is a conversation as Dinah keeps it, since Ollama keeps
 // none.
@@ -122,7 +122,7 @@ type record struct {
 	Model string `json:"model"`
 	Think string `json:"think,omitempty"`
 	// Context is the length the person chose, in tokens, which Dinah sends as
-	// num_ctx; 0 leaves it to Ollama's own setting, and nothing is sent.
+	// num_ctx, subject to the model and Settings ceilings; 0 follows the model.
 	Context int `json:"context"`
 	// ContextRev says how Context is read (contextRevision).
 	ContextRev int `json:"contextRev,omitempty"`
@@ -174,7 +174,8 @@ type Conn struct {
 	hostDirectoryReads DirectoryRead
 	hostFileOperation  FileOperation
 	// rounds says how many rounds a turn may take; nil is no limit.
-	rounds RoundLimit
+	rounds     RoundLimit
+	contextCap func() int
 }
 
 // Start connects to Ollama at base, keeping conversations in stateDir.
@@ -383,7 +384,7 @@ func (c *Conn) settle(ctx context.Context, rec *record) {
 	} else if !contains(levels, rec.Think) {
 		rec.Think = defaultThink(s, levels)
 	}
-	// A length of 0 stays, which leaves the size to Ollama's own setting.
+	// Zero remains automatic, so later Settings changes still apply.
 	limit := s.contextLength()
 	if limit > 0 && rec.Context > limit {
 		rec.Context = limit
@@ -469,13 +470,13 @@ func (c *Conn) options(rec record) []acp.ConfigOption {
 		opts = append(opts, acp.ConfigOption{ID: "think", Name: "Thinking", Category: "thought_level", Type: "select", CurrentValue: acp.Raw(rec.Think), Options: acp.Raw(choices)})
 	}
 	limit := s.contextLength()
-	sizes := []map[string]string{{"value": "0", "name": "Ollama's setting"}}
+	sizes := []map[string]string{{"value": "0", "name": "Model and Settings limit"}}
 	for _, n := range contextLadder(limit) {
 		sizes = append(sizes, map[string]string{"value": strconv.Itoa(n), "name": sizeName(n)})
 	}
-	description := "How much of the conversation the model holds at once. Ollama's setting leaves the size to Ollama, which is its app's slider or OLLAMA_CONTEXT_LENGTH. A size chosen here is sent with every request, and more needs more memory on the computer that runs the model."
+	description := "How much of the conversation the model holds at once. Automatic uses the model's reported limit up to the context limit in Settings. A smaller chat choice is kept. Larger windows need more memory. The Settings limit applies to local models; cloud models keep their existing behaviour."
 	if limit == 0 {
-		description += " Ollama did not report this model's own limit, so only a few sizes are offered."
+		description += " Ollama did not report this model's own limit. Automatic requests 4096 tokens, subject to Settings."
 	}
 	opts = append(opts, acp.ConfigOption{ID: "context", Name: "Context", Description: description, Type: "select", CurrentValue: acp.Raw(strconv.Itoa(rec.Context)), Options: acp.Raw(sizes)})
 	return opts
@@ -721,7 +722,7 @@ func (c *Conn) configure(params, out any) error {
 	case "context":
 		n, err := strconv.Atoi(value)
 		if err != nil || (n != 0 && n < 2048) {
-			return errors.New("the context length must be a number of tokens, or 0 for Ollama's setting")
+			return errors.New("the context length must be a number of tokens, or 0 to follow the model")
 		}
 		rec.Context = n
 	default:
@@ -935,8 +936,9 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 			return err
 		}
 		req := chatRequest{Model: rec.Model, Messages: append([]message{{Role: "system", Content: system(rec.Cwd, useTools, commands)}}, visibleMessages(rec.Messages)...), Tools: tools, Think: think(rec.Think)}
-		if rec.Context > 0 {
-			req.Options = map[string]any{"num_ctx": rec.Context}
+		requestSize, _, requestKnown := c.window(turnCtx, rec)
+		if !isCloudModel(rec.Model) || rec.Context > 0 {
+			req.Options = map[string]any{"num_ctx": requestSize}
 		}
 		answer, last, err := c.api.chat(turnCtx, req, func(ch chunk) {
 			c.text(rec.ID, "agent_thought_chunk", ch.Message.Thinking)
@@ -967,7 +969,15 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 		if turnCtx.Err() != nil {
 			return acp.Result(acp.PromptResult{StopReason: "cancelled"}, out)
 		}
+		fullNotice := ""
+		if requestKnown {
+			fullNotice = contextFullNotice(used, requestSize)
+		}
 		if len(answer.ToolCalls) == 0 {
+			if fullNotice != "" {
+				c.update(rec.ID, map[string]any{"sessionUpdate": "dinah_status", "kind": "warning", "text": fullNotice})
+				return acp.Result(acp.PromptResult{StopReason: "max_tokens"}, out)
+			}
 			inserted, err := insertSteers(true)
 			if err != nil {
 				return err
@@ -976,6 +986,7 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 				continue
 			}
 			if last.DoneReason == "length" {
+				c.update(rec.ID, map[string]any{"sessionUpdate": "dinah_status", "kind": "warning", "text": "Ollama reported that this response ended with reason length. The task may be unfinished."})
 				return acp.Result(acp.PromptResult{StopReason: "max_tokens"}, out)
 			}
 			return acp.Result(acp.PromptResult{StopReason: "end_turn"}, out)
@@ -1015,6 +1026,10 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 			if turnCtx.Err() != nil {
 				return acp.Result(acp.PromptResult{StopReason: "cancelled"}, out)
 			}
+		}
+		if fullNotice != "" {
+			c.update(rec.ID, map[string]any{"sessionUpdate": "dinah_status", "kind": "warning", "text": fullNotice})
+			return acp.Result(acp.PromptResult{StopReason: "max_tokens"}, out)
 		}
 	}
 }
@@ -1092,11 +1107,7 @@ func promptMessage(p acp.PromptParams) (message, error) {
 	return user, nil
 }
 
-// reportUsage tells the page how much of the context the last request used. The
-// size and whether it is known are the conversation's window (window): a chosen
-// size is known, and so is a cloud model's own limit on Ollama's setting, while
-// a local model's limit is shown as the model's limit, which the server's
-// setting may be below. Nothing is reported when no size is known at all.
+// reportUsage reports Ollama's counts against the effective request window.
 func (c *Conn) reportUsage(ctx context.Context, rec record, used int) {
 	// What the request used, which a team's budget counts (a turn_cost update is not shown).
 	c.update(rec.ID, map[string]any{"sessionUpdate": "turn_cost", "tokens": used})
