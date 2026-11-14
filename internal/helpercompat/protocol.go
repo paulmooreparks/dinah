@@ -27,9 +27,9 @@ const (
 	ExtensionControl Channel = "extension-control"
 	ExtensionHost    Channel = "extension-host"
 	SlideShow        Channel = "slide-show"
-	OfferHeader              = "X-Dinah-Protocols"
-	SelectedHeader           = "X-Dinah-Protocol"
-	ChannelHeader            = "X-Dinah-Channel"
+	OfferHeader              = "X-Helper-Protocols"
+	SelectedHeader           = "X-Helper-Protocol"
+	ChannelHeader            = "X-Helper-Channel"
 	EndpointPath             = "/helper-compatibility"
 )
 
