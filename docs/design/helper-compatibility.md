@@ -17,7 +17,9 @@ The helper protocol is independent of the release number. Every channel starts a
 
 Agent providers' ACP, Codex app-server, Ollama HTTP and MCP transports retain their own documented protocols. They are external systems rather than installed Dinah helpers. The shell page and generated bridge are served by the same process. An extension backend's SDK is not changed by this branch; its existing callback is legacy protocol 1, while the receiving host will advertise and guard that channel.
 
-The separate SDK follow-up is to add the same offer, read-only probe and response check to its callback client and publish it for extension producers. It must retain legacy 1 while existing extensions remain supported. This branch neither edits that repository nor claims a new SDK producer was verified.
+The callback receiver accepts authenticated OPTIONS on `/host` through the same protocol guard as POST and returns 204 with the selected number before reading a callback. Missing, unknown or expired scope tokens remain refused. Existing POST-only clients retain legacy 1 behavior.
+
+The SDK callback producer is prepared separately on `engine/helper-protocol` in the SDK repository. Its read-only probe and callback were verified against this receiver, but its public release remains pending the person's decision. Extension producers must rebuild with the published SDK to gain the producer check; changing Dinah's dependency alone cannot change existing extension binaries.
 
 Document control names the document service and document client in its refusal. Restarting only the main window cannot replace a service that still has document windows attached. The message therefore also asks the person to save and close those windows and wait for the idle service to exit. Negotiation never stops a service or discards unsaved documents.
 
