@@ -81,11 +81,39 @@
                 <li><button type="button" data-theme-choice="system" data-mnemonic="S" aria-checked="false">Follow the System</button></li>
               </ul></li>
           </ul></li>
+        <li data-menubar-id="document" data-mnemonic="M" data-menu-glyph="document">Document
+          <ul><li><button type="button" id="document-save-as" data-mnemonic="V">Save As…</button></li></ul></li>
+        <li data-menubar-id="help" data-mnemonic="H" data-menu-glyph="info">Help
+          <ul>
+            <li><button type="button" id="document-help" data-mnemonic="W">Working with Documents</button></li>
+            <li><button type="button" id="document-shortcuts" data-mnemonic="K">Keyboard Shortcuts</button></li>
+            <li><button type="button" id="document-key-bindings" data-mnemonic="B">Key Bindings…</button></li>
+          </ul></li>
       </ul>
       <span class="hstack align-center gap-4"><span class="brand app-brand" id="document-application-plain">Application</span></span>
     </nav>
   </header>
   <main id="document" class="content-applet document-applet" data-applet-flush></main>
+  <dialog class="dialog document-help" id="document-guide" aria-labelledby="document-guide-title">
+    <form method="dialog">
+      <h2 class="dialog-title" id="document-guide-title">Working with Documents</h2>
+      <div class="document-help-body">
+        <p>Markdown files open in Docs, where you can edit the document or its text. Plain text files open in Editor. The View menu changes how you read and edit the file.</p>
+        <p>Use File, Save to keep your changes in the file. Save As, in File or Document, chooses another name or folder. The title shows the file name and a dot when you have unsaved changes.</p>
+        <p>This window works with files on this computer. Publish is available in the main window for a document whose source supports it.</p>
+        <p>The status line shows the document name, language and editing position. Help, Keyboard Shortcuts lists the current commands. Key Bindings lets you change the editing keys.</p>
+        <p>A saved file keeps its unsaved draft for recovery when you reopen it. Save a new document before closing its window. Closing asks about unsaved changes.</p>
+      </div>
+      <div class="dialog-actions"><button class="btn" autofocus>Close</button></div>
+    </form>
+  </dialog>
+  <dialog class="dialog document-help" id="document-keys" aria-labelledby="document-keys-title">
+    <form method="dialog">
+      <h2 class="dialog-title" id="document-keys-title">Keyboard Shortcuts</h2>
+      <div class="document-help-body"><table class="data-table"><thead><tr><th scope="col">Command</th><th scope="col">Key</th></tr></thead><tbody id="document-keys-rows"></tbody></table></div>
+      <div class="dialog-actions"><button class="btn" autofocus>Close</button></div>
+    </form>
+  </dialog>
   <!-- An action another program sends for this document waits here for
        the person's word (document-host.js). -->
   <dialog class="dialog" id="document-permission" aria-labelledby="document-permission-title">

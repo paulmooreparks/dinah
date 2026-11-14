@@ -425,6 +425,35 @@
     document.getElementById('document-close-window').addEventListener('click', function () {
       app().CloseWindow().catch(function (err) { say(message(err)); });
     });
+    document.getElementById('document-save-as').addEventListener('click', function () { runDocumentCommand('save-as'); });
+    document.getElementById('document-key-bindings').addEventListener('click', function () { runDocumentCommand('key-bindings'); });
+    document.getElementById('document-help').addEventListener('click', function () { document.getElementById('document-guide').showModal(); });
+    document.getElementById('document-shortcuts').addEventListener('click', showKeys);
+    window.pudlCommands.register(document.body, function () {
+      return [{ id: 'document-keyboard-shortcuts', label: 'Keyboard Shortcuts', shortcut: 'F1', run: showKeys }];
+    });
+    documentMenuState();
+  }
+
+  function runDocumentCommand(id) {
+    return window.pudlCommands.run(id, null, mount).catch(function (err) { say(message(err)); });
+  }
+  function documentMenuState() {
+    var commands = window.pudlCommands.list(mount), busy = switching || mount.dataset.appletState !== 'running' || mount.hasAttribute('data-applet-busy');
+    [['document-save-as', 'save-as'], ['document-key-bindings', 'key-bindings']].forEach(function (pair) {
+      var command = commands.find(function (entry) { return entry.id === pair[1]; });
+      document.getElementById(pair[0]).disabled = busy || !command || command.hidden || command.disabled;
+    });
+  }
+  document.addEventListener('pudl:commands-change', documentMenuState);
+  new MutationObserver(documentMenuState).observe(mount, { attributes: true, attributeFilter: ['data-applet-state', 'data-applet-busy'] });
+  function showKeys() {
+    var rows = document.getElementById('document-keys-rows'); rows.replaceChildren();
+    window.pudlCommands.list(mount).filter(function (command) { return !command.hidden && command.shown !== 'hidden'; }).forEach(function (command) {
+      var row = document.createElement('tr'), name = document.createElement('td'), key = document.createElement('td');
+      name.textContent = command.label; key.textContent = (command.shortcut || 'Use the menu').replace(/\bMod\b/g, /Mac/.test(navigator.platform) ? 'Command' : 'Ctrl'); row.append(name, key); rows.appendChild(row);
+    });
+    document.getElementById('document-keys').showModal();
   }
 
   /* Light, dark or the system's, for the stand-alone applications'
