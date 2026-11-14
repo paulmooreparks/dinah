@@ -624,6 +624,15 @@
     }
     return found;
   }
+  function personOnlyCommand(id) {
+    return ['pause-and-restart', 'restart-to-update', 'restart-now'].includes(id);
+  }
+  function agentCommands(commands) {
+    return commands.filter(function (command) { return !personOnlyCommand(command.id); }).map(function (command) {
+      if (Array.isArray(command.items)) return Object.assign({}, command, { items: agentCommands(command.items) });
+      return command;
+    });
+  }
   var pageAsks = {
     diagnostics: function (args) { return window.dinahAgentDiagnostics.request(args); },
     windows: function (args) {
@@ -636,9 +645,10 @@
       }) };
     },
     commands: function (args) {
-      return { commands: window.pudlCommands.list(askedWindow(args).root) };
+      return { commands: agentCommands(window.pudlCommands.list(askedWindow(args).root)) };
     },
     run: function (args) {
+      if (personOnlyCommand(args.command)) throw new Error("Restarting the application is left to the person in its window.");
       var w = askedWindow(args), cmd = window.pudlCommands.find(args.command, w.root);
       if (!cmd) throw new Error('The window has no command ' + JSON.stringify(args.command) + '; list its commands for their ids.');
       var label = window.pudlCommands.value(cmd, 'label') || cmd.id;

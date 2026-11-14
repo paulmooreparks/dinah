@@ -38,6 +38,7 @@ func (a *App) appletConsent(ctx context.Context, v broker.Invocation, action app
 	if v.OwnerKind != "chat" || !applet.Asks(action) {
 		return nil
 	}
+	fresh := applet.RequiresFreshApproval(action)
 	a.mu.Lock()
 	all := a.settings.Approvals == ApprovalsAll
 	granted := slices.Contains(a.settings.AppletGrants[v.Workspace], action.Ref)
@@ -53,23 +54,34 @@ func (a *App) appletConsent(ctx context.Context, v broker.Invocation, action app
 	a.mu.Unlock()
 	// Approve Everything is the person saying they do not want to be asked,
 	// which covers this question as it covers the agents' own.
-	if all || granted || unattended {
+	if !fresh && (all || granted || unattended) {
 		return nil
+	}
+	title, description := action.Title, action.Description
+	options := []acp.PermissionOption{
+		{OptionID: consentOnce, Name: "Allow", Kind: "allow_once"},
+		{OptionID: consentRefuse, Name: "Don't Allow", Kind: "reject_once"},
+	}
+	if fresh {
+		title = "Fresh approval required every time for " + title
+		description += " This action requires your approval every time. Approve Everything, unattended mode and saved workspace grants do not cover it."
+	} else {
+		options = []acp.PermissionOption{
+			{OptionID: consentOnce, Name: "Allow", Kind: "allow_once"},
+			{OptionID: consentAlways, Name: "Always Allow in This Workspace", Kind: "allow_always"},
+			{OptionID: consentRefuse, Name: "Don't Allow", Kind: "reject_once"},
+		}
 	}
 	call, _ := json.Marshal(map[string]any{
 		"toolCallId": v.ID,
-		"title":      action.Title,
+		"title":      title,
 		"kind":       "other",
 		"rawInput":   json.RawMessage(v.InputJSON),
-		"content":    []any{map[string]any{"type": "content", "content": map[string]string{"type": "text", "text": action.Description}}},
+		"content":    []any{map[string]any{"type": "content", "content": map[string]string{"type": "text", "text": description}}},
 	})
-	choice, ok := a.permissions().Ask(ctx, v.OwnerID, nil, call, []acp.PermissionOption{
-		{OptionID: consentOnce, Name: "Allow", Kind: "allow_once"},
-		{OptionID: consentAlways, Name: "Always Allow in This Workspace", Kind: "allow_always"},
-		{OptionID: consentRefuse, Name: "Don't Allow", Kind: "reject_once"},
-	})
+	choice, ok := a.permissions().Ask(ctx, v.OwnerID, nil, call, options)
 	switch {
-	case !ok || choice == consentRefuse:
+	case !ok || (fresh && choice != consentOnce) || choice == consentRefuse:
 		return errRefused
 	case choice == consentAlways:
 		return a.updateSettings(func(s *Settings) error {

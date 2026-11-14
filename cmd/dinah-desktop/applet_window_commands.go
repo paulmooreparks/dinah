@@ -34,6 +34,16 @@ const windowCommandsAction = "dinah.windows/commands@1"
 const windowRunAction = "dinah.windows/run@1"
 const windowOpenAction = "dinah.windows/open@1"
 
+// Application restart belongs to the person, including after a general
+// window-command grant. Reject guessed identities before asking the page.
+func personOnlyWindowCommand(id string) bool {
+	switch id {
+	case "pause-and-restart", "restart-to-update", "restart-now":
+		return true
+	}
+	return false
+}
+
 // windowToolID is the form of a tool's ID, the kind of window Tools opens.
 var windowToolID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
@@ -174,6 +184,9 @@ func (a *App) windowsAppletBundle() (applet.Bundle, error) {
 			}
 			if args == nil {
 				args = map[string]any{}
+			}
+			if command, _ := args["command"].(string); op == "run" && personOnlyWindowCommand(command) {
+				return applet.Result{}, errors.New("restarting the application is left to the person in its window")
 			}
 			// A window says its workspace by its folder or by its ID, so the
 			// page is given both and shows only that workspace's windows.

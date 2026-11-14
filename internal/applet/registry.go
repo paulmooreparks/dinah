@@ -48,7 +48,16 @@ func Effectful(capability string) bool {
 // Asks says whether Dinah asks the person before a chat runs this action.
 // An action with a declared effect level asks for "history" and "network"
 // only; one without a level asks when any capability is Effectful.
+// RequiresFreshApproval marks actions whose agent callers need a new window
+// approval for every invocation, regardless of blanket or saved grants.
+func RequiresFreshApproval(action Action) bool {
+	return slices.Contains(action.Capabilities, "person.approval")
+}
+
 func Asks(action Action) bool {
+	if RequiresFreshApproval(action) {
+		return true
+	}
 	switch action.Effect {
 	case "read", "local":
 		return false
@@ -63,7 +72,7 @@ func SupportedCapability(capability string) bool {
 		return true
 	}
 	switch capability {
-	case "diagnostics.read", "diagnostics.control", "artifact.create", "attention.request", "notification.post", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
+	case "person.approval", "diagnostics.read", "diagnostics.control", "artifact.create", "attention.request", "notification.post", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
 		return true
 	}
 	return false
