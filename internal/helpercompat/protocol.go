@@ -147,11 +147,30 @@ func (p Policy) selectNumber(offer string, localIsWindow bool) (int, error) {
 	if localIsWindow {
 		window, helper = localMax, peerMax
 	}
-	newer := "The installed helper"
-	if window > helper {
-		newer = "The running window"
+	serverName, clientName := "running window", "installed helper"
+	extra := ""
+	switch p.Channel {
+	case Bus:
+		clientName = "bus helper"
+	case Steering:
+		clientName = "steering hook"
+	case Applets:
+		clientName = "applet helper"
+	case SlideShow:
+		clientName = "slide-show helper"
+	case ExtensionControl:
+		clientName = "package helper"
+	case ExtensionHost:
+		clientName = "extension backend"
+	case Documents:
+		serverName, clientName = "document service", "document client"
+		extra = " For documents, save and close the document windows too, then wait for their service to exit."
 	}
-	return 0, &Refusal{Message: fmt.Sprintf("%s uses a newer %s protocol (window %d, helper %d). Restart the window so it starts matching helpers. No operation was performed.", newer, p.Channel, window, helper)}
+	newer := clientName
+	if window > helper {
+		newer = serverName
+	}
+	return 0, &Refusal{Message: fmt.Sprintf("The %s uses a newer %s protocol (%s %d, %s %d). Restart the window so it starts matching helpers.%s No operation was performed.", newer, p.Channel, serverName, window, clientName, helper, extra)}
 }
 
 // Accept runs after authentication and before any operation or body decoding.

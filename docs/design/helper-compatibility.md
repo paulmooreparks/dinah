@@ -17,6 +17,10 @@ The helper protocol is independent of the release number. Every channel starts a
 
 Agent providers' ACP, Codex app-server, Ollama HTTP and MCP transports retain their own documented protocols. They are external systems rather than installed Dinah helpers. The shell page and generated bridge are served by the same process. An extension backend's SDK is not changed by this branch; its existing callback is legacy protocol 1, while the receiving host will advertise and guard that channel.
 
+The separate SDK follow-up is to add the same offer, read-only probe and response check to its callback client and publish it for extension producers. It must retain legacy 1 while existing extensions remain supported. This branch neither edits that repository nor claims a new SDK producer was verified.
+
+Document control names the document service and document client in its refusal. Restarting only the main window cannot replace a service that still has document windows attached. The message therefore also asks the person to save and close those windows and wait for the idle service to exit. Negotiation never stops a service or discards unsaved documents.
+
 ## Exchange and legacy operation
 
 HTTP channels use `X-Dinah-Protocols` for offered positive integer numbers and `X-Dinah-Protocol` for the selected number. The server advertises its offer even on incompatibility. These are headers so strict legacy JSON readers and descriptors remain unchanged. A read-only OPTIONS probe precedes any potentially mutating request. A legacy refusal of OPTIONS with no protocol header means protocol 1; the helper continues only if it supports 1. A network error is not an absent number. Every actual request and response is checked too, and incompatibility returns HTTP 412 before decoding or dispatching operations.

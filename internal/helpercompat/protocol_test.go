@@ -83,6 +83,14 @@ func TestMalformedOffersNeverBecomeLegacy(t *testing.T) {
 	}
 }
 
+func TestDocumentRefusalNamesTheIndependentService(t *testing.T) {
+	policy := For(Documents)
+	_, err := policy.selectNumber("2", false)
+	if !IsRefusal(err) || !strings.Contains(err.Error(), "The document service uses a newer") || !strings.Contains(err.Error(), "save and close the document windows") {
+		t.Fatalf("document recovery instruction: %v", err)
+	}
+}
+
 func TestTerminalHelpersSurviveAMissingOrUnresponsiveWindow(t *testing.T) {
 	for _, channel := range []Channel{Bus, Steering} {
 		t.Run(string(channel), func(t *testing.T) {
