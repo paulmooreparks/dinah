@@ -48,8 +48,9 @@ type pausedChat struct {
 // pausedRecord is the file the chats to resume are kept in.
 type pausedRecord struct {
 	// Run tells one restart's messages from another's.
-	Run   string       `json:"run"`
-	Chats []pausedChat `json:"chats"`
+	WithoutUpdate bool         `json:"withoutUpdate,omitempty"`
+	Run           string       `json:"run"`
+	Chats         []pausedChat `json:"chats"`
 }
 
 const pausedFile = "restart-resume.json"
@@ -60,7 +61,7 @@ var pausedMu sync.Mutex
 func pausedPath() string { return filepath.Join(configDir(), pausedFile) }
 
 // pauseRequest is what a working chat is told.
-const pauseRequest = "The person is restarting %s to install an update, and asks every chat to pause. Stop at the next safe point: finish the step you are in the middle of if stopping now would leave something half written, start nothing new, and end your turn with one or two lines that say what you had finished and what you were about to do. Do not commit, push, send messages or start long commands in order to finish first. After the restart you are told to carry on."
+const pauseRequest = "The person is restarting %s, and asks every chat to pause. Stop at the next safe point: finish the step you are in the middle of if stopping now would leave something half written, start nothing new, and end your turn with one or two lines that say what you had finished and what you were about to do. Do not commit, push, send messages or start long commands in order to finish first. After the restart you are told to carry on."
 
 func readPaused() pausedRecord {
 	var r pausedRecord
@@ -120,6 +121,9 @@ func (a *App) notePaused(told map[string]bool) (pausedRecord, error) {
 	}
 	if r.Run == "" {
 		r.Run = time.Now().UTC().Format("20060102T150405.000000000")
+		a.updMu.Lock()
+		r.WithoutUpdate = a.update != nil && a.update.withoutUpdate
+		a.updMu.Unlock()
 	}
 	known := map[string]int{}
 	for i, c := range r.Chats {
@@ -140,32 +144,13 @@ func (a *App) notePaused(told map[string]bool) (pausedRecord, error) {
 }
 
 // PauseAndRestart asks every working chat to stop at a safe point and
-// restarts into the newer build when their turns have ended. The chats are
-// told to carry on after the restart.
+// restarts when their turns have ended, with or without an installed update.
+// The chats are told to carry on after the restart.
 func (a *App) PauseAndRestart() error {
-	a.updMu.Lock()
-	ready := a.update != nil && a.update.ready
-	a.updMu.Unlock()
-	if !ready {
-		return errors.New("no newer build of " + product.Name + " is installed")
-	}
-	told := map[string]bool{}
-	// The working chats are written down before anything else, so that one
-	// whose turn ends at once is still told to carry on.
-	if _, err := a.notePaused(nil); err != nil {
-		logf("core", "warn", "the chats to resume after the restart could not be written down: %v", err)
-	}
-	// Turns are held from here on, and the request to pause is the one
-	// message let through.
-	a.updMu.Lock()
-	a.update.pausing, a.update.telling, a.update.pausedAt = true, true, time.Now()
-	a.updMu.Unlock()
-	if err := a.RestartToUpdate(false); err != nil {
-		a.updMu.Lock()
-		a.update.pausing, a.update.telling = false, false
-		a.updMu.Unlock()
+	if err := a.requestRestart(false, true); err != nil {
 		return err
 	}
+	told := map[string]bool{}
 	defer a.emitUpdate()
 	defer func() {
 		a.updMu.Lock()
@@ -227,16 +212,20 @@ func (a *App) blockers() []string {
 }
 
 // resumeText is what a chat is told when it may carry on.
-func resumeText(c pausedChat, restarted bool) string {
+func resumeText(c pausedChat, restarted, withoutUpdate bool) string {
+	completed := product.Name + " has restarted"
+	if !withoutUpdate {
+		completed += " with its update"
+	}
 	switch {
 	case !restarted:
 		return "The restart of " + product.Name + " was cancelled. If you paused your work for it, carry on from where you stopped."
 	case c.Ended && c.Told:
-		return product.Name + " has restarted with its update. You paused your work for the restart; carry on from where you stopped."
+		return completed + ". You paused your work for the restart; carry on from where you stopped."
 	case c.Ended:
-		return product.Name + " has restarted with its update. Your last turn ended just before it; if work was left to do, carry on."
+		return completed + ". Your last turn ended just before it; if work was left to do, carry on."
 	default:
-		return product.Name + " has restarted with its update, and your turn was cut short by the restart. Look at what you had done, since the last step may be half finished, and carry on from there."
+		return completed + ", and your turn was cut short by the restart. Look at what you had done, since the last step may be half finished, and carry on from there."
 	}
 }
 
@@ -251,7 +240,7 @@ func (a *App) resumePaused(restarted bool) {
 		return
 	}
 	if restarted {
-		awaiting := pausedRecord{Run: r.Run}
+		awaiting := pausedRecord{Run: r.Run, WithoutUpdate: r.WithoutUpdate}
 		for _, c := range r.Chats {
 			if s := a.session(c.Chat); s == nil || !s.Open() {
 				awaiting.Chats = append(awaiting.Chats, c)
@@ -277,7 +266,7 @@ func (a *App) resumePaused(restarted bool) {
 		// The bus may not be open in the first moments of a start.
 		for try := 0; try < 30; try++ {
 			err = a.busHost().With(func(b *bus.Bus) error {
-				_, err := b.EnqueueResult(context.Background(), key, c.Bus, resumeText(c, restarted))
+				_, err := b.EnqueueResult(context.Background(), key, c.Bus, resumeText(c, restarted, r.WithoutUpdate))
 				return err
 			})
 			if err == nil {

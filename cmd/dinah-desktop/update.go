@@ -62,6 +62,9 @@ type updateWatch struct {
 	size  int64
 	mod   time.Time
 	ready bool
+	// target is fixed when a restart begins, independently of update polling.
+	target        string
+	withoutUpdate bool
 	// pending is set while the window waits to restart, and restarting
 	// once the window has agreed to close.
 	pending, restarting bool
@@ -88,7 +91,7 @@ func (a *App) admitWrite() (func(), error) {
 	a.updMu.Lock()
 	defer a.updMu.Unlock()
 	if a.update != nil && a.update.pending {
-		return nil, errors.New(product.Name + " is waiting to restart for its update, so nothing is saved or published until it has restarted. The document keeps its changes; save it after the restart, or cancel the restart")
+		return nil, errors.New(product.Name + " is waiting to restart, so nothing is saved or published until it has restarted. The document keeps its changes; save it after the restart, or cancel the restart")
 	}
 	a.writing++
 	var once sync.Once
@@ -156,7 +159,10 @@ func (a *App) watchUpdates(stop <-chan struct{}) {
 		return
 	}
 	a.updMu.Lock()
-	a.update = &updateWatch{path: installed, hash: sum, size: info.Size(), mod: info.ModTime()}
+	if a.update == nil {
+		a.update = &updateWatch{}
+	}
+	a.update.path, a.update.hash, a.update.size, a.update.mod = installed, sum, info.Size(), info.ModTime()
 	a.updMu.Unlock()
 	tick := time.NewTicker(updatePoll)
 	defer tick.Stop()
@@ -175,7 +181,7 @@ func (a *App) checkUpdate() {
 	a.updMu.Lock()
 	w := a.update
 	a.updMu.Unlock()
-	if w == nil || w.ready {
+	if w == nil || w.path == "" || w.ready {
 		return
 	}
 	info, err := os.Stat(w.path)
@@ -248,26 +254,62 @@ func (a *App) holdingTurns() error {
 	a.updMu.Lock()
 	defer a.updMu.Unlock()
 	if a.update != nil && a.update.pending && !a.update.telling {
-		return errors.New(product.Name + " restarts for its update when the running turns end. Your message is still in the box; send it after the restart")
+		return errors.New(product.Name + " restarts when the running turns end. Your message is still in the box; send it after the restart")
 	}
 	return nil
 }
 
-// RestartToUpdate restarts into the newer build. With now unset it holds
+// RestartToUpdate restarts into the newer build, or completes an already
+// pending same-program restart when now is set. With now unset it holds
 // new turns and new writes of documents, and waits for the running ones to
 // end; with now set it restarts at once, and turns still running end
 // unfinished. A write under way when the person chooses that is logged,
 // since whether it reached its source is then not known.
 func (a *App) RestartToUpdate(now bool) error {
+	return a.requestRestart(now, false)
+}
+
+// requestRestart shares update and same-program restarts. The pending target
+// survives a later update notification, including the Restart Now override.
+func (a *App) requestRestart(now, pause bool) error {
 	a.updMu.Lock()
 	w := a.update
-	if w == nil || !w.ready {
+	if !pause && (w == nil || (!w.ready && !(now && w.pending))) {
 		a.updMu.Unlock()
 		return errors.New("no newer build of " + product.Name + " is installed")
 	}
+	if pause && w != nil && (w.restarting || (w.pending && w.pausing)) {
+		a.updMu.Unlock()
+		return errors.New("a restart is already waiting")
+	}
+	if w == nil {
+		w = &updateWatch{}
+		a.update = w
+	}
 	already := w.pending
+	if !already {
+		w.target, w.withoutUpdate = w.path, !w.ready
+		if w.withoutUpdate {
+			self, err := os.Executable()
+			if err != nil {
+				a.updMu.Unlock()
+				return fmt.Errorf("finding the running program: %w", err)
+			}
+			w.target = self
+		}
+	}
 	w.pending = true
+	if pause {
+		w.pausing, w.telling, w.pausedAt = true, true, time.Now()
+	}
 	a.updMu.Unlock()
+	if pause {
+		// Write the record before steering can end a turn. The idle watcher
+		// waits for telling to clear before closing the window.
+		if _, err := a.notePaused(nil); err != nil {
+			logf("core", "warn", "the chats to resume after the restart could not be written down: %v", err)
+		}
+	}
 	a.emitUpdate()
 	if now {
 		a.updMu.Lock()
@@ -377,12 +419,19 @@ func (a *App) startUpdateUsing(launch func(string, ...string) error) {
 	a.updMu.Lock()
 	w := a.update
 	restarting := w != nil && w.restarting
+	path := ""
+	if w != nil {
+		path = w.target
+		if path == "" {
+			path = w.path
+		}
+	}
 	a.updMu.Unlock()
 	if !restarting {
 		return
 	}
-	if err := launch(w.path, "--after", strconv.Itoa(os.Getpid())); err != nil {
-		logf("core", "error", "starting the new build of %s: %v", product.Name, err)
+	if err := launch(path, "--after", strconv.Itoa(os.Getpid())); err != nil {
+		logf("core", "error", "restarting %s: %v", product.Name, err)
 	}
 }
 

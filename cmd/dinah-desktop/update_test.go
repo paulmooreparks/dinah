@@ -129,3 +129,89 @@ func TestWaitingToRestartHoldsNewWritesAndWaitsForOneUnderWay(t *testing.T) {
 		done()
 	}
 }
+
+// The launch seam records the program and arguments without starting a process.
+func TestSameProgramRestartUsesRunningExecutableAndKeepsItsTarget(t *testing.T) {
+	a, _ := providerTestApp(t)
+	done, err := a.admitWrite()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+	if err := a.PauseAndRestart(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.CancelRestart)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.updMu.Lock()
+	target := a.update.target
+	a.update.pausedAt = time.Now().Add(-pauseGrace)
+	a.updMu.Unlock()
+	if target != self || a.UpdateState().Ready {
+		t.Fatalf("target %q, self %q", target, self)
+	}
+	if err := a.holdingTurns(); err == nil {
+		t.Fatal("new turns were admitted")
+	}
+	if _, err := a.admitWrite(); err == nil {
+		t.Fatal("new writes were admitted")
+	}
+	if err := a.PauseAndRestart(); err == nil {
+		t.Fatal("duplicate pause was admitted")
+	}
+	// A later installed update must not retarget an already requested restart.
+	a.updMu.Lock()
+	a.update.path, a.update.ready = "later-installed-build", true
+	a.updMu.Unlock()
+	if err := a.RestartToUpdate(true); err != nil {
+		t.Fatal(err)
+	}
+	launched := false
+	a.startUpdateUsing(func(path string, args ...string) error {
+		launched = true
+		if path != self || len(args) != 2 || args[0] != "--after" {
+			t.Fatalf("launch %q %v", path, args)
+		}
+		return nil
+	})
+	if !launched {
+		t.Fatal("same-program restart did not launch")
+	}
+}
+
+func TestRestartNowOverridesSameProgramPauseWithoutUpdate(t *testing.T) {
+	a, _ := providerTestApp(t)
+	info, err := a.NewSessionAt(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.session(info.ID).StartWork()
+	if err := a.PauseAndRestart(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.CancelRestart)
+	a.updMu.Lock()
+	a.update.pausedAt = time.Now().Add(-pauseGrace)
+	a.updMu.Unlock()
+	if st := a.UpdateState(); st.Ready || !st.Pending || !st.Pausing || !st.Overdue {
+		t.Fatalf("state %+v", st)
+	}
+	if r := readPaused(); !r.WithoutUpdate || len(r.Chats) != 1 {
+		t.Fatalf("record %+v", r)
+	}
+	if err := a.RestartToUpdate(true); err != nil {
+		t.Fatal(err)
+	}
+	a.updMu.Lock()
+	closing := a.update.restarting
+	a.updMu.Unlock()
+	if !closing {
+		t.Fatal("Restart Now did not close")
+	}
+	if r := readPaused(); !r.WithoutUpdate || r.Chats[0].Ended {
+		t.Fatalf("interrupted record %+v", r)
+	}
+}
