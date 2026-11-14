@@ -21,7 +21,7 @@ import (
 // whether the second finishes while the first is held, and then lets the
 // first go on. It returns each save's error, whether the second finished
 // while the first was held, and the file's text at the end.
-func overlap(t *testing.T) (first, second error, overtook bool, text string) {
+func overlap(t *testing.T, unlocked bool) (first, second error, overtook bool, text string) {
 	t.Helper()
 	t.Setenv(savelock.TestDirEnv, t.TempDir())
 	dir := t.TempDir()
@@ -49,10 +49,17 @@ func overlap(t *testing.T) (first, second error, overtook bool, text string) {
 	go func() { _, err := f.WriteText(ctx, "notes.md", base, "first\n"); firstDone <- err }()
 	<-reached
 	go func() { _, err := f.WriteText(ctx, "notes.md", base, "second\n"); secondDone <- err }()
-	select {
-	case second = <-secondDone:
+	if unlocked {
+		// The counterexample requires the second rename to finish first.
+		// Elapsed time cannot establish that ordering on a busy machine.
+		second = <-secondDone
 		overtook = true
-	case <-time.After(400 * time.Millisecond):
+	} else {
+		select {
+		case second = <-secondDone:
+			overtook = true
+		case <-time.After(400 * time.Millisecond):
+		}
 	}
 	close(release)
 	first = <-firstDone
@@ -71,7 +78,7 @@ func overlap(t *testing.T) (first, second error, overtook bool, text string) {
 // the first one's text is not replaced unseen. A test that saves one after
 // the other cannot show this (PUDL Team Lead's review, 11 November 2026).
 func TestOverlappingSavesDoNotBothSucceed(t *testing.T) {
-	first, second, overtook, text := overlap(t)
+	first, second, overtook, text := overlap(t, false)
 	if overtook {
 		t.Fatalf("the second save finished while the first was between its check and its rename: %v", second)
 	}
@@ -89,7 +96,7 @@ func TestOverlappingSavesDoNotBothSucceed(t *testing.T) {
 func TestWithoutTheLockOverlappingSavesBothSucceed(t *testing.T) {
 	holdSaveLock = func(context.Context, time.Duration) (func(), error) { return func() {}, nil }
 	t.Cleanup(func() { holdSaveLock = savelockHold })
-	first, second, overtook, text := overlap(t)
+	first, second, overtook, text := overlap(t, true)
 	if !overtook || first != nil || second != nil {
 		t.Fatalf("overtook %v, first %v, second %v", overtook, first, second)
 	}

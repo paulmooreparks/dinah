@@ -83,13 +83,19 @@ func (s *Service) IfOpen(f func(*bus.Bus) error) (bool, error) {
 	return true, f(b)
 }
 func (s *Service) StartWatcher(ctx context.Context) {
+	s.startWatcher(ctx, nil)
+}
+
+// startWatcher accepts explicit rounds for tests. Normal callers use the
+// watcher's one-second timer.
+func (s *Service) startWatcher(ctx context.Context, ticks <-chan time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopped || s.closed || s.done != nil {
 		return
 	}
 	s.stop, s.done = make(chan struct{}), make(chan struct{})
-	go s.watch(ctx, s.stop, s.done)
+	go s.watch(ctx, s.stop, s.done, ticks)
 }
 
 // StopWatcher joins its current round but leaves the handle available for
@@ -123,21 +129,24 @@ func (s *Service) log(level, format string, args ...any) {
 		s.options.Log(level, format, args...)
 	}
 }
-func (s *Service) watch(ctx context.Context, stop, done chan struct{}) {
+func (s *Service) watch(ctx context.Context, stop, done chan struct{}, ticks <-chan time.Time) {
 	defer close(done)
 	b, err := s.Bus()
 	if err != nil {
 		return
 	}
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+	if ticks == nil {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+		ticks = tick.C
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-stop:
 			return
-		case <-tick.C:
+		case <-ticks:
 		}
 		s.round(ctx, b)
 	}
