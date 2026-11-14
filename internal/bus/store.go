@@ -236,6 +236,16 @@ CREATE TABLE IF NOT EXISTS person (
 	id   INTEGER PRIMARY KEY CHECK (id = 1),
 	name TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS decision_start (
+ id INTEGER PRIMARY KEY CHECK (id=1),
+ started_at TEXT NOT NULL,
+ after_message INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO decision_start
+ SELECT 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), COALESCE(MAX(id),0) FROM messages;
+CREATE INDEX IF NOT EXISTS deliveries_decision_message ON deliveries(message_id,recipient_kind);
+CREATE INDEX IF NOT EXISTS messages_person_group ON messages(room,id) WHERE from_session='' AND from_name='paul';
+CREATE INDEX IF NOT EXISTS person_requests_open ON person_requests(closed,message_id);
 `
 
 // HostedVar is set in the environment of the agents Dinah's window runs.
