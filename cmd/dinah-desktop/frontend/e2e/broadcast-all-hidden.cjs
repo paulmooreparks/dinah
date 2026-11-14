@@ -28,7 +28,7 @@ async function confirmDialog(){await page.getByRole('button',{name:'Confirm Broa
  const closed=await call('ChatStates');assert.equal(closed.chats.filter(x=>ids.includes(x.sessionId)&&x.life==='open').length,0);assert.equal(records().filter(x=>x.loaded).length,0);receipts.push({closed});
  await page.evaluate(()=>{window.fixtureEvents=[];for(const name of ['chat:connect','agent:session','agent:chatstate'])dinahHost.on(name,data=>fixtureEvents.push({name,data,at:Date.now()}));});
  const frozen=await preview(broadcast);assert.equal(frozen.count,5);assert.deepEqual(frozen.targets.map(x=>x.title).sort(),Array.from({length:5},(_,i)=>'Broadcast Fixture '+i));assert.equal(await page.locator('.decisions-preview li').count(),5);assert.equal(prompts().length,0);receipts.push({frozen});
- await confirmDialog();await page.click('#ask-yes');await page.waitForFunction(()=>document.querySelector('.decisions-receipt').textContent.includes('Broadcast queued'));
+ await confirmDialog();await page.click('#ask-yes');await page.waitForFunction(()=>document.querySelector('.decisions-receipt').textContent.includes('Your message is waiting'));
  const committed=await page.evaluate(()=>dinahDecisionDrafts.read('broadcast-all').operation.receipt);assert.equal(committed.messageIds.length,5);assert.equal(new Set(committed.messageIds).size,5);receipts.push({committed});
  // Replay the same confirmation identity through the real bridge. It must not enqueue again.
  const input=await page.evaluate(()=>dinahDecisionDrafts.read('broadcast-all').operation.input);assert.deepEqual(await call('ConfirmDecisionBroadcast',input),committed);

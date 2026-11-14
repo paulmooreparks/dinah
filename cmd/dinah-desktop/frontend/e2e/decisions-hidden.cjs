@@ -82,7 +82,7 @@ async function sendAnswers(){await page.waitForFunction(()=>!document.querySelec
   await page.getByRole('button',{name:'Confirm Broadcast…',exact:true}).click();await page.locator('#ask[open]').waitFor();
   assert.ok((await page.locator('#ask-body').innerText()).includes('Fixture Working'));
   await page.click('#ask-yes');
-  await page.waitForFunction(()=>document.querySelector('.decisions-receipt').textContent.includes('Broadcast queued'));
+  await page.waitForFunction(()=>document.querySelector('.decisions-receipt').textContent.includes('Your message is waiting'));
   const committed=await page.evaluate(()=>dinahDecisionDrafts.read('broadcast-active').operation.receipt);
   assert.equal(committed.state,'committed');assert.equal(committed.messageIds.length,1);
   // This stand-in has no steering hook. The bus waits for its held turn.

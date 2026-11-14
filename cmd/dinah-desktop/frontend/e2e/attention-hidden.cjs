@@ -53,7 +53,7 @@ async function answerAll(){for(const b of await page.getByRole('button',{name:'A
  assert.equal((await call('Decisions',0)).items.find(x=>x.id===request.id).revision,1);receipts.push({restored,count:3});
  // A plain mention is a Decisions row in this build, so its primary action opens that row.
  const senderNotice=restored.find(x=>x.data.attentionChat===sender);
- await page.locator('#questions [data-notice-id="'+senderNotice.id+'"]').getByRole('button',{name:'Open Decision',exact:true}).click();
+ await page.locator('#questions [data-notice-id="'+senderNotice.id+'"]').getByRole('button',{name:'Open Request in Decisions',exact:true}).click();
  await page.locator('.decisions-row[data-request-id="mention:'+senderNotice.data.message+'"] > a[aria-current="true"]').waitFor();
  await until(async()=>!(await notices()).some(x=>x.data.attentionChat===sender),'group card acknowledged');
  for(const m of (await call('Decisions',0)).items.filter(x=>x.kind==='mention')){
@@ -61,7 +61,7 @@ async function answerAll(){for(const b of await page.getByRole('button',{name:'A
  }
  await count(1);await openNotifications();
  const askNotice=(await notices()).find(x=>x.data.attentionChat===asker);
- await page.locator('#questions [data-notice-id="'+askNotice.id+'"]').getByRole('button',{name:'Open Decision',exact:true}).click();
+ await page.locator('#questions [data-notice-id="'+askNotice.id+'"]').getByRole('button',{name:'Open Request in Decisions',exact:true}).click();
  await page.locator('.decisions-row[data-request-id="'+request.id+'"] > a[aria-current="true"]').waitFor();
  assert.ok((await page.locator('.decisions-detail').innerText()).includes('Use the reviewed release.'));
  await until(async()=>!(await notices()).some(x=>x.data.attentionChat===asker),'request attention acknowledged');await count(1);

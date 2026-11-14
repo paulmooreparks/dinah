@@ -15,7 +15,7 @@ const { start, copy, check, finish } = require('./lib/set-aside-fixture');
     await t.shot('settings-set-aside-after');
     ok('file names are displayed as text', await p.locator('#set-aside-list img').count() === 0 && (await p.locator('#set-aside-list').innerText()).includes('<img'));
     await check(t, 1).check();
-    ok('selection shows the logical total', (await p.locator('#set-aside-total').innerText()).includes('1 selected; total logical size: 1,024 bytes'));
+    ok('selection shows the logical total', (await p.locator('#set-aside-total').innerText()).includes('1 selected. Combined file size: 1,024 bytes'));
     await p.evaluate(item => { __asideItems = __asideItems.filter(item => item.id !== '1'.padStart(64, '0')); __asideItems.push(item); }, copy(5, { name: copy(1).name }));
     await p.locator('#set-aside-refresh').click(); await p.locator('[data-copy-id="' + copy(5).id + '"]').waitFor();
     ok('a replacement never inherits the earlier identity selection', !await check(t, 5).isChecked() && await check(t, 1).isDisabled() && (await p.locator('#set-aside-total').innerText()).startsWith('0 selected'));

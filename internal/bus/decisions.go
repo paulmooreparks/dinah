@@ -105,14 +105,14 @@ func decisionFingerprint(kind string, value any) string {
 func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (Decision, error) {
 	var out Decision
 	if from.ID == "" || !decisionOperationID(in.OperationID) || len(in.Questions) < 1 || len(in.Questions) > 20 {
-		return out, errors.New("give an operation identity and 1..20 numbered questions")
+		return out, errors.New("Ask between 1 and 20 numbered questions.")
 	}
 	fingerprint := decisionFingerprint("ask", in)
 	seen := map[int]bool{}
 	questions := make([]PersonQuestion, len(in.Questions))
 	for i, q := range in.Questions {
 		if q.Number < 1 || int64(q.Number) > 9007199254740991 || seen[q.Number] || !decisionText(q.Text, 8000) || !decisionText(q.Recommendation, 8000) || len(q.Choices) > 20 || q.Answered || q.Answer != "" {
-			return out, errors.New("each question needs a unique positive number, text and recommendation")
+			return out, errors.New("Give each question a different positive number, its text and a recommendation.")
 		}
 		seen[q.Number] = true
 		q.Text = appletcontext.Redact(q.Text)
@@ -120,7 +120,7 @@ func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (D
 		q.Choices = append([]string{}, q.Choices...)
 		for j, c := range q.Choices {
 			if !decisionText(c, 2000) {
-				return out, errors.New("invalid question choice")
+				return out, errors.New("One of the suggested answers could not be read.")
 			}
 			q.Choices[j] = appletcontext.Redact(c)
 		}
@@ -133,7 +133,7 @@ func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (D
 		err := t.QueryRow(`SELECT message_id,fingerprint FROM person_requests WHERE asker=? AND operation_id=?`, from.ID, in.OperationID).Scan(&id, &old)
 		if err == nil {
 			if old != fingerprint {
-				return errors.New("operation identity was used with different questions")
+				return errors.New("The questions changed after this request was saved. Submit a new request.")
 			}
 			out, _, err = b.decision(t, id)
 			return err
@@ -192,11 +192,11 @@ const openDecisionSQL = ` FROM messages m JOIN (
 func decisionMessageID(id string) (int64, error) {
 	parts := strings.Split(id, ":")
 	if len(parts) != 2 || (parts[0] != "request" && parts[0] != "mention") {
-		return 0, errors.New("invalid decision identity")
+		return 0, errors.New("This request could not be identified. Refresh the list.")
 	}
 	n, e := strconv.ParseInt(parts[1], 10, 64)
 	if e != nil || n < 1 || strconv.FormatInt(n, 10) != parts[1] {
-		return 0, errors.New("invalid decision identity")
+		return 0, errors.New("This request could not be identified. Refresh the list.")
 	}
 	return n, nil
 }
@@ -240,7 +240,7 @@ func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 			}
 			out.CanDismiss = !available
 			if !available {
-				out.DismissalReason = "The asking chat or its group destination is no longer available."
+				out.DismissalReason = "The asking chat or group is no longer available."
 			}
 		}
 	}
@@ -250,7 +250,7 @@ func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 func (b *Bus) Decisions(ctx context.Context, before int64) (DecisionPage, error) {
 	out := DecisionPage{Items: []Decision{}}
 	if before < 0 {
-		return out, errors.New("invalid decisions cursor")
+		return out, errors.New("Earlier requests could not be identified. Refresh the list.")
 	}
 	t, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -300,7 +300,7 @@ func decisionReceipt(t *sql.Tx, op, fingerprint string) (DecisionReceipt, bool, 
 		return out, false, err
 	}
 	if fingerprint != "" && stored != fingerprint {
-		return out, false, errors.New("operation identity was used with different input")
+		return out, false, errors.New("This request changed after it was saved. Submit a new request.")
 	}
 	err = json.Unmarshal([]byte(encoded), &out)
 	return out, true, err
@@ -320,7 +320,7 @@ func rejectDecision(t *sql.Tx, op, fp, id string, revision int, closed bool, cod
 func (b *Bus) DecisionOperation(ctx context.Context, op string) (DecisionReceipt, error) {
 	out := DecisionReceipt{OperationID: op, State: "unknown", MessageIDs: []int64{}}
 	if !decisionOperationID(op) {
-		return out, errors.New("invalid operation identity")
+		return out, errors.New("This action could not be identified. Refresh and try again.")
 	}
 	t, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -334,7 +334,7 @@ func (b *Bus) DecisionOperation(ctx context.Context, op string) (DecisionReceipt
 func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (DecisionReceipt, error) {
 	var out DecisionReceipt
 	if !decisionOperationID(in.OperationID) || in.Revision < 1 || len(in.Answers) < 1 || len(in.Answers) > 20 {
-		return out, errors.New("give an operation identity and answers")
+		return out, errors.New("Provide an answer before sending.")
 	}
 	id, err := decisionMessageID(in.ID)
 	if err != nil {
@@ -346,14 +346,14 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 	mention := strings.HasPrefix(in.ID, "mention:")
 	for _, answer := range in.Answers {
 		if seenAnswers[answer.Number] {
-			return out, errors.New("question answered twice")
+			return out, errors.New("The same question was answered twice.")
 		}
 		seenAnswers[answer.Number] = true
 		if mention && (len(in.Answers) != 1 || answer.Number != 0 || answer.AsRecommended) || !mention && answer.Number < 1 {
-			return out, errors.New("invalid answer question number")
+			return out, errors.New("The answer does not refer to a valid question number.")
 		}
 		if answer.AsRecommended && answer.Text != "" || !answer.AsRecommended && !decisionText(answer.Text, 8000) {
-			return out, errors.New("give answer text or as recommended with empty text")
+			return out, errors.New("Write an answer or choose As Recommended.")
 		}
 	}
 	fp := decisionFingerprint("answer", in)
@@ -367,14 +367,14 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 		}
 		d, closed, err := b.decision(t, id)
 		if errors.Is(err, sql.ErrNoRows) {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 0, true, "decision_unavailable", "This decision is no longer available. Refresh the list.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 0, true, "decision_unavailable", "This request is no longer available. Refresh the list.")
 			return err
 		}
 		if err != nil {
 			return err
 		}
 		if d.ID != in.ID {
-			return errors.New("decision identity has the wrong kind")
+			return errors.New("This request could not be identified. Refresh the list.")
 		}
 		indexes := map[int]int{}
 		for i, q := range d.Questions {
@@ -383,16 +383,16 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 		if d.Kind == "request" {
 			for _, answer := range in.Answers {
 				if _, ok := indexes[answer.Number]; !ok {
-					return errors.New("question is unknown")
+					return errors.New("This question could not be found. Refresh the request.")
 				}
 			}
 		}
 		if closed {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This decision has already closed. Refresh the list.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This request is already closed. Refresh the list.")
 			return err
 		}
 		if d.Revision != in.Revision {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This decision changed. Refresh it before sending your answers.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This request changed. Refresh it before sending your answers.")
 			return err
 		}
 		available, err := decisionDestinationAvailable(t, d)
@@ -400,7 +400,7 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			return err
 		}
 		if !available {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "decision_unavailable", "The asking chat or its group destination is no longer available. No answer was sent.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "decision_unavailable", "The asking chat or group is no longer available. No answer was sent.")
 			return err
 		}
 		var words strings.Builder
@@ -415,7 +415,7 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			}
 			index := indexes[a.Number]
 			if d.Questions[index].Answered {
-				out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "already_answered", "One of these questions has already been answered. Refresh the decision.")
+				out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "already_answered", "One of these questions has already been answered. Refresh the request.")
 				return err
 			}
 			q := &d.Questions[index]
@@ -476,7 +476,7 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (DecisionReceipt, error) {
 	var out DecisionReceipt
 	if !decisionOperationID(in.OperationID) || in.Revision < 1 {
-		return out, errors.New("invalid operation identity")
+		return out, errors.New("This action could not be identified. Refresh and try again.")
 	}
 	id, err := decisionMessageID(in.ID)
 	if err != nil {
@@ -492,21 +492,21 @@ func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (Dec
 		}
 		d, closed, err := b.decision(t, id)
 		if errors.Is(err, sql.ErrNoRows) {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 0, true, "decision_unavailable", "This decision is no longer available. Refresh the list.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 0, true, "decision_unavailable", "This request is no longer available. Refresh the list.")
 			return err
 		}
 		if err != nil {
 			return err
 		}
 		if d.ID != in.ID {
-			return errors.New("decision identity has the wrong kind")
+			return errors.New("This request could not be identified. Refresh the list.")
 		}
 		if closed {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This decision has already closed. Refresh the list.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This request is already closed. Refresh the list.")
 			return err
 		}
 		if d.Revision != in.Revision {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This decision changed. Refresh it before dismissing.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This request changed. Refresh it before dismissing it.")
 			return err
 		}
 		if !d.CanDismiss {

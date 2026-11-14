@@ -31,7 +31,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await p.waitForFunction(() => !document.querySelector('.decisions-detail .btn-primary').disabled);
     await p.evaluate(() => { window.__beforeFailure = true; });
     await p.getByRole('button', { name: 'Send Answers', exact: true }).click();
-    await p.waitForFunction(() => document.querySelector('.decisions-receipt').textContent.includes('unconfirmed') && !document.querySelector('[data-operation]').disabled);
+    await p.waitForFunction(() => document.querySelector('.decisions-receipt').textContent.includes('not been confirmed') && !document.querySelector('[data-operation]').disabled);
     const recovery = await p.evaluate(() => {
       const panel = document.querySelector('.decisions-delivery'), pane = document.querySelector('.decisions-detail').getBoundingClientRect(), r = panel.getBoundingClientRect();
       const content = document.querySelector('.decisions-content').getBoundingClientRect();
@@ -41,7 +41,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await t.shot('decisions-reading-error');
     await p.getByRole('button', { name: 'Requests', exact: true }).click(); await choose(t, 'r2');
     ok('selecting a plain mention keeps source, delivery and scrolling question bounds', JSON.stringify(reading) === JSON.stringify(await readingBounds()));
-    ok('the plain mention keeps its origin and original message', await p.locator('.decisions-source').innerText().then(text => text.includes('Review r2') && text.includes('Group Mention') && text.includes('Review Group')) && (await p.locator('.decisions-question-text').innerText()).includes('Its original wording stays available.'));
+    ok('the plain mention keeps its origin and original message', await p.locator('.decisions-source').innerText().then(text => text.includes('Review r2') && text.includes('Group Message') && text.includes('Review Group')) && (await p.locator('.decisions-question-text').innerText()).includes('Its original wording stays available.'));
     await t.shot('decisions-reading-mention');
     await p.evaluate(() => { pudlWindows.dockMode('left', 'open'); pudlWindows.dockMode('right', 'open'); });
     await p.waitForFunction(() => document.querySelector('.decisions').clientWidth <= 740);

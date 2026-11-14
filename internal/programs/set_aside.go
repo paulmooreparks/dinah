@@ -159,7 +159,7 @@ func (s *SetAsideService) scan() ([]asideFile, error) {
 			if !other.valid {
 				file.CanRemove = false
 				file.ReasonCode = "unrecognized_date"
-				file.Reason = "A copy has an unrecognized date; the fallback cannot be established."
+				file.Reason = "The date of a copy could not be read. No copies can be removed until the newest copy kept for going back can be identified."
 			}
 		}
 		if !file.valid {
@@ -209,7 +209,7 @@ func (s *SetAsideService) listFiles() ([]asideFile, []string, error) {
 			file.RunningPids = pids
 			file.CanRemove = false
 			file.ReasonCode = "in_use"
-			file.Reason = "A running process uses this executable file."
+			file.Reason = "This copy is in use by a running program."
 		}
 		if !asideRemovalSupported {
 			file.CanRemove = false
@@ -237,15 +237,15 @@ func (s *SetAsideService) List() (SetAsideList, error) {
 func (s *SetAsideService) Remove(in RemoveSetAsideInput) (RemoveSetAsideResult, error) {
 	out := RemoveSetAsideResult{Items: []RemovalResult{}}
 	if len(in.IDs) == 0 || len(in.IDs) > 100 {
-		return out, errors.New("choose between 1 and 100 set-aside copies")
+		return out, errors.New("Choose between 1 and 100 set-aside copies.")
 	}
 	seen := map[string]bool{}
 	for _, id := range in.IDs {
 		if len(id) != 64 || seen[id] {
-			return out, errors.New("selection IDs must be unique 64-character hexadecimal values")
+			return out, errors.New("The selected copies could not be identified. Refresh the list and select them again.")
 		}
 		if _, err := hex.DecodeString(id); err != nil {
-			return out, errors.New("selection IDs must be hexadecimal")
+			return out, errors.New("The selected copies could not be identified. Refresh the list and select them again.")
 		}
 		seen[id] = true
 	}
@@ -278,7 +278,7 @@ func (s *SetAsideService) Remove(in RemoveSetAsideInput) (RemoveSetAsideResult, 
 						return nil
 					}
 				}
-				return errors.New("the copy changed or is now protected; refresh the list")
+				return errors.New("This copy changed or is now protected. Refresh the list.")
 			})
 			if err != nil {
 				result.ReasonCode, result.Reason = code, err.Error()

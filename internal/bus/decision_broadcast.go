@@ -36,7 +36,7 @@ type ConfirmDecisionBroadcastInput struct {
 func (b *Bus) PreviewDecisionBroadcast(ctx context.Context, scope, text string, working []string) (DecisionBroadcastPreview, error) {
 	out := DecisionBroadcastPreview{Scope: scope, Text: appletcontext.Redact(text), Targets: []DecisionBroadcastTarget{}}
 	if (scope != "active" && scope != "all") || !decisionText(text, 16000) {
-		return out, errors.New("choose active or all and give broadcast text")
+		return out, errors.New("Choose Broadcast to Active or Broadcast to All and write a message.")
 	}
 	var err error
 	out.Token, err = decisionToken()
@@ -96,7 +96,7 @@ func (b *Bus) PreviewDecisionBroadcast(ctx context.Context, scope, text string, 
 func (b *Bus) ConfirmDecisionBroadcast(ctx context.Context, in ConfirmDecisionBroadcastInput) (DecisionReceipt, error) {
 	var out DecisionReceipt
 	if !decisionOperationID(in.OperationID) || in.Token == "" {
-		return out, errors.New("give an operation identity and preview token")
+		return out, errors.New("Preview the recipients again before sending.")
 	}
 	fp := decisionFingerprint("broadcast", in)
 	err := b.tx(ctx, func(t *sql.Tx) error {
@@ -124,7 +124,7 @@ func (b *Bus) ConfirmDecisionBroadcast(ctx context.Context, in ConfirmDecisionBr
 			return err
 		}
 		if consumed {
-			out, err = rejectDecision(t, in.OperationID, fp, "", 0, true, "preview_consumed", "This broadcast preview has already been sent. Preview again to send a new message.")
+			out, err = rejectDecision(t, in.OperationID, fp, "", 0, true, "preview_consumed", "This message has already been sent to the chats in the preview. Preview again to send a new message.")
 			return err
 		}
 		if !b.now().Before(expiry) {

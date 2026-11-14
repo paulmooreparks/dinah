@@ -91,7 +91,7 @@ func (a *App) admitWrite() (func(), error) {
 	a.updMu.Lock()
 	defer a.updMu.Unlock()
 	if a.update != nil && a.update.pending {
-		return nil, errors.New(product.Name + " is waiting to restart, so nothing is saved or published until it has restarted. The document keeps its changes; save it after the restart, or cancel the restart")
+		return nil, errors.New(product.Name + " is waiting to restart. You cannot save or publish until it has restarted. Your changes are kept. Save them after the restart, or cancel the restart.")
 	}
 	a.writing++
 	var once sync.Once
@@ -254,7 +254,7 @@ func (a *App) holdingTurns() error {
 	a.updMu.Lock()
 	defer a.updMu.Unlock()
 	if a.update != nil && a.update.pending && !a.update.telling {
-		return errors.New(product.Name + " restarts when the running turns end. Your message is still in the box; send it after the restart")
+		return errors.New(product.Name + " will restart when the working chats finish. Your message is still in the box. Send it after the restart.")
 	}
 	return nil
 }
@@ -280,7 +280,7 @@ func (a *App) requestRestart(now, pause bool) error {
 	}
 	if pause && w != nil && (w.restarting || (w.pending && w.pausing)) {
 		a.updMu.Unlock()
-		return errors.New("a restart is already waiting")
+		return errors.New("A restart is already waiting.")
 	}
 	if w == nil {
 		w = &updateWatch{}
@@ -293,7 +293,7 @@ func (a *App) requestRestart(now, pause bool) error {
 			self, err := os.Executable()
 			if err != nil {
 				a.updMu.Unlock()
-				return fmt.Errorf("finding the running program: %w", err)
+				return fmt.Errorf("The running program could not be found: %w", err)
 			}
 			w.target = self
 		}

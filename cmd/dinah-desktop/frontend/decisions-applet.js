@@ -37,7 +37,7 @@
     var refresh = button('Refresh', function () { if (view === 'record') { rendered = ''; draw(); } return load(false); });
     var more = button('Earlier Requests', function () { return load(true); }); more.disabled = true;
     toolbar.append(listCommand, search, refresh, more);
-    var status = node('p', 'decisions-status text-muted', 'Reading requests.'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    var status = node('p', 'decisions-status text-muted', 'Loading requests.'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
     var body = node('div', 'decisions-body'), list = node('ul', 'decisions-list'); list.setAttribute('aria-label', 'Open Requests');
     var detail = node('section', 'decisions-detail'); detail.setAttribute('aria-label', 'Request Details');
     body.append(list, detail); root.append(toolbar, status, body);
@@ -55,7 +55,7 @@
     function persist() {
       var key = draftKey, value = draft; saving++; draftError = ''; controls();
       return store(key, value).then(function () { if (draftKey === key) draftError = ''; }, function (error) {
-        if (draftKey === key) draftError = 'Draft could not be saved. ' + errorText(error);
+        if (draftKey === key) draftError = 'Your draft could not be saved. ' + errorText(error);
         throw error;
       }).finally(function () { saving--; controls(); });
     }
@@ -75,7 +75,7 @@
       if (dismissButton) dismissButton.disabled = busy || saving > 0 || !items.has(selected) || !item.canDismiss;
       if (changedLine && !broadcast) {
         var changed = item && draft.reviewed !== signature(item);
-        changedLine.textContent = changed ? 'The request or destination changed. Review it before sending.' : !items.has(selected) ? 'This request is not in the loaded open list. Its draft is kept. Refresh or load earlier requests.' : '';
+        changedLine.textContent = changed ? 'The request or destination changed. Review it before sending.' : !items.has(selected) ? 'This request is not in the list of open requests. Your draft is saved. Refresh or load earlier requests.' : '';
         review.hidden = !changed; review.disabled = busy || saving > 0;
       }
       if (broadcast) {
@@ -93,12 +93,12 @@
     function deliveryStatus() {
       if (draftError) return draftError;
       var op = draft.operation;
-      if (!op) return saving ? 'Saving draft.' : 'Draft saved.';
+      if (!op) return saving ? 'Your draft is being saved.' : 'Your draft is saved.';
       if (op.status === 'rejected') return op.receipt.reason.message;
-      if (op.status !== 'committed') return 'Delivery is unconfirmed. Check its status before sending again.';
+      if (op.status !== 'committed') return 'Sending has not been confirmed. Check the result before sending again.';
       if (op.method === 'DismissDecision') return 'Message dismissed. No reply was sent.';
-      if (op.method === 'ConfirmDecisionBroadcast') return 'Broadcast queued on the bus for the previewed chats.';
-      return 'Delivered to the bus. The asking chat may not have read it yet.';
+      if (op.method === 'ConfirmDecisionBroadcast') return 'Your message is waiting for the chats in the preview.';
+      return 'Your reply was sent. The asking chat may not have read it yet.';
     }
     function drawList() {
       var visible = order.filter(function (id) { var item = items.get(id); return item && (!filter || [item.asker, item.workspace, item.groupTitle, item.text].join(' ').toLowerCase().includes(filter.toLowerCase())); });
@@ -135,7 +135,7 @@
       return field;
     }
     function operationActions() {
-      var actions = node('div', 'decisions-actions'), check = button('Check Delivery', reconcile);
+      var actions = node('div', 'decisions-actions'), check = button('Check Send Result', reconcile);
       check.dataset.operation = 'check'; actions.appendChild(check); return actions;
     }
     function deliveryPanel() {
@@ -146,7 +146,7 @@
     function drawRequest() {
       var item = items.get(selected) || selectedCopy;
       if (selected && (!item || item.id !== selected)) { var saved = draftFor('request:' + selected); if (validItem(saved.request) && saved.request.id === selected) item = saved.request; }
-      if (!selected || !item || item.id !== selected) { detail.replaceChildren(node('p', 'text-muted', selected ? 'The selected request is not in the loaded page. Load earlier requests or choose another. Saved drafts are retained.' : 'Choose a request to read and answer.')); form = null; return; }
+      if (!selected || !item || item.id !== selected) { detail.replaceChildren(node('p', 'text-muted', selected ? 'The selected request is not in this list. Load earlier requests or choose another. Your draft is saved.' : 'Choose a request to read and answer.')); form = null; return; }
       selectedCopy = item;
       var shape = selected + '|' + signature(item) + '|' + item.revision;
       if (rendered === shape) { controls(); return; }
@@ -155,7 +155,7 @@
       form = node('form'); form.addEventListener('submit', function (event) { event.preventDefault(); if (!send.disabled) answer(); });
       var source = node('header', 'decisions-source');
       source.appendChild(node('h2', '', item.asker));
-      source.appendChild(node('p', 'text-muted', (item.kind === 'request' ? 'Questions for You' : item.group ? 'Group Mention' : 'Message for You') + ' · ' + item.workspace + (item.groupTitle ? ' · ' + item.groupTitle : '') + ' · ' + window.dinahRegional.format(new Date(item.createdAt), 'dayTime')));
+      source.appendChild(node('p', 'text-muted', (item.kind === 'request' ? 'Questions for You' : item.group ? 'Group Message' : 'Message for You') + ' · ' + item.workspace + (item.groupTitle ? ' · ' + item.groupTitle : '') + ' · ' + window.dinahRegional.format(new Date(item.createdAt), 'dayTime')));
       form.append(source, deliveryPanel());
       var content = node('div', 'decisions-content'); form.appendChild(content);
       changedLine = node('p', 'text-warning'); review = button('I Have Reviewed the Updated Request', function () { draft.reviewed = signature(item); saveEdited(); });
@@ -181,7 +181,7 @@
     function dismiss() {
       if (workingOp(draft) || !items.has(selected) || !current().canDismiss) return;
       var item = current();
-      return window.dinahHost.ask(item.kind === 'mention' ? 'Dismiss This Message?' : 'Dismiss This Request?', 'This closes the plain request without sending a reply to ' + item.destination + '.', 'Dismiss').then(function (yes) { if (yes && !disposed && draftKey === 'request:' + item.id) return begin('DismissDecision', { operationId: operationId(), id: item.id, revision: item.revision }); });
+      return window.dinahHost.ask(item.kind === 'mention' ? 'Dismiss This Message?' : 'Dismiss This Request?', 'This closes the request without sending a reply to ' + item.destination + '.', 'Dismiss').then(function (yes) { if (yes && !disposed && draftKey === 'request:' + item.id) return begin('DismissDecision', { operationId: operationId(), id: item.id, revision: item.revision }); });
     }
     function begin(method, input) {
       var key = draftKey, value = draft;
@@ -189,7 +189,7 @@
       return persist().then(function () { return execute(key, value); }).catch(function (error) { say(errorText(error)); });
     }
     function accept(key, value, receipt) {
-      var op = value.operation; if (!validReceipt(receipt, op)) throw new Error('The delivery response could not be confirmed.');
+      var op = value.operation; if (!validReceipt(receipt, op)) throw new Error('The send result could not be confirmed.');
       op.status = receipt.state; op.receipt = receipt;
       if (op.method === 'ConfirmDecisionBroadcast') value.preview = null;
       if (receipt.state === 'committed' && op.method === 'AnswerDecision') op.input.answers.forEach(function (answer) { delete value.answers[answer.number]; });
@@ -200,8 +200,8 @@
       if (pending.has(op.input.operationId)) return Promise.resolve();
       pending.add(op.input.operationId); op.status = 'submitted'; controls();
       return store(key, value).then(function () { return app()[op.method](op.input); }).then(function (receipt) { return accept(key, value, receipt); }).catch(function (error) {
-        if (!['committed', 'rejected'].includes(op.status)) { op.status = 'submitted'; return store(key, value).then(function () { say('Delivery is unconfirmed. ' + errorText(error)); }); }
-        say('The reply committed, but its local state could not be saved. ' + errorText(error));
+        if (!['committed', 'rejected'].includes(op.status)) { op.status = 'submitted'; return store(key, value).then(function () { say('Sending has not been confirmed. ' + errorText(error)); }); }
+        say('The result was confirmed, but could not be saved on this computer. ' + errorText(error));
       }).finally(function () { pending.delete(op.input.operationId); controls(); });
     }
     function reconcile() {
@@ -212,7 +212,7 @@
       return Promise.resolve().then(function () { return app().DecisionOperation(op.input.operationId); }).then(function (receipt) {
         if (receipt && receipt.operationId === op.input.operationId && receipt.state === 'unknown' && receipt.id === '' && receipt.revision === 0 && receipt.closed === false && Array.isArray(receipt.messageIds) && receipt.messageIds.length === 0 && receipt.reason === null) { op.status = 'unknown'; pending.delete(op.input.operationId); return execute(key, value); }
         return accept(key, value, receipt);
-      }).catch(function (error) { say('Delivery is still unconfirmed. ' + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); if (key === draftKey) controls(); });
+      }).catch(function (error) { say('Sending has still not been confirmed. ' + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); if (key === draftKey) controls(); });
     }
     function drawBroadcast() {
       var scope = view === 'broadcast-active' ? 'active' : 'all', key = 'broadcast-' + scope;
@@ -222,7 +222,7 @@
       form.appendChild(node('h2', '', scope === 'active' ? 'Broadcast to Active' : 'Broadcast to All'));
       form.appendChild(deliveryPanel());
       var content = node('div', 'decisions-content'); form.appendChild(content);
-      content.appendChild(node('p', '', scope === 'active' ? 'The preview lists chats working when the engine reads them.' : 'The preview lists every eligible chat on the bus. Closed chats wait for a background place. External terminals cannot be opened by Dinah.'));
+      content.appendChild(node('p', '', scope === 'active' ? 'The preview lists chats that are working when you request it.' : 'The preview lists all available chats. Closed chats wait until there is room to open them in the background. Chats in separate terminal windows cannot be opened here.'));
       var label = node('label', '', 'Message'), input = node('textarea', 'form-input'); input.setAttribute('aria-label', 'Broadcast Message'); input.maxLength = 16000; input.value = draft.text || ''; label.appendChild(input); content.appendChild(label);
       var previewBox = node('div', 'decisions-preview'), previewButton = button('Preview Recipients', preview), confirmButton = button('Confirm Broadcast…', confirmBroadcast, true); confirmButton.disabled = true;
       input.addEventListener('input', function () { draft.text = input.value; draft.preview = null; previewBox.replaceChildren(); confirmButton.disabled = true; saveEdited(); });
@@ -293,7 +293,7 @@
         if (!append) { if (items.has(selected)) selectedCopy = items.get(selected); items.clear(); }
         result.items.forEach(function (item) { items.set(item.id, item); if (!order.includes(item.id)) order.push(item.id); });
         order = order.filter(function (id) { return items.has(id); }); moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
-        say(items.size ? items.size + ' open requests loaded.' : 'No open requests.'); draw(); readValid = true;
+        say(items.size ? items.size + ' awaiting an answer' : 'There are no open requests.'); draw(); readValid = true;
       }).catch(function (error) { say('Requests could not be read. ' + errorText(error)); }).finally(function () {
         refreshing = false; if (!disposed) { refresh.disabled = false; more.disabled = !moreBefore; }
         if (refreshAgain) { refreshAgain = false; return load(false); }

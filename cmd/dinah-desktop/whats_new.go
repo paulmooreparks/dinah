@@ -9,7 +9,7 @@ func keptWhatsNew(item Notification) bool {
 func (a *App) keepWhatsNew() error {
 	_, _, err := a.saveNotification(Notification{
 		ID: whatsNewNotificationID, Kind: "app", Severity: "info", Title: "What's New",
-		Body:    "Decisions keeps questions and recommendations in one place. Notifications keeps requests you missed, and Working with Chats explains Broadcast and Pause Chats and Restart. Settings lets you choose how many chats can open in the background and remove older program copies while protecting running copies and the newest fallback. Products with Updates also show installed and running versions there.",
+		Body:    "Open Decisions to read questions and recommendations and send your answers. Open Notifications to find requests you missed, and read Working with Chats for help with Broadcast and Pause Chats and Restart. In Settings, you can choose how many chats open in the background and remove older program copies. Running copies and the newest copy kept for going back cannot be removed. If your product has Updates, you can compare installed and running versions there.",
 		Details: []string{},
 	})
 	return err

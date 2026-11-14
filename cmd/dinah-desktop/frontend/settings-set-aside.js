@@ -17,7 +17,7 @@
   function controls() {
     var total = 0;
     selected.forEach(key => { var item = items.get(key); if (item) total += item.sizeBytes; });
-    $('set-aside-total').textContent = selected.size + ' selected; total logical size: ' + bytes(total) + '.';
+    $('set-aside-total').textContent = selected.size + ' selected. Combined file size: ' + bytes(total) + '.';
     $('set-aside-remove').setAttribute('aria-disabled', String(busy || !!reading || !valid || !selected.size));
     $('set-aside-refresh').setAttribute('aria-disabled', String(busy || !!reading));
     rows.forEach(function (row, key) {
@@ -52,22 +52,22 @@
       }
       row.words.textContent = item.program + ': ' + item.name + '\n' + bytes(item.sizeBytes) + ' · ' + window.dinahRegional.format(new Date(item.date), 'dayTime') +
         '\n' + (item.reason || (item.canRemove ? 'Available to select.' : 'Removal is unavailable.')) +
-        (item.runningPids.length ? '\nRunning process IDs: ' + item.runningPids.join(', ') : '');
+        (item.runningPids.length ? '\nRunning program IDs: ' + item.runningPids.join(', ') : '');
     });
-    rows.forEach(function (row, key) { if (!items.has(key)) row.words.textContent = 'This copy is no longer listed. Its row is kept in place.'; });
-    $('set-aside-warnings').textContent = value.warnings.join('\n') || 'No process inspection warnings were reported.';
-    say(value.items.length ? value.items.length + ' copies listed; total logical size: ' + bytes(value.totalBytes) + '.' : 'No set-aside programs were found.');
+    rows.forEach(function (row, key) { if (!items.has(key)) row.words.textContent = 'This copy is no longer listed.'; });
+    $('set-aside-warnings').textContent = value.warnings.join('\n') || 'No problems were reported while checking running programs.';
+    say(value.items.length ? value.items.length + ' copies are listed. Combined file size: ' + bytes(value.totalBytes) + '.' : 'No set-aside programs were found.');
     valid = true;
   }
   function load() {
     if (busy) return Promise.resolve();
     if (reading) return reading;
-    valid = false; say('Reading set-aside programs.');
+    valid = false; say('Loading set-aside programs.');
     reading = Promise.resolve().then(() => app().ListSetAsidePrograms()).then(function (value) {
-      if (!validateList(value)) throw new Error('The program inventory is invalid.');
+      if (!validateList(value)) throw new Error('The list of program copies could not be read.');
       draw(value);
     }).catch(function (error) {
-      say('Program copies could not be read. ' + window.dinahHelpers.message(error) + ' The previous rows are retained; removal is disabled.', true);
+      say('Program copies could not be read. ' + window.dinahHelpers.message(error) + ' The previous list is still shown. You cannot remove copies until it has been refreshed.', true);
     }).finally(function () { reading = null; controls(); });
     controls(); return reading;
   }
@@ -84,15 +84,15 @@
     if (busy || reading || !valid || !selected.size) return;
     var chosen = Array.from(selected).map(key => items.get(key)), total = chosen.reduce((sum, item) => sum + item.sizeBytes, 0);
     busy = true; controls();
-    return window.dinahHost.ask('Remove Selected Programs?', 'Remove these ' + chosen.length + ' copies with a total logical size of ' + bytes(total) + '?\n' + chosen.map(item => item.name).join('\n') + '\nThe service checks protection again before removing each copy.', 'Remove').then(function (yes) {
+    return window.dinahHost.ask('Remove Selected Programs?', 'Remove these ' + chosen.length + ' copies with a combined file size of ' + bytes(total) + '?\n' + chosen.map(item => item.name).join('\n') + '\nEach copy is checked again before removal to protect running programs and the copy kept for going back.', 'Remove').then(function (yes) {
       if (!yes) return;
       say('Removing the selected program copies.');
       return Promise.resolve().then(() => app().RemoveSetAsidePrograms({ ids: chosen.map(item => item.id) })).then(function (result) {
         if (!validateRemoval(result, chosen)) throw new Error('The removal result is invalid.');
         var byId = new Map(chosen.map(item => [item.id, item]));
-        $('set-aside-results').textContent = 'Reported removed size: ' + bytes(result.removedBytes) + '.\n' + result.items.map(item => byId.get(item.id).name + ': ' + (item.state === 'removed' ? 'Removed.' : 'Kept. ' + (item.reason || item.reasonCode))).join('\n');
+        $('set-aside-results').textContent = 'Combined size of removed files: ' + bytes(result.removedBytes) + '.\n' + result.items.map(item => byId.get(item.id).name + ': ' + (item.state === 'removed' ? 'Removed.' : 'Kept. ' + (item.reason || item.reasonCode))).join('\n');
       }).catch(function (error) {
-        $('set-aside-results').textContent = 'Removal completion is unconfirmed. ' + window.dinahHelpers.message(error) + ' The list will be read again. No removal is retried automatically; select and confirm again if needed.';
+        $('set-aside-results').textContent = 'Removal has not been confirmed. ' + window.dinahHelpers.message(error) + ' The list will be refreshed. Select the copies and confirm again if you still want to remove them.';
       }).finally(function () { selected.clear(); busy = false; return load(); });
     }).catch(function (error) { say(window.dinahHelpers.message(error), true); }).finally(function () { busy = false; controls(); });
   }

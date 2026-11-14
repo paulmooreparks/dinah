@@ -30,7 +30,7 @@
     if (!gateway) gateway = Promise.resolve().then(function () {
       return app() && app().ProductServices ? app().ProductServices() : [];
     }).then(function (names) {
-      if (!(names || []).includes('updates')) throw new Error('This build has no configured release or agent-settings service.');
+      if (!(names || []).includes('updates')) throw new Error('Updates and agent settings checks are unavailable in this build.');
       return service;
     }).catch(function (error) { gateway = null; throw error; });
     return gateway;
@@ -71,7 +71,7 @@
     else if (s.ready) words = (s.latest || 'The release') + ' is downloaded and checked, but has not been installed.';
     else if (!s.latest) words = 'No published release was found. Installed versions are shown above.';
     else if (s.available) words = s.latest + ' is available. This window reports ' + (s.current || 'an unknown running version') + '.';
-    else words = 'No newer release was found. The service reports ' + (s.current || 'an unknown current version') + ' and latest release ' + s.latest + '.';
+    else words = 'No newer release was found. The current version is ' + (s.current || 'an unknown current version') + ' and the latest release is ' + s.latest + '.';
     status('updates-release-status', releaseFailure || words, !!(releaseFailure || s.error));
     // Notes are untrusted text, and do not need HTML to explain a release.
     if ($('updates-notes').textContent !== (s.notes || 'Release notes are unavailable.')) $('updates-notes').textContent = s.notes || 'Release notes are unavailable.';
@@ -83,52 +83,52 @@
       bar.removeAttribute('value'); $('updates-progress-text').textContent = 'Download size is not known.';
     } else {
       bar.max = 1; bar.value = s.installed ? 1 : 0;
-      $('updates-progress-text').textContent = s.installed ? 'Installation finished; running copies are unchanged.' : 'No download in progress.';
+      $('updates-progress-text').textContent = s.installed ? 'Installation finished; running copies are unchanged.' : 'No download is in progress.';
     }
     controls();
   }
   function drawInventory(s) {
-    if (!s || !Array.isArray(s.installed) || !Array.isArray(s.running)) throw new Error('The program inventory was not a supported status result.');
+    if (!s || !Array.isArray(s.installed) || !Array.isArray(s.running)) throw new Error('The installed and running program details could not be read.');
     inventory = s;
     s.installed.forEach(function (p) {
       var r = programs.find(r => r.file === p.file) || programs.find(r => !r.file);
-      if (!r) throw new Error('The release reported more than three components.');
+      if (!r) throw new Error('The list contains more programs than this page can show.');
       r.file = p.file;
       var copies = s.running.filter(c => c.program === p.file || fileName(c.path).startsWith(p.file.toLowerCase()));
       r.words.textContent = p.name + ' (' + p.file + ')\nInstalled: ' + (p.version || 'unknown') + (p.error ? '; ' + p.error : '') +
         '\nRunning: ' + (s.runningError ? 'unknown' : copies.length ? copies.map(c => c.version || 'unknown version').join('; ') : 'not reported');
     });
     programs.forEach(function (r, i) {
-      if (!r.file || !s.installed.some(p => p.file === r.file)) r.words.textContent = (r.file || 'Program ' + (i + 1)) + '\nNo component was reported.';
+      if (!r.file || !s.installed.some(p => p.file === r.file)) r.words.textContent = (r.file || 'Program ' + (i + 1)) + '\nNo program was reported.';
     });
     var seen = new Set();
     s.running.forEach(function (p) {
       var key = String(p.pid), r = runningRows.get(key);
       if (!r) { r = row($('updates-running'), key); runningRows.set(key, r); }
       seen.add(key);
-      r.words.textContent = 'PID ' + p.pid + (p.self ? ' (this window)' : '') + ': ' + (p.current ? 'installed copy' : 'older copy; restart its owner when ready') +
-        '\nVersion: ' + (p.version || 'unknown') + '\nStarted by: ' + (p.startedBy || 'owner not reported') + '\n' + p.path;
+      r.words.textContent = 'PID ' + p.pid + (p.self ? ' (this window)' : '') + ': ' + (p.current ? 'installed copy' : 'older copy; restart the program that started it when ready') +
+        '\nVersion: ' + (p.version || 'unknown') + '\nStarted by: ' + (p.startedBy || 'not reported') + '\n' + p.path;
     });
     if (!s.runningError) runningRows.forEach(function (r, key) {
-      if (!seen.has(key)) r.words.textContent = 'PID ' + key + '\nNo longer reported as running. Its row is retained in place.';
+      if (!seen.has(key)) r.words.textContent = 'PID ' + key + '\nThis copy is no longer reported as running.';
     });
-    status('updates-inventory-status', s.installed.some(p => p.error || !p.version) ? 'Inventory read. One or more installed components are missing or unidentifiable.' : 'Installed versions read. Running versions and source identifiers are reported separately.', s.installed.some(p => p.error || !p.version));
+    status('updates-inventory-status', s.installed.some(p => p.error || !p.version) ? 'Some installed programs are missing or their versions could not be identified.' : 'The installed versions are shown. Running versions are listed separately.', s.installed.some(p => p.error || !p.version));
     status('updates-running-status', s.runningError ? 'Running state is unknown: ' + s.runningError :
-      s.running.length ? s.behind + ' older running copies reported. An external client needs its own restart; this page stops none.' : 'No running copies were reported.', !!s.runningError);
+      s.running.length ? s.behind + ' older copies are still running. Restart the programs that started them when ready.' : 'No running copies were reported.', !!s.runningError);
   }
   function fileName(path) { return String(path || '').split(/[\\/]/).pop().toLowerCase(); }
   function refreshInventory() {
     status('updates-inventory-status', 'Reading installed and running versions…');
     if (window.dinahSetAsidePrograms) window.dinahSetAsidePrograms.refresh();
     return request('inventory', () => available().then(s => s.Status()), drawInventory, function (error) {
-      status('updates-inventory-status', 'Could not read versions: ' + message(error) + (inventory ? ' The rows retain the last successful reading.' : ''), true);
+      status('updates-inventory-status', 'Could not read versions: ' + message(error) + (inventory ? ' The previous details are still shown.' : ''), true);
       status('updates-running-status', 'Running state is unknown until status can be read.', true);
     });
   }
   function drawRestart(s) {
     if (!s || typeof s.ready !== 'boolean') { status('updates-restart-status', 'Restart status is unavailable.'); return; }
     var counts = (Number.isFinite(s.working) ? s.working : 'unknown') + ' active chats; ' + (Number.isFinite(s.writing) ? s.writing : 'unknown') + ' document writes in progress.';
-    status('updates-restart-status', (s.pending ? 'Restart is waiting. ' : s.ready ? 'Restart to Update is available in Notifications. ' : 'No desktop restart is currently offered. ') + counts);
+    status('updates-restart-status', (s.pending ? 'Restart is waiting. ' : s.ready ? 'You can restart to use the update from Notifications. ' : 'No update is waiting for a restart. ') + counts);
   }
   function refreshRestart() {
     var seq = sequences.restart = (sequences.restart || 0) + 1;
@@ -139,7 +139,7 @@
   function checkRelease() {
     releaseFailure = ''; status('updates-release-status', 'Checking for a release…');
     return request('release', () => available().then(s => s.Check()), drawRelease, function (error) {
-      releaseFailure = 'Could not check for a release: ' + message(error) + (release ? ' The last successful release reading remains visible.' : '');
+      releaseFailure = 'Could not check for a release: ' + message(error) + (release ? ' The previous release details are still shown.' : '');
       status('updates-release-status', releaseFailure, true);
     });
   }
@@ -179,14 +179,14 @@
       }
       seen.add(key); r.update = (s.updates || []).find(u => packageKey(u) === key) || null;
       r.words.textContent = p.name + '\nInstalled: ' + p.version + '; ' + (p.target === 'me' ? 'personal, all workspaces' : 'workspace: ' + p.workspace) +
-        '\n' + (r.update ? 'Available: ' + r.update.to + (r.update.reason ? '; blocked: ' + r.update.reason : '') : s.checked ? 'No newer compatible version found.' : 'Not checked yet.');
+        '\n' + (r.update ? 'Available: ' + r.update.to + (r.update.reason ? '; blocked: ' + r.update.reason : '') : s.checked ? 'No newer compatible version was found.' : 'This package has not been checked yet.');
       r.button.setAttribute('aria-label', 'Update ' + p.name + ' ' + (p.target === 'me' ? 'for you' : 'in ' + p.workspace));
-      r.button.title = r.update && r.update.reason || 'Shows the installer preview before applying this package.';
+      r.button.title = r.update && r.update.reason || 'Preview the changes before updating this package.';
     });
-    packageRows.forEach(function (r, key) { if (!seen.has(key)) { r.update = null; r.words.textContent = 'This package is no longer reported as installed. Its row is retained in place.'; } });
+    packageRows.forEach(function (r, key) { if (!seen.has(key)) { r.update = null; r.words.textContent = 'This package is no longer reported as installed.'; } });
     status('updates-package-status', !sourceCount ? 'No package update source is configured.' : s.off ? 'All configured package sources are turned off.' : s.checked ?
-      ((s.updates || []).length ? 'Newer package versions found. Choose a package to preview its update.' : 'Package check finished; no newer compatible installed-package versions were found.') :
-      (s.installed || []).length ? 'Installed packages read. Check to look for newer versions.' : 'No skill package is installed in this scope.');
+      ((s.updates || []).length ? 'Newer package versions found. Choose a package to preview its update.' : 'The check finished. No newer compatible versions were found for your installed packages.') :
+      (s.installed || []).length ? 'Your installed packages are shown. Check for newer versions.' : 'No skill packages are installed for you or this workspace.');
     controls();
   }
   function readPackages(check) {
@@ -196,7 +196,7 @@
       if (check && sourceCount) return Object.assign({}, await app().FindPackageUpdates(), { checked: true });
       return { installed: await app().InstalledPackages(), updates: [], checked: false };
     }, drawPackages, function (error) {
-      status('updates-package-status', 'Could not ' + (check ? 'check' : 'read') + ' skill packages: ' + message(error) + (packageState ? ' Rows retain the last successful reading.' : ''), true);
+      status('updates-package-status', 'Could not ' + (check ? 'check' : 'read') + ' skill packages: ' + message(error) + (packageState ? ' The previous details are still shown.' : ''), true);
     });
   }
   function updatePackage(r) {
@@ -209,26 +209,26 @@
     }, function (error) { status('updates-package-status', update.name + ' could not be installed: ' + message(error), true); });
   }
   function drawRepair(result, applied) {
-    if (!result || !Array.isArray(result.findings)) throw new Error('The repair service did not return supported findings.');
+    if (!result || !Array.isArray(result.findings)) throw new Error('The agent settings check could not be read.');
     if (!applied && result.findings.some(f => f.state === 'stale' && (!result.token || !Array.isArray(result.programs) || !result.programs.length))) {
-      throw new Error('The repair preview lacks its token or proposed destination. Nothing can be repaired from this preview.');
+      throw new Error('The repair preview is incomplete. Check agent settings again before repairing them.');
     }
     var seen = new Set();
     result.findings.forEach(function (f) {
       var key = JSON.stringify([f.agent, f.file, f.project || '', f.server]), r = repairRows.get(key);
       if (!r) { r = row($('updates-repair'), key); repairRows.set(key, r); }
       seen.add(key);
-      var outcome = f.error ? 'Repair failed: ' + f.error : f.changed ? 'Repaired' : f.state === 'stale' ? 'Would repair this owned entry' :
-        f.state === 'current' ? 'Current; no change' : f.state === 'absent' ? 'No entry; none will be added' : f.state === 'kept' ? 'Custom entry kept; ownership or arguments differ' : 'Settings could not be read';
-      r.words.textContent = f.agent + ': ' + (f.project ? 'project ' + f.project : 'user scope') + '\n' + outcome +
+      var outcome = f.error ? 'Repair failed: ' + f.error : f.changed ? 'This entry was repaired.' : f.state === 'stale' ? 'This entry would be repaired.' :
+        f.state === 'current' ? 'This entry is up to date. No change is needed.' : f.state === 'absent' ? 'There is no entry. None will be added.' : f.state === 'kept' ? 'This entry has custom settings and will be kept.' : 'The settings could not be read.';
+      r.words.textContent = f.agent + ': ' + (f.project ? 'project ' + f.project : 'your settings') + '\n' + outcome +
         '\nRuns: ' + (f.runs || 'not reported') + '\nInstalled tools: ' + ((result.programs || []).join('; ') || 'not reported') + (f.backup ? '\nBackup: ' + f.backup : '');
     });
-    repairRows.forEach(function (r, key) { if (!seen.has(key)) r.words.textContent = 'This entry was not reported by the latest check. Its row is retained in place.'; });
+    repairRows.forEach(function (r, key) { if (!seen.has(key)) r.words.textContent = 'This entry was not found in the latest check.'; });
     $('updates-repair-lines').textContent = (result.lines || []).join('\n') || 'No additional repair details were reported.';
     var failed = result.failed || result.findings.some(f => f.error || !['stale', 'current', 'absent', 'kept'].includes(f.state) || (applied && f.state === 'stale' && !f.changed));
     preview = applied || failed ? null : result;
-    status('updates-repair-status', (applied ? failed ? 'Some settings could not be repaired. Read each outcome; no automatic retry occurred.' : 'Repair finished. Existing agent processes are unchanged.' :
-      failed ? 'Some settings could not be checked. Repair is unavailable until a successful check.' : result.findings.some(f => f.state === 'stale') ? 'Check finished. Review the proposed destinations before pressing Repair Agent Settings.' : 'Check finished. No owned stale entry needs repair.') +
+    status('updates-repair-status', (applied ? failed ? 'Some settings could not be repaired. Read the result for each entry before trying again.' : 'The repair finished. Running agents have not been restarted.' :
+      failed ? 'Some settings could not be checked. Repair is unavailable until a successful check.' : result.findings.some(f => f.state === 'stale') ? 'The check finished. Review the proposed changes before pressing Repair Agent Settings.' : 'The check finished. No entries need repair.') +
       (result.limitations && result.limitations.length ? ' ' + result.limitations.join(' ') : ''), failed);
     controls();
   }
@@ -243,11 +243,11 @@
     var token = preview.token; preview = null;
     status('updates-repair-status', 'Repairing the settings from the preview…');
     return request('repairApply', () => available().then(s => s.RepairAgentSettings(token, [])), r => drawRepair(r, true), function (error) {
-      status('updates-repair-status', 'Repair did not confirm completion: ' + message(error) + ' Check again before another repair.', true);
+      status('updates-repair-status', 'The repair could not be confirmed: ' + message(error) + ' Check again before another repair.', true);
     });
   }
   for (var i = 0; i < 3; i++) {
-    var p = row($('updates-programs'), String(i)); p.words.textContent = 'Program ' + (i + 1) + '\nWaiting for the version inventory.'; programs.push(p);
+    var p = row($('updates-programs'), String(i)); p.words.textContent = 'Program ' + (i + 1) + '\nWaiting for installed and running versions.'; programs.push(p);
   }
   $('updates-refresh').addEventListener('click', refreshInventory);
   $('updates-check').addEventListener('click', checkRelease);

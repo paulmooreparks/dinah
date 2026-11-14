@@ -72,7 +72,7 @@ func (a *App) saveRestartLeft(run string, chat BusChatRef) error {
 		return err
 	}
 	id := fmt.Sprintf("restart-left-%x", sha256.Sum256([]byte(run)))
-	item := Notification{ID: id, Kind: "restart-left", Severity: "warning", Title: "Chats need your help after restart", Body: "These chats could not reopen. Their carry-on messages are waiting. Open each chat to review its recovery options.", Created: notificationNow().UTC()}
+	item := Notification{ID: id, Kind: "restart-left", Severity: "warning", Title: "Chats need your help after restart", Body: "These chats could not reopen. Messages asking them to continue are waiting. Open each chat to review its recovery options.", Created: notificationNow().UTC()}
 	index := -1
 	for i, n := range store.Items {
 		if n.ID == id {

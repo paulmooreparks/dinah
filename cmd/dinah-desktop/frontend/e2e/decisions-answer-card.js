@@ -29,21 +29,21 @@ const { start, origin, entry, deliver } = require('./lib/decision-answer-fixture
     await p.waitForFunction(() => document.querySelector('.decisions-record').textContent.includes('still open'));
     ok('an open request lookup also stays read-only', await p.getByRole('button', { name: 'Send Answers', exact: true }).count() === 0);
     await p.evaluate(() => { __failAnswerRead = true; }); await p.getByRole('button', { name: 'Refresh', exact: true }).click();
-    await p.getByRole('button', { name: 'Retry Request Lookup', exact: true }).waitFor();
-    ok('a missing request explains that the answer remains in the transcript', (await p.locator('.decisions-record').innerText()).includes('Its answer remains in the transcript.'));
-    await p.evaluate(() => { __failAnswerRead = false; }); await p.getByRole('button', { name: 'Retry Request Lookup', exact: true }).click();
+    await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
+    ok('a missing request explains that the answer remains in the transcript', (await p.locator('.decisions-record').innerText()).includes('You can still read its answer in the chat.'));
+    await p.evaluate(() => { __failAnswerRead = false; }); await p.getByRole('button', { name: 'Try Again', exact: true }).click();
     await p.waitForFunction(() => document.querySelector('.decisions-record').textContent.includes('still open'));
     await p.evaluate(() => { __answerRecord.readOnly = false; }); await p.getByRole('button', { name: 'Refresh', exact: true }).click();
-    await p.getByRole('button', { name: 'Retry Request Lookup', exact: true }).waitFor();
+    await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
     ok('a malformed lookup never exposes editable fields', await p.locator('.decisions-record textarea,.decisions-record input').count() === 0 && (await p.locator('.decisions-record').innerText()).includes('response is invalid'));
-    await p.evaluate(() => { __answerRecord.readOnly = true; __holdAnswerRead = true; }); await p.getByRole('button', { name: 'Retry Request Lookup', exact: true }).click();
+    await p.evaluate(() => { __answerRecord.readOnly = true; __holdAnswerRead = true; }); await p.getByRole('button', { name: 'Try Again', exact: true }).click();
     await p.waitForFunction(() => __answerPending.length > 0);
     await p.getByRole('button', { name: 'Requests', exact: true }).click();
     await p.evaluate(() => { __holdAnswerRead = false; __answerPending.splice(0).forEach(resolve => resolve()); });
     await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     ok('a late lookup cannot overwrite the Requests view', await p.locator('.decisions-record').count() === 0 && (await p.locator('.decisions-detail').innerText()).includes('Choose a request'));
     await p.evaluate(() => { delete window.go.main.App.DecisionByID; dinahWorkbench.open('decisions', new URLSearchParams({ request: 'request:101', view: 'record' }).toString()); });
-    await p.getByRole('button', { name: 'Retry Request Lookup', exact: true }).waitFor();
+    await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
     ok('an older host explains that it cannot show the closed request', (await p.locator('.decisions-record').innerText()).includes('This build cannot show closed requests.'));
     ok('read-only lookup sends nothing and marks nothing read', await p.evaluate(() => __answerMutations.length === 0) && !(await t.calls()).some(call => /Mark.*Read/.test(call[0])));
   } finally { await t.close(); }
