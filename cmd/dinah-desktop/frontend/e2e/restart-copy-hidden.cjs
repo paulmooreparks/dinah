@@ -4,7 +4,8 @@ const fs = require('node:fs'), path = require('node:path');
 const os = require('node:os');
 const { spawn } = require('node:child_process');
 const { chromium } = require('playwright-core');
-const [installed, root] = process.argv.slice(2);
+const [installed, root, envPrefix = 'DINAH'] = process.argv.slice(2);
+if (!/^[A-Z][A-Z0-9_]*$/.test(envPrefix)) throw Error('Invalid product environment prefix');
 if (!installed || !root) throw Error('Supply installed executable and prepared temporary folder');
 const relative = path.relative(fs.realpathSync(os.tmpdir()), fs.realpathSync(root));
 if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw Error('The prepared folder must be inside the temporary directory');
@@ -29,7 +30,7 @@ const until = async (fn, label) => {
       APPDATA:path.join(root,'appdata'), LOCALAPPDATA:path.join(root,'local'),
       TEMP:path.join(root,'tmp'), TMP:path.join(root,'tmp'),
       CODEX_HOME:path.join(root,'profile','.codex'), CLAUDE_CONFIG_DIR:path.join(root,'profile','.claude'),
-      DINAH_HOME:home, DINAH_SHELL_ENTRY_FILE:entry};
+      [envPrefix + '_HOME']:home, [envPrefix + '_SHELL_ENTRY_FILE']:entry};
     const start = performance.now();
     child = spawn(exe, [], {env, cwd:root, windowsHide:true, stdio:'ignore'});
     await until(() => fs.existsSync(entry), 'hidden entry did not appear');
