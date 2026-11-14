@@ -33,6 +33,20 @@ type Drawing struct {
 	HTML string `json:"html"`
 	// Flow says the HTML is flow content that may be broken across pages.
 	Flow bool `json:"flow,omitempty"`
+	// Print is "none" for a drawing that must not be printed, such as one
+	// that is live on the screen, and empty otherwise: an applet prints a
+	// drawing as the screen shows it unless it is told not to, and refuses
+	// to print a document that has one it was told not to (NotPrinted).
+	Print string `json:"print,omitempty"`
+}
+
+// PrintNone is the value of Drawing.Print for a drawing kept off paper.
+const PrintNone = "none"
+
+// NotPrinted is a set that says which of its drawings must not be printed.
+// A set without it has all its drawings printed as the screen shows them.
+type NotPrinted interface {
+	NotPrinted(r Request) bool
 }
 
 // Flower is a set that says which of its drawings are flow content. It is
@@ -159,12 +173,18 @@ func Draw(r Request) (Drawing, error) {
 	if err != nil {
 		return Drawing{}, err
 	}
+	drawing := Drawing{HTML: source}
+	if off, ok := set.(NotPrinted); ok && off.NotPrinted(r) {
+		drawing.Print = PrintNone
+	}
 	if r.Kind == Span || r.Kind == Inline {
-		return Drawing{HTML: source}, nil
+		return drawing, nil
 	}
 	if strings.Contains(source, "<slot") {
-		return Drawing{HTML: marked(source)}, nil
+		drawing.HTML = marked(source)
+		return drawing, nil
 	}
 	flower, ok := set.(Flower)
-	return Drawing{HTML: source, Flow: ok && flower.Flows(r)}, nil
+	drawing.Flow = ok && flower.Flows(r)
+	return drawing, nil
 }

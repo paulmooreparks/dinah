@@ -58,10 +58,14 @@
       var r = request || {};
       return Promise.resolve(app().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content), kind: r.kind == null ? '' : String(r.kind) }))
         .then(function (drawn) {
-          /* The engine answers { html, flow }; flow says a block's drawing
+          /* The engine answers { html, flow, print }; flow says a block's drawing
              is flow content the applet may break across pages. */
           var html = drawn && typeof drawn.html === 'string' ? drawn.html : '';
-          return drawn && drawn.flow === true ? { html: html, flow: true } : { html: html };
+          var result = { html: html };
+          if (drawn && drawn.flow === true) result.flow = true;
+          /* print: "none" keeps a drawing off paper; without it the applet prints the drawing as the screen shows it. */
+          if (drawn && drawn.print === 'none') result.print = 'none';
+          return result;
         });
     },
     form: function (source) {

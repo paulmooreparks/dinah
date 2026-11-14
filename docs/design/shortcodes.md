@@ -34,3 +34,10 @@ Paul's concepts have boxes and included content longer than a page, and the page
 - A drawing must not size itself by the window or the page, so a build's styles for its shortcodes use no viewport units and no percentage heights. Layout could not reach a fixed point otherwise.
 - `render` gives the same bytes for the same request within one session. The applet identifies an occurrence by its own node and asks again only when the occurrence's source changes, so the same answer costs no layout.
 - The pieces of one shortcode are one node. A click in any piece selects the shortcode, and Undo treats it as it did before.
+
+## Printing
+
+Docs refused to print a document that had a build's shortcode in it, and Paul's concepts are full of them. The rule agreed with yavc.app Development on 14 November 2026 (bus messages 7475 to 7481; yavc.app `docs/host-shortcodes-contract.md`, Export boundary, Print) is that print uses each drawing as the page holds it at the moment of printing, with no new request to the host, laid out across pages as Document view lays it out. `render` may return `print: "none"` for a drawing that must not go on paper, such as one that is live on the screen, and the applet then refuses to print the document and says which shortcode is the reason. Without the field a drawing is printed. A drawing that failed, timed out or is still pending also stops the print, with the choice to try again, so an empty box is never printed. Word and PDF export still refuse a document with a build's shortcode, since they are made from the document's structure and a drawing has none.
+
+A set says which of its drawings stay off paper by implementing `NotPrinted` (`internal/shortcodes/pieces.go`). A set without it has every drawing printed.
+

@@ -50,7 +50,8 @@ func (flowSet) Render(r Request) (string, error) {
 	}
 	return "", ErrUnknown
 }
-func (flowSet) Flows(r Request) bool { return r.Name == "piecelist" }
+func (flowSet) Flows(r Request) bool      { return r.Name == "piecelist" }
+func (flowSet) NotPrinted(r Request) bool { return r.Name == "piecewhole" }
 
 func TestADrawingSaysWhetherItFlows(t *testing.T) {
 	mu.Lock()
@@ -69,7 +70,12 @@ func TestADrawingSaysWhetherItFlows(t *testing.T) {
 	if list, err := Draw(Request{Name: "piecelist"}); err != nil || !list.Flow {
 		t.Fatalf("a block that flows: %+v, %v", list, err)
 	}
-	if whole, err := Draw(Request{Name: "piecewhole"}); err != nil || whole.Flow {
-		t.Fatalf("a block that stays whole: %+v, %v", whole, err)
+	whole, err := Draw(Request{Name: "piecewhole"})
+	if err != nil || whole.Flow || whole.Print != PrintNone {
+		t.Fatalf("a block that stays whole and off paper: %+v, %v", whole, err)
+	}
+	// A drawing is printed as the screen shows it unless the set says not.
+	if box.Print != "" {
+		t.Fatalf("a container's printing was set without the set's word: %+v", box)
 	}
 }
