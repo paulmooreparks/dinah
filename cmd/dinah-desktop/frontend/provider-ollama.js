@@ -197,7 +197,7 @@
     }
     function saveContextCap(n) {
       ['ollama-context-cap', 'ollama-context-save', 'ollama-context-reset'].forEach(function (id) { $(id).disabled = true; });
-      settingsStatus('ollama-context-status', 'Saving…');
+      settingsStatus('ollama-context-status', 'Savingâ€¦');
       Promise.resolve().then(function () { return app().SetOllamaContextCap(n); }).then(function () {
         settingsStatus('ollama-context-status', 'Saved. The limit applies to the next model response.');
         return reload('ollama-context-status');
