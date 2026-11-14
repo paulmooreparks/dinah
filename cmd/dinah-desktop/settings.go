@@ -371,7 +371,7 @@ func saveSettings(s Settings) error {
 			return err
 		}
 	}
-	if err := writeStateFile(filepath.Join(dir, "settings.json"), b); err != nil {
+	if err := writeKeepingBeforeDecisions(filepath.Join(dir, "settings.json"), b, nil); err != nil {
 		if growing && existed {
 			if undo := saveRegistry(dir, old); undo != nil {
 				logf("core", "error", "put the workspace registry back after a failed save: %v", undo)

@@ -173,7 +173,7 @@ func writeNotifications(store notificationStore) error {
 	if len(data) > maxNotificationStore {
 		return errors.New("the notification store exceeds 32 MiB")
 	}
-	return writeValidatedStateFile(filepath.Join(configDir(), "notifications.json"), data, func(previous []byte) error { _, err := decodeNotifications(previous); return err })
+	return writeKeepingBeforeDecisions(filepath.Join(configDir(), "notifications.json"), data, func(previous []byte) error { _, err := decodeNotifications(previous); return err })
 }
 
 // A report is kept for notificationRetention, and the store keeps the
