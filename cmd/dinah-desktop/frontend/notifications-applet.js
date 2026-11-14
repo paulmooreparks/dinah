@@ -348,7 +348,7 @@
       if (latest.kind === 'relay' && latest.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(latest.lead); } });
       notices.add({ id: group.id, type: latest.kind === 'attention' ? 'question' : latest.kind === 'relay' ? 'warning' : 'info', needsPerson: true,
         title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,
-        details: [items.length + (items.length === 1 ? ' request' : ' requests') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')],
+        details: [items.length + (items.length === 1 ? ' request' : ' requests') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')].concat(Array.isArray(latest.details) ? latest.details : []),
         actions: actions, dismissible: true, dismiss: function () { return dismissAttention(ids); }, announced: true,
         className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, decisionId: decisionId, requestCount: items.length } });
     }
