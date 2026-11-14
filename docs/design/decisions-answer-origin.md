@@ -30,6 +30,8 @@ Only the successful AnswerDecision transaction constructs this metadata, from th
 
 The bus persists metadata additively beside each originating reply. Every message read/delivery path retains it, including group reads, transcript capture, saved transcripts, provider-prompt replay reconciliation and reopen. The agent still receives the existing complete prose. An old build ignores the additive metadata and can still open the bus and transcript files. No schema replacement or history rewrite is permitted.
 
+The `announceArriving` entries add optional `decisionAnswer:true` when the message has an answer origin. The preview keeps its existing text bound and carries no question snapshots. Front End uses the marker to reserve the answer card's fixed height while delivery is pending. Ordinary arrivals omit it. Engine owns this marker and its conversion tests.
+
 ## Read-only lookup
 
 The window query is `DecisionByID(id string) (bus.DecisionDetail, error)`, with a query row in pageMethods. The bus method is `DecisionByID(ctx context.Context, id string) (DecisionDetail, error)`. It returns:
