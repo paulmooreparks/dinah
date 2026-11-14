@@ -100,7 +100,7 @@ func main() {
 			s := servers[p.Session]
 			record(map[string]any{"session": p.Session, "prompt": text})
 			go func(id json.RawMessage, session, text string, s server) {
-				if text == "fixture ask" || text == "fixture mention" {
+				if text == "fixture ask" || strings.HasPrefix(text, "fixture mention") {
 					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 					defer cancel()
 					cmd := exec.Command(s.Command, s.Args...)
@@ -116,9 +116,13 @@ func main() {
 					args := map[string]any{"operationId": "fixture-two-questions", "questions": []any{
 						map[string]any{"number": 1, "text": "Which release should we use?", "recommendation": "Use the reviewed release.", "choices": []string{"Reviewed", "Wait"}},
 						map[string]any{"number": 2, "text": "When should we proceed?", "recommendation": "Proceed tomorrow."}}}
-					if text == "fixture mention" {
+					if strings.HasPrefix(text, "fixture mention") {
 						name = "send"
-						args = map[string]any{"to": "#Fixture Review", "text": "Fixture plain decision for the person.", "actionRecipients": []string{"paul"}}
+						body := "Fixture plain decision for the person."
+						if text == "fixture mention second" {
+							body = "Second fixture request has a newer first line.\nThis second line must not appear on its card."
+						}
+						args = map[string]any{"to": "#Fixture Review", "text": body, "actionRecipients": []string{"paul"}}
 					}
 					result, err := client.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
 					if err != nil {
