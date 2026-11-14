@@ -33,9 +33,9 @@ async function focus(p,selector,capture){
  for(let y=Math.max(0,Math.floor(box.y-5));y<Math.min(after.height,Math.ceil(box.y+box.height+5));y++)for(let x=Math.max(0,Math.floor(box.x-5));x<Math.min(after.width,Math.ceil(box.x+box.width+5));x++){if(x>box.x+3&&x<box.x+box.width-3&&y>box.y+3&&y<box.y+box.height-3)continue;const r=ratio(before.pixel(x,y),after.pixel(x,y));maximum=Math.max(maximum,r);if(r>=3)pixels++;}
  return {...state,pixels,maximum,capture:focused};
 }
-async function matrix(t,label,selector,prepare=async()=>{}){
+async function matrix(t,label,selector,prepare=async()=>{},options={}){
  const p=t.page;await p.emulateMedia({reducedMotion:'reduce'});const results=[];
- for(const width of [1440,390])for(const mode of ['light','dark'])for(const skin of process.env.DINAH_TODAY_PILOT ? skins.slice(0,1) : skins){
+ for(const width of [1440,390])for(const mode of ['light','dark'])for(const skin of options.skins||skins){
   await p.setViewportSize({width,height:width===390?844:1000});await p.evaluate(({mode,skin})=>{pudlSetTheme(mode);pudlSkins.select(skin);},{mode,skin});
   await prepare();await p.evaluate(()=>document.fonts.ready);await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await p.mouse.move(0,0);await p.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();});
   const name=[label,skin,mode,width].join('-'),text=await audit(p,selector),ring=await focus(p,selector,text.capture);const screenshot=ring.capture;delete text.capture;delete ring.capture;
