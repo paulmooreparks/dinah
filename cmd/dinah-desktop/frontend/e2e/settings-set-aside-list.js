@@ -27,7 +27,9 @@ const { start, copy, check, finish } = require('./lib/set-aside-fixture');
     await p.evaluate(() => { __asideItems = []; }); await p.locator('#set-aside-refresh').click();
     await p.waitForFunction(() => document.querySelector('#set-aside-status').textContent.includes('No set-aside programs'));
     ok('empty inventory retains row positions and clears obsolete selections', await p.locator('#set-aside-list > div').count() === 5 && await check(t, 1).isDisabled() && (await p.locator('#set-aside-total').innerText()).startsWith('0 selected'));
+    await p.evaluate(() => pudlWindows.snap('settings', 'maximized'));
     await p.setViewportSize({ width: 390, height: 844 });
+    await p.waitForFunction(() => document.querySelector('[data-win="settings"]').getBoundingClientRect().right <= innerWidth);
     ok('the narrow section has no horizontal overflow', await p.locator('#settings-set-aside').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
     await t.shot('settings-set-aside-narrow');
   } finally { await finish(t, 'set-aside-list'); }
