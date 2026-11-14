@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -86,12 +87,19 @@ func (c *pauseFlowConnection) Call(ctx context.Context, method string, p, out an
 }
 
 func TestPauseFlowSteersEndsAndCancelWakesOnce(t *testing.T) {
+	for _, update := range []bool{false, true} {
+		t.Run(fmt.Sprintf("update=%t", update), func(t *testing.T) { testPauseCancel(t, update) })
+	}
+}
+func testPauseCancel(t *testing.T, update bool) {
 	a, base, s, _, turns := busChat(t)
 	c := &pauseFlowConnection{testProviderConnection: base, started: make(chan struct{}), finish: make(chan struct{})}
 	setTestConnection(a, "codex", c)
 	// An admitted document write keeps the idle watcher from closing this
 	// fixture before cancellation. No native runtime is used by this test.
-	a.update = &updateWatch{ready: true}
+	if update {
+		a.update = &updateWatch{ready: true}
+	}
 	done, err := a.admitWrite()
 	if err != nil {
 		t.Fatal(err)
@@ -144,10 +152,18 @@ func TestPauseFlowSteersEndsAndCancelWakesOnce(t *testing.T) {
 }
 
 func TestPauseFlowSteeredChatResumesInFreshAppOnce(t *testing.T) {
+	for _, update := range []bool{false, true} {
+		t.Run(fmt.Sprintf("update=%t", update), func(t *testing.T) { testPauseResume(t, update) })
+	}
+}
+
+func testPauseResume(t *testing.T, update bool) {
 	a, base, s, _, turns := busChat(t)
 	c := &pauseFlowConnection{testProviderConnection: base, started: make(chan struct{}), finish: make(chan struct{})}
 	setTestConnection(a, "codex", c)
-	a.update = &updateWatch{ready: true}
+	if update {
+		a.update = &updateWatch{ready: true}
+	}
 	if err := a.Send(s.ID(), "fixture original work", nil, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +186,7 @@ func TestPauseFlowSteeredChatResumesInFreshAppOnce(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	r := readPaused()
-	if len(r.Chats) != 1 || !r.Chats[0].Told || !r.Chats[0].Ended {
+	if len(r.Chats) != 1 || !r.Chats[0].Told || !r.Chats[0].Ended || r.WithoutUpdate == update {
 		t.Fatalf("record: %+v", r)
 	}
 	b, next := restarted(t, a)
@@ -195,7 +211,7 @@ func TestPauseFlowSteeredChatResumesInFreshAppOnce(t *testing.T) {
 	b.resumePaused(true)
 	ring(t, b)
 	got := prompts(next)
-	if len(got) != 1 || !strings.Contains(got[0], "You paused your work") {
+	if len(got) != 1 || !strings.Contains(got[0], "You paused your work") || strings.Contains(got[0], "with its update") != update {
 		t.Fatalf("resumed prompts: %q", got)
 	}
 }

@@ -13,7 +13,7 @@
   function draw() {
     var item = document.getElementById('status-update');
     if (!item) return;
-    item.hidden = !state.ready;
+    item.hidden = !state.ready && !state.pending;
     var name = window.dinahProduct.name;
     var note = state.pending ? name + ' restarts when the running turns end' + (state.writing ? ' and ' + writes(state.writing) + ' saved or published' : '') + '. ' + turns(state.working) + ' still working; new messages wait until after the restart, and so does saving or publishing a document.'
       : 'A newer build of ' + name + ' is installed. Restarting reopens your chats, and their messages wait for them.';
@@ -22,7 +22,7 @@
     var waiting = (state.blockers || []);
     if (state.pending && state.pausing) note = name + ' asked the working chats to pause, and restarts when they have. They are told to carry on after the restart.' + (state.writing ? ' ' + writes(state.writing).replace(/^t/, 'T') + ' saved or published first.' : '');
     if (state.pending && waiting.length) note += ' Still working: ' + waiting.slice(0, 6).join(', ') + (waiting.length > 6 ? ' and ' + (waiting.length - 6) + ' more' : '') + '.';
-    var label = state.pending ? name + ' restarts for its update when the running turns end' : 'A newer build of ' + name + ' is installed';
+    var label = state.pending ? name + ' restarts when the running turns end' : 'A newer build of ' + name + ' is installed';
     item.setAttribute('aria-label', label); item.title = label;
     item.querySelector('.status-words').textContent = state.pending ? 'Restarting' : 'Update';
     document.getElementById('update-note').textContent = note;
@@ -89,15 +89,15 @@
 
   function pause() { return Promise.resolve(app().PauseAndRestart()).catch(host().fail); }
   window.dinahCommands.register({ id: 'pause-and-restart', menu: 'dinah', mnemonic: 'P', glyph: 'pause', label: 'Pause Chats and Restart',
-    visible: function () { return state.ready && !(state.pending && state.pausing); }, run: pause });
+    visible: function () { return !(state.pending && state.pausing); }, run: pause });
   window.dinahCommands.register({ id: 'restart-to-update', menu: 'dinah', mnemonic: 'U', glyph: 'reload', label: function () { return state.pending ? 'Cancel the Restart' : 'Restart When Chats Finish'; },
-    visible: function () { return state.ready; },
+    visible: function () { return state.ready || state.pending; },
     run: function () { return state.pending ? Promise.resolve(app().CancelRestart()) : restart(false); } });
   /* Restart Now as a PUDL command for the page, which the toast's action
      runs. Its label ends in an ellipsis because it asks first; PUDL drops
      the ellipsis on the toast's button. */
   if (window.pudlCommands) window.pudlCommands.register(document.body, function () {
-    return [{ id: 'restart-now', label: 'Restart Now…', glyph: 'reload', hidden: function () { return !state.ready; }, run: function () { return restart(true); } }];
+    return [{ id: 'restart-now', label: 'Restart Now…', glyph: 'reload', hidden: function () { return !state.ready && !state.pending; }, run: function () { return restart(true); } }];
   });
 
   document.addEventListener('DOMContentLoaded', function () {

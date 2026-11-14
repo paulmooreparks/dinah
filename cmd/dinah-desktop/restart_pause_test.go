@@ -8,9 +8,6 @@ import (
 
 func TestPauseAndRestartWritesDownTheWorkingChatsAndHoldsTurns(t *testing.T) {
 	a, path := watchedApp(t)
-	if err := a.PauseAndRestart(); err == nil {
-		t.Fatal("a pause was started with no newer build")
-	}
 	os.WriteFile(path, []byte("build two, longer"), 0o755)
 	a.checkUpdate()
 	info, err := a.NewSessionAt(t.TempDir())
@@ -46,11 +43,20 @@ func TestPauseAndRestartWritesDownTheWorkingChatsAndHoldsTurns(t *testing.T) {
 }
 
 func TestAChatIsToldWhatHappenedToItsTurn(t *testing.T) {
-	cut := resumeText(pausedChat{}, true)
-	paused := resumeText(pausedChat{Told: true, Ended: true}, true)
-	ended := resumeText(pausedChat{Ended: true}, true)
-	cancelled := resumeText(pausedChat{Told: true}, false)
+	cut := resumeText(pausedChat{}, true, false)
+	paused := resumeText(pausedChat{Told: true, Ended: true}, true, false)
+	ended := resumeText(pausedChat{Ended: true}, true, false)
+	cancelled := resumeText(pausedChat{Told: true}, false, false)
 	if !strings.Contains(cut, "cut short") || !strings.Contains(paused, "You paused") || strings.Contains(ended, "cut short") || !strings.Contains(cancelled, "cancelled") {
 		t.Fatalf("the messages are:\n%s\n%s\n%s\n%s", cut, paused, ended, cancelled)
+	}
+}
+
+func TestSameProgramResumeTextNeverClaimsAnUpdate(t *testing.T) {
+	for _, chat := range []pausedChat{{}, {Ended: true}, {Ended: true, Told: true}} {
+		text := resumeText(chat, true, true)
+		if strings.Contains(text, "update") || !strings.Contains(text, "has restarted") {
+			t.Fatal(text)
+		}
 	}
 }

@@ -52,10 +52,15 @@ async function open(entry) {
   await call(p,'Send',id,'fixture original work',null,null);
   await until(()=>read(path.join(out,'prompts.jsonl')).includes('fixture original work'),'original prompt');
   if (process.env.RESTART_STEER) await until(()=>call(p,'CanSteer',id,null),'hook steering available');
+  if (!process.env.RESTART_SAME_PROGRAM) {
   fs.renameSync(exe,exe+'.old');
   fs.copyFileSync(desktop,exe);
   fs.appendFileSync(exe,Buffer.from('\0restart fixture'));
   await until(async()=>(await call(p,'UpdateState')).ready,'update detected',30000);
+  } else {
+   assert.equal((await call(p,'UpdateState')).ready,false);
+   receipts.push({sameProgram:true,executable:exe});
+  }
   await call(p,'PauseAndRestart');
   if (!process.env.RESTART_STEER) {
   const pending=await call(p,'UpdateState');
@@ -97,6 +102,7 @@ async function open(entry) {
   await until(()=>read(path.join(out,'prompts.jsonl')).includes(expected),'resume prompt');
   const lines=read(path.join(out,'prompts.jsonl')).trim().split('\n').map(JSON.parse);
   assert.equal(lines.filter(x=>JSON.stringify(x).includes(expected)).length,1);
+  if (process.env.RESTART_SAME_PROGRAM) assert.ok(!lines.some(x=>JSON.stringify(x).includes('with its update')));
   receipts.push({resumePrompts:lines});
   // Allow a second delivery round to expose immediate duplicate wakeups.
   await q.waitForTimeout(1500);
