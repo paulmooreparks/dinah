@@ -83,6 +83,49 @@ func TestPlaceLeavesTheInstalledProgramWhenTheSourceCannotBeRead(t *testing.T) {
 	}
 }
 
+func TestPlaceKeepsAllSetAsideProgramsAcrossInstallsAndFailures(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "src.exe"), filepath.Join(dir, "window.exe")
+	// Retention does not depend on file locks, process visibility or clock order.
+	kept := map[string]string{dst + ".old-100": "a running earlier build", dst + ".old-900": "the latest earlier build"}
+	for path, body := range kept {
+		writeProgram(t, path, body)
+	}
+	writeProgram(t, dst, "installed before first replacement")
+	for _, body := range []string{"replacement one", "replacement two"} {
+		writeProgram(t, src, body)
+		if err := Place(src, dst); err != nil {
+			t.Fatal(err)
+		}
+		files, err := filepath.Glob(dst + ".old-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range files {
+			data := readProgram(t, path)
+			if previous, exists := kept[path]; exists && previous != data {
+				t.Fatalf("fallback overwritten: %s", path)
+			}
+			kept[path] = data
+		}
+	}
+	if len(kept) != 4 {
+		t.Fatalf("set-aside programs: %v", kept)
+	}
+	// A fallback can itself be the install source and must remain available.
+	if err := Place(dst+".old-100", dst); err != nil {
+		t.Fatal(err)
+	}
+	if err := Place(filepath.Join(dir, "missing.exe"), dst); err == nil {
+		t.Fatal("missing source accepted")
+	}
+	for path, body := range kept {
+		if got := readProgram(t, path); got != body {
+			t.Fatalf("fallback %s changed to %q", path, got)
+		}
+	}
+}
+
 func TestStartOption(t *testing.T) {
 	if _, ok := StartOption("--no-such-option"); ok {
 		t.Fatal("an option nobody registered was found")

@@ -66,13 +66,10 @@ func FileName(name string) string {
 
 // Place copies the program src to dst. Something may be running the program
 // at dst, and Windows refuses to overwrite a running program but allows it
-// to be renamed, so the old one is moved aside first. Copies set aside
-// earlier are removed once nothing runs them.
+// to be renamed, so the old one is moved aside first. Set-aside copies are
+// retained. An installer must not delete a running image or the latest fallback,
+// and a process snapshot cannot exclude a start immediately after the snapshot.
 func Place(src, dst string) error {
-	old, _ := filepath.Glob(dst + ".old-*")
-	for _, o := range old {
-		os.Remove(o) // fails while something still runs it; it goes next time
-	}
 	// The copy is written beside dst before anything is moved, so src is still
 	// readable when it is dst itself (installing from the installed program),
 	// and a failed copy leaves the installed program alone. It is renamed into
@@ -101,8 +98,22 @@ func Place(src, dst string) error {
 	}
 	aside := ""
 	if _, err := os.Stat(dst); err == nil {
-		aside = fmt.Sprintf("%s.old-%d", dst, time.Now().UnixNano())
+		// Reserve a unique name before renaming, rather than overwriting an
+		// earlier fallback if the clock repeats. Only this empty reservation
+		// may be replaced by the rename below.
+		reserved, err := os.CreateTemp(filepath.Dir(dst), fmt.Sprintf("%s.old-%d-*", filepath.Base(dst), time.Now().UnixNano()))
+		if err != nil {
+			os.Remove(tmp)
+			return err
+		}
+		aside = reserved.Name()
+		if err := reserved.Close(); err != nil {
+			os.Remove(aside)
+			os.Remove(tmp)
+			return err
+		}
 		if err := renameFile(dst, aside); err != nil {
+			os.Remove(aside) // Only the empty reservation belongs to this call.
 			os.Remove(tmp)
 			return err
 		}

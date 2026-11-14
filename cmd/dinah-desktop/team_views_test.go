@@ -159,7 +159,7 @@ func TestTheStripIsSentAsANumberedEventWhenItChanges(t *testing.T) {
 // A member's information says which team it is in and the team group's key, and says again when that changes; a delivered
 // message says which group it was posted in; and the strip gives a member's own usage and the group an assignment was posted in.
 func TestAMembersInformationSaysWhichTeamItIsInAndAssignmentsSayWhere(t *testing.T) {
-	a, lead, member, leadBus, memberBus, _ := teamApp(t)
+	a, lead, member, leadBus, memberBus, _ := teamAppConfigured(t, manualTeamInformationEvents)
 	var infos []SessionInfo
 	a.sink = func(name string, data any) {
 		if name == "agent:session" {
@@ -216,6 +216,73 @@ func TestAMembersInformationSaysWhichTeamItIsInAndAssignmentsSayWhere(t *testing
 	m := strip.Members[0]
 	if m.TaskGroup != strip.Group || m.TaskGroup == "" || len(m.Usage) != 1 || m.Usage[0].Used != 400 || m.Usage[0].Unknown != 1 || m.Usage[0].Complete {
 		t.Fatalf("the member in the strip: %+v", m)
+	}
+}
+
+// Install controls before creating chats, since creation schedules both publishers.
+// The stopped timer reserves the team publisher's slot while tests drive its passes.
+func manualTeamInformationEvents(a *App) {
+	a.closeChatStates()
+	a.teamTimer = time.NewTimer(0)
+	a.teamTimer.Stop()
+}
+
+func TestMemberInformationPublishesLeadAndChatStateChangesSeparately(t *testing.T) {
+	a, _, member, _, _, _ := teamAppConfigured(t, manualTeamInformationEvents)
+	var infos []SessionInfo
+	a.sink = func(name string, data any) {
+		if info, ok := data.(SessionInfo); name == "agent:session" && ok && info.ID == member.ID() {
+			infos = append(infos, info)
+		}
+	}
+	a.refreshChatLeads()
+	// Drive the same compute-and-publish path used by sendChatStates, without
+	// waiting for its timer. This is the second event the original test counted.
+	publishStates := func() {
+		_, changed := a.computeChatStates()
+		for _, s := range changed {
+			sessionhost.EmitSession(a.emit, s)
+		}
+	}
+	publishStates()
+	if len(infos) != 2 || infos[0].Lead == nil || infos[0].State != nil || infos[1].State == nil {
+		t.Fatalf("expected separate lead and initial chat state changes: %+v", infos)
+	}
+	if *infos[0].Lead != *infos[1].Lead || infos[1].StateVer <= infos[0].StateVer {
+		t.Fatalf("the state change must preserve the lead and advance its version: %+v", infos)
+	}
+	a.refreshChatLeads()
+	publishStates()
+	if len(infos) != 2 {
+		t.Fatalf("unchanged publishers sent information again: %d", len(infos))
+	}
+}
+
+func TestConcurrentLeadRefreshSendsMemberInformationOnce(t *testing.T) {
+	a, _, member, _, _, _ := teamAppConfigured(t, manualTeamInformationEvents)
+	var mu sync.Mutex
+	sends := 0
+	a.sink = func(name string, data any) {
+		if info, ok := data.(SessionInfo); name == "agent:session" && ok && info.ID == member.ID() {
+			mu.Lock()
+			sends++
+			mu.Unlock()
+		}
+	}
+	start := make(chan struct{})
+	var workers sync.WaitGroup
+	for range 16 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			<-start
+			a.refreshChatLeads()
+		}()
+	}
+	close(start)
+	workers.Wait()
+	if sends != 1 {
+		t.Fatalf("concurrent refresh sent member information %d times", sends)
 	}
 }
 

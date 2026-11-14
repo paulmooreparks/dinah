@@ -14,7 +14,15 @@ import (
 // ids and a helper that makes the member mention the person.
 func teamApp(t *testing.T) (a *App, lead, member *Session, leadBus, memberBus string, mention func(text string) bus.Message) {
 	t.Helper()
+	return teamAppConfigured(t, nil)
+}
+
+func teamAppConfigured(t *testing.T, configure func(*App)) (a *App, lead, member *Session, leadBus, memberBus string, mention func(text string) bus.Message) {
+	t.Helper()
 	a, c := providerTestApp(t)
+	if configure != nil {
+		configure(a)
+	}
 	a.teamsActive.Store(true)
 	c.newIDs = []string{"codex:lead", "codex:member"}
 	ws := t.TempDir()
