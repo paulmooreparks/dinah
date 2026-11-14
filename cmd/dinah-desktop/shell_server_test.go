@@ -2,11 +2,65 @@ package main
 
 import (
 	"io/fs"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestShellMissingPageFilesAreNotStored(t *testing.T) {
+	frontend, err := fs.Sub(assets, "frontend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]shellCode{}}
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		for _, resource := range []string{"/product-applets.json", "/missing-file.js", "/pudl/missing-file.css"} {
+			r := httptest.NewRequest(method, "http://"+s.addr+resource, nil)
+			r.AddCookie(&http.Cookie{Name: shellCookie, Value: s.token})
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != http.StatusNotFound {
+				t.Fatalf("%s %s status %d", method, resource, w.Code)
+			}
+			if got := w.Result().Header.Get("Cache-Control"); got != "no-store" {
+				t.Errorf("%s %s Cache-Control=%q", method, resource, got)
+			}
+		}
+	}
+	for _, rangeValue := range []string{"", "bytes=999999999-"} {
+		r := httptest.NewRequest(http.MethodGet, "http://"+s.addr+"/app.js", nil)
+		r.AddCookie(&http.Cookie{Name: shellCookie, Value: s.token})
+		if rangeValue != "" {
+			r.Header.Set("Range", rangeValue)
+		}
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		want := http.StatusOK
+		if rangeValue != "" {
+			want = http.StatusRequestedRangeNotSatisfiable
+		}
+		if w.Code != want || w.Result().Header.Get("Cache-Control") != "no-store" {
+			t.Fatalf("range %q status %d Cache-Control=%q", rangeValue, w.Code, w.Result().Header.Get("Cache-Control"))
+		}
+	}
+}
+
+func TestNormalShellStartupUsesFixedProfilePort(t *testing.T) {
+	address := shellStartupAddress(false)
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || host != "127.0.0.1" || port != strconv.Itoa(product.ShellPort) || port == "0" {
+		t.Fatalf("normal startup address %q, profile port %d: %v", address, product.ShellPort, err)
+	}
+	if second := shellStartupAddress(false); second != address {
+		t.Fatalf("normal startup changed origin: %s then %s", address, second)
+	}
+	if hidden := shellStartupAddress(true); hidden != "127.0.0.1:0" {
+		t.Fatalf("hidden test startup could meet the live app: %s", hidden)
+	}
+}
 
 // The window's page is served with the Content Security Policy, and the
 // policy lets the page run only its own script files: no inline script, no
