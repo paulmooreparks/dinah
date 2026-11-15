@@ -30,6 +30,8 @@ const { launch } = require('./lib/page');
       OpenSessionAt: async (w, id) => { setTimeout(() => __emit('agent:options', { sessionId: id, options: __chats[id].options }), 0); return info(id); },
       SetSessionOption: async (id, option, value) => {
         __saved.push([id, option, value]);
+        if (window.__refuse) throw new Error('The setting could not be changed.');
+        if (window.__delay) await new Promise(r => { window.__release = r; });
         __chats[id].options = __chats[id].options.map(o => o.id === option ? { ...o, currentValue: value } : o);
         return __chats[id].options;
       }
@@ -142,6 +144,29 @@ const { launch } = require('./lib/page');
       ok(title + ': the next turn starts without it', (await note()) === '');
       await working(id, false); await frame();
     }
+
+    // A refused change: the level stays, and the working line claims nothing.
+    await open('Three Levels');
+    const keep = await p.evaluate(() => __chats.three.options[1].currentValue);
+    await working('three', true);
+    await p.evaluate(() => { window.__refuse = true; });
+    await effort().click(); await panel().waitFor();
+    await panel().locator('[data-level="' + (keep === 'low' ? 'medium' : 'low') + '"]').click(); await frame(); await frame();
+    ok('a refused change keeps the level and puts nothing on the working line', (await note()) === '' && await p.evaluate(k => __chats.three.options[1].currentValue === k, keep) && (await mark()).on === ['low', 'medium', 'high'].indexOf(keep) + 1, (await note()) + ' / ' + keep);
+    await p.evaluate(() => { window.__refuse = false; });
+    // A slow answer that arrives after another program's chat came to the front.
+    await p.evaluate(() => { window.__delay = true; });
+    const fiveBefore = await p.evaluate(() => JSON.stringify(__chats.five.options));
+    const target = keep === 'medium' ? 'high' : 'medium';
+    await effort().click(); await panel().waitFor();
+    await panel().locator('[data-level="' + target + '"]').click(); await frame();
+    await open('Five Levels');
+    await p.evaluate(() => { window.__delay = false; window.__release(); }); await frame(); await frame();
+    ok('the slow answer changed only its own chat, and the chat in front shows no note', await p.evaluate(([t, f]) => __chats.three.options[1].currentValue === t && JSON.stringify(__chats.five.options) === f, [target, fiveBefore]) && (await note()) === '' && (await mark()).on === await p.evaluate(() => __chats.five.options[1].options.findIndex(o => o.value === __chats.five.options[1].currentValue) + 1), JSON.stringify({ note: await note(), mark: await mark() }));
+    await open('Three Levels');
+    const owned = await note();
+    ok('its note, back in its own chat, uses its own program’s wording', owned === 'The turn already running keeps ' + keep + '; ' + target + ' applies from the next turn.', owned);
+    await working('three', false); await frame();
 
     // The phone: the toolbar folds, and the same panel opens in the Agent menu.
     await p.setViewportSize({ width: 390, height: 844 }); await frame();

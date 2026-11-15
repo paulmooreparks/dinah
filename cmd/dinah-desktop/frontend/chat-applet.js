@@ -3550,18 +3550,24 @@
     }
     /* A change while a turn runs: the working line says what the agent
        program documents about it, and no more (providers.Row.EffortChange). */
+    /* The chat and its program are taken when the level is chosen, so an
+       answer that arrives after another chat came to the front still belongs
+       to this one. The note is written only when the engine's answer shows
+       the new level in effect; a refused change says nothing about timing. */
     function chooseEffort(option, value) {
       if (value === option.currentValue) return;
-      var s = active && sessions[active], before = option.currentValue;
+      var s = active && sessions[active], provider = chatProvider(), before = option.currentValue;
       return Promise.resolve(setSessionOption(option.id, value)).then(function () {
         if (!s || !s.working) return;
+        var now = (s.options || []).filter(function (o) { return o.id === option.id; })[0];
+        if (!now || now.currentValue !== value) return;
         if (s.turnEffort == null) s.turnEffort = before;
-        s.effortNote = effortChangeWords(option, s.turnEffort, value);
+        s.effortNote = effortChangeWords(now, s.turnEffort, value, provider);
         if (s.id === active) showLiveWork(s);
       });
     }
-    function effortChangeWords(option, started, now) {
-      var timing = providerFact(chatProvider(), 'effortChange') || '', who = providerName(chatProvider());
+    function effortChangeWords(option, started, now, provider) {
+      var timing = providerFact(provider, 'effortChange') || '', who = providerName(provider);
       var was = valueName(option, started), to = valueName(option, now);
       if (timing === 'next-turn') return 'The turn already running keeps ' + was + '; ' + to + ' applies from the next turn.';
       if (timing === 'next-request') return who + ' uses ' + to + ' from its next request to the model, which may come before this turn ends.';
@@ -3607,10 +3613,12 @@
         if ($('models').open) drawModelsDialog();
         return Promise.resolve();
       }
-      return app().SetSessionOption(active, id, value).then(function (opts) {
-        sessions[active].options = opts || sessions[active].options;
-        renderComposerOptions();
-        if ($('models').open) drawModelsDialog();
+      /* The chat the change was asked for keeps the answer, even if another
+         chat is in front by the time it arrives. */
+      var owner = active;
+      return app().SetSessionOption(owner, id, value).then(function (opts) {
+        if (sessions[owner]) sessions[owner].options = opts || sessions[owner].options;
+        if (owner === active) { renderComposerOptions(); if ($('models').open) drawModelsDialog(); }
       }).catch(fail);
     }
 

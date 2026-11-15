@@ -261,10 +261,18 @@ async function open({ scenario, theme, width }) {
       const fp = await panelState();
       const headings = await p.evaluate(() => Array.from(document.querySelectorAll('.menu-panel:popover-open .md-section-label')).filter(n => n.getClientRects().length && n.textContent === 'Effort').length);
       e.foldedPanel = { effortHeadingCount: headings, choiceValues: fp.choiceValues, currentValue: fp.pressedValues[0] };
+      /* Overflow and the panel's bounds are measured in the folded layout
+         itself, while the panel is open and again after the choice. */
+      const overflowNow = () => p.evaluate(() => ({ page: document.documentElement.scrollWidth > innerWidth, viewport: innerWidth }));
+      e.foldedOverflowOpen = await overflowNow();
+      e.foldedPanelBounds = Object.assign({ viewportWidth: await p.evaluate(() => innerWidth) }, fp.panelRect);
+      e.foldedPanelInsideViewport = fp.panelRect.x >= 0 && fp.panelRect.x + fp.panelRect.width <= e.foldedPanelBounds.viewportWidth + 0.5;
       await p.screenshot({ path: path.join(artifactDirectory, 'fold.png') });
       e.chosenValue = e.offered.find(o => o.value !== e.currentValue).value;
       await openPanel().locator('[data-level="' + e.chosenValue + '"]').click(); await settle();
       e.foldedPanel.focusAfterChoice = await focused(); e.foldedPanel.openAfterChoice = await panelOpen();
+      e.foldedOverflowAfterChoice = await overflowNow();
+      await p.screenshot({ path: path.join(artifactDirectory, 'fold-after-choice.png') });
       if (width >= 640) { await chat.evaluate(r => { r.style.width = r.dataset.receivingWidth || ''; r.style.maxWidth = ''; }); }
       else { await p.setViewportSize({ width: 1440, height: 1000 }); setup.push('viewport widened to 1440 to unfold the toolbar after the folded journey'); }
       await settle();
@@ -273,7 +281,8 @@ async function open({ scenario, theme, width }) {
       e.unfoldedEffortButtonCount = await chat.locator('[data-command="effort"]:visible').count();
       e.unfoldedThinkingButtonCount = await chat.locator('[data-command="thinking"]').count();
       e.unfoldedOpenPanelCount = await p.locator('.menu-panel:popover-open').count();
-      e.horizontalPageOverflow = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+      e.unfoldedOverflow = await overflowNow();
+      e.horizontalPageOverflow = e.foldedOverflowOpen.page || e.foldedOverflowAfterChoice.page || e.unfoldedOverflow.page || !e.foldedPanelInsideViewport;
       if (width < 640) await p.setViewportSize({ width, height: 1000 });
     }
     if (scenario === 'running') {
