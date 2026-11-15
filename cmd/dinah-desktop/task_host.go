@@ -286,6 +286,9 @@ func (a *App) taskTargetRevision(ctx context.Context, scope taskhost.Scope, p ta
 		return rooms.Review(ctx, scope, p)
 	}
 	if p.Kind == "AskPerson" {
+		if _, err := decodeTypedTaskQuestion(p.Input); err != nil {
+			return "", err
+		}
 		return p.Target, nil
 	}
 	if p.Kind == "InvokeAction" {

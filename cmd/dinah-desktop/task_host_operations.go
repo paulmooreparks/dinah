@@ -162,6 +162,17 @@ func (b taskBackend) Execute(ctx context.Context, s taskhost.Scope, o taskhost.O
 	case "ReadOptions":
 		return taskSuccess(o.Target, a.SessionOptions(o.Target))
 	case "AskPerson":
+		typed, err := decodeTypedTaskQuestion(o.Input)
+		if err != nil {
+			return taskFailure(err)
+		}
+		if typed != nil {
+			answer, err := a.askTypedTaskQuestion(ctx, s, typed.Title, typed.Answer)
+			if err != nil {
+				return taskFailure(err)
+			}
+			return taskSuccess(o.ID, map[string]any{"answer": answer})
+		}
 		var input struct {
 			Title   string
 			Choices []string

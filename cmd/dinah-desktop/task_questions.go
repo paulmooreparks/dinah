@@ -102,6 +102,29 @@ func (a *App) askTaskQuestion(ctx context.Context, scope taskhost.Scope, text st
 	return questions.Ask(ctx, scope, text, options)
 }
 
+func (a *App) askTypedTaskQuestion(ctx context.Context, scope taskhost.Scope, text string, spec taskhost.QuestionSpec) (taskhost.QuestionAnswer, error) {
+	questions, err := a.taskQuestionService()
+	if err != nil {
+		return taskhost.QuestionAnswer{}, err
+	}
+	return questions.AskTyped(ctx, scope, text, spec)
+}
+
+// AnswerTaskQuestion is the person's window entry point, never a service port.
+func (a *App) AnswerTaskQuestion(key, answerJSON string) error {
+	answer, err := decodeTaskQuestionAnswer(answerJSON)
+	if err != nil {
+		return err
+	}
+	a.taskQuestions.mu.Lock()
+	questions := a.taskQuestions.questions
+	a.taskQuestions.mu.Unlock()
+	if questions == nil {
+		return taskRefusal("stale", "the task question is no longer pending")
+	}
+	return questions.AnswerTyped(key, answer)
+}
+
 func (a *App) closeTaskQuestions() {
 	a.taskQuestions.mu.Lock()
 	questions := a.taskQuestions.questions
