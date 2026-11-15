@@ -86,7 +86,11 @@ func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
 		}
 		recipient = "window-quality-" + strings.ReplaceAll(owner, ":", "-")
 	}
-	cleanupFixtureChat(f.t, f.a, s.ID, provider, f.ws, recipient)
+	workspace := f.ws
+	if s.Relation == "workspace-move" {
+		workspace = f.t.TempDir()
+	}
+	cleanupFixtureChat(f.t, f.a, s.ID, provider, workspace, recipient)
 	if s.Working {
 		f.a.runtime.PutConversationLocked(s.ID, newSessionState(&sessionSeed{ID: s.ID, Provider: provider, Cwd: f.ws}, sessionInitial{Open: true, Working: true}))
 	}

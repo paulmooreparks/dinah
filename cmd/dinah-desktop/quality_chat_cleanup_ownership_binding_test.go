@@ -115,7 +115,11 @@ func (f *qualityHostCleanup) LinkedRecords() map[string]string {
 	if len(record) == 0 {
 		f.t.Fatal("workspace document record disappeared")
 	}
-	return map[string]string{"document": string(data), "document-record": string(record), "document-draft": draft.Text, "document-draft-record": string(raw)}
+	recent, err := os.ReadFile(filepath.Join(stateLayout().State, "recent-documents.json"))
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return map[string]string{"document": string(data), "document-record": string(recent), "workspace-record": string(record), "document-draft": draft.Text, "document-draft-record": string(raw)}
 }
 func (f *qualityHostCleanup) RemoteWrites() int { return int(f.linked.writes.Load()) }
 func (f *qualityHostCleanup) OpenWithLeases(id string) map[string]string {
