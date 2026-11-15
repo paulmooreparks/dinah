@@ -15,6 +15,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -123,6 +124,16 @@ func scriptFor(request Request) string {
 	script := `Promise.resolve().then(async function(){
  if(!document.createElement('canvas').getContext('2d')) throw Error('A 2D canvas is required.');
  const request=` + string(data) + `;
+	 await document.fonts.load('14px Inter',request.text);
+	 await document.fonts.load('600 14px Inter',request.text);
+	 const supplied=request.images||{};
+	 request.pictures=async function(name){
+	  if(typeof name!=='string'||name.startsWith('/')||/[\\:\x00-\x1f]/.test(name)) throw Error('The image path is invalid.');
+	  const parts=(request.sourcePath||'').split('/');parts.pop();
+	  for(const part of name.split('/')){if(part==='..'){if(!parts.length)throw Error('The image leaves the workspace.');parts.pop();}else if(part&&part!=='.'){parts.push(part);}}
+	  const key=parts.join('/');if(!Object.prototype.hasOwnProperty.call(supplied,key))throw Error('An image was not declared in the snapshot.');
+	  return {bytes:Uint8Array.from(atob(supplied[key]),c=>c.charCodeAt(0))};
+	 };
  const measured=await yavcDiagramPicture.draw(Object.assign({},request,{format:'svg'}));
  if(measured.problems.length) throw Error(measured.problems.join('; '));
  const width=Math.round(measured.width*request.scale),height=Math.round(measured.height*request.scale);
@@ -149,18 +160,41 @@ func draw(ctx context.Context, assets fs.FS, options Options, script string) (Pi
 		err     error
 	}
 	result := make(chan answer, 1)
-	go func() { p, err := native(ctx, assets, options, script); result <- answer{p, err} }()
-	// Wait for native disposal, including when the context expires.
-	done := <-result
-	return done.picture, done.err
+	ready := make(chan struct{})
+	var once sync.Once
+	markReady := func() { once.Do(func() { close(ready) }) }
+	go func() { p, err := native(ctx, assets, options, script, markReady); result <- answer{p, err} }()
+	select {
+	case done := <-result:
+		return done.picture, done.err
+	case <-ctx.Done():
+		select {
+		case <-ready:
+			done := <-result
+			return done.picture, done.err
+		default:
+			settled := make(chan error, 1)
+			go func() {
+				done := <-result
+				var disposal *DisposalError
+				if errors.As(done.err, &disposal) {
+					settled <- disposal
+				} else {
+					settled <- nil
+				}
+				close(settled)
+			}()
+			return Picture{}, &StartupError{Settled: settled}
+		}
+	}
 }
 
-func native(ctx context.Context, assets fs.FS, options Options, script string) (Picture, error) {
+func native(ctx context.Context, assets fs.FS, options Options, script string, markReady func()) (Picture, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	hr, _, _ := ole32.NewProc("CoInitializeEx").Call(0, 2)
 	if int32(hr) < 0 {
-		return Picture{}, fmt.Errorf("initialize native page COM: 0x%x", hr)
+		return Picture{}, fmt.Errorf("%w: initialize COM 0x%x", ErrUnavailable, hr)
 	}
 	defer ole32.NewProc("CoUninitialize").Call()
 	emit := func(s string) {
@@ -186,6 +220,8 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 	var terminal bool
 	var result Picture
 	var failure error
+	creationFinished := false
+	finishCreation := func() { creationFinished = true; markReady() }
 	finish := func(err error) {
 		if !terminal {
 			terminal = true
@@ -193,39 +229,66 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 			postThreadMessage.Call(uintptr(thread), wake, 0, 0)
 		}
 	}
+	var pendingController func()
+	var startupGate <-chan struct{}
 	controllerCallback := combridge.New[completed](&callback{f: func(code uintptr, object unsafe.Pointer) uintptr {
-		if int32(code) < 0 || object == nil {
-			finish(fmt.Errorf("create invisible controller: 0x%x", code))
-			return 0
+		if object != nil {
+			controller = (*edge.ICoreWebView2Controller)(object)
+			controller.AddRef()
 		}
-		controller = (*edge.ICoreWebView2Controller)(object)
-		controller.AddRef()
-		emit("controller-created")
-		if err := controller.PutIsVisible(false); err != nil {
-			finish(err)
-			return 0
+		complete := func() {
+			finishCreation()
+			if int32(code) < 0 || object == nil {
+				finish(fmt.Errorf("%w: create invisible controller 0x%x", ErrUnavailable, code))
+				return
+			}
+			emit("controller-created")
+			if ctx.Err() != nil {
+				finish(ctx.Err())
+				return
+			}
+			if err := controller.PutIsVisible(false); err != nil {
+				finish(err)
+				return
+			}
+			if err := controller.PutBounds(edge.Rect{Right: 1200, Bottom: 900}); err != nil {
+				finish(err)
+				return
+			}
+			emit("controller-hidden")
+			var err error
+			webview, err = controller.GetCoreWebView2()
+			if err != nil {
+				finish(err)
+				return
+			}
+			settings, err := webview.GetSettings()
+			if err != nil {
+				finish(err)
+				return
+			}
+			settings.PutIsScriptEnabled(true)
+			settings.PutIsWebMessageEnabled(true)
+			settings.PutAreDevToolsEnabled(false)
+			settings.PutAreDefaultScriptDialogsEnabled(false)
+			settings.Release()
 		}
-		if err := controller.PutBounds(edge.Rect{Right: 1200, Bottom: 900}); err != nil {
-			finish(err)
-			return 0
+		if delayStartupCompletion != nil {
+			startupGate = delayStartupCompletion()
 		}
-		emit("controller-hidden")
-		var err error
-		webview, err = controller.GetCoreWebView2()
-		if err != nil {
-			finish(err)
-			return 0
+		if startupGate != nil {
+			pendingController = complete
+			emit("startup-held")
+			go func() {
+				select {
+				case <-startupGate:
+					postThreadMessage.Call(uintptr(thread), wake, 0, 0)
+				case <-stopped:
+				}
+			}()
+		} else {
+			complete()
 		}
-		settings, err := webview.GetSettings()
-		if err != nil {
-			finish(err)
-			return 0
-		}
-		settings.PutIsScriptEnabled(true)
-		settings.PutIsWebMessageEnabled(true)
-		settings.PutAreDevToolsEnabled(false)
-		settings.PutAreDefaultScriptDialogsEnabled(false)
-		settings.Release()
 		return 0
 	}})
 	defer controllerCallback.Close()
@@ -270,7 +333,7 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 		return 0
 	}})
 	defer webMessage.Close()
-	html := `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; img-src data: blob:; style-src 'unsafe-inline'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"><script src="/errors.js"></script><script src="/yavc/support/yavc-util.js"></script><script src="/yavc/content/diagram-kit/picture.js"></script><body><script src="/draw.js"></script>`
+	html := `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; img-src data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"><link rel="stylesheet" href="/pudl/pudl.css"><script src="/errors.js"></script><script src="/yavc/support/yavc-util.js"></script><script src="/yavc/content/diagram-kit/picture.js"></script><body><script src="/draw.js"></script>`
 	resources := combridge.New[resourceHandler](&resourceCallback{f: func(sender, args unsafe.Pointer) uintptr {
 		event := (*edge.ICoreWebView2WebResourceRequestedEventArgs)(args)
 		request, err := event.GetRequest()
@@ -304,7 +367,7 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 				body = []byte(script)
 			default:
 				file := strings.TrimPrefix(u.Path, "/")
-				allowed := strings.HasPrefix(file, "yavc/content/diagram-kit/") || strings.HasPrefix(file, "yavc/content/md-editor/") || file == "yavc/content/md-engine/safe-html.js" || file == "yavc/support/yavc-util.js" || strings.HasPrefix(file, "yavc/support/vendor/")
+				allowed := file == "pudl/pudl.css" || strings.HasPrefix(file, "pudl/fonts/") || strings.HasPrefix(file, "yavc/content/diagram-kit/") || strings.HasPrefix(file, "yavc/content/md-editor/") || file == "yavc/content/md-engine/safe-html.js" || file == "yavc/support/yavc-util.js" || strings.HasPrefix(file, "yavc/support/vendor/")
 				if !allowed || !fs.ValidPath(file) {
 					status = 403
 				} else {
@@ -321,6 +384,9 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 		if status != 200 {
 			body = nil
 			emit(fmt.Sprintf("resource-refused:%s:%d", uri, status))
+			if u == nil || u.Path != "/favicon.ico" {
+				finish(errors.New("a drawing resource was refused"))
+			}
 		}
 		response, err := responseFor(environment, body, status, "Content-Type: "+contentType+"\r\nCache-Control: no-store")
 		if err != nil {
@@ -335,30 +401,57 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 	}})
 	defer resources.Close()
 	setup := false
+	var releaseRestrictions func()
+	defer func() {
+		if releaseRestrictions != nil {
+			releaseRestrictions()
+		}
+	}()
 	envHandler := &environmentDone{f: func(code webviewloader.HRESULT, env *webviewloader.ICoreWebView2Environment) webviewloader.HRESULT {
 		if code < 0 || env == nil {
-			finish(fmt.Errorf("create invisible environment: 0x%x", uint32(code)))
+			finishCreation()
+			finish(fmt.Errorf("%w: create invisible environment 0x%x", ErrUnavailable, uint32(code)))
 			return 0
 		}
-		environment = (*edge.ICoreWebView2Environment)(unsafe.Pointer(env))
 		env.AddRef()
+		environment = (*edge.ICoreWebView2Environment)(unsafe.Pointer(env))
+		if ctx.Err() != nil {
+			finishCreation()
+			finish(ctx.Err())
+			return 0
+		}
 		// HWND_MESSAGE is explicitly supported for invisible WebViews.
 		if _, err := call(unsafe.Pointer(env), 3, ^uintptr(2), controllerCallback.Ref()); err != nil {
+			finishCreation()
 			finish(err)
 		}
 		return 0
 	}}
 	err := webviewloader.CreateCoreWebView2EnvironmentWithOptions(envHandler, webviewloader.WithUserDataFolder(options.DataFolder))
 	if err != nil {
-		return Picture{}, err
+		return Picture{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	for !terminal {
-		if ctx.Err() != nil {
+		if pendingController != nil {
+			select {
+			case <-startupGate:
+				f := pendingController
+				pendingController = nil
+				f()
+			default:
+			}
+		}
+		if ctx.Err() != nil && creationFinished {
 			finish(ctx.Err())
 			break
 		}
 		if webview != nil && !setup {
 			setup = true
+			releaseRestrictions, err = restrictPage(webview, emit, finish)
+			if err != nil {
+				finish(err)
+				break
+			}
 			var token int64
 			if _, err = call(unsafe.Pointer(webview), 34, webMessage.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
 				finish(err)
@@ -372,7 +465,10 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 				finish(err)
 				break
 			}
-			webview.Navigate(origin + "/")
+			if err = webview.Navigate(origin + "/"); err != nil {
+				finish(err)
+				break
+			}
 		}
 		r, _, _ := getMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 		if int32(r) <= 0 {
@@ -384,9 +480,9 @@ func native(ctx context.Context, assets fs.FS, options Options, script string) (
 		}
 	}
 	if controller != nil {
-		_, closeErr := call(unsafe.Pointer(controller), 24)
+		closeErr := closeNativeController(unsafe.Pointer(controller))
 		if closeErr != nil {
-			failure = fmt.Errorf("dispose native page: %w", closeErr)
+			failure = &DisposalError{Err: closeErr}
 		} else {
 			emit("controller-closed")
 			// This observation confirms native closure. Correctness rests on
