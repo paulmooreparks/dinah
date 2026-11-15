@@ -119,7 +119,7 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 						row.Title = s.Title
 					}
 				}
-				if s.UpdatedAt > row.LastActivity {
+				if cleanupActivityAfter(s.UpdatedAt, row.LastActivity) {
 					row.LastActivity = s.UpdatedAt
 				}
 			}
@@ -127,8 +127,24 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 				row.Provider = provider
 				row.ProviderName = providerName(provider)
 			}
-			row.ProgramCopies = append(row.ProgramCopies, ChatProgramCopy{SessionID: member, Provider: provider, ProviderName: providerName(provider), Deletion: "unknown", CopyRemains: true, Reason: "Documented deletion will be checked at final deletion."})
-			if at := a.recordedActivity(member); at > row.LastActivity {
+			copy := ChatProgramCopy{SessionID: member, Provider: provider, ProviderName: providerName(provider), Deletion: "unknown", CopyRemains: true, Reason: "Documented deletion will be checked at final deletion."}
+			a.mu.Lock()
+			conn, init := a.providerInitLocked(provider)
+			a.mu.Unlock()
+			if conn != nil {
+				if init.AgentCapabilities.SessionCapabilities.Delete != nil {
+					copy.Deletion = "supported"
+					copy.Reason = "The program will be asked to delete its own copy at final deletion."
+				} else {
+					copy.Deletion = "unsupported"
+					copy.Reason = "This program has no documented deletion; its copy will remain."
+				}
+			}
+			if copy.Deletion == "unsupported" {
+				row.FinalDeleteConfirmation += " " + copy.ProviderName + " will keep its own copy."
+			}
+			row.ProgramCopies = append(row.ProgramCopies, copy)
+			if at := a.recordedActivity(member); cleanupActivityAfter(at, row.LastActivity) {
 				row.LastActivity = at
 			}
 			if tr, readErr := readTranscript(member); readErr == nil && !tr.Deleted {
@@ -175,15 +191,73 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 		if row.Working {
 			row.Refusal = "Wait for this chat to finish working before deleting it."
 		}
+		if len(row.ProgramCopies) > 0 {
+			row.ProviderDeletion = row.ProgramCopies[0].Deletion
+			for _, copy := range row.ProgramCopies {
+				if copy.Deletion != row.ProviderDeletion {
+					row.ProviderDeletion = "unknown"
+					break
+				}
+			}
+		}
 		row.Eligible = row.Refusal == ""
 		listing.Rows = append(listing.Rows, row)
 	}
 	sort.SliceStable(listing.Rows, func(i, j int) bool {
 		a, b := listing.Rows[i], listing.Rows[j]
 		if a.LastActivity != b.LastActivity {
-			return a.LastActivity < b.LastActivity
+			return cleanupActivityAfter(b.LastActivity, a.LastActivity)
 		}
 		return a.SessionID < b.SessionID
 	})
+	groups := map[string]chatRemoval{}
+	for _, record := range settings.RemovedChats {
+		if record.Group != "" && record.Stage != "deleted" {
+			groups[record.Group] = record
+		}
+	}
+	for group, record := range groups {
+		archive, readErr := readChatCleanupArchive(group)
+		if readErr != nil {
+			return ChatCleanupListing{}, readErr
+		}
+		row := archive.Row
+		row.Open = false
+		row.Working = false
+		row.Eligible = false
+		row.Restorable = record.Stage == "retained" && a.cleanupNow().Before(record.Expires)
+		if !row.Restorable {
+			row.RestoreRefusal = "This entry is expired or a cleanup operation is in progress."
+		}
+		row.RuntimeNote = ""
+		a.mu.Lock()
+		for _, member := range archive.Membership.Members {
+			if provider := a.chatCleanupLoaded[member.SessionID]; provider != "" && a.providerConnLocked(provider) != nil {
+				row.RuntimeNote += "Still loaded by " + providerName(provider) + " until the program stops or the window restarts. "
+			}
+		}
+		a.mu.Unlock()
+		for _, unknown := range archive.Membership.UnresolvedAllocations {
+			row.RuntimeNote += "An allocation by " + providerName(unknown.Provider) + " has an unknown outcome; its native copy cannot be identified. "
+		}
+		listing.Removed = append(listing.Removed, row)
+	}
+	sort.SliceStable(listing.Removed, func(i, j int) bool {
+		if listing.Removed[i].RemovedAt != listing.Removed[j].RemovedAt {
+			return listing.Removed[i].RemovedAt < listing.Removed[j].RemovedAt
+		}
+		return listing.Removed[i].SessionID < listing.Removed[j].SessionID
+	})
+
 	return listing, nil
+}
+
+// RFC3339 timestamps may have different offsets and fractional precision.
+func cleanupActivityAfter(candidate, current string) bool {
+	next, err := time.Parse(time.RFC3339Nano, candidate)
+	if err != nil {
+		return false
+	}
+	previous, err := time.Parse(time.RFC3339Nano, current)
+	return err != nil || next.After(previous)
 }

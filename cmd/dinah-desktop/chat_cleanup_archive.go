@@ -12,10 +12,12 @@ import (
 // Recycle payloads live outside the directories scanned for startup, so a
 // retained transcript or queue is never read by the normal startup sweeps.
 type chatCleanupArchive struct {
-	Version  int                      `json:"version"`
-	Row      ChatCleanupRow           `json:"row"`
-	Settings chatCleanupSettings      `json:"settings"`
-	Files    []chatCleanupArchiveFile `json:"files"`
+	Membership LogicalChatMembers         `json:"membership"`
+	Progress   map[string]ChatProgramCopy `json:"progress,omitempty"`
+	Version    int                        `json:"version"`
+	Row        ChatCleanupRow             `json:"row"`
+	Settings   chatCleanupSettings        `json:"settings"`
+	Files      []chatCleanupArchiveFile   `json:"files"`
 }
 
 type chatCleanupArchiveFile struct {

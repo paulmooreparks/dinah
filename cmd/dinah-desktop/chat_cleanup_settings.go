@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"maps"
+	"slices"
 )
 
 // chatCleanupSettings cannot serialize unrelated application or workspace state.
@@ -75,4 +76,28 @@ func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 		}
 	}
 	return out
+}
+
+func cleanupMergeMap[K comparable, V any](dst *map[K]V, source map[K]V) {
+	if *dst == nil {
+		*dst = map[K]V{}
+	}
+	maps.Copy(*dst, source)
+}
+
+func cleanupRestoreSettings(s *Settings, saved chatCleanupSettings) {
+	cleanupMergeMap(&s.SessionProviders, saved.SessionProviders)
+	cleanupMergeMap(&s.SessionTitles, saved.SessionTitles)
+	cleanupMergeMap(&s.SessionOptions, saved.SessionOptions)
+	cleanupMergeMap(&s.JudgedTitles, saved.JudgedTitles)
+	cleanupMergeMap(&s.NativeSessions, saved.NativeSessions)
+	cleanupMergeMap(&s.NativeRecoveryAttempts, saved.NativeRecoveryAttempts)
+	cleanupMergeMap(&s.BusSessions, saved.BusSessions)
+	cleanupMergeMap(&s.ChatBindings, saved.ChatBindings)
+	cleanupMergeMap(&s.ChatTransfers, saved.ChatTransfers)
+	for _, tr := range saved.ChatTransferHistory {
+		if !slices.Contains(s.ChatTransferHistory, tr) {
+			s.ChatTransferHistory = append(s.ChatTransferHistory, tr)
+		}
+	}
 }

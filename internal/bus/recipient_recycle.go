@@ -48,7 +48,43 @@ func (b *Bus) ForgetBinnedRecipient(ctx context.Context, id string) error {
 		if _, err := t.Exec(`DELETE FROM deliveries WHERE recipient_kind='session' AND recipient=?`, id); err != nil {
 			return err
 		}
-		_, err := t.Exec(`DELETE FROM recipient_recycle WHERE recipient=?`, id)
+		for _, query := range []string{
+			`DELETE FROM steers WHERE session=? OR session IN (SELECT agent_session FROM agent_sessions WHERE session=?)`,
+			`DELETE FROM steering_submissions WHERE session=? OR session IN (SELECT agent_session FROM agent_sessions WHERE session=?)`,
+			`DELETE FROM hook_turns WHERE session=? OR session IN (SELECT agent_session FROM agent_sessions WHERE session=?)`,
+		} {
+			if _, err := t.Exec(query, id, id); err != nil {
+				return err
+			}
+		}
+		for _, query := range []string{
+			`DELETE FROM host_results WHERE recipient=?`,
+			`DELETE FROM agent_sessions WHERE session=?`,
+			`DELETE FROM team_usage WHERE session=?`,
+			`DELETE FROM team_budgets WHERE lead=?`,
+			`DELETE FROM recipient_recycle WHERE recipient=?`,
+		} {
+			if _, err := t.Exec(query, id); err != nil {
+				return err
+			}
+		}
+		_, err := t.Exec(`UPDATE sessions SET name='',workspace='',title='',started_at='',last_seen='',stop_continues=0,hops=0 WHERE id=?`, id)
 		return err
 	})
+}
+
+// StoredSessionDeliveries reports retained undelivered queue ownership, even
+// when ordinary pending counts suppress a binned recipient.
+func (b *Bus) StoredSessionDeliveries(ctx context.Context, id string) (int, error) {
+	var count int
+	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM deliveries WHERE recipient_kind='session' AND recipient=? AND delivered_at IS NULL AND cancelled_at IS NULL`, id).Scan(&count)
+	return count, err
+}
+
+// RecipientAvailable reports whether an existing address admits new messages.
+// A closed, restored address is available even while its old queue is dormant.
+func (b *Bus) RecipientAvailable(ctx context.Context, id string) (bool, error) {
+	var available bool
+	err := b.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sessions WHERE id=? AND removed_at IS NULL)`, id).Scan(&available)
+	return available, err
 }

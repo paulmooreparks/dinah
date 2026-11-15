@@ -144,30 +144,12 @@ func (a *App) LoadFullHistory(ws, id string) (SessionInfo, error) {
 	return a.sessionsLifecycle().LoadFullHistory(ws, id)
 }
 
-// DeleteSession removes a session from Devin's session history, where Devin
-// supports it, and so from every list that reads it, Devin Desktop's too. A
-// session open in this run is forgotten here as well. It returns
-// errNoDelete when Devin does not support deleting, so that the page can
-// offer to hide the session instead.
+// errNoDelete remains the session-host capability error for native operations.
 var errNoDelete = sessionhost.ErrNoDelete
 
-func (a *App) DeleteSession(id string) error {
-	if err := a.sessionsLifecycle().Delete(id); err != nil {
-		return err
-	}
-	return a.RemoveChat(id)
-}
-
-// HideSession takes a session off this app's list without deleting it in
-// Devin.
-func (a *App) HideSession(id string) error {
-	_ = a.updateSettings(func(s *Settings) error {
-		s.Hidden = append(s.Hidden, id)
-		return nil
-	})
-	a.sessionsLifecycle().Forget(id)
-	return nil
-}
+// DeleteSession and HideSession are compatibility names for bin staging.
+func (a *App) DeleteSession(id string) error { return a.RemoveChat(id) }
+func (a *App) HideSession(id string) error   { return a.RemoveChat(id) }
 
 // UnhideSessions brings back every hidden session.
 func (a *App) UnhideSessions() error {

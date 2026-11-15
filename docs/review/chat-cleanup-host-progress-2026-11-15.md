@@ -16,9 +16,18 @@ The full bus package passed through FIFO after the retained-recipient changes. F
 
 ## Remaining work
 
-The lifecycle still needs staged removal, whole-chain eligibility and generation checks, runtime disposal, provider unload/deletion handling, restore, expiry and interrupted-operation reconciliation. The compatibility methods and page method classification still need wiring. Final deletion must purge all owned records, including composer drafts, while leaving referenced document records untouched. The runtime must revoke drawing and applet authority and cancel pending authorized work, with fresh authority only on a subsequent open. The test-only acceptance bindings and combined frontend/Quality execution remain required.
+The lifecycle now stages whole logical chains, rechecks membership generations and eligibility, disposes local runtimes and revokes applet authority before retaining chat files outside startup scans. Restore, expiry and final deletion share durable recovery phases. Final deletion attempts documented provider deletion oldest first, retains truthful remaining-copy results, erases local chat records and composer drafts, and redacts chat-owned migration-backup entries. Compatibility methods stage removal, and the page methods are classified. The tagged acceptance observer reads persisted settings, retained files and bus state. Combined drawing-lease revocation, Release's durable-model adapter and independent acceptance execution remain required before handover.
 
 Release owns the durable logical-chat model and its resolver. Engine owns cleanup lifecycle, archive and host DTO files. Front End owns presentation files and fixtures. No push, merge, installation, remote write or real-home operation has been performed for this cleanup work.
 
 
 The interim membership and local listing passed focused cleanup tests after the full foundation run. Those later resolver changes have not yet had a full desktop-package run. The frontend receiving candidate is frontend/chat-cleanup at 30a56fba0dc2b44a2252d70188f8282df4bae359. Its review note was read; its rendered evidence uses an invented host and does not verify this incomplete host lifecycle.
+
+
+## Lifecycle verification in progress
+
+Focused lifecycle and observer checks passed before the later recovery and ordinary-view additions. The complete desktop package then failed after 600.207 seconds without naming a failing test; the same command passed the bus package in 116.227 seconds, broker in 1.179 seconds and host in 0.497 seconds. This failure remains unresolved and is not replaced by later passes. A debugger attachment to that isolated test process could not resolve Go symbols; it was detached with the process left running. No source logging or assertions were changed for that investigation.
+
+The expanded focused run passed the desktop cleanup cases in 13.809 seconds and retained-recipient cases in 0.879 seconds. It includes every durable recovery phase, loaded-session disclosure, notification retention, rollback-copy redaction and observer consistency. A full desktop run with JSON test events and a five-minute bound is in progress. Its evidence is in the temporary file engine-cleanup-desktop-events.jsonl. The final tree still requires vet and the complete desktop gate.
+
+The org-chart query contract is docs/design/org-chart-query.md at 77559d93. Front End agreed the DTO in message 8647, and Release agreed captured-generation handling in message 8650. Its App implementation follows the cleanup host step. No provider history query is part of that call.

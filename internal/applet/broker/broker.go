@@ -84,6 +84,7 @@ type execution struct {
 	// (runUnrecorded); owner is who may cancel it.
 	unrecorded       bool
 	ownerKind, owner string
+	workspace        string
 }
 
 // Broker invokes a registry's actions. Emit, when set, is told
@@ -347,7 +348,7 @@ func (b *Broker) execute(v Invocation) error {
 		}
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), v.Deadline)
-	ex := &execution{cancel: cancel, done: make(chan struct{})}
+	ex := &execution{cancel: cancel, done: make(chan struct{}), ownerKind: v.OwnerKind, owner: v.OwnerID, workspace: v.Workspace}
 	if action, err := b.Registry.Describe(v.Action); err == nil {
 		ex.replay, ex.effect = action.Replay, action.Effect
 	}
@@ -406,6 +407,9 @@ func (b *Broker) run(v Invocation, ex *execution, ctx context.Context) {
 			err = b.Consent(ctx, v, action)
 		}
 		actionErr = err
+	}
+	if actionErr == nil {
+		actionErr = ctx.Err()
 	}
 	if actionErr == nil {
 		result, actionErr = b.Registry.Execute(ctx, v.Action, v.InputJSON)
@@ -744,7 +748,7 @@ func (b *Broker) runUnrecorded(ctx context.Context, workspace, ownerKind, ownerI
 	runCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	key := b.key(workspace, id)
-	ex := &execution{replay: action.Replay, effect: action.Effect, cancel: cancel, done: make(chan struct{}), unrecorded: true, ownerKind: ownerKind, owner: ownerID}
+	ex := &execution{replay: action.Replay, effect: action.Effect, cancel: cancel, done: make(chan struct{}), unrecorded: true, ownerKind: ownerKind, owner: ownerID, workspace: workspace}
 	b.mu.Lock()
 	if b.active == nil {
 		b.active = map[string]*execution{}
@@ -766,6 +770,9 @@ func (b *Broker) runUnrecorded(ctx context.Context, workspace, ownerKind, ownerI
 	var actionErr error
 	if b.Consent != nil {
 		actionErr = b.Consent(runCtx, v, action)
+	}
+	if actionErr == nil {
+		actionErr = runCtx.Err()
 	}
 	if actionErr == nil {
 		result, actionErr = b.Registry.Execute(runCtx, ref, inputJSON)

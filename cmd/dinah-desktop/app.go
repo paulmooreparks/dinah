@@ -46,7 +46,9 @@ import (
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
 	// chatCleanupMu serializes recycle finalization with full UI-state saves.
-	chatCleanupMu sync.Mutex
+	chatCleanupMu     sync.Mutex
+	chatCleanupHooks  chatCleanupAcceptanceHooks
+	chatCleanupLoaded map[string]string
 
 	// refused is the request each provider last refused for want of a
 	// sign-in (auth.go).
@@ -295,6 +297,7 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.reconcileChatRemovals(); err != nil {
 		logf("chat", "error", "finishing saved chat removals: %v", err)
 	}
+	go a.watchChatCleanup(ctx)
 	a.nameContinuations()
 	// A chat deleted or continued while it was not running has queued messages that
 	// cannot wait for it to be opened.

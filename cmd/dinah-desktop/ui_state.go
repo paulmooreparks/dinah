@@ -76,7 +76,7 @@ func (a *App) saveUIStateForCleanup(state UIState) error {
 	state.Values = values
 	a.mu.Lock()
 	for id, removal := range a.settings.RemovedChats {
-		if removal.Stage == "removed" || removal.Stage == "deleted" || removal.Stage == "finalizing" {
+		if removal.Stage == "removed" || removal.Stage == "deleted" || removal.Stage == "finalizing" || removal.Stage == "erasing" {
 			delete(state.Values, "dinah-draft:chat:"+id)
 		}
 	}

@@ -108,8 +108,14 @@ func TestRecycleRecipientGroupAndDecisionsStayOffOrdinaryLists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err = b.SetLead(ctx, s.ID, other.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err = b.BinRecipient(ctx, s.ID); err != nil {
 		t.Fatal(err)
+	}
+	if members, err := b.TeamMembers(ctx, other.ID); err != nil || len(members) != 0 {
+		t.Fatalf("team lists binned chat %+v %v", members, err)
 	}
 	if page, err := b.Decisions(ctx, 0); err != nil || len(page.Items) != 0 {
 		t.Fatalf("decisions %+v %v", page, err)
@@ -137,6 +143,9 @@ func TestRecycleRecipientGroupAndDecisionsStayOffOrdinaryLists(t *testing.T) {
 	}
 	if err = b.RestoreRecipient(ctx, s.ID); err != nil {
 		t.Fatal(err)
+	}
+	if members, err := b.TeamMembers(ctx, other.ID); err != nil || len(members) != 1 {
+		t.Fatalf("team lost restored chat %+v %v", members, err)
 	}
 	if page, err := b.Decisions(ctx, 0); err != nil || len(page.Items) != 1 {
 		t.Fatalf("restored decisions %+v %v", page, err)
