@@ -36,7 +36,7 @@ const { settled, settledCount } = require('./lib/settled');
         BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person] }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => messages.slice(),
         BusMarkGroupRead: async () => {},
-        Sessions: async () => [{sessionId:'chat-docs',title:'Docs Pass',cwd:'C:/Work/docs',open:true,queued:[]}],
+        Sessions: async () => [{sessionId:'chat-docs',title:'Docs Pass',cwd:'C:/Work/docs',open:true,queued:[]},{sessionId:'chat-sheet',title:'Sheet Helper',cwd:'C:/Work/harbor',open:true,queued:[]}],
         AppletCatalog: async () => [{id:'example.review',title:'Review',actions:[{ref:'example.review/read@1',title:'Read',description:'Read reviews'}]}],
         PickAttachments: async () => { __calls.push(['pick']); return [{ kind: 'file', name: 'picked.csv', mimeType: 'text/csv', data: btoa('a,b\n1,2\n'), size: 8 }]; },
         // Go turns a file address into its path and says where it opens
@@ -138,7 +138,9 @@ const { settled, settledCount } = require('./lib/settled');
     });
     for (const [menu, label, kind] of [
       ['Mention an Open Document', 'Notes', 'draft'],
-      ['Mention an Open Document', 'Docs Pass', 'chat'],
+      // A member chat is offered once, as a member; a chat outside the group
+      // is the chat reference (docs/design/group-mentions.md).
+      ['Mention an Open Document', 'Sheet Helper', 'chat'],
       ['Windows and Applets', 'Review', 'applet'],
       ['Windows and Applets', 'Editor', 'window']
     ]) {

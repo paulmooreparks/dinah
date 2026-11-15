@@ -343,9 +343,10 @@
         changed: function () { changed(); }, toast: attachmentFailed,
         limit: o.limit, alive: function () { return form.isConnected; } });
       input.addEventListener('change', function () { chips.add(input.files); input.value = ''; text.focus(); });
+      // In a group, the Add menu's Mention opens the full @ list, the members first (docs/design/group-mentions.md).
       var attach = node('button', 'btn group-add'); attach.type = 'button'; attach.setAttribute('data-command', 'group-add');
       var unregisterAdd = pudlCommands.register(form, function () { return [{ id: 'group-add', label: 'Add', glyph: 'clip', disabled: closed,
-        items: function () { return dinahComposer.addItems({full:chips.full,fullReason:chips.fullReason,files:box.attach,browse:box.browse,mention:function (scope) { box.addMention(scope); }}); } }]; });
+        items: function () { return dinahComposer.addItems({full:chips.full,fullReason:chips.fullReason,files:box.attach,browse:box.browse,mention:function (scope) { box.addMention(scope === 'all' ? 'members' : scope); }}); } }]; });
       parts.el.querySelector('.composer-actions').insertBefore(attach, go);
       form.append(list, input);
       // A picture or a file pasted into the box goes with the message. Text

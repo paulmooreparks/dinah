@@ -98,7 +98,10 @@ const { launch } = require('./lib/page');
     ok('only the member is sent as a mention; the references go as references with their tokens', JSON.stringify(sent[3]) === JSON.stringify(['window-d1']) && sent[4].some(f => f.kind === 'chat' && f.sessionId === 'chat-sheet' && f.token === '@Sheet_Helper') && sent[4].some(f => f.kind === 'draft' && f.token), JSON.stringify(sent[3]) + ' ' + JSON.stringify(sent[4]));
 
     // The sent message: the mention, the references and the two lines.
-    const card = roomWin.locator('.bus-message').last();
+    // The sent message by its number: the legacy message also mentions Docs
+    // Pass, and under load it can still be the last card drawn.
+    const sentId = await p.evaluate(() => __messages['release-review'].at(-1).id);
+    const card = roomWin.locator('[data-bus-message="' + sentId + '"]');
     await card.locator('.msg-reach').waitFor();
     const look = await card.evaluate(el => {
       const m = el.querySelector('.mention'), refs = [...el.querySelectorAll('.mention-ref')];
