@@ -1,0 +1,27 @@
+PASS initial pending query recovers a task question with its owner
+PASS task questions have only offered choices and no chat or dismissal action
+PASS the authoritative task destination opens through ordinary page navigation
+PASS a task question arrives without stealing keyboard focus
+PASS an unavailable task page leaves one answerable question and plain source text
+PASS chat and task questions coexist after independent reconciliation
+PASS an empty chat snapshot cannot erase task questions
+PASS sending preserves the card, choices, controls and following card in every frame
+PASS answering disables all mounted copies and sends one key and offered option
+PASS an answer removes Notifications and ends the shared question
+PASS a replay cannot restore an answered question
+PASS a terminal event wins over an older pending snapshot
+PASS an old empty snapshot cannot erase a question that just arrived
+PASS an uncertain answer stays disabled while its status cannot be read
+PASS authoritative pending status permits an explicit retry without sending one
+PASS light task controls have a visible keyboard focus ring at 1440
+PASS light task question fits at 1440
+PASS dark task controls have a visible keyboard focus ring at 1440
+PASS dark task question fits at 1440
+PASS light task controls have a visible keyboard focus ring at 390
+PASS light task question fits at 390
+PASS dark task controls have a visible keyboard focus ring at 390
+PASS dark task question fits at 390
+PASS a response lost after an answer is reconciled without repeating it
+PASS an empty task snapshot cannot erase a chat question
+PASS task questions and answers open no chat or provider and write no answer row
+PASS no page errors

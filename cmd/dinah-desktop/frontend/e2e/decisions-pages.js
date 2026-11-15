@@ -4,7 +4,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
   try {
     await p.evaluate(() => { window.__pageSize = 2; __emit('bus:changed', {}); });
     await p.waitForFunction(() => document.querySelectorAll('.decisions-row').length === 2);
-    await p.getByRole('button', { name: 'Earlier Requests', exact: true }).click(); await p.locator('.decisions-row[data-request-id="r2"]').waitFor();
+    await p.getByRole('button', { name: 'Show More Requests', exact: true }).click(); await p.locator('.decisions-row[data-request-id="r2"]').waitFor();
     await choose(t, 'r2'); await p.getByLabel('Answer 1', { exact: true }).fill('Keep this earlier draft editable.');
     await p.evaluate(item => { __decisionItems.unshift(item); __emit('bus:changed', {}); }, makeRequest('r6'));
     await p.locator('.decisions-row[data-request-id="r6"]').waitFor();

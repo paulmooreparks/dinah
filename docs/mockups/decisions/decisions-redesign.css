@@ -1,0 +1,131 @@
+/* Proposed Decisions styles for the redesign mockup. Every control is a PUDL
+   component (master-detail, row list, notice, toast, empty state, options,
+   text area, badges, dialog). This file only lays them out, and it is what
+   would replace decisions-applet.css if Paul approves the mockup. */
+
+.decisions { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; container: decisions / inline-size; }
+.decisions > .md-layout { flex: 1; min-height: 0; }
+
+/* The list. Rows have one fixed height, so an arrival or a departure never
+   changes the height of the rows around it. New requests join the end of
+   the list, below the one being read, so nothing above it moves. */
+.decisions .md-sidebar { --md-sidebar-w: 22rem; display: flex; flex-direction: column; }
+.decisions .md-sidebar-head { flex: none; }
+.decisions .md-sidebar-head .md-section-label { display: flex; align-items: center; gap: var(--space-2); padding: 0; }
+.decisions-rows { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; }
+.decisions-rows .md-row { position: relative; height: 5.75rem; box-sizing: border-box; align-items: stretch; }
+/* Every row's actions button is always shown (Paul: PUDL does not hide controls). It opens
+   the same menu as a right-click, Shift+F10 or the Menu key on the row. */
+.decisions-rows .md-row > [data-row-actions] { position: absolute; top: var(--space-2); right: var(--space-2); visibility: visible; margin: 0; }
+.decisions-rows .md-row > .md-item { padding-inline-end: calc(24px + var(--space-4)); }
+.decisions-rows .md-item { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: var(--space-2) var(--space-3); white-space: normal; }
+.decisions-row-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--text-sm); line-height: 1.4; }
+.decisions-rows .md-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.decisions-row-state { display: flex; align-items: center; gap: var(--space-2); }
+.decisions-row-state .badge { flex: none; }
+.decisions-list-end { margin: 0; padding: var(--space-3); font-size: var(--text-sm); color: var(--text-muted); text-align: center; }
+.decisions-list-more { display: flex; justify-content: center; padding: var(--space-3); }
+
+/* The request. The pane is a column: its head and its foot stay put and
+   only the middle scrolls, so there is one scrolling region and Send is
+   always in view. */
+.decisions .md-detail { padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+.decisions-head { flex: none; padding: var(--space-4) var(--space-5) var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.decisions-head h2 { margin: 0; font-size: var(--text-xl); line-height: 1.3; overflow-wrap: anywhere; }
+.decisions-head-meta { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.decisions-head-meta a { color: inherit; }
+.decisions-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; scrollbar-gutter: stable; }
+.decisions-page { max-width: 46rem; padding: var(--space-5); }
+.decisions-main { min-width: 0; display: flex; flex-direction: column; gap: var(--space-5); }
+/* About This Request is a pane on the right of the request, between its head and its foot,
+   with its own scrolling, at PUDL's end edge (data-md-side="end" in master-detail terms). */
+.decisions-split { flex: 1; min-height: 0; display: flex; }
+.decisions-split > .decisions-scroll { flex: 1; min-width: 0; }
+.decisions-about { flex: none; width: 20rem; box-sizing: border-box; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-4); border-inline-start: 1px solid var(--border); background: var(--surface-alt); display: flex; flex-direction: column; gap: var(--space-4); }
+.decisions-about-open { margin-top: var(--space-2); }
+
+/* One question. The recommendation is flat text to read; the answer is a
+   set of sunken choices and one sunken text area. Typing in the text area
+   chooses My Own Answer, so nothing appears or disappears while answering. */
+.decisions-question { min-width: 0; margin: 0; padding: 0 0 var(--space-5); border: 0; border-bottom: 1px solid var(--border); }
+.decisions-question:last-child { border-bottom: 0; }
+.decisions-question > legend { padding: 0; margin-bottom: var(--space-2); }
+.decisions-question-text { margin: 0 0 var(--space-3); font-size: var(--text-lg); font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
+.decisions-recommendation { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--accent); background: var(--surface-alt); line-height: 1.55; }
+.decisions-recommendation strong { display: block; font-size: var(--text-2xs); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.decisions-question .form-options { margin-bottom: var(--space-2); }
+.decisions-question .form-textarea { width: 100%; box-sizing: border-box; min-height: 5.5rem; }
+.decisions-own { display: flex; flex-direction: column; gap: var(--space-1); margin-inline-start: 24px; }
+.decisions-answered { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; line-height: 1.55; }
+.decisions-answered .badge { flex: none; }
+/* A typed task question's line under its answer: characters used of the service's limit, or
+   options chosen of its bounds. It is always there, so nothing moves while answering, and over
+   the limit it turns the danger colour as well as saying by how much. */
+.decisions-count { margin: var(--space-1) 0 0; min-height: 1.5em; font-size: var(--text-sm); color: var(--text-muted); }
+.decisions-count[data-tone="danger"] { color: var(--danger); }
+.decisions-count { display: flex; align-items: center; gap: var(--space-1); }
+.decisions-count .glyph { --glyph-size: 14px; flex: none; }
+
+/* A plain message. It is quoted once, flat, and folds after twelve lines
+   behind a button that opens it in place. */
+.decisions-message { margin: 0; padding: var(--space-2) 0 var(--space-2) var(--space-4); border-inline-start: 3px solid var(--border); white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
+.decisions-message[data-folded="true"] { max-height: calc(1.6em * 12); overflow: hidden; -webkit-mask: linear-gradient(#000 75%, transparent); mask: linear-gradient(#000 75%, transparent); }
+.decisions-message-from { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); }
+
+/* Who asked, and what was said before. Flat, read in place, never a box
+   that scrolls inside the page. */
+.decisions-about .md-section-label { padding: 0; margin: 0; }
+.decisions-about .kv-table th { width: 6.5rem; }
+.decisions-before { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.decisions-before li { padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+.decisions-before li:last-child { border-bottom: 0; }
+.decisions-before p { margin: var(--space-1) 0; font-size: var(--text-sm); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.decisions-before-meta { display: flex; gap: var(--space-2); align-items: baseline; font-size: var(--text-sm); }
+.decisions-before-meta time { color: var(--text-muted); font-size: var(--text-xs); }
+.decisions-before a { font-size: var(--text-sm); }
+
+/* The foot. Its height is fixed, its status line has room for two lines,
+   and Send keeps its label and width in every state. A change of state
+   changes words and the enabled state of a button, never the layout. */
+.decisions-foot { flex: none; display: flex; align-items: center; gap: var(--space-3); height: 4.25rem; box-sizing: border-box; padding: 0 var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
+.decisions-foot-status { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); max-height: 3em; overflow: hidden; margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--text-muted); }
+.decisions-foot-status .glyph { flex: none; --glyph-size: 16px; }
+.decisions-foot-status[data-tone="warn"] { color: var(--text); }
+.decisions-foot-status[data-tone="warn"] .glyph { color: var(--warn); }
+.decisions-foot-status[data-tone="danger"] { color: var(--text); }
+.decisions-foot-status[data-tone="danger"] .glyph { color: var(--danger); }
+.decisions-foot-status[data-tone="positive"] .glyph { color: var(--positive); }
+.decisions-foot-actions { flex: none; display: flex; gap: var(--space-2); }
+.decisions-foot-actions .btn-primary { min-width: 9rem; }
+
+/* Nothing waiting: one empty state across the whole window, with no list
+   pane beside it. */
+.decisions-empty { flex: 1; display: grid; place-content: center; }
+.decisions-empty .empty-state { --glyph: var(--glyph-inbox); }
+/* What the last finished request left behind: one quiet line under the
+   empty state, with the way back to what was sent. */
+.decisions-done { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.decisions-done .glyph { --glyph-size: 16px; color: var(--positive); }
+.decisions-foot-status .link { flex: none; font-size: inherit; }
+
+/* Middle widths: the About pane narrows. */
+@container decisions (max-width: 72rem) {
+  .decisions-about { width: 16rem; padding-inline: var(--space-3); }
+}
+/* A phone or a narrow window: one pane at a time, as PUDL's master-detail
+   does at 640 pixels, each its own address. */
+@container decisions (max-width: 40rem) {
+  .decisions-head { padding: var(--space-3) var(--space-4); }
+  .decisions-head .md-back { margin-bottom: var(--space-2); }
+  .decisions-page { padding: var(--space-4); gap: var(--space-4); }
+  /* On a phone the foot has one fixed height in every state: the status line, then room
+     for two rows of buttons, since Check Send Result or I Have Read the Change can join
+     Dismiss and Send. Nothing above it moves when a third button appears. */
+  .decisions-foot { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: var(--space-2) var(--space-3); gap: var(--space-2); height: 9.75rem; }
+  .decisions-foot-status { flex: none; height: 3em; align-items: flex-start; }
+  .decisions-foot-actions { flex-wrap: wrap; justify-content: flex-end; align-content: flex-start; }
+  .decisions-foot-actions .btn { flex: 1 1 40%; min-width: 0; }
+  .decisions-own { margin-inline-start: 0; }
+  /* On a phone About is its own pane, reached from the head and left with its back button. */
+  .decisions-about { width: auto; padding: 0; border: 0; background: none; }
+}

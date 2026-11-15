@@ -678,6 +678,12 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 /* A question from the agent: PUDL's warn notice, with one button per
    option the agent offers. */
 .question .notice-actions { flex-wrap: wrap; min-width: 0; }
+.task-question .notice-content, .task-question-choices { min-width: 0; }
+.task-question .notice-title, .task-question .notice-body, .task-question-choices label { overflow-wrap: anywhere; }
+.task-question-choices { margin-top: .75rem; }
+.task-question-choices label { display: flex; align-items: baseline; gap: .5rem; margin-block: .5rem; }
+.task-question-choices input { flex: 0 0 auto; }
+.task-question-result { block-size: 4.5em; overflow: auto; overflow-wrap: anywhere; margin-block: .5rem; }
 .question code { overflow-wrap: anywhere; }
 .applet-artifact { padding: 1rem; overflow: auto; height: 100%; }
 .applet-artifact img { max-width: 100%; background: white; }

@@ -1,0 +1,24 @@
+PASS every toast is an entry, kept with its severity
+PASS arrival preserves the first report position
+PASS the count is of questions and errors only
+PASS a repeated report is one entry
+PASS a question appends without moving reports and is counted
+PASS a question is announced by a toast
+PASS Errors shows only the errors
+PASS Questions shows only the questions
+PASS Other shows successes and information
+PASS Questions and Errors together show both, and the button says so
+PASS with nothing ticked every kind shows, and the button says All
+PASS the text filter narrows the entries
+PASS a filter that matches nothing says so
+PASS a document failure is a toast and an entry naming the document
+PASS Open the Document opens its draft in a document window
+PASS the danger button of a question carries a glyph as well as its colour
+PASS Clear All leaves only the question
+PASS Clear All dismisses an applet's result in Go and removes its card
+PASS the filter is kept
+PASS no page errors
+PASS a report's text and buttons stay inside its card
+PASS the button that opens the chat keeps the whole title in its tooltip
+PASS a failed turn's report does not put its chat under Needs You
+PASS no page errors

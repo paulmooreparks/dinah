@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decisions redesign mockup</title>
+  <!-- The shipped stylesheets, in the order index.html loads them. -->
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <!-- The palette appearance.js applies in the real window, captured from it. -->
+  <link rel="stylesheet" href="clear-chime-tokens.css">
+  <!-- The proposal. -->
+  <link rel="stylesheet" href="decisions-redesign.css">
+  <style>
+    /* Mockup scaffolding only: a static maximized window, the state index,
+       the Try menu in the title bar and its notes. None of this is proposed. */
+    body { margin: 0; }
+    body.frame { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+    .frame > .win { position: relative; inset: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; width: auto; height: auto; border-radius: 0; border-width: 0; }
+    .frame > .win > .win-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0; margin: 0; border: 0; }
+    .frame .toast-region { position: fixed; inset-block-start: 3rem; inset-block-end: auto; }
+    .frame dialog.dialog[open] { position: fixed; inset: 0; margin: auto; }
+    .frame dialog.dialog::backdrop { background: color-mix(in srgb, var(--shade) 35%, transparent); }
+    .mock-try { margin-inline-start: auto; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+    .mock-try .form-select { height: 28px; padding-block: 0; font-size: var(--text-sm); max-width: 15rem; }
+    @media (max-width: 640px) { .mock-try > span { display: none; } .mock-try .form-select { max-width: 10rem; } }
+    /* A stand-in for the Notifications panel, beside the Decisions window. */
+    .mock-notes-button { margin-inline-start: auto; }
+    .mock-notes-button + .mock-try { margin-inline-start: var(--space-3); }
+    .mock-notes { position: fixed; z-index: 50; inset: 48px var(--space-2) auto auto; width: min(26rem, calc(100vw - 16px)); max-height: calc(100dvh - 64px); overflow: auto; margin: 0; padding: 0; display: block; }
+    .mock-notes-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+    .mock-notes-list { display: grid; gap: var(--space-2); padding: var(--space-2); }
+    .mock-notes-empty { padding: var(--space-3); margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-note-card .form-textarea { width: 100%; box-sizing: border-box; }
+    @media (max-width: 640px) { .mock-notes-button > span:not(.badge):not(.glyph) { display: none; } }
+    body.index { padding: var(--space-5); max-width: 70rem; }
+    body.index li { margin: var(--space-1) 0; }
+  </style>
+</head>
+<body>
+<script src="../../../cmd/dinah-desktop/frontend/pudl/pudl-menu.js"></script>
+<script>
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  var theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+  var bare = params.has('bare');   /* the picture runs: no Try menu and no timers */
+  document.documentElement.setAttribute('data-theme', theme);
+
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (v === false || v === null || v === undefined) return;
+      if (k === 'class') el.className = v; else if (k === 'text') el.textContent = v; else if (k === 'style') el.setAttribute('style', v); else el.setAttribute(k, v === true ? '' : v);
+    });
+    for (var i = 2; i < arguments.length; i++) { var c = arguments[i]; if (c === null || c === undefined || c === false) continue; (Array.isArray(c) ? c : [c]).forEach(function (x) { if (x !== null && x !== undefined && x !== false) el.append(x); }); }
+    return el;
+  }
+  function glyph(name) { return h('span', { class: 'glyph', style: '--glyph: var(--glyph-' + name + ')', 'aria-hidden': 'true' }); }
+
+  /* Invented requests, the same people and questions as the review of the current page. */
+  var longMessage = ['I reviewed the release candidate against the checklist and found three things worth your attention before we go further.', '',
+    'First, the installer still writes the old shortcut name on a machine that had the 1.x build. It is cosmetic but people will see it.', '',
+    'Second, the Harbor publish step took 19 seconds on the Harbor 07 page, which is under the limit but close to it. I have a fix ready that halves it.', '',
+    'Third, the release notes mention a Recycle Bin that is not in this build. I can either cut that paragraph or hold the release until the bin lands.', '']
+    .concat(Array.from({ length: 14 }, function (_, i) { return 'Detail line ' + (i + 1) + ': the measurements and file names that back the three points above, kept here so you can check them without opening the group.'; }))
+    .concat(['', 'I will wait for your answer before touching the release branch.']).join('\n');
+  var R = {
+    r101: { id: 'request:101', kind: 'request', asker: 'Release Engineer', group: 'Release 2.0.2', workspace: 'studio', asked: '15 Nov, 09:12', replyTo: 'Release 2.0.2, as a reply to Release Engineer',
+      questions: [
+        { n: 1, text: 'Should 2.0.2 ship with the shortened publish step, or keep the current one and ship the fix in 2.0.3?', rec: 'Ship the shortened step in 2.0.2. It is covered by the publish suite and halves the slowest page.', choices: ['Ship it in 2.0.2', 'Hold it for 2.0.3'] },
+        { n: 2, text: 'The notes mention the Recycle Bin, which is not in this build. Cut the paragraph or hold the release?', rec: 'Cut the paragraph and ship on time.', choices: [] }],
+      before: [{ from: 'Dinah Team Lead', at: '09:00', text: 'Release Engineer, Paul wants two answers from you before the candidate.' }] },
+    m102: { id: 'mention:102', kind: 'mention', asker: 'Dinah Design Review', group: 'Dinah Desktop Team', workspace: 'studio', asked: '15 Nov, 09:40', replyTo: 'Dinah Desktop Team, as a reply to Dinah Design Review', text: longMessage, lines: 24,
+      before: [{ from: 'Dinah Team Lead', at: '09:30', text: 'Design Review, please look at the release candidate before Release Engineer cuts it.' },
+        { from: 'Release Engineer', at: '09:35', text: 'Candidate is on the branch. The publish fix is in, the notes are not final.\nI will wait for Design Review.' }] },
+    r103: { id: 'request:103', kind: 'request', asker: 'Harbor Companion Lead', group: 'Harbor Companion', workspace: 'harbor', asked: '15 Nov, 10:05', replyTo: 'Harbor Companion, as a reply to Harbor Companion Lead',
+      questions: [
+        { n: 1, text: 'Which Harbor project holds customer requirements?', rec: 'Harbor, the existing project.', choices: ['Harbor', 'A new project'] },
+        { n: 2, text: 'May the agent create Harbor issues without asking each time?', rec: 'Yes, inside Harbor only.', choices: ['Yes', 'No'] },
+        { n: 3, text: 'How long should a draft page wait before it is published?', rec: 'Publish when you approve it, not on a timer.', choices: [] },
+        { n: 4, text: 'Should the trail of a requirement live on the Harbor issue?', rec: 'Yes, on the issue.', choices: [] },
+        { n: 5, text: 'Who reviews a case ID before it is used?', rec: 'Daniel Palmer.', choices: [] }],
+      before: [] },
+    r104: { id: 'request:104', kind: 'request', asker: 'Org Chart Builder', group: '', workspace: 'studio', asked: '15 Nov, 10:30', replyTo: 'Org Chart Builder, directly',
+      questions: [
+        { n: 1, text: 'Should retired chats appear on the org chart?', rec: 'Show them greyed under their last team.', choices: [], answered: 'Hide them.', answeredAt: '10:41' },
+        { n: 2, text: 'Should the chart open on the team or on the whole workspace?', rec: 'Open on the team you came from.', choices: [] }] },
+    r105: { id: 'request:105', kind: 'request', asker: 'Old Migration Agent', group: 'Migration', workspace: 'studio', asked: '15 Nov, 10:44', replyTo: 'Migration, as a reply to Old Migration Agent',
+      gone: 'Old Migration Agent was retired, so an answer can no longer reach it. Dismiss the request to close it.',
+      questions: [{ n: 1, text: 'Should the old settings file be deleted after migration?', rec: 'Keep it for 30 days.', choices: [] }], before: [] }
+  };
+  /* Questions a task owns, in the shape Front End proposed (docs/design/task-question-presentation.md on
+     frontend/task-question-ui): service and task title in place of the asking chat, the service's own
+     options, a link to the task's page or the reason there is none, and no chat, group or recommendation. */
+  R.t106 = { id: 'task:q-7f3a', kind: 'task', serviceName: 'Harbor Publisher', taskTitle: 'Publish the Harbor 07 release notes', workspace: 'harbor', asked: '15 Nov, 10:52',
+    question: 'The page has 3 comments that publishing would remove. How should the task continue?',
+    options: [{ name: 'Publish, and keep the comments on a child page', kind: 'allow_once' }, { name: 'Publish, and remove the comments', kind: 'allow_once' }, { name: 'Do not publish', kind: 'reject_once' }], target: true };
+  R.t107 = Object.assign({}, R.t106, { id: 'task:q-81c0', taskTitle: 'Refresh the Harbor architecture diagrams', asked: '15 Nov, 11:03', question: 'Two diagrams are newer on the page than in the workspace. Replace them?',
+    options: [{ name: 'Replace both', kind: 'allow_once' }, { name: 'Keep the page versions', kind: 'reject_once' }], target: false, targetReason: 'Harbor Publisher did not give a page for this task.' });
+  /* Typed task questions (Engine's contract, docs/design/typed-task-questions.md on
+     engine/typed-task-questions): free text with an explicit length limit, counted in
+     Unicode characters as the host counts them, and multiple selection with a minimum
+     and a maximum. The service gives the bounds; Dinah never adds its own. */
+  R.t112 = { id: 'task:q-9b21', kind: 'task', serviceName: 'Flow', taskTitle: 'Prepare a Gap Analysis', workspace: 'harbor', asked: '15 Nov, 11:08', target: true,
+    question: 'What should the gap list leave out? Name any areas or requirements the customer has already ruled out.',
+    answer: { type: 'text', minLength: 1, maxLength: 280 } };
+  R.t113 = { id: 'task:q-9b22', kind: 'task', serviceName: 'Flow', taskTitle: 'Prepare a Gap Analysis', workspace: 'harbor', asked: '15 Nov, 11:09', target: true,
+    question: 'Which areas should the gap list cover first?',
+    answer: { type: 'multiple', minSelections: 1, maxSelections: 2, options: [{ optionId: 'checkout', name: 'Checkout and payment' }, { optionId: 'loyalty', name: 'Loyalty' }, { optionId: 'returns', name: 'Returns' }, { optionId: 'reporting', name: 'Reporting' }] } };
+  /* Requests that join while the mockup is used (Try, A New Request Arrives), and the
+     next page that Show More Requests brings. */
+  R.r108 = { id: 'request:108', kind: 'request', asker: 'Dinah Quality', group: 'Dinah Desktop Team', workspace: 'studio', asked: '15 Nov, 11:20', replyTo: 'Dinah Desktop Team, as a reply to Dinah Quality',
+    questions: [{ n: 1, text: 'May the browser suites run every night at 02:00?', rec: 'Yes, at 02:00, with the results in the morning summary.', choices: ['Yes, at 02:00', 'No, only when asked'] }],
+    before: [{ from: 'Dinah Team Lead', at: '11:15', text: 'Quality, ask Paul about the nightly run.' }] };
+  R.r109 = { id: 'request:109', kind: 'request', asker: 'Dinah Release', group: '', workspace: 'studio', asked: '15 Nov, 11:31', replyTo: 'Dinah Release, directly',
+    questions: [{ n: 1, text: 'Should 2.0.2 go out today or on Monday?', rec: 'Monday morning, so the first day of support is a working day.', choices: ['Today', 'Monday'] }] };
+  R.r110 = { id: 'request:110', kind: 'request', asker: 'Dinah Engine', group: 'Dinah Desktop Team', workspace: 'studio', asked: '15 Nov, 10:47', replyTo: 'Dinah Desktop Team, as a reply to Dinah Engine',
+    questions: [{ n: 1, text: 'May notifications use the documented app identity for unpackaged desktop apps?', rec: 'Yes, it is Microsoft’s documented route.', choices: [] }], before: [] };
+  R.r111 = { id: 'request:111', kind: 'request', asker: 'Dinah Front End', group: 'Dinah Desktop Team', workspace: 'studio', asked: '15 Nov, 10:49', replyTo: 'Dinah Desktop Team, as a reply to Dinah Front End',
+    questions: [{ n: 1, text: 'Should chat titles on the org chart open the chat in a new window or the existing one?', rec: 'The existing window, if the chat is already open.', choices: [] }], before: [] };
+  var ALL = ['r101', 'm102', 'r103', 'r104', 'r105'];
+  var WITH_TASKS = ALL.concat(['t106', 't107']);
+  var WITH_TYPED = ALL.concat(['t106', 't112', 't113']);
+  var ARRIVALS = ['r108', 'r109'], MORE = ['r110', 'r111'];
+
+  /* ---- Reading the requests ---- */
+  function openQs(r) { return r.questions.filter(function (q) { return !q.answered; }); }
+  function answerOf(q, d) {
+    if (!d || !d.choice) return '';
+    if (d.choice === 'rec') return q.rec;
+    if (d.choice === 'own') return (d.text || '').trim();
+    return q.choices[+d.choice.slice(1)] || '';
+  }
+  /* The host counts Unicode scalar values, not the UTF-16 units HTML's maxlength counts. */
+  function chars(text) { return Array.from(text || '').length; }
+  /* Whether a typed answer is within the bounds the service gave, and why not. */
+  function typedProblem(r, d) {
+    var a = r.answer; d = d || {};
+    if (a.type === 'text') {
+      var n = chars(d.text);
+      if (n > a.maxLength) return (n - a.maxLength) + (n - a.maxLength === 1 ? ' character' : ' characters') + ' over the limit of ' + a.maxLength + '. Shorten your answer to send it.';
+      if (n < a.minLength) return a.minLength === 1 ? 'Write an answer to send it.' : 'Write at least ' + a.minLength + ' characters to send it.';
+      return '';
+    }
+    var k = (d.picks || []).length;
+    if (k > a.maxSelections) return 'Choose at most ' + a.maxSelections + '. You chose ' + k + '.';
+    if (k < a.minSelections) return a.minSelections === a.maxSelections ? 'Choose ' + a.minSelections + ' to send your answer.' : 'Choose ' + (a.minSelections ? 'from ' + a.minSelections + ' to ' : 'up to ') + a.maxSelections + ' to send your answer.';
+    return '';
+  }
+  function readyCount(r, d) {
+    d = d || {};
+    if (r.gone) return 0;
+    if (r.kind === 'task' && r.answer) return typedProblem(r, d) ? 0 : 1;
+    if (r.kind === 'task') return d.task ? 1 : 0;
+    if (r.kind === 'mention') return (d.text || '').trim() ? 1 : 0;
+    return openQs(r).filter(function (q) { return answerOf(q, d[q.n]); }).length;
+  }
+  function where(r) { return r.group || r.asker; }
+  function words(r, n) {
+    if (r.kind === 'task' && r.answer && !n) return typedProblem(r, M.drafts[M.selected]);
+    if (r.kind === 'task') return n ? 'Your answer goes to ' + r.serviceName + ', which continues the task.' : 'Choose an answer to send it.';
+    if (r.kind === 'mention') return n ? 'Your reply is ready to send.' : 'Write a reply, or dismiss the message without replying.';
+    var oq = openQs(r), open = oq.length, done = r.questions.filter(function (q) { return q.answered; });
+    if (!n && done.length) return (done.length === 1 ? 'Question ' + done[0].n + ' was answered at ' + done[0].answeredAt + '.' : done.length + ' questions were answered already.') + ' ' + (open === 1 ? 'Answer question ' + oq[0].n + ' to close the request.' : 'Answer the other ' + open + ' to close the request.');
+    if (!n) return 'Choose or write an answer to send it.';
+    if (n === open) return open === 1 ? 'The question is answered.' : open === 2 ? 'Both questions answered.' : 'All ' + open + ' questions answered.';
+    return n + ' of ' + open + ' answered. ' + (open - n === 1 ? 'The other one stays open until you answer it.' : 'The other ' + (open - n) + ' stay open until you answer them.');
+  }
+  function now() { var d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  function matches(r, f) {
+    f = (f || '').trim().toLowerCase(); if (!f) return true;
+    return [r.asker, r.group, r.workspace, r.serviceName, r.taskTitle, r.question, r.text].concat((r.questions || []).map(function (q) { return q.text; })).join(' ').toLowerCase().indexOf(f) >= 0;
+  }
+
+  /* ---- The model. Every state below is a starting point; from there the page is live. ---- */
+  var M;
+  function visible() { return M.open.filter(function (k) { return matches(R[k], M.filter); }); }
+  function canSend(r) { return M.view === 'request' && !M.phase && !r.gone && readyCount(r, M.drafts[M.selected]) > 0; }
+  function footStatus(r) {
+    if (M.view === 'record') {
+      var c = M.closed[M.selected];
+      if (c.how === 'withdrawn') return { glyph: 'info', text: (r.kind === 'task' ? r.serviceName : r.asker) + ' withdrew this at ' + c.at + '. It is closed and shown here as a record.' };
+      return { text: c.how === 'dismissed' ? 'You dismissed this at ' + c.at + '. No ' + (r.kind === 'mention' ? 'reply' : 'answer') + ' was sent. It is closed and shown here as a record.' : 'You sent ' + (r.kind === 'mention' ? 'this reply' : r.kind === 'task' ? 'this answer' : 'these answers') + ' at ' + c.at + '. It is closed and shown here as a record.' };
+    }
+    if (M.phase === 'sending') return { glyph: 'working', text: r.kind === 'task' ? 'Sending your answer to ' + r.serviceName + '.' : r.kind === 'mention' ? 'Sending your reply to ' + r.group + '.' : 'Sending your answers to ' + where(r) + '.' };
+    if (M.phase === 'unconfirmed') return { tone: 'warn', glyph: 'warning', text: 'Dinah could not confirm the answers were sent. They are kept here. Check before sending again.' };
+    if (M.phase === 'checking') return { glyph: 'working', text: 'Checking whether your answers arrived.' };
+    if (M.phase === 'changed') return { tone: 'warn', glyph: 'warning', text: r.asker + ' changed this request after you started. Read it again before sending.' };
+    if (r.gone) return { tone: 'warn', glyph: 'warning', text: 'An answer cannot be delivered. Dismissing closes the request.' };
+    if (M.status) return M.status;
+    return { text: words(r, readyCount(r, M.drafts[M.selected])) };
+  }
+
+  /* ---- Drawing ---- */
+  function rowState(r) {
+    if (r.kind === 'task') return h('span', { class: 'badge', text: 'Task' });
+    if (r.gone) return h('span', { class: 'badge warn', text: 'Cannot be delivered' });
+    if (r.kind === 'mention') return h('span', { class: 'badge', text: 'Message' });
+    var open = openQs(r).length;
+    var text = open === r.questions.length ? (open === 1 ? '1 question' : open + ' questions') : open + ' of ' + r.questions.length + ' still open';
+    return h('span', { class: 'badge accent', text: text });
+  }
+  function listPane() {
+    var ids = visible(), total = M.open.length, rows = h('ul', { class: 'row-list decisions-rows', 'aria-label': 'Open Requests' });
+    ids.forEach(function (key) {
+      var r = R[key], title = r.kind === 'task' ? r.question : r.kind === 'mention' ? r.text.split('\n')[0] : openQs(r)[0].text;
+      rows.append(h('li', { class: 'md-row', 'data-row': key }, h('a', { class: 'md-item', href: '?request=' + encodeURIComponent(r.id), 'data-key': key, 'aria-current': M.view === 'request' && M.selected === key ? 'true' : false },
+        h('span', { class: 'decisions-row-title', text: title }),
+        h('span', { class: 'md-meta', text: (r.kind === 'task' ? r.serviceName + ', for ' + r.taskTitle : r.asker + (r.group ? ' in ' + r.group : ', directly')) + ' · ' + r.workspace }),
+        h('span', { class: 'md-meta decisions-row-state' }, rowState(r), h('time', { text: r.asked.replace('15 Nov, ', '') }))),
+        actionsButton('Actions for ' + (r.kind === 'task' ? r.taskTitle : r.asker))));
+    });
+    if (!ids.length && M.filter) {
+      rows.append(h('li', {}, h('div', { class: 'empty-state', style: '--glyph: var(--glyph-search)' },
+        h('p', { class: 'empty-state-title', text: 'No Matching Requests' }),
+        h('p', { class: 'empty-state-body', text: 'No open request mentions “' + M.filter.trim() + '”. ' + total + ' open ' + (total === 1 ? 'request is' : 'requests are') + ' hidden by the filter.' }),
+        h('div', { class: 'empty-state-actions' }, h('button', { class: 'btn btn-sm', type: 'button', 'data-act': 'clear-filter', text: 'Clear Filter' })))));
+    } else if (M.more) {
+      rows.append(h('li', { class: 'decisions-list-more' }, h('button', { class: 'btn btn-sm', type: 'button', 'data-act': 'more', text: 'Show More Requests' })));
+    } else if (ids.length) {
+      rows.append(h('li', {}, h('p', { class: 'decisions-list-end', text: M.filter ? 'Showing ' + ids.length + ' of ' + total + ' open requests.' : 'That is every open request.' })));
+    }
+    var count = M.filter ? ids.length + ' of ' + total : String(total);
+    return h('nav', { class: 'md-sidebar', 'aria-label': 'Open Requests' },
+      h('div', { class: 'md-sidebar-head' },
+        h('form', { role: 'search', class: 'md-filter-group' }, h('input', { class: 'md-filter', id: 'filter', type: 'search', placeholder: 'Filter Requests', 'aria-label': 'Filter Requests', value: M.filter || '', autocomplete: 'off' }), h('button', { class: 'icon-btn md-filter-go', type: 'submit', 'aria-label': 'Filter' })),
+        h('h3', { class: 'md-section-label' }, 'Open Requests', h('span', { class: 'badge', text: count }))),
+      rows);
+  }
+
+  /* A row's actions button, always shown and a Tab stop (Paul: PUDL does not hide
+     controls). Marking it prepared stops pudl-menu.js taking it out of the Tab order. */
+  function actionsButton(label) { var b = h('button', { type: 'button', 'data-row-actions': '', 'aria-label': label }); b.__pudlRowActions = true; return b; }
+  /* Every entry offers the same commands. One that cannot apply is disabled with its
+     reason, never left out. */
+  function rowCommands(key) {
+    var r = R[key], task = r.kind === 'task';
+    function cmd(label, ok, run, danger) { return ok === true ? { label: label, run: run, danger: !!danger } : { label: label, disabled: true, reason: ok, danger: !!danger }; }
+    return [
+      cmd('Open', true, function () { select(key); }),
+      '-',
+      cmd('Open Chat', task ? 'A task question comes from a service, not a chat.' : r.gone ? 'The chat that asked was retired.' : true, function () { note('In Dinah this opens the chat ' + r.asker + '.'); }),
+      cmd('Open Group', task ? 'A task question is not asked in a group.' : !r.group ? 'Asked directly, not in a group.' : true, function () { note('In Dinah this opens the group ' + r.group + '.'); }),
+      cmd('Open Task', !task ? 'Only a question from a task has a task to open.' : !r.target ? r.targetReason : true, function () { note('In Dinah this opens the task’s page.'); }),
+      '-',
+      cmd(r.kind === 'mention' ? 'Dismiss Message…' : r.kind === 'task' ? 'Dismiss Question…' : 'Dismiss Request…', true, function () { askDismiss(key); }, true)
+    ];
+  }
+  function disclosure(title, summary, body) {
+    return h('section', { class: 'card disclosure' },
+      h('div', { class: 'card-head' }, h('button', { type: 'button', class: 'card-toggle', 'aria-expanded': 'false', 'aria-label': 'Show details' }), h('h3', { class: 'card-title', text: title }), h('span', { class: 'card-summary', text: summary })),
+      h('div', { class: 'card-body', hidden: true }, body));
+  }
+  function aside(r, narrow) {
+    if (r.kind === 'task') {
+      var tAbout = h('section', { 'aria-label': 'About This Question' },
+        h('h3', { class: 'md-section-label', text: 'About This Question' }),
+        h('table', { class: 'kv-table' },
+          h('tr', {}, h('th', { text: 'Service' }), h('td', { text: r.serviceName })),
+          h('tr', {}, h('th', { text: 'Task' }), h('td', {}, r.target ? h('a', { href: '#', 'data-opens': 'the task’s page', text: r.taskTitle }) : r.taskTitle, r.target ? null : h('span', { class: 'text-muted', style: 'display:block;font-size:var(--text-sm)', text: r.targetReason }))),
+          h('tr', {}, h('th', { text: 'Workspace' }), h('td', { text: r.workspace })),
+          h('tr', {}, h('th', { text: 'Asked' }), h('td', {}, h('time', { text: r.asked }))),
+          h('tr', {}, h('th', { text: 'Answer goes to' }), h('td', { text: r.serviceName + ', which continues the task' }))));
+      return h('aside', { class: 'decisions-about', 'aria-label': 'About This Question' }, tAbout);
+    }
+    var about = h('section', { 'aria-label': 'About This Request' },
+      h('h3', { class: 'md-section-label', text: 'About This Request' }),
+      h('table', { class: 'kv-table' },
+        h('tr', {}, h('th', { text: 'From' }), h('td', { text: r.asker })),
+        h('tr', {}, h('th', { text: r.group ? 'Group' : 'Asked' }), h('td', {}, r.group ? h('a', { href: '#', 'data-opens': 'the group ' + r.group, text: r.group }) : 'Directly, not in a group')),
+        h('tr', {}, h('th', { text: 'Workspace' }), h('td', { text: r.workspace })),
+        h('tr', {}, h('th', { text: 'Asked' }), h('td', {}, h('time', { text: r.asked }))),
+        h('tr', {}, h('th', { text: 'Reply goes to' }), h('td', { text: r.replyTo }))));
+    var before = null;
+    if (r.group) {
+      var items = (r.before || []);
+      before = h('section', { 'aria-label': 'Earlier in ' + r.group },
+        h('h3', { class: 'md-section-label', text: 'Earlier in ' + r.group }),
+        items.length ? h('ol', { class: 'decisions-before' }, items.map(function (m) {
+          return h('li', {}, h('div', { class: 'decisions-before-meta' }, h('strong', { text: m.from }), h('time', { text: m.at })), h('p', { text: m.text }), h('a', { href: '#', 'data-opens': 'the group ' + r.group + ' at this message', text: 'Open in Group' }));
+        })) : h('p', { class: 'text-muted', style: 'margin:0;font-size:var(--text-sm)', text: 'Nothing was said in the group before this request.' }));
+    }
+    return h('aside', { class: 'decisions-about', 'aria-label': 'About This Request' }, about, before);
+  }
+
+  function question(r, q, draft, record) {
+    var f = h('fieldset', { class: 'decisions-question' });
+    f.append(h('legend', { class: 'md-section-label' }, 'Question ' + q.n + ' of ' + r.questions.length, q.changed ? h('span', { class: 'badge warn', style: 'margin-inline-start:var(--space-2)', text: 'Changed' }) : null));
+    f.append(h('p', { class: 'decisions-question-text', text: q.text }));
+    var sent = record && record.answers && record.answers[q.n];
+    if (q.answered || sent) {
+      var a = sent || { text: q.answered, at: q.answeredAt };
+      f.append(h('p', { class: 'decisions-answered' }, h('span', { class: 'badge positive', text: 'Answered ' + a.at }), h('span', { text: a.text })));
+      return f;
+    }
+    f.append(h('p', { class: 'decisions-recommendation' }, h('strong', { text: 'Recommended' }), q.rec));
+    if (r.gone || record) return f;
+    var d = (draft || {})[q.n] || {}, name = 'answer-' + q.n;
+    var opts = h('div', { class: 'form-options', role: 'radiogroup', 'aria-label': 'Answer to question ' + q.n });
+    function opt(label, value) { return h('label', { class: 'check' }, h('input', { type: 'radio', name: name, value: value, checked: d.choice === value ? true : false }), ' ' + label); }
+    opts.append(opt('As recommended', 'rec'));
+    q.choices.forEach(function (c, i) { opts.append(opt(c, 'c' + i)); });
+    opts.append(opt('My own answer', 'own'));
+    f.append(opts);
+    var area = h('textarea', { class: 'form-textarea', id: name + '-text', 'aria-label': 'Your own answer to question ' + q.n, placeholder: 'Write your own answer. Typing here chooses My own answer.' });
+    area.value = d.text || '';
+    f.append(h('div', { class: 'decisions-own' }, area));
+    return f;
+  }
+
+  /* A typed answer's controls, the same in Decisions and in a Notifications card (prefix
+     tells them apart). Below them is one line that is always there, so nothing moves while
+     answering: how many characters are used of the limit, or how many options are chosen. */
+  function typedControls(r, draft, prefix, labelled) {
+    var a = r.answer, d = draft || {}, id = prefix + 'answer-task';
+    var count = h('p', { class: 'decisions-count', id: id + '-count', 'aria-live': 'polite' });
+    fillCount(count, r, d);
+    if (a.type === 'text') {
+      var area = h('textarea', { class: 'form-textarea', id: id + '-text', rows: 4, 'aria-describedby': id + '-count', 'aria-label': labelled ? null : 'Your answer', 'aria-required': a.minLength > 0 ? 'true' : false });
+      area.value = d.text || '';
+      return labelled ? [h('label', { class: 'form-label', for: id + '-text', text: 'Your Answer' }), area, count] : [area, count];
+    }
+    var box = h('div', { class: 'form-options', role: 'group', 'aria-label': 'Answer', 'aria-describedby': id + '-count' }, a.options.map(function (o) {
+      return h('label', { class: 'check' }, h('input', { type: 'checkbox', name: id + '-pick', value: o.optionId, checked: (d.picks || []).indexOf(o.optionId) >= 0 ? true : false }), ' ' + o.name);
+    }));
+    return [box, count];
+  }
+  function fillCount(p, r, d) {
+    var a = r.answer, words, over = false;
+    if (a.type === 'text') { var n = chars((d || {}).text); over = n > a.maxLength; words = n + ' of ' + a.maxLength + ' characters' + (over ? ', ' + (n - a.maxLength) + ' over the limit.' : a.minLength > 0 ? '. An answer is required.' : '. An empty answer is allowed.'); }
+    else { var k = ((d || {}).picks || []).length; over = k > a.maxSelections; words = (a.minSelections === a.maxSelections ? 'Choose ' + a.maxSelections : 'Choose ' + (a.minSelections ? a.minSelections + ' to ' : 'up to ') + a.maxSelections) + '. ' + k + ' chosen.'; }
+    var sig = (over ? '!' : '') + words; if (p.dataset.sig === sig) return; p.dataset.sig = sig;
+    p.replaceChildren(); if (over) p.append(glyph('warning')); p.append(h('span', { text: words }));
+    if (over) p.dataset.tone = 'danger'; else delete p.dataset.tone;
+  }
+  function mention(r, draft, expanded, record) {
+    var f = h('div', { class: 'decisions-main' });
+    f.append(h('section', { 'aria-label': 'Message' },
+      h('h3', { class: 'md-section-label', style: 'padding:0;margin:0 0 var(--space-2)', text: 'Message' }),
+      h('p', { class: 'decisions-message-from' }, h('strong', { text: r.asker }), ' wrote to you in ' + r.group + ' at ', h('time', { text: r.asked.replace('15 Nov, ', '') }), '.'),
+      h('blockquote', { class: 'decisions-message', 'data-folded': expanded ? 'false' : 'true', text: r.text }),
+      h('button', { class: 'link', type: 'button', 'data-act': 'fold', 'aria-expanded': expanded ? 'true' : 'false', text: expanded ? 'Fold the Message' : 'Show the Whole Message (' + r.lines + ' lines)' })));
+    if (record) {
+      if (record.reply) f.append(h('section', { 'aria-label': 'Your Reply' }, h('h3', { class: 'md-section-label', style: 'padding:0;margin:0 0 var(--space-2)', text: 'Your Reply' }), h('p', { class: 'decisions-answered' }, h('span', { class: 'badge positive', text: 'Sent ' + record.at }), h('span', { text: record.reply }))));
+      return f;
+    }
+    var area = h('textarea', { class: 'form-textarea', id: 'reply', rows: 5 }); area.value = (draft || {}).text || '';
+    f.append(h('div', { class: 'form-group' }, h('label', { class: 'form-label', for: 'reply', text: 'Your Reply' }), area));
+    return f;
+  }
+
+  function fillStatus(p, st) {
+    var sig = JSON.stringify(st); if (p.dataset.sig === sig) return; p.dataset.sig = sig;
+    p.replaceChildren();
+    if (st.tone) p.dataset.tone = st.tone; else delete p.dataset.tone;
+    if (st.glyph) p.append(glyph(st.glyph));
+    p.append(h('span', { text: st.text || '' }));
+    if (st.link) p.append(h('button', { class: 'link', type: 'button', 'data-act': st.act, text: st.link }));
+  }
+  function btn(text, act, primary, disabled) { return h('button', { class: primary ? 'btn btn-primary' : 'btn', type: 'button', 'data-act': act, disabled: disabled ? true : false, text: text }); }
+  function foot(r) {
+    var status = h('p', { class: 'decisions-foot-status', role: 'status' }); fillStatus(status, footStatus(r));
+    var actions = h('div', { class: 'decisions-foot-actions' });
+    if (M.view === 'record') actions.append(btn('Back to Open Requests', 'back'));
+    else {
+      if (M.phase === 'unconfirmed') actions.append(btn('Check Send Result', 'check'));
+      if (M.phase === 'changed') actions.append(btn('I Have Read the Change', 'ack'));
+      actions.append(btn(r.kind === 'mention' ? 'Dismiss Message…' : r.kind === 'task' ? 'Dismiss Question…' : 'Dismiss Request…', 'dismiss', false, !!M.phase));
+      actions.append(btn(r.kind === 'task' ? 'Send Answer' : r.kind === 'mention' ? 'Send Reply' : 'Send Answers', 'send', true, !canSend(r)));
+    }
+    return h('div', { class: 'decisions-foot' }, status, actions);
+  }
+  function updateFoot() {
+    var r = R[M.selected]; if (!r) return;
+    var p = document.querySelector('.decisions-foot-status'); if (p) fillStatus(p, footStatus(r));
+    if (r.answer) { var c = document.getElementById('answer-task-count'); if (c) fillCount(c, r, M.drafts[M.selected]); }
+    var send = document.querySelector('[data-act="send"]'); if (send) { var en = canSend(r); if (send.disabled === en) send.disabled = !en; }
+  }
+
+  function detail(narrow) {
+    var key = M.selected, r = R[key], record = M.view === 'record' ? M.closed[key] : null, draft = M.drafts[key];
+    var back = h('a', { class: 'md-back', href: '?pane=list', text: 'Open Requests' });
+    var head, main;
+    if (r.kind === 'task') {
+      head = h('header', { class: 'decisions-head' }, back,
+        h('h2', { text: r.taskTitle }),
+        h('p', { class: 'decisions-head-meta' }, 'A question from ' + r.serviceName + ' · ' + r.workspace + ' · ', h('time', { text: r.asked }), r.target ? ' · ' : null, r.target ? h('a', { href: '#', 'data-opens': 'the task’s page', text: 'Open Task' }) : null),
+        r.target ? null : h('p', { class: 'decisions-head-meta', text: r.targetReason + ' You can still answer.' }));
+      var tq = h('fieldset', { class: 'decisions-question' },
+        h('legend', { class: 'md-section-label', text: 'Question from the task' }),
+        h('p', { class: 'decisions-question-text', text: r.question }));
+      if (record) tq.append(h('p', { class: 'decisions-answered' }, h('span', { class: 'badge positive', text: 'Answered ' + record.at }), h('span', { text: record.option })));
+      else if (r.answer) typedControls(r, draft, '', true).forEach(function (n) { tq.append(n); });
+      else tq.append(h('div', { class: 'form-options', role: 'radiogroup', 'aria-label': 'Answer' }, r.options.map(function (o, i) {
+        return h('label', { class: 'check' }, h('input', { type: 'radio', name: 'answer-task', value: 'o' + i, checked: (draft || {}).task === 'o' + i ? true : false }), ' ' + o.name);
+      })));
+      main = h('div', { class: 'decisions-main' }, tq);
+    } else {
+      head = h('header', { class: 'decisions-head' }, back,
+        h('h2', { text: r.asker }),
+        h('p', { class: 'decisions-head-meta' }, (r.kind === 'mention' ? 'Message for you' : r.questions.length === 1 ? 'A question for you' : r.questions.length + ' questions for you') + (r.group ? ' in ' : ' asked directly'), r.group ? h('a', { href: '#', 'data-opens': 'the group ' + r.group, text: r.group }) : null, ' · ' + r.workspace + ' · ', h('time', { text: r.asked })));
+      if (r.kind === 'mention') main = mention(r, draft, !!M.expanded[key], record);
+      else {
+        main = h('div', { class: 'decisions-main' });
+        if (r.gone && !record) main.append(h('div', { class: 'notice warn', role: 'status' }, h('div', { class: 'notice-content' }, h('p', { class: 'notice-title', text: 'This request can no longer be answered' }), h('p', { class: 'notice-body', text: r.gone }))));
+        r.questions.forEach(function (q) { main.append(question(r, q, draft, record)); });
+      }
+    }
+    if (record && record.how === 'withdrawn') main.prepend(h('div', { class: 'notice', role: 'status' }, h('div', { class: 'notice-content' },
+      h('p', { class: 'notice-title', text: (r.kind === 'task' ? r.serviceName : r.asker) + ' withdrew this ' + (r.kind === 'mention' ? 'message' : r.kind === 'task' ? 'question' : 'request') + ' at ' + record.at }),
+      h('p', { class: 'notice-body', text: 'It no longer needs an answer from you. ' + (record.why || '') }))));
+    var aboutLabel = r.kind === 'task' ? 'About This Question' : 'About This Request';
+    if (narrow && M.pane === 'about') {
+      head.querySelector('.md-back').replaceWith(h('button', { class: 'md-back link', type: 'button', 'data-act': 'about-back', text: 'Back to the ' + (r.kind === 'task' ? 'Question' : r.kind === 'mention' ? 'Message' : 'Request') }));
+      return h('section', { class: 'md-detail', 'aria-label': aboutLabel }, head, h('div', { class: 'decisions-scroll', tabindex: '0' }, h('div', { class: 'decisions-page' }, aside(r, true))), foot(r));
+    }
+    if (narrow) head.append(h('button', { class: 'btn btn-sm decisions-about-open', type: 'button', 'data-act': 'about', text: aboutLabel }));
+    var page = h('div', { class: 'decisions-page' }, main);
+    var middle = narrow ? h('div', { class: 'decisions-scroll', tabindex: '0' }, page)
+      : h('div', { class: 'decisions-split' }, h('div', { class: 'decisions-scroll', tabindex: '0' }, page), aside(r, false));
+    return h('section', { class: 'md-detail', 'aria-label': r.kind === 'task' ? 'Question' : 'Request' }, head, middle, foot(r));
+  }
+
+  function tryMenu() {
+    var sel = h('select', { class: 'form-select', 'aria-label': 'Try something in the mockup' },
+      h('option', { value: '', text: 'Try something…' }),
+      h('option', { value: 'arrive', text: 'A new request arrives' }),
+      h('option', { value: 'task', text: 'A task asks a question' }),
+      h('option', { value: 'cancel', text: 'A task is cancelled' }),
+      h('option', { value: 'change', text: 'The open request changes' }),
+      h('option', { value: 'fail', text: 'The next send is not confirmed' }),
+      h('option', { value: 'withdraw', text: 'The asking chat withdraws the open request' }),
+      h('option', { value: 'theme', text: theme === 'dark' ? 'Switch to light' : 'Switch to dark' }),
+      h('option', { value: 'restart', text: 'Start this state again' }),
+      h('option', { value: 'index', text: 'Back to the list of states' }));
+    return h('div', { class: 'mock-try' }, h('span', { class: 'text-muted', text: 'Mockup:' }), sel);
+  }
+
+  function render() {
+    var old = document.querySelector('.frame > .win'), keep = {};
+    if (old) {
+      var sc = old.querySelector('.decisions-scroll'), side = old.querySelector('.md-sidebar'), rows = old.querySelector('.decisions-rows');
+      keep = { key: old.dataset.shows, scroll: sc && sc.scrollTop, side: side && side.scrollTop, rows: rows && rows.scrollTop };
+      var a = document.activeElement; keep.focus = a && a.id; keep.caret = a && a.id === 'filter' ? a.selectionStart : null;
+    }
+    var narrow = window.innerWidth <= 640;
+    var win = h('section', { class: 'win active dinah-window', 'data-win-mode': 'maximized', role: 'dialog', 'aria-labelledby': 'win-title', 'data-shows': M.view + ':' + M.selected },
+      h('div', { class: 'win-head' }, glyph('comments'), h('h2', { class: 'win-title', id: 'win-title', text: 'Decisions' }), notesButton(), bare ? null : tryMenu()),
+      h('div', { class: 'win-body' }));
+    var root = h('div', { class: 'decisions' });
+    if (!M.selected) {
+      var done = M.done;
+      root.append(h('div', { class: 'decisions-empty' }, h('div', { class: 'empty-state' },
+        h('p', { class: 'empty-state-title', text: 'Nothing Is Waiting for You' }),
+        h('p', { class: 'empty-state-body', text: 'When an agent asks you a question or mentions you in a group, it appears here with its recommendation.' }),
+        done ? h('p', { class: 'decisions-done', role: 'status' }, glyph(done.glyph || 'check'), h('span', { text: done.text }), done.link ? h('button', { class: 'link', type: 'button', 'data-act': done.act, text: done.link }) : null) : null)));
+    } else {
+      root.append(h('div', { class: 'md-layout', 'data-md-pane': M.pane === 'list' ? 'list' : 'detail' }, h('div', { class: 'md-body' }, listPane(), detail(narrow))));
+    }
+    win.lastChild.append(root);
+    if (old) old.replaceWith(win); else document.body.append(win);
+    drawNotes();
+    var sc2 = win.querySelector('.decisions-scroll'), side2 = win.querySelector('.md-sidebar'), rows2 = win.querySelector('.decisions-rows');
+    if (sc2 && keep.key === win.dataset.shows && keep.scroll) sc2.scrollTop = keep.scroll;
+    if (side2 && keep.side) side2.scrollTop = keep.side;
+    if (rows2 && keep.rows) rows2.scrollTop = keep.rows;
+    if (keep.focus) { var f = document.getElementById(keep.focus); if (f) { f.focus({ preventScroll: true }); if (keep.caret !== null && f.setSelectionRange) f.setSelectionRange(keep.caret, keep.caret); } }
+    syncUrl();
+  }
+  function syncUrl() {
+    if (bare) return;
+    var q = new URLSearchParams();
+    q.set('state', M.start); if (theme === 'dark') q.set('theme', 'dark');
+    if (M.selected) q.set('request', R[M.selected].id);
+    if (M.view === 'record') q.set('view', 'record');
+    if (M.pane === 'list' || M.pane === 'about') q.set('pane', M.pane);
+    if (M.filter) q.set('filter', M.filter);
+    history.replaceState(null, '', '?' + q.toString());
+  }
+
+  /* ---- Notifications (a stand-in for the Notifications panel). A task question is a
+     card there too, with the same controls and the same draft as in Decisions, so an
+     answer started in one is there in the other. Answering in either settles it in both. */
+  function taskKeys() { return M.open.filter(function (k) { return R[k].kind === 'task'; }); }
+  function notesButton() {
+    var n = taskKeys().length;
+    return h('button', { type: 'button', class: 'btn btn-sm mock-notes-button', 'data-act': 'notes', 'aria-expanded': M.notes ? 'true' : 'false', 'aria-controls': 'notes' },
+      glyph('inbox'), h('span', { text: 'Notifications' }), h('span', { class: 'badge', 'data-notes-count': '', text: String(n) }));
+  }
+  function noteCard(key) {
+    var r = R[key], d = M.drafts[key] || {}, prefix = 'n-' + key + '-';
+    var controls = r.answer ? typedControls(r, d, prefix, false) : [h('div', { class: 'form-options', role: 'radiogroup', 'aria-label': 'Answer' }, r.options.map(function (o, i) {
+      return h('label', { class: 'check' }, h('input', { type: 'radio', name: prefix + 'answer-task', value: 'o' + i, checked: d.task === 'o' + i ? true : false }), ' ' + o.name);
+    }))];
+    return h('div', { class: 'notice warn mock-note-card', 'data-note': key },
+      h('div', { class: 'notice-content' },
+        h('p', { class: 'notice-title', text: r.serviceName + ' · ' + r.taskTitle }),
+        h('p', { class: 'notice-body text-muted', text: r.workspace + ' · asked ' + r.asked.replace('15 Nov, ', '') }),
+        h('p', { class: 'notice-body', text: r.question }),
+        controls,
+        h('div', { class: 'notice-actions hstack gap-2' },
+          h('button', { type: 'button', class: 'btn btn-sm btn-primary', 'data-act': 'note-answer:' + key, disabled: readyCount(r, d) ? false : true, text: 'Answer' }),
+          h('button', { type: 'button', class: 'btn btn-sm', 'data-act': 'note-open:' + key, text: 'Open in Decisions' }))));
+  }
+  function drawNotes() {
+    var old = document.getElementById('notes');
+    if (!M.notes) { if (old) old.remove(); return; }
+    var keys = taskKeys();
+    var panel = h('section', { class: 'menu-panel mock-notes', id: 'notes', 'aria-label': 'Notifications' },
+      h('div', { class: 'mock-notes-head' }, h('strong', { text: 'Notifications' }), h('button', { type: 'button', class: 'icon-btn', 'data-act': 'notes', 'aria-label': 'Close Notifications' }, glyph('close'))),
+      keys.length ? h('div', { class: 'mock-notes-list' }, keys.map(noteCard)) : h('p', { class: 'mock-notes-empty', text: 'Nothing needs you.' }));
+    if (old) {
+      var a = document.activeElement, focusId = a && old.contains(a) ? a.id || null : null, caret = a && a.selectionStart;
+      old.replaceWith(panel);
+      if (focusId) { var f = document.getElementById(focusId); if (f) { f.focus({ preventScroll: true }); if (f.setSelectionRange && caret != null) f.setSelectionRange(caret, caret); } }
+    } else document.body.append(panel);
+  }
+  /* Keeps the other surface's controls in step with a draft, without redrawing either. */
+  function syncControls(key) {
+    var r = R[key], d = M.drafts[key] || {};
+    [M.selected === key && M.view === 'request' ? '' : null, M.notes ? 'n-' + key + '-' : null].forEach(function (prefix) {
+      if (prefix === null) return;
+      var id = prefix + 'answer-task';
+      if (r.answer && r.answer.type === 'text') { var area = document.getElementById(id + '-text'); if (area && area !== document.activeElement && area.value !== (d.text || '')) area.value = d.text || ''; }
+      else if (r.answer) document.querySelectorAll('input[name="' + id + '-pick"]').forEach(function (b) { b.checked = (d.picks || []).indexOf(b.value) >= 0; });
+      else document.querySelectorAll('input[name="' + id + '"]').forEach(function (b) { b.checked = d.task === b.value; });
+      var c = document.getElementById(id + '-count'); if (c && r.answer) fillCount(c, r, d);
+    });
+    var ans = document.querySelector('[data-act="note-answer:' + key + '"]'); if (ans) ans.disabled = !readyCount(r, d);
+  }
+
+  /* ---- Mockup notes, for what happens outside Decisions ---- */
+  var toastTimer;
+  function note(text) {
+    var region = document.querySelector('.toast-region') || document.body.appendChild(h('div', { class: 'toast-region', role: 'status' }));
+    region.replaceChildren(h('div', { class: 'toast info' }, h('p', { class: 'toast-text', text: text }), h('button', { class: 'toast-close', type: 'button', 'aria-label': 'Dismiss', 'data-act': 'close-note' })));
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { region.replaceChildren(); }, 4000);
+  }
+
+  /* ---- What the reader does ---- */
+  function select(key) {
+    M.token++; M.selected = key; M.view = 'request'; M.status = null; M.phase = null; M.pane = 'detail';
+    render();
+    var sc = document.querySelector('.decisions-scroll'); if (sc) sc.scrollTop = 0;
+  }
+  function readDraft() {
+    var key = M.selected, r = R[key]; if (!r || M.view !== 'request') return;
+    var d = {};
+    if (r.kind === 'task' && r.answer) d = typedDraft(r, '');
+    else if (r.kind === 'task') { var t = document.querySelector('input[name="answer-task"]:checked'); if (t) d.task = t.value; }
+    else if (r.kind === 'mention') { var rep = document.getElementById('reply'); d.text = rep ? rep.value : ''; }
+    else openQs(r).forEach(function (q) {
+      var picked = document.querySelector('input[name="answer-' + q.n + '"]:checked'), text = document.getElementById('answer-' + q.n + '-text');
+      d[q.n] = { choice: picked ? picked.value : '', text: text ? text.value : '' };
+    });
+    M.drafts[key] = d;
+  }
+  function typedDraft(r, prefix) {
+    var id = prefix + 'answer-task';
+    if (r.answer.type === 'text') { var area = document.getElementById(id + '-text'); return { text: area ? area.value : '' }; }
+    return { picks: Array.from(document.querySelectorAll('input[name="' + id + '-pick"]:checked')).map(function (b) { return b.value; }) };
+  }
+  /* What a typed answer says in the record: the text as written, or the chosen options in
+     the order the service offered them. */
+  function typedRecord(r, d) {
+    if (r.answer.type === 'text') return d.text ? d.text : '(an empty answer)';
+    return r.answer.options.filter(function (o) { return (d.picks || []).indexOf(o.optionId) >= 0; }).map(function (o) { return o.name; }).join(', ') || '(nothing chosen)';
+  }
+  function send() {
+    var key = M.selected, r = R[key]; if (!canSend(r)) return;
+    M.phase = 'sending'; M.status = null; render();
+    var token = ++M.token;
+    setTimeout(function () {
+      if (M.token !== token) return;
+      if (M.failNext) { M.failNext = false; M.phase = 'unconfirmed'; render(); return; }
+      deliver(key);
+    }, 900);
+  }
+  function deliver(key) {
+    var r = R[key], d = M.drafts[key] || {}, at = now();
+    M.phase = null;
+    if (r.kind === 'task') return close(key, { how: 'sent', at: at, option: r.answer ? typedRecord(r, d) : r.options[+d.task.slice(1)].name }, { tone: 'positive', glyph: 'check', text: 'Your answer was sent to ' + r.serviceName + ', which continues the task ' + r.taskTitle + '.', link: 'Show the Answer' });
+    if (r.kind === 'mention') return close(key, { how: 'sent', at: at, reply: d.text.trim() }, { tone: 'positive', glyph: 'check', text: 'Your reply was sent to ' + r.asker + ' in ' + r.group + '.', link: 'Show the Reply' });
+    var sent = {};
+    openQs(r).forEach(function (q) { var a = answerOf(q, d[q.n]); if (a) sent[q.n] = a; });
+    var nSent = Object.keys(sent).length, left = openQs(r).length - nSent;
+    if (left > 0) {
+      /* A partial answer keeps the request open. The answered questions show their answer and time. */
+      openQs(r).forEach(function (q) { if (sent[q.n]) { q.answered = sent[q.n]; q.answeredAt = at; delete d[q.n]; } });
+      M.status = { tone: 'positive', glyph: 'check', text: (nSent === 1 ? 'Your answer was' : 'Your ' + nSent + ' answers were') + ' sent to ' + where(r) + '. ' + (left === 1 ? 'The other question stays open.' : 'The other ' + left + ' stay open.') };
+      return render();
+    }
+    var answers = {};
+    r.questions.forEach(function (q) { answers[q.n] = q.answered ? { text: q.answered, at: q.answeredAt } : { text: sent[q.n], at: at }; });
+    close(key, { how: 'sent', at: at, answers: answers }, { tone: 'positive', glyph: 'check', text: 'Your answers were sent to ' + r.asker + (r.group ? ' in ' + r.group : '') + '.', link: 'Show Answers' });
+  }
+  /* A finished request leaves the list, and the next one opens in its place. */
+  function close(key, record, status) {
+    M.closed[key] = record;
+    var before = visible(), i = before.indexOf(key);
+    M.open = M.open.filter(function (k) { return k !== key; });
+    delete M.drafts[key];
+    var after = visible(), next = (i >= 0 && (after[i] || after[i - 1])) || after[0] || M.open[0] || null;
+    if (status.link) status.act = 'record:' + key;
+    M.token++; M.phase = null; M.view = 'request';
+    if (next) { M.selected = next; M.status = status; M.done = null; }
+    else { M.selected = null; M.status = null; M.done = status; M.pane = 'detail'; }
+    render();
+    var sc = document.querySelector('.decisions-scroll'); if (sc) sc.scrollTop = 0;
+  }
+  function askDismiss(which) {
+    var key = which || M.selected, r = R[key], isMsg = r.kind === 'mention', isTask = r.kind === 'task';
+    var opener = document.activeElement;
+    var told = r.gone ? 'The chat that asked was retired, so nobody can be told.' : isTask ? r.serviceName + ' is told you dismissed it, with no answer, and the task decides what happens next.' : r.asker + ' is told you dismissed it, so it does not wait for you.';
+    var dlg = h('dialog', { class: 'dialog', id: 'ask', 'aria-labelledby': 'dlg-title' },
+      h('h3', { class: 'dialog-title', id: 'dlg-title', text: isMsg ? 'Dismiss This Message?' : isTask ? 'Dismiss This Question?' : 'Dismiss This Request?' }),
+      h('p', { class: 'dialog-body', text: (isMsg ? 'No reply is sent' : 'No answer is sent') + ', and it leaves Decisions. ' + told + ' Use this when you have dealt with it elsewhere, or it can no longer be answered.' }),
+      h('form', { class: 'dialog-actions', method: 'dialog' }, h('button', { class: 'btn', value: 'cancel', text: 'Cancel' }), h('button', { class: 'btn btn-danger', value: 'yes', text: 'Dismiss' })));
+    dlg.addEventListener('close', function () {
+      var yes = dlg.returnValue === 'yes'; dlg.remove();
+      var from = isTask ? r.serviceName : r.asker;
+      if (yes) close(key, { how: 'dismissed', at: now() }, { tone: 'positive', glyph: 'check', text: (isMsg ? 'You dismissed the message from ' : isTask ? 'You dismissed the question from ' : 'You dismissed the request from ') + from + '. ' + (isMsg ? 'No reply was sent.' : 'No answer was sent.'), link: isMsg ? 'Show the Message' : isTask ? 'Show the Question' : 'Show the Request' });
+      else if (opener && opener.isConnected) opener.focus();
+      else { var b = document.querySelector('[data-act="dismiss"]'); if (b) b.focus(); }
+    });
+    document.body.append(dlg); dlg.showModal();
+  }
+
+  function act(name, el) {
+    var r = R[M.selected];
+    if (name === 'send') return send();
+    if (name === 'about') { M.pane = 'about'; render(); var bk = document.querySelector('[data-act="about-back"]'); if (bk) bk.focus(); return; }
+    if (name === 'about-back') { M.pane = 'detail'; render(); var ab = document.querySelector('[data-act="about"]'); if (ab) ab.focus(); return; }
+    if (name === 'dismiss') return askDismiss();
+    if (name === 'check') { M.phase = 'checking'; render(); var token = ++M.token, key = M.selected; return setTimeout(function () { if (M.token === token) deliver(key); }, 900); }
+    if (name === 'ack') { r.questions.forEach(function (q) { delete q.changed; }); M.phase = null; return render(); }
+    if (name === 'back') { M.view = 'request'; M.selected = M.open.filter(function (k) { return matches(R[k], M.filter); })[0] || M.open[0] || null; M.status = null; if (!M.selected) M.pane = 'detail'; return render(); }
+    if (name === 'clear-filter') { M.filter = ''; return render(); }
+    if (name === 'more') { M.open = M.open.concat(MORE.filter(function (k) { return M.open.indexOf(k) < 0 && !M.closed[k]; })); M.more = false; return render(); }
+    if (name === 'close-note') { var reg = document.querySelector('.toast-region'); if (reg) reg.replaceChildren(); return; }
+    if (name === 'fold') {
+      var quote = document.querySelector('.decisions-message'), open = el.getAttribute('aria-expanded') !== 'true';
+      M.expanded[M.selected] = open; quote.dataset.folded = String(!open); el.setAttribute('aria-expanded', String(open));
+      el.textContent = open ? 'Fold the Message' : 'Show the Whole Message (' + r.lines + ' lines)';
+      return;
+    }
+    if (name === 'notes') { M.notes = !M.notes; render(); var nb = document.querySelector('[data-act="notes"]'); if (nb && !M.notes) nb.focus(); return; }
+    if (name.indexOf('note-open:') === 0) { M.notes = false; return select(name.slice(10)); }
+    if (name.indexOf('note-answer:') === 0) {
+      var nk = name.slice(12), nr = R[nk], nd = M.drafts[nk] || {}; if (!readyCount(nr, nd)) return;
+      return close(nk, { how: 'sent', at: now(), option: nr.answer ? typedRecord(nr, nd) : nr.options[+nd.task.slice(1)].name },
+        { tone: 'positive', glyph: 'check', text: 'Your answer from Notifications was sent to ' + nr.serviceName + ', which continues the task ' + nr.taskTitle + '. It left Decisions too.', link: 'Show the Answer' });
+    }
+    if (name.indexOf('record:') === 0) { M.selected = name.slice(7); M.view = 'record'; M.status = null; M.pane = 'detail'; render(); var sc = document.querySelector('.decisions-scroll'); if (sc) sc.scrollTop = 0; return; }
+  }
+
+  function tryIt(what) {
+    var r = R[M.selected];
+    if (what === 'restart') { location.search = '?state=' + M.start + (theme === 'dark' ? '&theme=dark' : ''); return; }
+    if (what === 'index') { location.search = '?state=index'; return; }
+    if (what === 'theme') { theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', theme); render(); return; }
+    if (what === 'arrive' || what === 'task') {
+      var pool = what === 'arrive' ? ARRIVALS : ['t112', 't113', 't106', 't107'];
+      var k = pool.filter(function (x) { return M.open.indexOf(x) < 0 && !M.closed[x]; })[0];
+      if (!k) return note('Every invented ' + (what === 'arrive' ? 'request' : 'task question') + ' has already arrived. Start this state again to see it once more.');
+      M.open.push(k);
+      if (!M.selected) { M.selected = k; M.view = 'request'; M.status = null; }
+      render();
+      return note((R[k].kind === 'task' ? R[k].serviceName + ' asked a question for ' + R[k].taskTitle : R[k].asker + ' asked a question') + '. It joined the end of the list, so nothing above it moved.');
+    }
+    if (what === 'cancel') {
+      var t = R[M.selected] && R[M.selected].kind === 'task' && M.view === 'request' ? M.selected : M.open.filter(function (x) { return R[x].kind === 'task'; })[0];
+      if (!t) return note('No task question is open. Choose A Task Asks a Question first.');
+      var info = { glyph: 'info', text: 'The task ' + R[t].taskTitle + ' was cancelled, so its question closed. No answer was sent.' };
+      if (t === M.selected) return close(t, { how: 'cancelled', at: now() }, info);
+      M.open = M.open.filter(function (x) { return x !== t; }); M.closed[t] = { how: 'cancelled', at: now() };
+      render(); return note(info.text + ' Its row left the list.');
+    }
+    if (what === 'change') {
+      if (!r || M.view !== 'request' || r.kind !== 'request' || r.gone || !openQs(r).length) return note('Open a request that has questions still open first.');
+      var q = openQs(r)[0]; if (!q.changed) { q.text = q.text.replace(/\?$/, '') + ', now that the release moved to Monday?'; q.changed = true; }
+      M.token++; M.phase = 'changed'; M.status = null; return render();
+    }
+    if (what === 'fail') { M.failNext = true; return note('The next Send will not be confirmed, so you can see what Dinah says then.'); }
+    if (what === 'withdraw') {
+      if (!r || M.view !== 'request' || r.gone) return note('Open a request whose chat can still withdraw it first.');
+      var by = r.kind === 'task' ? r.serviceName : r.asker, wkey = M.selected;
+      return close(wkey, { how: 'withdrawn', at: now(), why: by + ' said it was settled elsewhere.' }, { glyph: 'info', text: by + ' withdrew its ' + (r.kind === 'mention' ? 'message' : r.kind === 'task' ? 'question' : 'request') + ', so it no longer needs an answer. Anything you had typed for it is gone.', link: 'Show What Was Withdrawn' });
+    }
+  }
+
+  /* ---- The states. Each has a key, a title for the index, and where it starts. ---- */
+  var S = [
+    { key: 'empty', title: 'No open requests', list: [] },
+    { key: 'one', title: 'One request, nothing typed yet', list: ['r101'], selected: 'r101' },
+    { key: 'several', title: 'Several requests, the oldest open', list: ALL, selected: 'r101' },
+    { key: 'answering', title: 'Answering: own words for one, As Recommended for the other', list: ALL, selected: 'r101', draft: { 1: { choice: 'own', text: 'Ship it in 2.0.2, and tell me the timing after.' }, 2: { choice: 'rec' } }, focus: '#answer-1-text' },
+    { key: 'multi', title: 'Five questions, two answered so far', list: ALL, selected: 'r103', draft: { 1: { choice: 'c0' }, 3: { choice: 'own', text: 'Publish when I approve it.' } } },
+    { key: 'partly', title: 'Partly answered earlier', list: ALL, selected: 'r104' },
+    { key: 'message', title: 'A plain message with a long quote, folded', list: ALL, selected: 'm102' },
+    { key: 'message-open', title: 'The same message, opened in place', list: ALL, selected: 'm102', expanded: true, draft: { text: 'Cut the paragraph and ship on time. Leave the shortcut name for 2.0.3.' }, scrollTo: 'end' },
+    { key: 'retired', title: 'The asking chat was retired', list: ALL, selected: 'r105' },
+    { key: 'sending', title: 'Sending', list: ALL, selected: 'r101', draft: { 1: { choice: 'own', text: 'Ship it in 2.0.2, and tell me the timing after.' }, 2: { choice: 'rec' } }, phase: 'sending' },
+    { key: 'unconfirmed', title: 'Sending not confirmed', list: ALL, selected: 'r101', draft: { 1: { choice: 'own', text: 'Ship it in 2.0.2, and tell me the timing after.' }, 2: { choice: 'rec' } }, phase: 'unconfirmed' },
+    { key: 'changed', title: 'The request changed while you answered', list: ALL, selected: 'r103', draft: { 1: { choice: 'c0' } }, phase: 'changed' },
+    { key: 'confirm-dismiss', title: 'Dismissing asks first', list: ALL, selected: 'm102', dialog: true },
+    { key: 'sent-leaves', title: 'A finished request leaves, and the next one opens', list: ['m102', 'r103', 'r104', 'r105'], selected: 'm102', closed: { r101: { how: 'sent', at: '11:02', answers: { 1: { text: 'Ship it in 2.0.2, and tell me the timing after.', at: '11:02' }, 2: { text: 'Cut the paragraph and ship on time.', at: '11:02' } } } }, status: { tone: 'positive', glyph: 'check', text: 'Your answers were sent to Release Engineer in Release 2.0.2.', link: 'Show Answers', act: 'record:r101' } },
+    { key: 'last-done', title: 'The last request leaves', list: [], closed: { m102: { how: 'dismissed', at: '11:05' } }, done: { tone: 'positive', glyph: 'check', text: 'You dismissed the message from Dinah Design Review. No reply was sent.', link: 'Show the Message', act: 'record:m102' } },
+    { key: 'filter', title: 'Filtering the list', list: ALL, filter: 'Harbor', selected: 'r103' },
+    { key: 'filter-none', title: 'A filter that matches nothing', list: ALL, filter: 'zzz', selected: 'r101' },
+    { key: 'task', title: 'A question a task owns', list: WITH_TASKS, selected: 't106', draft: { task: 'o0' } },
+    { key: 'task-no-page', title: 'A task question whose task has no page', list: WITH_TASKS, selected: 't107' },
+    { key: 'task-ended', title: 'A task question closes because its task was cancelled', list: ALL.concat(['t107']), selected: 'r101', closed: { t106: { how: 'cancelled', at: '11:06' } }, status: { glyph: 'info', text: 'The task Publish the Harbor 07 release notes was cancelled, so its question closed. No answer was sent.' } },
+    { key: 'earlier', title: 'More open requests than one page', list: ALL, more: true, selected: 'r101' },
+    { key: 'task-text', title: 'A task asks for words, with a length limit', list: WITH_TYPED, selected: 't112', draft: { text: 'Leave out fiscal printing; the customer keeps its current provider.' }, focus: '#answer-task-text' },
+    { key: 'task-text-over', title: 'An answer over the limit cannot be sent, and says by how much', list: WITH_TYPED, selected: 't112', draft: { text: 'Leave out fiscal printing, because the customer keeps its current fiscal provider for at least two more years and has a separate project for it, and leave out the older loyalty card scheme, which is being retired at the end of next quarter, together with any requirement that only concerns the head office reporting cube.' } },
+    { key: 'task-multiple', title: 'A task asks you to choose from 1 to 2 options', list: WITH_TYPED, selected: 't113', draft: { picks: ['checkout'] } },
+    { key: 'task-multiple-over', title: 'Too many chosen: the line says so and Send waits', list: WITH_TYPED, selected: 't113', draft: { picks: ['checkout', 'loyalty', 'returns'] } },
+    { key: 'notifications', title: 'The same task questions in Notifications', list: WITH_TYPED, selected: 't112', notes: true },
+    { key: 'row-menu', title: 'A row’s menu: the same commands for every entry, disabled with a reason where they cannot apply', list: WITH_TASKS, selected: 'r101', menu: 't107' },
+    { key: 'dismiss-task', title: 'Dismissing a task question asks first and says the service is told', list: WITH_TASKS, selected: 't106', dialog: true },
+    { key: 'withdrawn', title: 'A chat withdraws its request on its own: it leaves the list, and its record says so', list: ['r101', 'm102', 'r103', 'r105'], selected: 'r103', closed: { r104: { how: 'withdrawn', at: '10:58', why: 'Org Chart Builder said it was settled elsewhere.' } }, status: { glyph: 'info', text: 'Org Chart Builder withdrew its request, so it no longer needs an answer. Anything you had typed for it is gone.', link: 'Show What Was Withdrawn', act: 'record:r104' } },
+    { key: 'about-phone', title: 'On a phone, About This Request is its own pane, with the way back', list: ALL, selected: 'r101', pane: 'about' }
+  ];
+  window.__mockStates = S.map(function (s) { return s.key; });
+
+  /* A plain file path opens on several requests; ?state=index lists the states. */
+  var asked = params.get('state') || 'several';
+  var state = S.find(function (s) { return s.key === asked; });
+  if (!state) {
+    document.body.className = 'index';
+    document.body.append(h('h1', { text: 'Decisions redesign mockup' }),
+      h('p', { text: 'Every state below is a starting point, and from there the page works. Choose a request in the list, answer, send, dismiss, filter and open the record of a finished request. The Try menu in the title bar makes things happen that Paul cannot do from Decisions: a new request arrives, a task asks or is cancelled, the open request changes, or a send is not confirmed. It also switches between light and dark. Narrow the browser below 640 pixels to see the phone layout.' }),
+      h('p', {}, h('a', { href: '?state=several', text: 'Start with several requests' }), ' is the best place to begin.'),
+      h('ul', {}, S.map(function (s) { return h('li', {}, s.title + ': ', ['light', 'dark'].map(function (t) { return h('a', { href: '?state=' + s.key + (t === 'dark' ? '&theme=dark' : ''), text: t + ' ' }); })); })));
+    return;
+  }
+  document.body.className = 'frame';
+  M = { start: state.key, open: state.list.slice(), selected: state.selected || null, view: 'request', pane: params.get('pane') === 'list' ? 'list' : params.get('pane') === 'about' || state.pane === 'about' ? 'about' : 'detail',
+    filter: params.has('filter') ? params.get('filter') : state.filter || '', drafts: {}, expanded: {}, closed: Object.assign({}, state.closed || {}),
+    status: state.status || null, done: state.done || null, phase: state.phase || null, more: !!state.more, failNext: false, token: 0, notes: !!state.notes };
+  if (state.draft) M.drafts[state.selected] = JSON.parse(JSON.stringify(state.draft));
+  if (state.expanded) M.expanded[state.selected] = true;
+  if (state.key === 'changed') { var cq = R.r103.questions[0]; cq.text = 'Which Harbor project holds customer requirements, now that support cases also need one?'; cq.changed = true; }
+  /* A request in the address opens it, so a reload keeps the place. */
+  var wanted = params.get('request');
+  if (wanted) Object.keys(R).forEach(function (k) {
+    if (R[k].id !== wanted) return;
+    if (params.get('view') === 'record' && M.closed[k]) { M.selected = k; M.view = 'record'; M.status = null; }
+    else if (M.open.indexOf(k) >= 0 && k !== M.selected) { M.selected = k; M.status = null; M.phase = null; }
+  });
+  render();
+  if (state.dialog) askDismiss();
+  if (state.phase === 'sending' && !bare) { var tk = ++M.token, sk = M.selected; setTimeout(function () { if (M.token === tk) deliver(sk); }, 2500); }
+
+
+  document.addEventListener('click', function (event) {
+    var t = event.target;
+    var row = t.closest('a.md-item'); if (row) { event.preventDefault(); return select(row.dataset.key); }
+    if (t.closest('a.md-back')) { event.preventDefault(); M.pane = 'list'; if (M.view === 'record') { M.view = 'request'; M.selected = M.open[0] || null; } return render(); }
+    var link = t.closest('a[data-opens]'); if (link) { event.preventDefault(); return note('In Dinah this opens ' + link.dataset.opens + '.'); }
+    var toggle = t.closest('.card-toggle'); if (toggle) { var open = toggle.getAttribute('aria-expanded') !== 'true'; toggle.setAttribute('aria-expanded', String(open)); toggle.closest('.card').querySelector('.card-body').hidden = !open; return; }
+    var b = t.closest('[data-act]'); if (b && !b.disabled) return act(b.dataset.act, b);
+  });
+  document.addEventListener('submit', function (event) { if (event.target.matches('form[role="search"]')) event.preventDefault(); });
+  document.addEventListener('pudl:contextmenu', function (e) {
+    var row = e.target.closest && e.target.closest('[data-row]'); if (!row) return;
+    e.detail.add(rowCommands(row.dataset.row));
+    e.detail.mark(row);
+  });
+  document.addEventListener('change', function (event) {
+    if (event.target.matches('.mock-try select')) { var v = event.target.value; event.target.value = ''; if (v) tryIt(v); return; }
+    if (readNoteDraft(event.target)) return;
+    readDraft(); if (!M.phase) M.status = null; updateFoot(); if (M.selected) syncControls(M.selected);
+  });
+  /* Typing never redraws the page. Send depends only on whether there is an answer to send;
+     saving a draft is never shown and never disables anything. Typing in a text area
+     chooses My own answer, so nothing appears or disappears while answering. */
+  document.addEventListener('input', function (event) {
+    var el = event.target;
+    if (el.id === 'filter') { M.filter = el.value; return render(); }
+    var m = /^answer-(\d+)-text$/.exec(el.id || '');
+    if (m && el.value.trim()) { var own = document.querySelector('input[name="answer-' + m[1] + '"][value="own"]'); if (own && !own.checked) own.checked = true; }
+    if (readNoteDraft(el)) return;
+    readDraft(); if (!M.phase) M.status = null; updateFoot(); if (M.selected) syncControls(M.selected);
+  });
+  /* A Notifications card's draft is the same draft Decisions has for that question. */
+  function readNoteDraft(el) {
+    var card = el.closest && el.closest('[data-note]'); if (!card) return false;
+    var key = card.dataset.note, r = R[key], prefix = 'n-' + key + '-';
+    if (r.answer) M.drafts[key] = typedDraft(r, prefix);
+    else { var t = card.querySelector('input[name="' + prefix + 'answer-task"]:checked'); M.drafts[key] = t ? { task: t.value } : {}; }
+    syncControls(key);
+    if (key === M.selected) updateFoot();
+    return true;
+  }
+  window.addEventListener('resize', function () { var n = window.innerWidth <= 640; if (n !== render.narrow) { render.narrow = n; render(); } });
+  render.narrow = window.innerWidth <= 640;
+
+  if (state.focus) { var el = document.querySelector(state.focus); if (el) el.focus({ preventScroll: true }); }
+  if (state.scrollTo === 'end') document.fonts.ready.then(function () { var reply = document.getElementById('reply'); if (reply) reply.scrollIntoView({ block: 'center' }); document.documentElement.dataset.mockSettled = 'true'; });
+  else if (state.menu) document.fonts.ready.then(function () { setTimeout(function () { var mb = document.querySelector('[data-row="' + state.menu + '"] [data-row-actions]'); if (mb) { mb.focus(); mb.click(); } document.documentElement.dataset.mockSettled = 'true'; }, 100); });
+  else document.documentElement.dataset.mockSettled = 'true';
+}());
+</script>
+</body>
+</html>
