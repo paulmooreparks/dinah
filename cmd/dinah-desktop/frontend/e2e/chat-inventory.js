@@ -1,7 +1,7 @@
 const { launch, OUT } = require('./lib/page');
 const fs = require('fs'), path = require('path');
 (async () => {
-  const t = await launch({ ready: 'workbench', app: () => {
+  const t = await launch({ app: () => {
     const programs = ['devin','claude','codex','ollama'];
     const native = programs.flatMap(provider => [
       {sessionId:provider+':native',title:provider+' native title',cwd:'C:/Fixture',provider},
@@ -17,6 +17,7 @@ const fs = require('fs'), path = require('path');
     const rows = () => [...new Map([...local.map(c=>({sessionId:c.head,title:c.title,workspace:c.workspace,provider:c.provider})),...native.filter(r=>!r.sessionId.endsWith(':old')).map(r=>({sessionId:r.sessionId,title:r.title,workspace:r.cwd,provider:r.provider}))].map(r=>[r.sessionId,{...r,eligible:true,open:false,programCopies:[],sessionIds:[r.sessionId]}])).values()].filter(r=>!held.has(r.sessionId));
     const view = () => ({generation:'fixture',chats:local.filter(c=>!held.has(c.head)),teams:[],groups:[]});
     return {
+      SavedChats: async () => ({generation:'fixture',chats:rows().map(row=>({...row,cwd:row.workspace,chatState:local.find(chat=>chat.head===row.sessionId)?.state||{life:'unknown'}}))}),
       Sessions: async () => native.filter(r=>!held.has(r.sessionId)), SessionsAt: async () => native.filter(r=>!held.has(r.sessionId)),
       OrgChart: async () => view(),
       ListChatCleanup: async () => ({rows:rows(),removed:[...held.values()],retentionDays:30,finalDeleteConfirmation:'Erase the invented copies.'}),
@@ -27,6 +28,7 @@ const fs = require('fs'), path = require('path');
   }});
   const p=t.page, evidence=[];
   try {
+    await p.evaluate(()=>dinahWorkbench.open('chat-browser'));
     await p.locator('#chat-scope').selectOption('all');
     await p.evaluate(()=>dinahWorkbench.open('org-chart'));
     await p.evaluate(()=>dinahWorkbench.open('chat-cleanup'));
@@ -58,19 +60,21 @@ const fs = require('fs'), path = require('path');
       await p.evaluate(provider=>go.main.App.RestoreRemovedChat(provider+':native'),provider); await compare(provider+' native restore',13);
     }
     const ordering=await p.evaluate(async()=>{
-      const app=go.main.App, originalSessions=app.Sessions, originalChart=app.OrgChart; let pending=false, reads=0;
-      app.Sessions=()=>new Promise(resolve=>{pending=true;window.__finishInventory=async()=>{const rows=await originalSessions();pending=false;resolve(rows);};});
-      app.OrgChart=()=>{reads++;if(pending)throw Error('Chat ownership changed while the chart was read. Refresh the chart.');return originalChart();};
-      const request=dinahChats.refreshInventory();await Promise.resolve();const before=reads;await __finishInventory();await request;app.Sessions=originalSessions;app.OrgChart=originalChart;return {before,reads};
+      const app=go.main.App, originalInventory=app.SavedChats, originalChart=app.OrgChart; let reads=0, inventoryReads=0;
+      const before=__bridgeCalls.filter(call=>['Sessions','SessionsAt'].includes(call[0])).length;
+      app.SavedChats=()=>new Promise(resolve=>{inventoryReads++;window.__finishInventory=async()=>resolve(await originalInventory());});
+      app.OrgChart=()=>{reads++;throw Error('A passive refresh must use its captured inventory.');};
+      const request=dinahChats.refreshInventory();await Promise.resolve();await __finishInventory();await request;app.SavedChats=originalInventory;app.OrgChart=originalChart;
+      return {reads,inventoryReads,nativeReads:__bridgeCalls.filter(call=>['Sessions','SessionsAt'].includes(call[0])).length-before};
     });
-    t.ok('logical ownership is captured after native listing writes finish',ordering.before===0&&ordering.reads===1,JSON.stringify(ordering));
-    await p.evaluate(async()=>{const app=go.main.App;window.__workingChart=app.OrgChart;app.OrgChart=async()=>{throw Error('Invented inventory read failed.');};await dinahChats.refreshInventory();dinahHost.toast('An unrelated error.','danger');});
+    t.ok('passive refresh uses one captured inventory without native discovery or a separate ownership read',ordering.reads===0&&ordering.inventoryReads===1&&ordering.nativeReads===0,JSON.stringify(ordering));
+    await p.evaluate(async()=>{const app=go.main.App;window.__workingInventory=app.SavedChats;app.SavedChats=async()=>{throw Error('Invented inventory read failed.');};await dinahChats.refreshInventory();dinahHost.toast('An unrelated error.','danger');});
     const inventoryToast=p.locator('.toast-region .toast').filter({hasText:'Invented inventory read failed.'});
     t.ok('a current inventory failure is visible',await inventoryToast.count()===1);
-    await p.evaluate(async()=>{go.main.App.OrgChart=__workingChart;await dinahChats.refreshInventory();});
+    await p.evaluate(async()=>{go.main.App.SavedChats=__workingInventory;await dinahChats.refreshInventory();});
     await inventoryToast.waitFor({state:'detached'});
     t.ok('recovery dismisses only its own inventory error',await p.locator('.toast-region .toast').filter({hasText:'An unrelated error.'}).count()===1);
-    const superseded=await p.evaluate(async()=>{const app=go.main.App;app.OrgChart=()=>new Promise((resolve,reject)=>{window.__rejectInventory=reject;});const request=dinahChats.refreshInventory();while(!window.__rejectInventory)await Promise.resolve();dinahChats.restore({sessionId:'devin:native',title:'devin native title',workspace:'C:/Fixture',provider:'devin'});__rejectInventory(Error('Superseded inventory failure.'));await request;app.OrgChart=__workingChart;return [...document.querySelectorAll('.toast-text')].some(el=>el.textContent.includes('Superseded inventory failure.'));});
+    const superseded=await p.evaluate(async()=>{const app=go.main.App;app.SavedChats=()=>new Promise((resolve,reject)=>{window.__rejectInventory=reject;});const request=dinahChats.refreshInventory();while(!window.__rejectInventory)await Promise.resolve();dinahChats.restore({sessionId:'devin:native',title:'devin native title',workspace:'C:/Fixture',provider:'devin'});__rejectInventory(Error('Superseded inventory failure.'));await request;app.SavedChats=__workingInventory;return [...document.querySelectorAll('.toast-text')].some(el=>el.textContent.includes('Superseded inventory failure.'));});
     t.ok('a superseded inventory failure raises no stale toast',!superseded);
     await p.locator('#chat-scope').selectOption('current');
     await p.evaluate(()=>dinahWorkbench.setState('org-chart','workspace=c%3A%2Ffixture%2F'));
