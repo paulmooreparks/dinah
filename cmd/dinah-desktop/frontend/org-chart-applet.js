@@ -35,7 +35,9 @@
         box(e.from); box(e.to);
         function line(id, a, side, b, toSide) { edges.push({ id: id, fromNode: a, fromSide: side, fromEnd: 'none', toNode: b, toSide: toSide, toEnd: 'none', yavc: { line: e.dotted ? 'dotted' : 'solid', lineWidth: 2, route: 'straight' } }); }
         var anchors = e.points.map(function (p, index) { var id = 'route:' + e.id + ':' + index; nodes.push({ id: id, type: 'text', x: p[0], y: p[1], width: 0, height: 0, text: '', yavc: { shape: 'text', anchor: true } }); return id; });
-        line(e.id + ':start', e.from.id, e.fromSide, anchors[0], 'left');
+        var source = e.from.id;
+          if (e.dotted) { source = 'port:' + e.id; nodes.push({ id: source, type: 'text', x: Math.round(e.fromSide === 'left' ? e.from.x : e.from.x + e.from.width), y: e.start[1], width: 0, height: 0, text: '', yavc: { shape: 'text', anchor: true } }); }
+          line(e.id + ':start', source, e.fromSide, anchors[0], 'left');
         for (var index = 0; index + 1 < anchors.length; index++) line(e.id + ':' + index, anchors[index], 'right', anchors[index + 1], 'left');
         line(e.id + ':end', anchors[anchors.length - 1], 'right', e.to.id, e.toSide);
       });
@@ -70,7 +72,7 @@
         var repair = chat.resolution !== 'resolved';
         var associations = snapshot.teams.filter(function (t) { return t.resolution === 'resolved' && (t.leadId === chat.chatId || t.memberIds.includes(chat.chatId)); }).map(function (t) { return (t.leadId === chat.chatId ? 'Leads ' : 'Member of ') + t.title; }).concat(snapshot.groups.filter(function (g) { return g.resolution === 'resolved' && (g.ownerId === chat.chatId || g.memberIds.includes(chat.chatId)); }).map(function (g) { return (g.ownerId === chat.chatId ? 'Leads group ' : 'Group member of ') + g.title; }));
         el.box.setAttribute('aria-label', el.title.textContent + '. ' + el.meta.textContent + '. ' + associations.join('. ') + (repair ? '. Needs attention. ' + chat.reason : ''));
-        el.state.replaceChildren(repair ? node('span', 'org-chart-repair', '⚠ Needs attention') : window.dinahChatState.badge(chat.state, { labelled: true }));
+        el.state.replaceChildren(repair ? node('span', 'org-chart-repair', '⚠ Needs attention') : window.dinahChatState.badge(chat.state));
         el.state.title = repair ? chat.reason : '';
         var button = el.box.querySelector('[data-row-actions]');
         if (repair && button) button.remove();

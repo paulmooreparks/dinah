@@ -45,24 +45,40 @@ const { start } = require('./lib/org-chart-fixture');
       });
       ok(theme + ' connectors at ' + width + ' never cross a chat, group or fold control', crossings.length === 0, JSON.stringify(crossings));
       const groupGeometry = await chart.evaluate(root => {
-        const frames = Array.from(root.querySelectorAll('svg [data-node^="frame:"]')).map(el => el.getBoundingClientRect()), overlap = [], endpoints = [], connected = new Set();
+        const frames = Array.from(root.querySelectorAll('svg [data-node^="frame:"]')).map(el => el.getBoundingClientRect()), overlap = [], interiors = [], shared = [], endpoints = [], connected = new Set();
         function point(path, distance) { return path.getPointAtLength(distance).matrixTransform(path.getScreenCTM()); }
+        const runs = [];
         const paths = Array.from(root.querySelectorAll('svg [data-edge] path[stroke-dasharray]'));
         paths.forEach(path => {
           const a = point(path, 0), b = point(path, path.getTotalLength());
+          const route = path.parentElement.dataset.edge.split(':').slice(0, 3).join(':'), groupKey = route.split(':')[1];
+          const sourcePath = root.querySelector('svg [data-edge="' + CSS.escape(route + ':start') + '"] path'), origin = point(sourcePath, 0);
+          const horizontal = Math.abs(a.y - b.y) < 0.1;
+          for (let distance = 2; distance < path.getTotalLength(); distance += 3) {
+            const q = point(path, distance);
+            if (frames.some(f => q.x > f.left + 2 && q.x < f.right - 2 && q.y > f.top + 2 && q.y < f.bottom - 2 && !(horizontal && Math.abs(q.y - origin.y) < 0.2 && origin.x >= f.left && origin.x <= f.right && origin.y > f.top && origin.y < f.bottom))) { interiors.push(route); break; }
+          }
+          runs.forEach(r => {
+            if (r.groupKey === groupKey || r.horizontal !== horizontal) return;
+            const parallel = horizontal ? Math.abs(a.y - r.a.y) < 4 : Math.abs(a.x - r.a.x) < 4;
+            const extent = horizontal ? Math.min(Math.max(a.x,b.x),Math.max(r.a.x,r.b.x))-Math.max(Math.min(a.x,b.x),Math.min(r.a.x,r.b.x)) : Math.min(Math.max(a.y,b.y),Math.max(r.a.y,r.b.y))-Math.max(Math.min(a.y,b.y),Math.min(r.a.y,r.b.y));
+            if (parallel && extent > 2) shared.push([route,r.route]);
+          });
+          runs.push({a,b,horizontal,groupKey,route});
           if (frames.some(f => Math.abs(a.x - b.x) < 0.1 ? (Math.abs(a.x - f.left) < 2 || Math.abs(a.x - f.right) < 2) && Math.min(Math.max(a.y, b.y), f.bottom) - Math.max(Math.min(a.y, b.y), f.top) > 2 : Math.abs(a.y - b.y) < 0.1 && (Math.abs(a.y - f.top) < 2 || Math.abs(a.y - f.bottom) < 2) && Math.min(Math.max(a.x, b.x), f.right) - Math.max(Math.min(a.x, b.x), f.left) > 2)) overlap.push(path.parentElement.dataset.edge);
           const id = path.parentElement.dataset.edge; if (!id.endsWith(':end')) return;
-          const start = root.querySelector('svg [data-edge="' + CSS.escape(id.slice(0, -4) + ':start') + '"] path'), origin = point(start, 0);
-          const chat = Array.from(root.querySelectorAll('[data-org-chat]')).find(el => { const r = el.getBoundingClientRect(); return Math.abs(origin.x - r.right) < 2 && Math.abs(origin.y - r.y - r.height / 2) < 2; });
+          const start = root.querySelector('svg [data-edge="' + CSS.escape(id.slice(0, -4) + ':start') + '"] path');
+          const chat = Array.from(root.querySelectorAll('[data-org-chat]')).find(el => { const r = el.getBoundingClientRect(); return (Math.abs(origin.x - r.right) < 2 || Math.abs(origin.x - r.left) < 2) && origin.y > r.top && origin.y < r.bottom; });
           const target = Array.from(root.querySelectorAll('.org-chart-group')).find(el => { const r = el.getBoundingClientRect(); return Math.abs(b.x - r.right) < 2 && Math.abs(b.y - r.y - r.height / 2) < 2; });
           const group = target && __orgModel.groups.find(g => g.id === target.dataset.orgGroup), member = chat && chat.dataset.orgChat;
           const valid = group && member && group.memberIds.concat(group.ownerId || []).includes(member) && target.checkVisibility() && target.querySelector('strong').textContent === group.title;
           endpoints.push(!!valid); if (valid) connected.add(group.id + ':' + member);
         });
         const expected = __orgModel.groups.flatMap(g => Array.from(new Set(g.memberIds.concat(g.ownerId || []))).map(id => g.id + ':' + id));
-        return { overlap, solid: root.querySelectorAll('svg [data-node^="frame:"] [stroke-dasharray]').length === 0, endpoints, complete: expected.every(id => connected.has(id)) };
+        return { overlap, interiors, shared, solid: root.querySelectorAll('svg [data-node^="frame:"] [stroke-dasharray]').length === 0, endpoints, complete: expected.every(id => connected.has(id)) };
       });
       ok(theme + ' group segments at ' + width + ' stay clear of quiet solid container edges', groupGeometry.solid && groupGeometry.overlap.length === 0, JSON.stringify(groupGeometry));
+      ok(theme + ' group routes at ' + width + ' never traverse panel interiors or share another group lane', groupGeometry.interiors.length === 0 && groupGeometry.shared.length === 0, JSON.stringify(groupGeometry));
       ok(theme + ' group lines at ' + width + ' end at their labelled group boxes', groupGeometry.complete && groupGeometry.endpoints.length > 0 && groupGeometry.endpoints.every(Boolean), JSON.stringify(groupGeometry));
       await t.shot('org-chart-' + theme + '-' + width);
       await chart.locator('[data-org-group="review"]').scrollIntoViewIfNeeded();

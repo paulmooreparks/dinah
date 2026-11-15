@@ -19,7 +19,8 @@ async function start() {
   } });
   t.key = await t.page.evaluate(() => dinahWorkbench.open('org-chart', 'fold=research'));
   t.chart = t.page.locator('[data-win="' + t.key + '"] .org-chart');
-  await t.chart.locator('[data-org-chat="nina"]').waitFor();
+  await t.page.waitForFunction(() => document.querySelector('[data-org-chat="nina"]') || /could not|not available|invalid|must|unknown/i.test(document.querySelector('.org-chart [role="status"]')?.textContent || ''));
+  if (!await t.chart.locator('[data-org-chat="nina"]').count()) { const error = await t.chart.getByRole('status').innerText(); await t.close(); throw new Error(error); }
   await t.page.evaluate(() => document.fonts.ready);
   return t;
 }
