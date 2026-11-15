@@ -1,6 +1,6 @@
 # Task host receiving handover
 
-The task host is integrated on engine/task-host-current from master 15afdc2c. This base includes the shipped shared inventory and passive start-up. The integration applied without conflicts. Its new race/all-vet selection remains pending, so this note does not claim clearance on the integrated tree.
+The task host is integrated on engine/task-host-current from master 15afdc2c. This base includes the shipped shared inventory and passive start-up. The integration applied without conflicts. The integrated race/all-vet desktop selection passed in 109.522 seconds. All eight affected internal packages passed, and production desktop vet passed. No frozen assertion changed.
 
 Quality accepted the earlier source 0153e053af1c75dd28524d00011e2f79140d59e7 in review 62126cf022064eb6e0db251afb500b91719fcb52. Its independent run passed all ten frozen top-level tests and both supplemental binding controls in 122.934 seconds with race detection and all vet analyzers. The existing Windows linker warning remains. Raw producer and toolchain logs remain on the private engine/task-host-contract branch. They are absent from this public candidate and its history. This note is the public receiving summary.
 
@@ -16,8 +16,8 @@ Protected-record observations read actual local and remote resource bytes, durab
 
 ## Scope and receiving gate
 
-The integrated rerun must select Test(FrozenTaskHost|Task|AppTaskQuestion) under desktop,quality_task_host with -race -vet=all. It must also run the affected internal taskhost, services, sessionhost, ACP, Codex, Ollama, broker and applet-host packages and vet the desktop production build. Every command uses scripts/with-test-lock.ps1. No frozen assertion may be weakened.
+The integrated rerun selected Test(FrozenTaskHost|Task|AppTaskQuestion) under desktop,quality_task_host with -race -vet=all. It also ran the affected internal taskhost, services, sessionhost, ACP, Codex, Ollama, broker and applet-host packages and vetted the desktop production build. Every command uses scripts/with-test-lock.ps1. No frozen assertion may be weakened.
 
 Begin currently requires fresh person confirmation. Grant-only admission is unavailable. Review questions show operation summaries and fingerprints; the consuming feature must supply its task definition for review. No Flow consumer is registered. ReleaseChat removes a tracked runtime interest and leaves native unloading to the ordinary close policy. Conditional model restoration uses the task's own receipt and refuses after an intervening person choice or runtime reconstruction.
 
-The earlier Quality clearance covers the assigned host gates only. Production rooms, Flow execution, rendered task questions, consumer recovery, combined Front End acceptance and installed-product acceptance remain outside it. Front End's Notifications owner variant remains separate. Engine retains corrections and will hand over the immutable integrated tip after its required rerun.
+The earlier Quality clearance covers the assigned host gates only. Production rooms, Flow execution, rendered task questions, consumer recovery, combined Front End acceptance and installed-product acceptance remain outside it. Front End's Notifications owner variant remains separate. Engine retains corrections. Integration preserved the accepted task production changes; the three production files that differ from the earlier accepted tree carry the current passive-inventory and scoped-refresh base. Quality should confirm that its bounded clearance carries to this integration before merge. All retained crash-capture files from this rerun are empty. Raw output remains private.
