@@ -21,3 +21,7 @@ Every desktop run used a disposable home, profile and workspace with local stand
 This corrects the active inventory paths. Passive startup and the shared persisted inventory remain separate work. The launcher, dialogs, title links, disclosure control and fixed-width presentation changes still require interactive mockup approval before product implementation.
 
 The separately reproduced rapid workspace-switch defect is recorded in workspace-last-choice-defect-2026-11-15.md. Front End owns that correction next, after this inventory fix ships.
+
+## Release verification
+
+The public candidate was rebuilt from e9d544aea8d9889a1c3b494b53374fd3995ef875. Its fifteen-phase hidden receiving journey passed, including all three surfaces, every offered provider and the native-only lifecycle checks. Protected records remained unchanged, with zero remote writes and browser errors. The tracked-file forbidden-terms guard passed with the private list enabled. A separate scan of added branch-diff lines and paths against the same list found zero matches. The branch contains only Dinah product changes, tests and review notes.
