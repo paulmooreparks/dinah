@@ -1,6 +1,6 @@
 # Read-only Org Chart
 
-The UI candidate is ready on `frontend/org-chart-live`, based on master `26d67f03`. Its product source is `142a9e3074c9b43ce1576906c0bc1f2354aa2090`, following the initial source and checks at `e2cae3d49ea04a962f32ddf3715037d3629938c6`. It follows the approved mockup and the query contract frozen at `77559d93` on Engine's cleanup branch. The implementation is generic in Dinah. Engine owns the App query; Release owns logical chat admission and resolution.
+The UI candidate is ready on `frontend/org-chart-live`, based on master `26d67f03`. Its product source is `7a265d9425141fa253dd4212629e988774962678`, following the initial source and checks at `e2cae3d49ea04a962f32ddf3715037d3629938c6`. It follows the approved mockup and the query contract frozen at `77559d93` on Engine's cleanup branch. The implementation is generic in Dinah. Engine owns the App query; Release owns logical chat admission and resolution.
 
 ## Behaviour
 
@@ -37,3 +37,9 @@ The final chart command was `pwsh ./cmd/dinah-desktop/frontend/e2e/run.ps1 -Only
 These checks drive the real page in a hidden browser with invented OrgChart snapshots. They do not prove the pending host query, logical-chat admission or native runtime behaviour. The page calls no discovery or open method. Engine must combine its query and Release's admission adapter with this UI before product acceptance. The chart remains read-only; the Thinking control is the next direct assignment, followed by importing conversations.
 
 No visible window, real home, native agent history, credentials or remote service is used. Nothing is pushed, merged or installed by Front End.
+
+## Second routing review
+
+The next review found a real crossing through the Platform panel and a shared run between Cal and Nina's groups. The stronger rendered assertion reproduced both faults in light and dark at 1440 pixels in an eight-second run against the previous product source. The previous edge-only guard missed them. Its failure log is retained as interiors-before.txt.
+
+The pending correction permits only a member's direct horizontal exit inside its own panel. Every later segment treats all panels as obstacles. Each group reserves its gutter runs against the other groups. A member with a neighbour to its right exits left, and a member in several groups gets separate ports. The renderer's documented integer point-anchor constraint also applies to these ports. Both chart suites passed with the stronger assertions in nine seconds, then in eleven seconds after retaining two-column member rows at the wide width. The final run passed in ten seconds under ticket 2224 after a status-chip clipping correction. Its 104 frame samples remain stable. Focused frontend, UTF-8 and release-asset checks passed on the final source in 0.389 seconds under ticket 2225. The final command used -Only org-chart,org-chart-stability and output folder %TEMP%/org-chart-interiors-final2-20261115. The evidence directory now contains these final pictures, measurements and logs. The earlier four-suite run above predates these routing corrections.

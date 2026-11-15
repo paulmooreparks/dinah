@@ -1,14 +1,3 @@
-PASS menu: chat updates leave the View menu and its Skin list open, focus on Bevel
-PASS menu: the keyboard goes on from that row
-PASS menu: Enter chooses the row as it is now
-PASS menu: the Skin list ticks the chosen skin alone
-PASS ribbon: chat updates leave the Skin dropdown open, focus on Bevel
-PASS ribbon: the keyboard goes on and Enter chooses the row as it is now
-PASS ribbon: the Skin dropdown ticks the chosen skin alone
-PASS ribbon: Escape then an update leaves the dropdown closed
-PASS no page errors
-
-
 PASS Org Chart is reachable from the Window menu
 PASS the live chart has no manual refresh control
 PASS logical chats appear once despite native session references
@@ -26,18 +15,22 @@ PASS nested teams retain one box for the shared lead and member
 PASS light chart at 1440 fits its reading surface
 PASS light connectors at 1440 never cross a chat, group or fold control
 PASS light group segments at 1440 stay clear of quiet solid container edges
+PASS light group routes at 1440 never traverse panel interiors or share another group lane
 PASS light group lines at 1440 end at their labelled group boxes
 PASS dark chart at 1440 fits its reading surface
 PASS dark connectors at 1440 never cross a chat, group or fold control
 PASS dark group segments at 1440 stay clear of quiet solid container edges
+PASS dark group routes at 1440 never traverse panel interiors or share another group lane
 PASS dark group lines at 1440 end at their labelled group boxes
 PASS light chart at 390 fits its reading surface
 PASS light connectors at 390 never cross a chat, group or fold control
 PASS light group segments at 390 stay clear of quiet solid container edges
+PASS light group routes at 390 never traverse panel interiors or share another group lane
 PASS light group lines at 390 end at their labelled group boxes
 PASS dark chart at 390 fits its reading surface
 PASS dark connectors at 390 never cross a chat, group or fold control
 PASS dark group segments at 390 stay clear of quiet solid container edges
+PASS dark group routes at 390 never traverse panel interiors or share another group lane
 PASS dark group lines at 390 end at their labelled group boxes
 PASS a failed read keeps the previous chart visible
 PASS only an error reveals Retry Loading
@@ -50,17 +43,6 @@ PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 1440
 PASS state refresh keeps the drawing, chat elements and keyboard focus at 1440
 PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 390
 PASS state refresh keeps the drawing, chat elements and keyboard focus at 390
-PASS no page errors
-
-
-PASS the workspace's windows are listed for an agent, with the window in front
-PASS another workspace's agent sees none of them
-PASS a window's commands are listed through the bridge, with their keys and state
-PASS a command run through the bridge runs as pressing it would
-PASS a command that cannot run now is refused, saying so
-PASS another workspace cannot run the window's commands
-PASS a command that would destroy something is left to the person
-PASS an unknown command is refused, saying so
 PASS no page errors
 
 
