@@ -116,18 +116,19 @@ type deliveryRow struct {
 	ChatID           string `json:"chatId"`
 	DeliveredSession string `json:"deliveredSession"`
 	DeliveredAt      string `json:"deliveredAt"`
+	CancelledAt      string `json:"cancelledAt"`
 	State            string `json:"state"`
 }
 
 // deliveries is every delivery row the bus stored for one message, with its
-// state: waiting, delivered to a session, or settled without one.
+// state: cancelled, waiting, delivered to a session, or settled without one.
 func (x *groupMentionsFixture) deliveries(message int64) ([]deliveryRow, error) {
 	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(filepath.Join(configDir(), "bus.db"))+"?mode=ro&_pragma=busy_timeout(10000)")
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.QueryContext(context.Background(), `SELECT recipient_kind, recipient, delivered_session, COALESCE(delivered_at, '') FROM deliveries WHERE message_id = ? ORDER BY id`, message)
+	rows, err := db.QueryContext(context.Background(), `SELECT recipient_kind, recipient, delivered_session, COALESCE(delivered_at, ''), COALESCE(cancelled_at, '') FROM deliveries WHERE message_id = ? ORDER BY id`, message)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (x *groupMentionsFixture) deliveries(message int64) ([]deliveryRow, error) 
 	out := []deliveryRow{}
 	for rows.Next() {
 		var r deliveryRow
-		if err := rows.Scan(&r.RecipientKind, &r.Recipient, &r.DeliveredSession, &r.DeliveredAt); err != nil {
+		if err := rows.Scan(&r.RecipientKind, &r.Recipient, &r.DeliveredSession, &r.DeliveredAt, &r.CancelledAt); err != nil {
 			return nil, err
 		}
 		for _, c := range x.chats {
@@ -144,6 +145,8 @@ func (x *groupMentionsFixture) deliveries(message int64) ([]deliveryRow, error) 
 			}
 		}
 		switch {
+		case r.CancelledAt != "":
+			r.State = "cancelled"
 		case r.DeliveredAt == "":
 			r.State = "waiting"
 		case r.DeliveredSession != "":
@@ -359,6 +362,52 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 		x.t.Cleanup(func() { again.busHost().CloseHandle() })
 		x.a = again
 		return result(true, nil)
+	case "protectedState":
+		// The state a group mention must leave alone, with what a message is
+		// expected to change (last activity, unread counts, the newest
+		// message, chat states) left out: each group's title, lead, budget
+		// and members (not its file limit, which the members' running
+		// programs set and a restart has not loaded yet); each chat's saved ID, title and folder; and each
+		// open document's ID, title and text.
+		ov, err := x.a.BusOverview()
+		if err != nil {
+			return result(nil, err)
+		}
+		rooms := []map[string]any{}
+		for _, r := range ov.Rooms {
+			members := []map[string]string{}
+			for _, m := range r.Members {
+				members = append(members, map[string]string{"id": m.ID, "chat": m.Chat, "title": m.Title})
+			}
+			sort.Slice(members, func(i, j int) bool { return members[i]["id"] < members[j]["id"] })
+			rooms = append(rooms, map[string]any{"name": r.Name, "title": r.Title, "lead": r.Lead, "budget": r.Budget, "members": members})
+		}
+		sort.Slice(rooms, func(i, j int) bool { return rooms[i]["name"].(string) < rooms[j]["name"].(string) })
+		// The chats as their saved records say, which a restart reopens.
+		inv, err := x.a.SavedChats()
+		if err != nil {
+			return result(nil, err)
+		}
+		chats := []map[string]string{}
+		for _, c := range x.chats {
+			row := map[string]string{"id": c.ChatID, "missing": "true"}
+			for _, saved := range inv.Chats {
+				if saved.ID == c.ChatID {
+					row = map[string]string{"id": saved.ID, "chatId": saved.ChatID, "title": saved.Title, "cwd": saved.Cwd}
+				}
+			}
+			chats = append(chats, row)
+		}
+		views, err := x.a.ListDrafts()
+		if err != nil {
+			return result(nil, err)
+		}
+		docs := []map[string]string{}
+		for _, d := range views {
+			docs = append(docs, map[string]string{"id": d.ID, "title": d.Title, "text": d.Text})
+		}
+		sort.Slice(docs, func(i, j int) bool { return docs[i]["id"] < docs[j]["id"] })
+		return result(map[string]any{"rooms": rooms, "chats": chats, "documents": docs}, nil)
 	case "observations":
 		x.mu.Lock()
 		defer x.mu.Unlock()

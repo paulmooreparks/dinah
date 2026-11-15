@@ -13,6 +13,15 @@
 // window's other bridge calls are the suites' ordinary stub, and one open
 // document is given to the page's document list, since the host has no Editor.
 //
+// QUALITY_GROUP_MENTIONS_MUTATION, when set, alters one captured observation
+// before the binding summarizes it, so a run proves the frozen checks reject
+// it (the freeze's negative controls; never set for a clearance run):
+//   reference-recipient   an outside chat added to a send's committed recipients and prompts
+//   duplicate-dispatch    the member's prompt repeated in a send's dispatch record
+//   missing-workspace     the workspace taken out of a sent message's referred line
+//   member-in-other-chats the member's own chat added to the catalog's Other Chats rows
+//   clipped-popup         the open @ list moved past the right edge before it is measured
+//
 //   QUALITY_GROUP_MENTIONS_BINARY=<group-mentions-host.exe>
 //   QUALITY_GROUP_MENTIONS_BINDING=<this file>
 //   pwsh scripts/with-test-lock.ps1 node --test --test-concurrency=1 internal/qualitygroupmentions/acceptance.test.cjs
@@ -21,6 +30,9 @@ const { spawn, execFileSync } = require('child_process');
 const { launch } = require('./page');
 
 const FORWARDED = ['BusOverview', 'BusGroupReach', 'BusSendToGroup', 'BusGroupMessages', 'BusMarkGroupRead', 'Sessions', 'SavedChats', 'AppletCatalog'];
+const MUTATION = process.env.QUALITY_GROUP_MENTIONS_MUTATION || '';
+const MUTATIONS = ['reference-recipient', 'duplicate-dispatch', 'missing-workspace', 'member-in-other-chats', 'clipped-popup'];
+if (MUTATION && !MUTATIONS.includes(MUTATION)) throw new Error('unknown QUALITY_GROUP_MENTIONS_MUTATION ' + MUTATION);
 const SECTION_KIND = { 'Members, asked to answer': 'member', 'Windows': 'window', 'Applets': 'applet', 'Open Documents': 'document', 'Other Chats, referred to and not asked': 'chat' };
 
 function sourceCommit() {
@@ -58,7 +70,12 @@ async function startHost(artifact) {
      it has exited, so nothing outlives the case. */
   async function stop() {
     let closeError = null;
-    try { await call('close'); } catch (e) { closeError = e; }
+    /* A close the host answers with an error, or with anything but true, is
+       a refused close, as much as a transport failure is. */
+    try {
+      const r = await call('close');
+      if (!r || r.error || r.result !== true) closeError = new Error(JSON.stringify(r));
+    } catch (e) { closeError = e; }
     let timer, watchdog = false;
     const result = await Promise.race([exited, new Promise(resolve => { timer = setTimeout(() => { watchdog = true; resolve(null); }, 15000); })]);
     clearTimeout(timer);
@@ -128,7 +145,11 @@ async function open({ scenario, theme, width }) {
         out.push({ index, section, key, kind, label: (n.querySelector('.mention-name') || {}).textContent || '', meta: (n.querySelector('.md-meta') || {}).textContent || '' });
       });
       return out;
-    }, SECTION_KIND);
+    }, SECTION_KIND).then(rows => {
+      if (MUTATION !== 'member-in-other-chats') return rows;
+      const m = byRole('member')[0];
+      return rows.concat([{ index: -1, section: 'Other Chats, referred to and not asked', key: '@' + m.title.replace(/\s+/g, '_') + ':' + encodeURIComponent(m.chatId), kind: 'chat', label: m.title, meta: m.workspace + ' · a reference, asks no one', mutated: true }]);
+    });
   }
   async function typeAt(room, text) { const box = room.locator('textarea'); await box.click(); await box.press('End'); await box.type(text); await frame(); }
   async function pickKey(room, row) { await pop(room).locator('[data-mention]').nth(row.index).locator('a').click(); await frame(); }
@@ -147,27 +168,58 @@ async function open({ scenario, theme, width }) {
     /* A refused send or a failed observation fails the case, never an
        observation with entries missing. */
     if (s.response.error) throw new Error('the host: ' + s.response.error + '; evidence ' + artifact);
+    // Membership as the host reports it straight after this send.
+    s.membership = await membershipSig();
+    if (MUTATION === 'reference-recipient') {
+      const out = byRole('outside')[0].chatId, r = s.response;
+      r.committedRecipients = (r.committedRecipients || []).concat([out]);
+      r.dispatchAttempts = (r.dispatchAttempts || []).concat([out]);
+      r.dispatchCounts = Object.assign({}, r.dispatchCounts, { [out]: ((r.dispatchCounts || {})[out] || 0) + 1 });
+      s.mutated = MUTATION;
+    }
+    if (MUTATION === 'duplicate-dispatch') {
+      const m = byRole('member')[0].chatId, r = s.response;
+      if ((r.dispatchCounts || {})[m]) {
+        r.dispatchAttempts = r.dispatchAttempts.concat([m]);
+        r.dispatchCalls = (r.dispatchCalls || []).concat([{ sessionId: m, known: true }]);
+        r.dispatchCounts = Object.assign({}, r.dispatchCounts, { [m]: r.dispatchCounts[m] + 1 });
+        s.mutated = MUTATION;
+      }
+    }
     return s;
   }
   async function reach(room) { return room.locator('.group-reach').textContent(); }
   async function popupInside(room) {
     if (!(await pop(room).isVisible())) return true;
+    if (MUTATION === 'clipped-popup') await pop(room).evaluate(el => { el.style.translate = '60vw 0'; });
     return pop(room).evaluate(el => { const r = el.getBoundingClientRect(); return r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5; });
   }
   async function overflow() { return p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1); }
   function route(s, expected, preview) {
     const r = s.response || {};
     return { actualRecipients: (r.committedRecipients || []).slice(), expectedRecipients: expected.slice(), previewRecipients: preview.slice(), dispatchAttempts: r.dispatchAttempts || [], dispatchCounts: r.dispatchCounts || {}, dispatchCalls: r.dispatchCalls || [], storedDeliveries: r.storedDeliveries || [], deliveryRows: r.deliveryRows || [],
-      referenceWakeAttempts: (r.dispatchAttempts || []).filter(id => !expected.includes(id)), membershipChanged: false, rawRequestPath: path.join(artifact, 'requests.jsonl'), rawReceiptPath: path.join(artifact, 'requests.jsonl') };
+      referenceWakeAttempts: (r.dispatchAttempts || []).filter(id => !expected.includes(id)), membershipChanged: s.membership !== baselineMembership, rawRequestPath: path.join(artifact, 'requests.jsonl'), rawReceiptPath: path.join(artifact, 'requests.jsonl') };
   }
   /* What the page last asked the host for this group's reach: the preview,
      recorded apart from what was committed. */
   function lastPreview(key) { const r = previews.filter(x => x.args[0] === key).pop(); return r && r.response && r.response.result ? (r.response.result.reach || []).map(m => chatOfBus(m.id)).filter(Boolean) : []; }
-  const overviewSig = async () => JSON.stringify(((await host.call('BusOverview')).result.rooms || []).map(r => [r.name, (r.members || []).map(m => m.id).sort()]).sort((a, b) => a[0].localeCompare(b[0])));
+  /* Membership preservation: each group's name and member identities, as
+     the host reports them. The wider unchanged-state claim compares the
+     host's protected-state snapshots, kept before and after each case. */
+  const membershipSig = async () => JSON.stringify(((await host.call('BusOverview')).result.rooms || []).map(r => [r.name, (r.members || []).map(m => m.id).sort()]).sort((a, b) => a[0].localeCompare(b[0])));
+  async function protectedState() {
+    const r = await host.call('protectedState');
+    if (r.error) throw new Error('protected state: ' + r.error + '; evidence ' + artifact);
+    return r.result;
+  }
+  let baselineMembership = '';
 
   async function run() {
     const o = { scenario, theme, viewportWidth: width, evidencePath: artifact, sourceCommit: sourceCommit(), hostBinarySha256: host.binaryHash, realProductPage: true, setup };
-    const membersBefore = await overviewSig();
+    const membersBefore = await membershipSig();
+    baselineMembership = membersBefore;
+    const protectedBefore = await protectedState();
+    fs.writeFileSync(path.join(artifact, 'protected-before.json'), JSON.stringify(protectedBefore, null, 2));
     const member = byRole('member')[0], member2 = byRole('member')[1], outside = byRole('outside')[0], twin = byRole('outside-same-title')[0], lead = byRole('lead')[0], crew = byRole('team-member')[0];
     let room = await openRoom(fixture.group), inside = true;
     if (scenario === 'catalog') {
@@ -314,6 +366,7 @@ async function open({ scenario, theme, width }) {
         const id = s.response.result.id;
         const el = r.locator('[data-bus-message="' + id + '"]');
         await el.locator('.msg-text').waitFor();
+        if (MUTATION === 'missing-workspace') await el.evaluate(node => { const line = node.querySelector('[data-referred]'); if (line) line.querySelectorAll('strong').forEach(b => { b.textContent = b.textContent.replace(/ \([^)]*\)/g, ''); }); });
         return el.evaluate((node, info) => {
           const m = node.querySelector('.mention'), refs = [...node.querySelectorAll('.mention-ref')];
           const mc = m && getComputedStyle(m), rc = refs[0] && getComputedStyle(refs[0]);
@@ -362,7 +415,7 @@ async function open({ scenario, theme, width }) {
         const reloaded = (await host.call('BusGroupMessages', [fixture.group])).result || [];
         const again = reloaded.find(m => m.id === s.response.result.id);
         o.referencesPersistAfterReload = !!again && JSON.stringify(again.references) === JSON.stringify(s.response.result.references) && again.shownText === s.response.result.shownText;
-        o.membershipChanged = (await overviewSig()) !== membersBefore;
+        o.membershipChanged = (await membershipSig()) !== membersBefore;
         await typeAt(room, '@'); await waitPop(room); inside = await popupInside(room); await p.keyboard.press('Escape');
       }
     }
@@ -371,8 +424,16 @@ async function open({ scenario, theme, width }) {
     }
     o.popupInsideViewport = inside;
     o.horizontalOverflow = await overflow();
-    o.membershipBefore = membersBefore; o.membershipAfter = await overviewSig();
-    o.unrelatedStateUnchanged = o.membershipAfter === membersBefore;
+    o.membershipBefore = membersBefore; o.membershipAfter = await membershipSig();
+    o.membershipPreserved = o.membershipAfter === membersBefore;
+    const protectedAfter = await protectedState();
+    fs.writeFileSync(path.join(artifact, 'protected-after.json'), JSON.stringify(protectedAfter, null, 2));
+    o.protectedStateBeforePath = path.join(artifact, 'protected-before.json');
+    o.protectedStateAfterPath = path.join(artifact, 'protected-after.json');
+    o.protectedStateUnchanged = JSON.stringify(protectedAfter) === JSON.stringify(protectedBefore);
+    // The frozen claim: membership preserved and the protected state unchanged.
+    o.unrelatedStateUnchanged = o.membershipPreserved && o.protectedStateUnchanged;
+    o.mutation = MUTATION || null;
     o.theme = await p.evaluate(() => document.documentElement.dataset.theme);
     o.pageErrors = errors.slice();
     await p.screenshot({ path: path.join(artifact, 'final.png') });
