@@ -10,12 +10,12 @@ import (
 func logicalChatReferencesFromSettings(s Settings) []string {
 	known := map[string]bool{}
 	for id, row := range s.ListedChats {
-		if row.Provider != "codex" || row.LocalObservation {
+		if !providerRegistry[row.Provider].NativeSessionsRequireImport || row.LocalObservation {
 			known[id] = true
 		}
 	}
 	for id, provider := range s.SessionProviders {
-		if provider != "codex" {
+		if !providerRegistry[provider].NativeSessionsRequireImport {
 			known[id] = true
 		}
 	}
@@ -78,6 +78,18 @@ func logicalChatMetadataFromSettings(s Settings, reference string) (LogicalChatM
 	}
 	out.Title = inventoryTitle(s, members.Head, providerTitle, "")
 	out.Workspace = s.logicalEvidence[members.Head].Workspace
+	provider := s.SessionProviders[members.Head]
+	if provider == "" {
+		provider = s.ListedChats[members.Head].Provider
+	}
+	if provider == "" {
+		provider = s.logicalEvidence[members.Head].Provider
+	}
+	if provider != "" {
+		if _, recognized := providerRegistry[provider]; !recognized {
+			return out, fmt.Errorf("recorded chat program is unrecognized")
+		}
+	}
 	if cached, ok := s.ListedChats[members.Head]; ok {
 		if cached.Repair != "" {
 			return out, fmt.Errorf("%s", cached.Repair)

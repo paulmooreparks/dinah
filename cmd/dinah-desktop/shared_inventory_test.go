@@ -10,6 +10,30 @@ import (
 	"studio/internal/acp"
 )
 
+func TestSharedInventoryUnknownProgramRequiresRepair(t *testing.T) {
+	starts := orgChartForbidProviderStarts(t)
+	a, conn := providerTestApp(t)
+	ws := t.TempDir()
+	if err := a.updateSettings(func(s *Settings) error {
+		s.ListedChats = map[string]listedChat{"unknown-native": {Provider: "invented-unknown", Workspace: ws, Title: "Safe unknown title"}}
+		s.SessionProviders = map[string]string{"unknown-native": "invented-unknown"}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := a.SavedChats()
+	if err != nil || len(view.Chats) != 1 || view.Chats[0].Resolution != "repair" || view.Chats[0].Reason == "" || view.Chats[0].Title != "Safe unknown title" {
+		t.Fatalf("unknown program must remain visible for repair: %+v %v", view, err)
+	}
+	listing, err := a.ListChatCleanup()
+	if err != nil || len(listing.Rows) != 1 || listing.Rows[0].Eligible || listing.Rows[0].Refusal == "" {
+		t.Fatalf("unknown program must not authorize cleanup: %+v %v", listing.Rows, err)
+	}
+	if starts.Load() != 0 || len(conn.calls) != 0 {
+		t.Fatal("unknown program repair contacted a provider")
+	}
+}
+
 func TestSharedInventoryConflictingRefreshPersistsHoldAcrossRestart(t *testing.T) {
 	for _, changedScope := range []bool{false, true} {
 		t.Run(map[bool]string{false: "program", true: "workspace"}[changedScope], func(t *testing.T) {
