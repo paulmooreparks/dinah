@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -363,6 +364,31 @@ func (s *Service) ReadOpened(ctx context.Context, path string, scope Scope, file
 		}
 		return text, err
 	})
+}
+
+// ReadOpenedBytes checks the same final handle identity, policy and audit as
+// ReadOpened, for host consumers that need bounded binary snapshots.
+func (s *Service) ReadOpenedBytes(ctx context.Context, path string, scope Scope, file *os.File, limit int) ([]byte, error) {
+	if limit < 1 || limit > 2<<20 {
+		return nil, errors.New("invalid binary read limit")
+	}
+	text, err := s.read(ctx, path, nil, nil, scope, func(check func(string, []os.FileInfo) error) (string, error) {
+		if err := agents.CheckOpenedFile(path, file, func(chain []os.FileInfo) error { return check(path, chain) }); err != nil {
+			return "", err
+		}
+		data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+		if err != nil {
+			return "", err
+		}
+		if len(data) > limit {
+			return "", errors.New("the binary snapshot exceeds its read limit")
+		}
+		return string(data), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []byte(text), nil
 }
 
 func (s *Service) read(ctx context.Context, path string, line, limit *int, scope Scope, read func(func(string, []os.FileInfo) error) (string, error)) (string, error) {
