@@ -1,0 +1,223 @@
+{
+  "base": "31797c52",
+  "exactException": "answer-layout-before-20261115/run-04",
+  "earlierGeometryFailure": "answer-layout-before-20261115/run-03",
+  "nullCapture": {
+    "stage": "after-delivery",
+    "boxes": {
+      "laterBefore": {
+        "x": 434.1875,
+        "y": 469.296875,
+        "width": 334,
+        "height": 108
+      },
+      "waitingBefore": {
+        "x": 434.1875,
+        "y": 130.296875,
+        "width": 334,
+        "height": 333
+      },
+      "parentBox": null
+    },
+    "frames": [
+      {
+        "frame": 0,
+        "rows": [
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 215.296875,
+              "width": 334,
+              "height": 108,
+              "top": 215.296875,
+              "right": 768.1875,
+              "bottom": 323.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "activity-row delivered-row",
+            "rect": {
+              "x": 434.1875,
+              "y": 330.296875,
+              "width": 334,
+              "height": 333,
+              "top": 330.296875,
+              "right": 768.1875,
+              "bottom": 663.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 669.296875,
+              "width": 334,
+              "height": 108,
+              "top": 669.296875,
+              "right": 768.1875,
+              "bottom": 777.296875,
+              "left": 434.1875
+            }
+          }
+        ],
+        "transcript": [
+          {
+            "scrollTop": 150,
+            "scrollHeight": 773,
+            "clientHeight": 423
+          }
+        ]
+      },
+      {
+        "frame": 1,
+        "rows": [
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 15.296875,
+              "width": 334,
+              "height": 108,
+              "top": 15.296875,
+              "right": 768.1875,
+              "bottom": 123.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "activity-row delivered-row",
+            "rect": {
+              "x": 434.1875,
+              "y": 130.296875,
+              "width": 334,
+              "height": 333,
+              "top": 130.296875,
+              "right": 768.1875,
+              "bottom": 463.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 469.296875,
+              "width": 334,
+              "height": 108,
+              "top": 469.296875,
+              "right": 768.1875,
+              "bottom": 577.296875,
+              "left": 434.1875
+            }
+          }
+        ],
+        "transcript": [
+          {
+            "scrollTop": 350,
+            "scrollHeight": 773,
+            "clientHeight": 423
+          }
+        ]
+      },
+      {
+        "frame": 2,
+        "rows": [
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 15.296875,
+              "width": 334,
+              "height": 108,
+              "top": 15.296875,
+              "right": 768.1875,
+              "bottom": 123.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "activity-row delivered-row",
+            "rect": {
+              "x": 434.1875,
+              "y": 130.296875,
+              "width": 334,
+              "height": 333,
+              "top": 130.296875,
+              "right": 768.1875,
+              "bottom": 463.296875,
+              "left": 434.1875
+            }
+          },
+          {
+            "cls": "msg",
+            "rect": {
+              "x": 434.1875,
+              "y": 469.296875,
+              "width": 334,
+              "height": 108,
+              "top": 469.296875,
+              "right": 768.1875,
+              "bottom": 577.296875,
+              "left": 434.1875
+            }
+          }
+        ],
+        "transcript": [
+          {
+            "scrollTop": 350,
+            "scrollHeight": 773,
+            "clientHeight": 423
+          }
+        ]
+      }
+    ]
+  },
+  "geometryCapture": {
+    "stage": "geometry-mismatch",
+    "boxes": {
+      "laterBefore": {
+        "x": 434.1875,
+        "y": 469.296875,
+        "width": 334,
+        "height": 108
+      },
+      "waitingBefore": {
+        "x": 434.1875,
+        "y": 130.296875,
+        "width": 334,
+        "height": 333
+      },
+      "parentBox": {
+        "x": 434.1875,
+        "y": 130.296875,
+        "width": 334,
+        "height": 333
+      },
+      "laterAfter": {
+        "x": 434.1875,
+        "y": 669.296875,
+        "width": 334,
+        "height": 108
+      }
+    }
+  },
+  "afterCombined": [
+    {
+      "run": 1,
+      "failures": [],
+      "receipt": "21 suites in 81 s, 1 at a time"
+    },
+    {
+      "run": 2,
+      "failures": [],
+      "receipt": "21 suites in 87 s, 1 at a time"
+    }
+  ],
+  "afterTargeted": {
+    "runs": 20,
+    "failures": 0
+  }
+}

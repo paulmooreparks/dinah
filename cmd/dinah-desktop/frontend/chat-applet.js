@@ -1689,8 +1689,9 @@
 
     /* ---- The run log ------------------------------------------------------ */
 
-    function row(s, cls) {
-      var li = document.createElement('li');
+    function row(s, cls, existing) {
+      var li = existing || document.createElement('li');
+      if (existing) li.replaceChildren();
       li.className = 'activity-row' + (cls ? ' ' + cls : '');
       var t = document.createElement('time');
       t.className = 'activity-time';
@@ -1700,8 +1701,7 @@
       li.appendChild(t);
       li._time = t;
       if (cls === 'turn-row') finishWork(s);
-      s.log.appendChild(li);
-      trimLog(s);
+      if (!existing) { s.log.appendChild(li); trimLog(s); }
       if (s.loading && !s.drawingSaved) { s.replayed = (s.replayed || 0) + 1; replayProgress(s); }
       else if (s.id === active) { $('log-empty').hidden = true; scheduleDraw(); }
       return li;
@@ -1969,14 +1969,14 @@
     function deliveredCard(s, entry) {
       var d = entry.delivered || {}, text = entry.text || '';
       s.current = null;
-      var li = row(s, 'delivered-row');
-      // The card of the same message that said it was arriving gives its place to this one.
       var waiting = d.id != null && s.arriving && s.arriving[d.id];
-      if (waiting) { waiting.replaceWith(li); delete s.arriving[d.id]; tidyArriving(s); }
+      var decisionAnswer = window.dinahDecisionAnswerCard.valid(d.answerOrigin);
+      // Keep the measured row and its scroll anchor while its contents change.
+      var li = row(s, 'delivered-row' + (decisionAnswer ? ' decision-answer-row' : ''), waiting);
+      if (waiting) { delete li.dataset.arriving; delete s.arriving[d.id]; tidyArriving(s); }
       var at = d.time ? new Date(d.time) : null, t = li.querySelector('.activity-time');
       if (at && !isNaN(at)) dinahRegional.stamp(t, at, 'clock');
       var heading = deliveredHeading(d);
-      var decisionAnswer = window.dinahDecisionAnswerCard.valid(d.answerOrigin);
       var long = text.length > DELIVERED_FOLD_CHARS || text.split('\n').length > DELIVERED_FOLD_LINES;
       var card = decisionAnswer ? window.dinahDecisionAnswerCard.create(d.answerOrigin, heading) : document.createElement('section');
       if (!decisionAnswer) {
@@ -2026,7 +2026,7 @@
       s.arriving = s.arriving || {};
       if (s.arriving[msg.id]) return;
       var li = document.createElement('li');
-      li.className = 'activity-row arriving-row'; li.dataset.arriving = String(msg.id);
+      li.className = 'activity-row arriving-row' + (msg.decisionAnswer === true ? ' decision-answer-row' : ''); li.dataset.arriving = String(msg.id);
       var card = document.createElement('section');
       card.className = 'card arriving-card';
       if (msg.decisionAnswer === true) card.classList.add('decision-answer-card');

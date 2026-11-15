@@ -393,6 +393,7 @@
     "decisions-context",
     "decisions-answer-card",
     "decisions-answer-layout",
+    "decisions-answer-stability",
     "settings-set-aside-list",
     "settings-updates-set-aside",
     "settings-set-aside-remove",
