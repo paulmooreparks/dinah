@@ -24,7 +24,8 @@ type Prompt struct {
 	reply             *reply
 	// qid is the message's own id while it is queued, made when it first is, and
 	// kept when it is carried to another chat (queue_store.go).
-	qid string
+	qid       string
+	ownedCall func(Connection, acp.PromptParams, any) error
 }
 
 type reply struct {

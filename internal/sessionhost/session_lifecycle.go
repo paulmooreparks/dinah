@@ -25,6 +25,8 @@ type ChannelCapability interface {
 }
 
 type SessionLifecycleHost struct {
+	BeginAllocation func(AllocationIntent) (AllocationCallbacks, error)
+	Allocate        func(Connection, any, func(string) error) (acp.NewSessionResult, error)
 	// RecordListedSessions durably retains native identities before they are
 	// returned to a caller. A page is an observation, never proof of absence.
 	RecordListedSessions func(string, string, []acp.SessionInfo) error
@@ -103,6 +105,16 @@ type SessionLifecycleHost struct {
 	Log             func(string, string, ...any)
 }
 
+type AllocationIntent struct {
+	Source, Workspace, Provider, Recipient, Kind, Revision string
+}
+
+type AllocationCallbacks struct {
+	Dispatched func() error
+	Received   func(string) error
+	Finished   func(string, error) error
+}
+
 // SessionLifecycle shares the host state mutex and sole Runtime. Callbacks run
 // outside that mutex; transcript serialization remains the host's authority.
 type SessionLifecycle struct {
@@ -140,7 +152,7 @@ func (l *SessionLifecycle) providerConnectionLocked(provider string) Connection 
 	return nil
 }
 func (l *SessionLifecycle) New(ws, provider string, continuing bool) (Info, error) {
-	return l.newSession(ws, provider, continuing, "")
+	return l.newSession(ws, provider, continuing, "", AllocationIntent{Kind: "new_chat"}, nil)
 }
 
 // NewAdopting starts the session that a provider switch continues a chat in.
@@ -154,27 +166,105 @@ func (l *SessionLifecycle) New(ws, provider string, continuing bool) (Info, erro
 // identity, which the old chat still owns. With no identity, a chat that has
 // not used the bus, it starts as New does.
 func (l *SessionLifecycle) NewAdopting(ws, provider, adopt string) (Info, error) {
-	return l.newSession(ws, provider, true, adopt)
+	return l.newSession(ws, provider, true, adopt, AllocationIntent{Kind: "new_chat"}, nil)
 }
 
-// AllocationNotCreatedError marks a failure before dispatch or an explicit
-// rejection of session/new. Transport loss and post-allocation errors do not
+func (l *SessionLifecycle) NewForTransfer(source, ws, provider, adopt, revision string) (Info, error) {
+	return l.newSession(ws, provider, true, adopt, AllocationIntent{Source: source, Kind: "switch", Revision: revision}, nil)
+}
+
+// NewRecorded starts a fresh session for an already durable operation intent.
+// Source is an opaque operation reference, not necessarily a native chat.
+func (l *SessionLifecycle) NewRecorded(intent AllocationIntent, callbacks AllocationCallbacks) (Info, error) {
+	if intent.Source == "" || intent.Kind == "" || intent.Recipient != "" || callbacks.Dispatched == nil || callbacks.Received == nil || callbacks.Finished == nil {
+		return Info{}, &AllocationNotCreatedError{Err: errors.New("recorded allocation requires an operation source, kind, fresh recipient and all receipt callbacks")}
+	}
+	return l.newSession(intent.Workspace, intent.Provider, false, "", intent, &callbacks)
+}
+
+// combineAllocationCallbacks preserves every receipt observer even when another
+// observer fails. The native request remains blocked by any dispatch error.
+func combineAllocationCallbacks(first, second AllocationCallbacks) AllocationCallbacks {
+	return AllocationCallbacks{
+		Dispatched: func() error {
+			var a, b error
+			if first.Dispatched != nil {
+				a = first.Dispatched()
+			}
+			if second.Dispatched != nil {
+				b = second.Dispatched()
+			}
+			return errors.Join(a, b)
+		},
+		Received: func(id string) error {
+			var a, b error
+			if first.Received != nil {
+				a = first.Received(id)
+			}
+			if second.Received != nil {
+				b = second.Received(id)
+			}
+			return errors.Join(a, b)
+		},
+		Finished: func(id string, outcome error) error {
+			var a, b error
+			if first.Finished != nil {
+				a = first.Finished(id, outcome)
+			}
+			if second.Finished != nil {
+				b = second.Finished(id, outcome)
+			}
+			return errors.Join(a, b)
+		},
+	}
+}
+
+// AllocationNotCreatedError marks a failure before dispatch or method-not-found
+// for session/new without a native receipt. Transport loss and post-allocation errors do not
 // carry this marker, even when a later operation returns a JSON-RPC error.
 type AllocationNotCreatedError struct{ Err error }
 
 func (e *AllocationNotCreatedError) Error() string { return e.Err.Error() }
 func (e *AllocationNotCreatedError) Unwrap() error { return e.Err }
 
-func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adopt string) (_ Info, resultErr error) {
+func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adopt string, intent AllocationIntent, recorded *AllocationCallbacks) (info Info, resultErr error) {
 	allocationMayExist := false
+	receipt := ""
+	callbacks, finalized := AllocationCallbacks{}, false
+	if recorded != nil {
+		callbacks = *recorded
+	}
 	defer func() {
+		if resultErr != nil && receipt != "" {
+			info = Info{ID: receipt, Provider: provider, Cwd: ws}
+			resultErr = &acp.SessionAllocationError{SessionID: receipt, Err: resultErr}
+		}
 		if resultErr != nil && !allocationMayExist {
 			resultErr = &AllocationNotCreatedError{Err: resultErr}
+		}
+		if !finalized && callbacks.Finished != nil {
+			if err := callbacks.Finished(receipt, resultErr); err != nil {
+				resultErr = errors.Join(resultErr, err)
+				if receipt != "" {
+					info = Info{ID: receipt, Provider: provider, Cwd: ws}
+					resultErr = &acp.SessionAllocationError{SessionID: receipt, Err: resultErr}
+				}
+			}
 		}
 	}()
 	provider = l.host.NormalizeProvider(provider)
 	if ws == "" || !filepath.IsAbs(ws) {
 		return Info{}, errors.New("choose an absolute workspace path first")
+	}
+	intent.Workspace, intent.Provider, intent.Recipient = ws, provider, adopt
+	if l.host.BeginAllocation != nil {
+		var err error
+		var global AllocationCallbacks
+		global, err = l.host.BeginAllocation(intent)
+		if err != nil {
+			return Info{}, err
+		}
+		callbacks = combineAllocationCallbacks(global, callbacks)
 	}
 	if err := l.host.PrepareApplets(provider, ws); err != nil {
 		return Info{}, fmt.Errorf("prepare the managed applet integration: %w", err)
@@ -219,10 +309,41 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 	} else if servers, err = l.host.AdoptBusServer(adopt, ws, servers); err != nil {
 		return Info{}, fmt.Errorf("keep the chat's place on the bus: %w", err)
 	}
+	if callbacks.Dispatched != nil {
+		if err := callbacks.Dispatched(); err != nil {
+			return Info{}, err
+		}
+	}
 	allocationMayExist = true
-	if err := l.host.Call(conn, "session/new", l.host.SessionParams(provider, "", ws, servers), &ns); err != nil {
-		var refusal *acp.Error
-		if errors.As(err, &refusal) {
+	received := func(id string) error {
+		if id == "" {
+			return errors.New("the provider returned an empty allocation receipt")
+		}
+		if receipt != "" && receipt != id {
+			return errors.New("the provider returned conflicting allocation receipts")
+		}
+		receipt = id
+		if callbacks.Received != nil {
+			return callbacks.Received(id)
+		}
+		return nil
+	}
+	params := l.host.SessionParams(provider, "", ws, servers)
+	if l.host.Allocate != nil {
+		ns, err = l.host.Allocate(conn, params, received)
+	} else {
+		err = l.host.Call(conn, "session/new", params, &ns)
+		if err == nil {
+			err = received(ns.SessionID)
+		}
+	}
+	if err != nil {
+		var known *acp.SessionAllocationError
+		if errors.As(err, &known) && receipt == "" {
+			receipt = known.SessionID
+		}
+		var rejection *acp.Error
+		if receipt == "" && errors.As(err, &rejection) && rejection.Code == acp.CodeMethodNotFound {
 			allocationMayExist = false
 		}
 		return Info{}, err
@@ -257,11 +378,21 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 		s.Close()
 		return Info{}, err
 	}
+	if callbacks.Finished != nil {
+		finalized = true
+		if err := callbacks.Finished(s.ID(), nil); err != nil {
+			l.mu.Lock()
+			l.runtime.RemoveConversationLocked(s.ID())
+			l.mu.Unlock()
+			s.Close()
+			return Info{}, err
+		}
+	}
 	bound = true
 	if adopt == "" {
 		l.host.JoinBus(s, busID)
 	}
-	info := s.InfoVersioned()
+	info = s.InfoVersioned()
 	if !continuing {
 		EmitInfo(l.host.Emit, info)
 	}

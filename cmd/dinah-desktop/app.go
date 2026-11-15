@@ -201,8 +201,10 @@ type App struct {
 
 	hmu sync.Mutex // the history file
 
-	appletMu   sync.Mutex
-	appletHost *host.Service
+	appletMu      sync.Mutex
+	appletHost    *host.Service
+	taskServices  taskServiceState
+	taskQuestions taskQuestionState
 
 	// notices are the operating system's notifications (host_notices.go).
 	notices hostNotices
@@ -273,6 +275,9 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.watchFileAccess(ctx)
 	a.ctx = ctx
+	if err := a.startTaskServices(); err != nil {
+		logf("core", "error", "window services could not start: %v", err)
+	}
 	if err := a.keepWhatsNew(); err != nil {
 		logf("core", "warning", "the first-start feature card could not be kept: %v", err)
 	}
@@ -318,6 +323,13 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.closeTaskServices()
+	a.taskServices.mu.Lock()
+	hadTaskHost := a.taskServices.host != nil
+	a.taskServices.mu.Unlock()
+	if hadTaskHost {
+		a.emit("task:host", map[string]string{"phase": "shared-teardown"})
+	}
 	a.drawingMu.Lock()
 	pictures := a.drawingService
 	a.drawingService = nil
@@ -594,10 +606,20 @@ func (a *App) Restart() error {
 }
 
 // Answer settles a question the agent asked, with the option the person chose.
-func (a *App) Answer(key, optionID string) {
+func (a *App) Answer(key, optionID string) error {
+	if strings.HasPrefix(key, "task-q-") {
+		a.taskQuestions.mu.Lock()
+		questions := a.taskQuestions.questions
+		a.taskQuestions.mu.Unlock()
+		if questions == nil {
+			return taskRefusal("stale", "the task question is no longer pending")
+		}
+		return questions.Answer(key, optionID)
+	}
 	if a.permissions().Answer(key, optionID) {
 		a.answerAttention(key)
 	}
+	return nil
 }
 
 // PendingPermissions is the permission questions waiting for the person,

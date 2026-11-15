@@ -247,6 +247,12 @@ func (c *Conn) Close() {
 
 // Call sends a request and waits for its answer. params of nil sends none.
 func (c *Conn) Call(ctx context.Context, method string, params any, out any) error {
+	return c.CallWithDispatch(ctx, method, params, out, nil)
+}
+
+// CallWithDispatch reports a successfully written request before waiting for its
+// response. The observer must not block or initiate another native request.
+func (c *Conn) CallWithDispatch(ctx context.Context, method string, params any, out any, dispatched func()) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -269,6 +275,9 @@ func (c *Conn) Call(ctx context.Context, method string, params any, out any) err
 	if err := c.send(message{ID: &rid, Method: method, Params: p}); err != nil {
 		return err
 	}
+	if dispatched != nil {
+		dispatched()
+	}
 	select {
 	case r := <-ch:
 		if r.err != nil {
@@ -289,6 +298,10 @@ func (c *Conn) Call(ctx context.Context, method string, params any, out any) err
 	case <-c.done:
 		return errors.New(c.agent + " stopped")
 	}
+}
+
+func (c *Conn) PromptWithDispatch(ctx context.Context, params PromptParams, out any, dispatched func()) error {
+	return c.CallWithDispatch(ctx, "session/prompt", params, out, dispatched)
 }
 
 // Notify sends a notification, which has no answer. params of nil sends

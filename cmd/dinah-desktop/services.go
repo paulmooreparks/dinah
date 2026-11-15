@@ -27,6 +27,15 @@ var serviceMethodPattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
 func (a *App) CallService(service, method, args string) (string, error) {
 	s, ok := services.Lookup(service)
 	if !ok {
+		if err := a.startTaskServices(); err != nil {
+			return "", err
+		}
+		a.taskServices.mu.Lock()
+		window := a.taskServices.window
+		a.taskServices.mu.Unlock()
+		s, ok = window.Lookup(service)
+	}
+	if !ok {
 		return "", errors.New("this build has no service named " + service)
 	}
 	if !serviceMethodPattern.MatchString(method) {

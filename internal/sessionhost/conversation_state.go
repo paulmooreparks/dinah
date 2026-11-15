@@ -53,7 +53,7 @@ func (c *Conversation) EnqueueQuestion(p Prompt, working bool) []string {
 func (c *Conversation) BeginSwitch() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.activity.SwitchingLocked() {
+	if c.activity.SwitchingLocked() || c.details.configuring {
 		return false
 	}
 	c.activity.SetSwitchingLocked(true)

@@ -262,7 +262,7 @@ func (b *Broker) StartID(workspace, ownerKind, ownerID, id, ref, inputJSON, expe
 	if (workspace == "" && ownerKind != "applet") || (workspace != "" && !filepath.IsAbs(workspace)) || ownerID == "" || !recordID.MatchString(id) {
 		return Invocation{}, fmt.Errorf("%w: invalid invocation context", ErrRecovery)
 	}
-	if ownerKind != "chat" && ownerKind != "applet" {
+	if ownerKind != "chat" && ownerKind != "applet" && ownerKind != "task" {
 		return Invocation{}, fmt.Errorf("%w: unsupported invocation owner", ErrRecovery)
 	}
 	action, err := b.Registry.Describe(ref)

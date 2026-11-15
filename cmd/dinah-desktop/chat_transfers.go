@@ -262,7 +262,7 @@ func (a *App) transferWarning(source string) string {
 		return ""
 	}
 	if tr.Target == "" {
-		return "An earlier allocation has no confirmed native receipt. It may exist at the provider. No message was submitted by this transfer. A new recovery keeps that record and starts a separate native chat."
+		return "The result of an earlier allocation is not known. It may exist at the provider, but no native identity was received. No message was submitted by this transfer. A new recovery keeps that record and starts a separate native chat."
 	}
 	return fmt.Sprintf("An earlier transfer allocated %s but did not commit message ownership. No message was submitted by this transfer. A new recovery retains that candidate's record and starts a separate native chat.", tr.Target)
 }
@@ -275,7 +275,15 @@ func (a *App) transferNotifications() []Notification {
 		if tr.Stage == "committed" {
 			continue
 		}
-		out = append(out, Notification{ID: recoveryIncidentID(source, tr.Recipient), Kind: "delivery-failure", Severity: "error", Title: "Chat recovery has no committed destination", Body: "Review the original saved chat to continue or replace this interrupted recovery. Its allocated candidate is retained; message ownership has not changed.", Lead: source, SessionID: source, Provider: tr.Provider, Created: tr.Created, Details: []string{"Stage: " + tr.Stage, "Allocated target: " + tr.Target, "Recipient: " + tr.Recipient}})
+		title := "Chat recovery has no committed destination"
+		body := "Review the original saved chat to continue or replace this interrupted recovery. Its allocated candidate is retained; message ownership has not changed."
+		target := "Allocated target: " + tr.Target
+		if tr.Target == "" {
+			title = "Chat recovery result is not known"
+			body = "The provider may have created a chat, but no native identity was received. This operation will not be repeated automatically. Review the original saved chat and its recovery record before starting a separate recovery."
+			target = "No native identity received"
+		}
+		out = append(out, Notification{ID: recoveryIncidentID(source, tr.Recipient), Kind: "delivery-failure", Severity: "error", Title: title, Body: body, Lead: source, SessionID: source, Provider: tr.Provider, Created: tr.Created, Details: []string{"Stage: " + tr.Stage, target, "Recipient: " + tr.Recipient}})
 	}
 	return out
 }

@@ -18,7 +18,7 @@ func (c *lifecycleTestChannel) Bind(id string) error { return c.bind(id) }
 func (c *lifecycleTestChannel) Revoke()              { c.revoke() }
 
 func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
-	for _, mode := range []string{"success", "bind", "restore", "finish", "stale", "prepare", "refused", "lost"} {
+	for _, mode := range []string{"success", "bind", "restore", "finish", "stale", "prepare", "refused", "internal error", "lost"} {
 		t.Run(mode, func(t *testing.T) {
 			var mu sync.Mutex
 			var runtime Runtime
@@ -65,7 +65,10 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 					}
 					order = append(order, "new")
 					if mode == "refused" {
-						return &acp.Error{Code: acp.CodeInternal, Message: "allocation refused"}
+						return &acp.Error{Code: acp.CodeMethodNotFound, Message: "allocation method unavailable"}
+					}
+					if mode == "internal error" {
+						return &acp.Error{Code: acp.CodeInternal, Message: "allocation result is unknown"}
 					}
 					if mode == "lost" {
 						return failure
@@ -110,7 +113,7 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 			switch mode {
 			case "prepare":
 				want = nil
-			case "refused", "lost":
+			case "refused", "internal error", "lost":
 				want = []string{"new", "revoke", "bus-end"}
 			case "success":
 				want = append(want, "transcript", "log", "restore", "finish", "join", "event")

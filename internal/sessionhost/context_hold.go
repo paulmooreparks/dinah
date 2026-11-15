@@ -16,6 +16,7 @@ type ContextHold struct {
 	Size int `json:"size"`
 	// Actions are the courses the person may choose.
 	Actions []string `json:"actions"`
+	Reason  string   `json:"reason,omitempty"`
 }
 
 // The courses for a full window.

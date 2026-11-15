@@ -43,7 +43,12 @@ func (a *App) callWithin(conn agentConnection, limit time.Duration, method strin
 		ctx, cancel = context.WithTimeout(ctx, limit)
 		defer cancel()
 	}
-	err := conn.Call(ctx, method, params, out)
+	var err error
+	if request, ok := params.(allocationRequest); ok && method == "session/new" {
+		err = callNativeAllocation(ctx, conn, request, out)
+	} else {
+		err = conn.Call(ctx, method, params, out)
+	}
 	if acp.IsAuthRequired(err) {
 		provider := a.providerOf(conn)
 		a.refused.refuse(provider, method)

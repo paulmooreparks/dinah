@@ -254,6 +254,12 @@ func (a *App) revokeAppletChannels(conn agentConnection) {
 	}
 }
 func (a *App) revokeAppletSession(session string) {
+	a.taskServices.mu.Lock()
+	tasks := a.taskServices.host
+	a.taskServices.mu.Unlock()
+	if tasks != nil {
+		tasks.RevokeChat(session)
+	}
 	a.bridgeMu.Lock()
 	b := a.appletBridge
 	a.bridgeMu.Unlock()
