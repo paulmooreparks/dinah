@@ -35,8 +35,11 @@ type SessionLifecycleHost struct {
 	SavedOptions      func(string) (map[string]json.RawMessage, string)
 	NewChannel        func(Connection, string) (ChannelCapability, []any, error)
 	ManagedServers    func() ([]any, error)
-	BusSessionID      func(string) string
-	WithBusServer     func(string, string, string, []any) []any
+	// ConfigureServers adds shell-owned session capabilities after defaults.
+	// The capability retains the authority and revokes it when opening fails.
+	ConfigureServers func(ChannelCapability, string, string, []any) ([]any, error)
+	BusSessionID     func(string) string
+	WithBusServer    func(string, string, string, []any) []any
 	// AdoptBusServer serves an identity the chat already has to the new
 	// session's agent, registering it on the bus, and reports a failure
 	// where WithBusServer opens the chat without the bus.
@@ -183,6 +186,13 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 	}
 	if providers.For(provider).ManagedServers {
 		servers, err = l.host.ManagedServers()
+		if err != nil {
+			channel.Revoke()
+			return Info{}, err
+		}
+	}
+	if l.host.ConfigureServers != nil {
+		servers, err = l.host.ConfigureServers(channel, provider, ws, servers)
 		if err != nil {
 			channel.Revoke()
 			return Info{}, err
@@ -526,6 +536,9 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 	channel, servers, channelErr := l.host.NewChannel(conn, cwd)
 	if channelErr == nil && providers.For(provider).ManagedServers {
 		servers, channelErr = l.host.ManagedServers()
+	}
+	if channelErr == nil && l.host.ConfigureServers != nil {
+		servers, channelErr = l.host.ConfigureServers(channel, provider, cwd, servers)
 	}
 	busID := l.host.BusSessionID(id)
 	if channelErr == nil {

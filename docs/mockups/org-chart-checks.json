@@ -1,0 +1,50 @@
+[
+  {
+    "width": 1440,
+    "renderer": "yavcCanvas.render",
+    "theme": "light",
+    "pageFits": true,
+    "textNodes": 52,
+    "dotted": 4,
+    "reporting": 4,
+    "menuFits": true,
+    "height": 1000,
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "renderer": "yavcCanvas.render",
+    "theme": "dark",
+    "pageFits": true,
+    "textNodes": 52,
+    "dotted": 4,
+    "reporting": 4,
+    "menuFits": true,
+    "height": 1000,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "renderer": "yavcCanvas.render",
+    "theme": "light",
+    "pageFits": true,
+    "textNodes": 53,
+    "dotted": 5,
+    "reporting": 4,
+    "menuFits": true,
+    "height": 1985,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "renderer": "yavcCanvas.render",
+    "theme": "dark",
+    "pageFits": true,
+    "textNodes": 53,
+    "dotted": 5,
+    "reporting": 4,
+    "menuFits": true,
+    "height": 1985,
+    "errors": []
+  }
+]

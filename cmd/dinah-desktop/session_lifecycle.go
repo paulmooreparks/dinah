@@ -44,6 +44,9 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 				channel, servers, err := a.newAppletChannel(conn, ws)
 				return &lifecycleChannel{app: a, channel: channel}, servers, err
 			},
+			ConfigureServers: func(capability sessionhost.ChannelCapability, provider, workspace string, servers []any) ([]any, error) {
+				return a.withDiagramServers(capability.(*lifecycleChannel).channel, provider, workspace, servers)
+			},
 			ManagedServers: managedAppletServers, BusSessionID: a.busSessionID, WithBusServer: a.withBusServer, AdoptBusServer: a.adoptBusServer, EndBusSession: func(id string) { a.busCoordinator().EndBusSession(id) },
 			Call: a.call, CallWithin: a.callWithin, SessionParams: a.providerSessionParams, InitTranscript: func(s *Session, replay bool) { a.transcriptCapture().Initialize(s, replay) }, ResumeTranscript: func(s *Session) string { return a.transcriptCapture().Resume(s) }, StartWaiting: func(s *Session) { a.turnIO().StartWaiting(s) }, RestoreQueue: func(s *Session) { a.queueRestorer().Restore(s) }, AfterOpen: func(s *Session) { a.loadContextChoice(s); a.restartChatOpened(s.ID(), s.Cwd(), nil) }, ResolveContinuation: a.ResolveSessionContinuation,
 			BeginLog: func(id, provider, ws, title string) { a.chatLogs().Begin(id, provider, ws, title) }, NoteLog: func(id, note string) { a.chatLogs().Note(id, note) },

@@ -272,7 +272,13 @@ func (c *Conn) Call(ctx context.Context, method string, params any, out any) err
 	select {
 	case r := <-ch:
 		if r.err != nil {
-			return r.err
+			// Provider diagnostics sometimes quote rejected configuration.
+			// Keep registered channel credentials out of caller logs too.
+			copy := *r.err
+			c.traceMu.Lock()
+			copy.Message = c.redactLocked(copy.Message)
+			c.traceMu.Unlock()
+			return &copy
 		}
 		if out != nil && len(r.result) > 0 {
 			return json.Unmarshal(r.result, out)

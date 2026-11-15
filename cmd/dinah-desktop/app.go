@@ -18,6 +18,7 @@ import (
 	"studio/internal/applet/host"
 	"studio/internal/bus"
 	"studio/internal/bushost"
+	"studio/internal/diagrampicture"
 	"studio/internal/extensions"
 	"studio/internal/layout"
 	"studio/internal/pageask"
@@ -50,6 +51,9 @@ type App struct {
 	chatCleanupHooks  chatCleanupAcceptanceHooks
 	chatCleanupLoaded map[string]string
 
+	drawingMu       sync.Mutex
+	drawingService  *diagrampicture.Service
+	drawingEndpoint string
 	// refused is the request each provider last refused for want of a
 	// sign-in (auth.go).
 	refused                    refusedCalls
@@ -314,6 +318,13 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.drawingMu.Lock()
+	pictures := a.drawingService
+	a.drawingService = nil
+	a.drawingMu.Unlock()
+	if pictures != nil {
+		pictures.Close()
+	}
 	a.closeShows()
 	a.closeResponsiveness()
 	// The watcher stops before the handle it shares is closed.
