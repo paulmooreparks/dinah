@@ -58,10 +58,11 @@ async function ready(url){await page.goto(url);await page.waitForFunction(()=>wi
   await call('RenameSession',id,'Local Context Observation');
   const shown=await (await fetch(server+'/api/show',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'qwen3.5:4b'})})).json();
   record({kind:'model-context',architecture:shown.model_info['general.architecture'],limit:shown.model_info[shown.model_info['general.architecture']+'.context_length']});
+  const defaultCap=(await call('State')).ollamaContextCap;
   phase='default';await call('Send',id,'Reply with the single word Ready. Do not call tools.',null,null);
   await until(async()=>(await call('UpdateState')).working===0,'default turn ended',360000);
   const defaultRequests=events.filter(x=>x.kind==='request'&&x.phase==='default'&&x.users.some(u=>u.includes('single word Ready')));
-  if(defaultRequests.length!==1||defaultRequests[0].options?.num_ctx!==65536)throw Error('The automatic request did not use the default ceiling');
+  if(defaultRequests.length!==1||defaultRequests[0].options?.num_ctx!==defaultCap)throw Error('The automatic request did not use the default ceiling');
   record({kind:'default-allocation',ps:await (await fetch(server+'/api/ps')).json()});
   await page.evaluate(()=>dinahWorkbench.open('settings'));
   const settings=page.locator('#settings');await settings.getByRole('tab',{name:'Agents',exact:true}).click();

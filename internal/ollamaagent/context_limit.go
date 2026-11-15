@@ -3,7 +3,7 @@ package ollamaagent
 import "context"
 
 // DefaultContextCap bounds the memory requested for a local model by default.
-const DefaultContextCap = 65536
+const DefaultContextCap = 32768
 
 // SetContextCap supplies the Settings limit, read before each model exchange.
 // Zero or an invalid saved value uses DefaultContextCap.

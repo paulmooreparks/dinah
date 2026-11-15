@@ -21,7 +21,7 @@ func (a *App) useOllamaContextCap(c *ollamaagent.Conn) {
 	})
 }
 
-// SetOllamaContextCap chooses the local context ceiling. Zero restores 64K.
+// SetOllamaContextCap chooses the local context ceiling. Zero restores 32K.
 func (a *App) SetOllamaContextCap(tokens int) error {
 	if tokens != 0 && (tokens < 1024 || tokens > 2147483647) {
 		return errors.New("the context limit must be a whole number from 1024 to 2147483647 tokens, or 0 for the default")

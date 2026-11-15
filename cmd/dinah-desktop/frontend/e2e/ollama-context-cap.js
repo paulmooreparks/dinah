@@ -5,12 +5,12 @@ const { launch } = require('./lib/page');
     viewport: { width: 1440, height: 1000 },
     app: () => {
       window.__caps = [];
-      let cap = 65536;
+      let cap = 32768;
       return {
         State: async () => ({ workspace: 'C:/Fixture', recent: ['C:/Fixture'], defaultProvider: 'ollama', catalog: [], defaults: {}, pinned: [],
           ollamaApprovals: 'chat', ollamaFileScope: 'workspace', ollamaContextCap: cap }),
         AgentProviders: async () => [{ id: 'ollama', name: 'Ollama', installed: true, available: true, status: 'detected' }],
-        SetOllamaContextCap: async n => { window.__caps.push(n); if (window.__rejectCap) throw Error('Fixture refusal'); cap = n || 65536; },
+        SetOllamaContextCap: async n => { window.__caps.push(n); if (window.__rejectCap) throw Error('Fixture refusal'); cap = n || 32768; },
         SkillsForProviderAt: async () => [], SkillsAt: async () => []
       };
     }
@@ -22,15 +22,15 @@ const { launch } = require('./lib/page');
     await settings.getByRole('tab', { name: 'Agents', exact: true }).click();
     const input = settings.locator('#ollama-context-cap');
     await input.waitFor();
-    await page.waitForFunction(() => document.querySelector('#ollama-context-cap').value === '65536');
-    ok('the default cap is shown under Ollama', await input.inputValue() === '65536');
-    await input.fill('32768');
+    await page.waitForFunction(() => document.querySelector('#ollama-context-cap').value === '32768');
+    ok('the default cap is shown under Ollama', await input.inputValue() === '32768');
+    await input.fill('8192');
     await settings.locator('#ollama-context-save').click();
-    await page.waitForFunction(() => window.__caps[0] === 32768 && /Saved/.test(document.querySelector('#ollama-context-status').textContent));
+    await page.waitForFunction(() => window.__caps[0] === 8192 && /Saved/.test(document.querySelector('#ollama-context-status').textContent));
     ok('a smaller cap saves with its effect explained', /next model response/.test(await settings.locator('#ollama-context-status').innerText()));
     await settings.locator('#ollama-context-reset').click();
-    await page.waitForFunction(() => window.__caps[1] === 0 && document.querySelector('#ollama-context-cap').value === '65536');
-    ok('Use Default restores 65536', await input.inputValue() === '65536');
+    await page.waitForFunction(() => window.__caps[1] === 0 && document.querySelector('#ollama-context-cap').value === '32768');
+    ok('Use Default restores 32768', await input.inputValue() === '32768');
     await input.fill('1023');
     await settings.locator('#ollama-context-save').click();
     ok('invalid sizes are refused before saving', await page.evaluate(() => window.__caps.length === 2));

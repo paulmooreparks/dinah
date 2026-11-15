@@ -53,7 +53,7 @@ type Settings struct {
 	// OllamaRounds is how many rounds of tool calls an Ollama turn may take;
 	// 0, or absent, is no limit (ollama_rounds.go).
 	OllamaRounds int `json:"ollamaRounds,omitempty"`
-	// OllamaContextCap bounds the context requested for local models. Zero uses 65536.
+	// OllamaContextCap bounds the context requested for local models. Zero uses 32768.
 	OllamaContextCap int `json:"ollamaContextCap,omitempty"`
 	// DefaultContextReleased is set once the saved options that held the old
 	// default context length for a chat have been released (provider_ollama.go).

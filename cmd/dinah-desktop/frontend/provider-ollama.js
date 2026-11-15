@@ -51,8 +51,10 @@
     <button type="button" class="btn btn-sm" id="ollama-context-save">Save</button>
     <button type="button" class="btn btn-sm" id="ollama-context-reset">Use Default</button>
   </div>
-  <p class="form-help">A local chat uses the context length its model reports, up to this limit. The default is 65,536 tokens. A smaller choice in the chat still applies. Larger windows need more memory. Changes apply to the next model response. Cloud models keep their own context settings.</p>
+  <p class="form-help">A local chat uses the context length its model reports, up to this limit. The default is 32,768 tokens. A smaller choice in the chat still applies. Larger windows need more memory. Changes apply to the next model response. Cloud models keep their own context settings.</p>
   <p class="settings-status" id="ollama-context-status" role="status"></p>
+  <div class="hstack gap-2"><span class="form-label">Loaded model memory</span><button type="button" class="btn btn-sm" id="ollama-memory-refresh">Refresh</button></div>
+  <p class="form-help" id="ollama-memory-reading" role="status" style="height:6rem;overflow:auto;white-space:pre-line">Memory use has not been read yet.</p>
 </section>
 <section class="card vstack gap-3" aria-labelledby="set-ollama-rounds">
   <h3 class="card-title" id="set-ollama-rounds">Ollama Steps per Turn</h3>
@@ -190,7 +192,7 @@
     });
     $('ollama-round-limit').addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); $('ollama-round-save').click(); } });
     $('ollama-round-clear').addEventListener('click', function () { saveRounds(0); });
-    var contextCap = 65536;
+    var contextCap = 32768;
     function drawContextCap() {
       var input = $('ollama-context-cap');
       if (document.activeElement !== input) input.value = String(contextCap);
@@ -217,6 +219,31 @@
     });
     $('ollama-context-reset').addEventListener('click', function () { saveContextCap(0); });
     $('ollama-context-cap').addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); $('ollama-context-save').click(); } });
+    var memoryRequest = 0, memoryCap = null;
+    function memoryBytes(n) { return n >= 0 ? (n / 1073741824).toFixed(2) + ' GiB' : 'unreported'; }
+    function refreshMemory() {
+      var request = ++memoryRequest;
+      var output = $('ollama-memory-reading'), button = $('ollama-memory-refresh');
+      output.textContent = 'Reading memory use from Ollama…'; button.disabled = true;
+      Promise.resolve().then(function () { return app().OllamaMemory(); }).then(function (reading) {
+        if (request !== memoryRequest) return;
+        var models = reading.models || [];
+        output.textContent = models.length ? models.map(function (model) {
+          var text = model.name + ' at ' + Number(model.context).toLocaleString() + ' tokens reports ' + memoryBytes(model.size) + ' loaded, including ' + memoryBytes(model.sizeVRAM) + ' in GPU memory.';
+          if (model.targetContext > 0 && model.context === model.targetContext) {
+            text += ' This is the size used at the saved ceiling for automatic context.';
+          } else if (model.targetContext > 0) {
+            text += ' Memory at the ceiling’s effective ' + Number(model.targetContext).toLocaleString() + ' tokens has not been measured. Refresh after a chat uses that size.';
+          } else {
+            text += ' The model’s context limit could not be read, so this reading cannot be matched to the ceiling.';
+          }
+          return text;
+        }).join('\n\n') : 'No local model is loaded. Memory use at this ceiling appears after a chat uses that size.';
+      }, function () {
+        if (request === memoryRequest) output.textContent = 'Memory use could not be read from Ollama. Refresh when the server is available.';
+      }).finally(function () { if (request === memoryRequest) button.disabled = false; });
+    }
+    $('ollama-memory-refresh').addEventListener('click', refreshMemory);
     drawContextCap();
     setFileAccess('anywhere', []);
 
@@ -226,7 +253,8 @@
         setApprovals(state.ollamaApprovals || 'chat');
         if (state.ollamaFileScope) setFileAccess(state.ollamaFileScope, state.ollamaFileFolders);
         if (state.ollamaRoundLimit) setRounds(state.ollamaRoundLimit);
-        contextCap = state.ollamaContextCap || 65536; drawContextCap();
+        contextCap = state.ollamaContextCap || 32768; drawContextCap();
+        if (memoryCap !== contextCap) { memoryCap = contextCap; refreshMemory(); }
       }
     };
   }
