@@ -18,7 +18,9 @@ The line under the box still shows the engine's answer about who the message rea
 
 A member asked to answer is the existing mention, bold and in the accent colour. A reference is plain text with its kind's glyph and a dotted underline, so the two differ by weight, colour and glyph together. Under the message, one line says who was asked to answer and another lists what was referred to and not asked, with a chat's workspace beside its name.
 
-## Questions for Paul
+## Paul's answers
 
-1. Should Add a Chat…, which puts another chat into the group, stay at the end of the Members heading as it is today? I recommend yes, since it changes the group rather than the message.
-2. Should a reference to a chat outside the group offer to add that chat to the group, for when Paul meant to ask it? I recommend no for now, because the line under the message already says it was not asked, and Add a Chat… is one step away.
+Paul approved this mockup at commit ca555e0c for building on 16 November 2026 and answered both questions.
+
+1. Add a Chat… stays at the end of the Members heading.
+2. A reference to a chat outside the group does not offer to add that chat. Referring to a chat and adding it to a group are separate decisions.
