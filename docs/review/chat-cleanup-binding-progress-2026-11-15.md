@@ -68,3 +68,19 @@ Selected command:
 `go test -tags quality_chat_cleanup,chatcleanup_acceptance ./cmd/dinah-desktop -run '^TestQualityCleanup(OwnershipAndLeases|AllocationRefusal|IndependentDescendant|SwitchedChain|SeparateRecipients|Refusals|ProtectedChain|MixedBatch)$' -count=1 -timeout 90s`
 
 The preceding counted-startup command in this record was used for the final regression rerun. The original frozen assertion file remains byte-for-byte unchanged from d4eba107.
+
+## Remaining promised cases
+
+The loaded-without-unload case and all three expiry provider outcomes now pass on unchanged product source e4ae7b4145ffe7b229e2a44133fad28ab1556d5c. The original frozen assertion file is unchanged from d4eba107.
+
+The loaded fixture assigns the invented frozen identity to the counted Codex stand-in and seeds its open runtime directly. A second invented conversation explicitly starts and loads that provider, so binning the target leaves the shared connection alive. The additional delivery assertion reads the actual removed inventory's still-loaded text, attempts direct bus delivery, and requires refusal with unchanged prompt and window-request counters. Restart stops the old lifecycle and joins turns before reconstructing App and running reconciliation, queue restoration, ChatWindows and bus discovery. No additional launch or load occurs, and the binned chat has no loaded provider after reconstruction. This remains a simulated application restart with invented connections, not a native desktop restart.
+
+Expiry now observes the actual ChatCleanupResult emitted by chat:finalized during the real sweep. The wrapper delegates to the prior sink to preserve connection counters. Supported, unsupported and failing deletion at the exact 30-day boundary all pass, including remaining-copy reasons, native-before-local deletion ordering where supported, tombstones and no resurrection. No result is synthesized from expected state.
+
+The first command accidentally left the comma-separated build tags unquoted in PowerShell, which split the tags and did not compile the binding. The corrected command ran the matrix but failed the loaded seed because OpenSessionAt correctly rejected its fixture-prefixed identity with a saved Codex provider. The seed was corrected to use the runtime fixture recipe while explicitly opening the valid second conversation. The focused frozen cases then passed in 4.930 seconds. These were invocation and fixture failures; no product source or frozen assertion was changed.
+
+The complete independent cleanup selection, including the additional loaded-delivery probe and the counted positive control, passed in 14.381 seconds through scripts/with-test-lock.ps1:
+
+`go test -tags 'quality_chat_cleanup,chatcleanup_acceptance' ./cmd/dinah-desktop -run '^TestQualityCleanup|^TestCleanupAcceptanceRestartCountsRealProviderEntry$' -count=1 -timeout=90s`
+
+This closes Quality's remaining gates from message 8855. Engine separately reported the full corrected-source package and vet gate in message 8858. Engine retains the combined handover; Quality has no active or queued run. No real home, account, remote write, native provider deletion, installation or merge to a product branch occurred.
