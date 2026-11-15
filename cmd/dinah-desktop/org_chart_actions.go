@@ -307,7 +307,7 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 		}
 		if eligible {
 			v := add("delete_chat", "Delete Chat…")
-			v.Confirmation = "Move this chat to the Recycle Bin? It will disappear from Dinah now and can be restored for 30 days. Its agent program's history is kept until final deletion. Linked documents and document drafts are unchanged."
+			v.Confirmation = "Move this chat to the Recycle Bin? It will disappear from " + product.Name + " now and can be restored for 30 days. Its agent program's history is kept until final deletion. Linked documents and document drafts are unchanged."
 		} else {
 			out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"delete_chat", reason})
 		}
