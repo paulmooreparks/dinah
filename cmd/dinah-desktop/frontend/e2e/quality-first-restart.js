@@ -1,4 +1,12 @@
-const { measure } = require('./lib/quality-frames');
+const { measure: capture } = require('./lib/quality-frames');
+async function measure(t, name, ...args) {
+  const result = await capture(t, name, ...args);
+  if (name.startsWith('frames-update-') || name === 'frames-restart-asking' || name === 'frames-restart-cancel') {
+    const moving = result.changes.filter(frame => frame.moved.length);
+    t.ok(name + ' keeps retained elements fixed through every frame', moving.length === 0);
+  }
+  return result;
+}
 const { start } = require('./lib/decision-answer-fixture');
 const { setup, makeRequest } = require('./lib/decisions-fixture');
 (async()=>{
@@ -39,6 +47,3 @@ const { setup, makeRequest } = require('./lib/decisions-fixture');
     }
   } finally { await t.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
-
-
-

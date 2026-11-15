@@ -1,4 +1,12 @@
-const { measure } = require('./lib/quality-frames');
+const { measure: capture } = require('./lib/quality-frames');
+async function measure(t, name, ...args) {
+  const result = await capture(t, name, ...args);
+  if (name.startsWith('frames-update-') || name === 'frames-restart-asking' || name === 'frames-restart-cancel') {
+    const moving = result.changes.filter(frame => frame.moved.length);
+    t.ok(name + ' keeps retained elements fixed through every frame', moving.length === 0);
+  }
+  return result;
+}
 const updates = require('./lib/updates-fixture'), aside = require('./lib/set-aside-fixture');
 (async()=>{
   let t = await updates.start();
@@ -30,4 +38,3 @@ const updates = require('./lib/updates-fixture'), aside = require('./lib/set-asi
     await measure(t,'frames-aside-removed',roots,()=>p.evaluate(()=>{__asideHold.remove=false;__asideReleaseRemove();}),()=>aside.ready(t));
   } finally { await t.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
-

@@ -83,6 +83,14 @@
 .status-count > .status-words { grid-area: 1 / 2; }
 .status-count > .badge { grid-area: 1 / 3; justify-content: center; font-variant-numeric: tabular-nums; }
 .status-count > .status-badge-reserve { visibility: hidden; pointer-events: none; }
+/* Reserve the longest update label in the same font as the live label. */
+#status-update:not([data-status-folded]) { display: inline-grid; grid-template-columns: auto auto auto; }
+#status-update > .glyph { grid-area: 1 / 1; }
+#status-update > .status-words { grid-area: 1 / 2; text-align: start; }
+#status-update > .badge { grid-area: 1 / 3; }
+#status-update::after { content: 'Restarting'; grid-area: 1 / 2; visibility: hidden; pointer-events: none; }
+.win-bar[data-win-bar-compact] #status-update:not([data-status-folded]) { display: inline-flex; }
+.win-bar[data-win-bar-compact] #status-update::after { display: none; }
 .win-bar[data-win-bar-compact] > .status-area[data-status-compact-priority="first"] .status-item > .badge { display: none; }
 .win-bar[data-win-bar-compact] > .status-area[data-status-compact-priority="first"] .status-count { grid-template-columns: auto; }
 
@@ -547,8 +555,8 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .release-notes .msg-text pre { white-space: pre; overflow-wrap: normal; }
 .updates-scroll { height: 18rem; overflow: auto; scrollbar-gutter: stable; border: 1px solid var(--border); }
 .updates-scroll > .updates-row { border-radius: 0; }
-.updates-progress { height: 4rem; min-width: 0; }
-.updates-progress .progress-value { min-width: 0; overflow-wrap: anywhere; }
+.updates-progress { height: 4rem; min-width: 0; grid-template-columns: 5rem minmax(0, 1fr); }
+.updates-progress .progress-value { min-width: 0; height: 4rem; white-space: normal; overflow-wrap: anywhere; overflow: auto; }
 .updates-actions { display: flex; flex-wrap: wrap; min-height: 2.5rem; }
 .updates-actions > button { width: 12rem; max-width: 100%; }
 #settings-set-aside { scrollbar-gutter: stable; }
