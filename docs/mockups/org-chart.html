@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Org Chart of Chats</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface); }
+    .mock-toolbar label { display: grid; gap: var(--space-1); }
+    .mock-toolbar .search { flex: 1; max-width: 24rem; min-width: 12rem; }
+    .mock-toolbar .form-input, .mock-toolbar .form-select { width: 100%; }
+    .mock-toolbar .mock-tools { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .mock-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-2) var(--space-4); font-size: var(--text-sm); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .legend-line { display: inline-block; width: 2rem; margin-inline-end: var(--space-2); vertical-align: middle; border-top: 2px solid var(--text-muted); }
+    .legend-line.dotted { border-top-style: dotted; }
+    .mock-summary { margin-inline-start: auto; color: var(--text-muted); }
+    .mock-drawing { position: relative; margin: var(--space-4); flex: 1; min-width: 0; }
+    .mock-drawing svg { display: block; width: 100%; height: auto; }
+    .mock-menu { display: block; position: absolute; width: 218px; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-dialog); z-index: 2; }
+    .mock-menu h2 { margin: 0; padding: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 500; }
+    .mock-menu button { width: 100%; text-align: left; padding: var(--space-2); border: none; background: transparent; color: var(--text); border-radius: var(--radius); font: inherit; font-size: var(--text-sm); display: flex; gap: var(--space-3); align-items: center; }
+    .mock-menu button:first-of-type { background: var(--accent); color: var(--on-accent); }
+    .mock-menu button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .mock-menu .danger { color: var(--danger-rest-fg, var(--danger)); }
+    .mock-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1); }
+    .mock-footer { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; padding: var(--space-2) var(--space-4); background: var(--surface); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--text-sm); }
+    @media (max-width: 600px) {
+      .mock-header { padding: var(--space-3); }
+      .mock-header .mock-tag { font-size: var(--text-xs); }
+      .mock-toolbar { padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; }
+      .mock-toolbar .search { max-width: none; min-width: 0; }
+      .mock-toolbar .mock-tools { grid-column: 1 / -1; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); }
+      .mock-legend { padding: var(--space-2) var(--space-3); gap: var(--space-2) var(--space-3); }
+      .mock-summary { margin: 0; width: 100%; }
+      .mock-drawing { margin: var(--space-3); }
+      .mock-menu { width: 198px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mock-shell">
+    <header class="mock-header"><span class="glyph" style="--glyph:var(--glyph-subagents)" aria-hidden="true"></span><h1>Org Chart of Chats</h1><span class="mock-tag">Design mockup</span></header>
+    <div class="mock-toolbar" aria-label="Chart Controls">
+      <label class="form-label">Workspace<select class="form-select" aria-label="Workspace"><option>All Workspaces</option><option>Harbor</option><option>Orchard</option></select></label>
+      <label class="form-label search">Find a Chat<input class="form-input" type="search" placeholder="Title or agent program"></label>
+      <div class="mock-tools"><button class="btn btn-sm">Fit Chart</button><button class="btn btn-sm">Expand All Teams</button><button class="btn btn-sm btn-primary">Create a Team…</button><button class="btn btn-sm">Create a Group…</button></div>
+    </div>
+    <div class="mock-legend"><span><i class="legend-line"></i>Reports to a team lead</span><span><i class="legend-line dotted"></i>Belongs to a group</span><span class="mock-summary">3 teams, 1 group, 2 free agents</span></div>
+    <main class="mock-drawing" aria-label="Chat Organisation">
+      <div id="drawing"></div>
+      <nav class="mock-menu" role="menu" aria-label="Nina's Chat Actions">
+        <h2>Nina, Reviewer</h2>
+        <button role="menuitem"><span aria-hidden="true">↳</span>Assign to a Team…</button>
+        <button role="menuitem"><span aria-hidden="true">☆</span>Make Team Lead</button>
+        <hr>
+        <button role="menuitem"><span aria-hidden="true">＋</span>Create a Team…</button>
+        <button role="menuitem"><span aria-hidden="true">＋</span>Create a Group…</button>
+        <button role="menuitem"><span aria-hidden="true">▹</span>Start a Chat</button>
+        <hr>
+        <button role="menuitem" class="danger"><span class="glyph" style="--glyph:var(--glyph-bin)" aria-hidden="true"></span>Delete Chat…</button>
+      </nav>
+    </main>
+    <footer class="mock-footer"><span>Nina belongs to Platform and the Release Review group.</span><span>The chats are invented. No action changes a chat.</span></footer>
+  </div>
+  <script src="../../cmd/dinah-desktop/frontend/yavc/content/diagram-kit/jcanvas.js"></script>
+  <script src="org-chart.js"></script>
+</body>
+</html>
