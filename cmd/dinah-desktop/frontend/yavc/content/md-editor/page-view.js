@@ -458,7 +458,7 @@ var schemaCache = null;
           o.page.replaceChildren();
           view = new PM.EditorView(o.page, {
             state: state,
-            nodeViews: { source_block: sourceView, container: boxView, columns: boxView, shortcode: inlineView,critic:criticView,footnote:footnoteView,footnote_ref:footnoteView },
+            nodeViews: { table: tableView, source_block: sourceView, container: boxView, columns: boxView, shortcode: inlineView,critic:criticView,footnote:footnoteView,footnote_ref:footnoteView },
             markViews: { host_span: hostSpanView },
             handlePaste: handlePaste,
             // HTML pasted from another program is made safe before the
@@ -1614,6 +1614,19 @@ var schemaCache = null;
       if (onlyLinkDefinitions(node)) return true;
       if (node.attrs.kind === 'definition') return !(node.attrs.html || '').includes('sc-problem');
       return hiddenStyles(window.yavcHTML.fragment(node.attrs.html || ''));
+    }
+    /* A table is drawn as its schema draws it, and the page gives it column elements (pages.js, columns) that are its own and not the document's, so a
+       change to anything in it but its rows is not the person's. */
+    function tableView(node) {
+      var made = node.type.spec.toDOM(node), body = made.contentDOM, current = node;
+      return {
+        dom: made.dom, contentDOM: body,
+        update: function (next) {
+          if (next.type !== current.type || JSON.stringify(next.attrs.raw) !== JSON.stringify(current.attrs.raw)) return false;
+          current = next; return true;
+        },
+        ignoreMutation: function (mutation) { return mutation.type !== 'selection' && !body.contains(mutation.target); }
+      };
     }
     function sourceView(node, v, getPos) {
       var dom = document.createElement('div');
