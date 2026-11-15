@@ -41,6 +41,17 @@
 /* An @ mention in a message is text to read, so it is flat: bold, in the
    accent colour, with its @ sign as part of the words. */
 .mention { font-weight: 600; color: var(--accent); }
+/* A reference in a group message asks no one (docs/design/group-mentions.md),
+   so it is plain text with its kind's glyph and a dotted underline, told from
+   a mention by weight, colour and glyph together. */
+.mention-ref { display: inline-flex; align-items: baseline; gap: 3px; color: var(--text); text-decoration: underline dotted; text-underline-offset: 3px; }
+.mention-ref .glyph { --glyph-size: 12px; align-self: center; color: var(--text-muted); }
+/* Under a group message: who was asked to answer, and what was only referred
+   to, in words as well as by the marks in the text. */
+.msg-reach { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--border); display: grid; gap: 2px; font-size: var(--text-sm); color: var(--text-muted); }
+.msg-reach p { margin: 0; display: flex; gap: var(--space-2); align-items: baseline; }
+.msg-reach .glyph { --glyph-size: 13px; flex: none; align-self: center; }
+.msg-reach strong { color: var(--text); font-weight: 600; }
 /* A line the group itself writes, such as a chat added, sits between the
    messages, muted and centred, with the info glyph so it is not told from
    a message by colour alone. */
