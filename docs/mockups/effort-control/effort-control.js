@@ -50,12 +50,6 @@
      on engine/effort-protocol). Only Codex documents that the turn running
      keeps its level; Dinah promises nothing the program does not document. */
   function timing(c) { return c.provider === 'Codex' ? 'next-turn' : c.provider === 'Ollama' ? 'next-request' : 'unspecified'; }
-  function beforeWords(c) {
-    var t = timing(c);
-    return t === 'next-turn' ? 'A turn is running at ' + nameOf(c, M.runLevel) + '. Codex applies a level you choose now from the next turn.'
-      : t === 'next-request' ? 'A turn is running. Ollama uses a level you choose now from its next request to the model, which may come before this turn ends.'
-      : 'A turn is running. ' + c.provider + ' doesn’t say whether a change applies to the turn already running.';
-  }
   function afterWords(c) {
     var t = timing(c), now = nameOf(c, c.current);
     return t === 'next-turn' ? 'The turn already running keeps ' + nameOf(c, M.runLevel) + '; ' + now + ' applies from the next turn.'
@@ -72,24 +66,16 @@
     now.textContent = c.levels.length ? nameOf(c, c.current) + ', level ' + (at + 1) + ' of ' + c.levels.length : '';
   }
 
-  /* ---- The panel: the levels as a segmented control. A press chooses and
-     closes it; the arrow keys move along the levels and show each one's
-     description; Escape closes it without a change. ---- */
+  /* ---- The panel: the "Effort" label and the levels as a segmented
+     control, nothing else, so it is always the same size (Paul, 16 Nov).
+     A press chooses and closes it; the arrow keys move along the levels;
+     Escape closes it without a change. ---- */
   function drawPanel(container) {
     var c = chat();
-    var detail = h('p', { class: 'effort-detail', id: 'effort-detail-' + Math.random().toString(36).slice(2) });
-    function describe(v) { var l = levelOf(c, v); detail.textContent = l && l.description ? l.description : (c.levels.length === 1 ? '' : ''); }
     var seg = h('div', { class: 'seg sm effort-seg', role: 'group', 'aria-label': 'Effort' }, c.levels.map(function (l) {
-      return h('button', { type: 'button', 'data-level': l.value, 'aria-pressed': String(l.value === c.current), 'aria-describedby': detail.id, title: l.name, text: l.name });
+      return h('button', { type: 'button', 'data-level': l.value, 'aria-pressed': String(l.value === c.current), title: l.name, text: l.name });
     }));
-    var notes = [];
-    if (c.levels.length === 1) notes.push(h('p', { class: 'effort-note' }, glyph('info'), h('span', { text: 'This model offers one effort level, so there is nothing to choose.' })));
-    if (M.running) notes.push(h('p', { class: 'effort-note', 'data-running': '' }, glyph('info'), h('span', { text: beforeWords(c) })));
-    container.append(h('div', { class: 'effort-panel' }, h('div', { class: 'md-section-label', text: 'Effort' }), seg, detail, notes));
-    describe(c.current);
-    seg.addEventListener('focusin', function (e) { var b = e.target.closest('[data-level]'); if (b) describe(b.dataset.level); });
-    seg.addEventListener('mouseover', function (e) { var b = e.target.closest('[data-level]'); if (b) describe(b.dataset.level); });
-    seg.addEventListener('mouseleave', function () { var f = seg.querySelector(':focus'); describe(f ? f.dataset.level : c.current); });
+    container.append(h('div', { class: 'effort-panel' }, h('div', { class: 'md-section-label', text: 'Effort' }), seg));
     seg.addEventListener('keydown', function (e) {
       var all = Array.from(seg.children), i = all.indexOf(document.activeElement), to = -1;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = Math.min(all.length - 1, i + 1);
@@ -248,11 +234,11 @@
     { key: 'five', title: 'A chat with five levels (Claude: Low to Max)', run: function () { M.chat = 'frontend'; } },
     { key: 'five-open', title: 'Its Effort panel, open', run: function () { M.chat = 'frontend'; }, after: function () { openEffort(); } },
     { key: 'one', title: 'A chat with one level (Ollama: On)', run: function () { M.chat = 'local'; } },
-    { key: 'one-open', title: 'Its Effort panel, open: one level and nothing to choose', run: function () { M.chat = 'local'; }, after: function () { openEffort(); } },
-    { key: 'running', title: 'A turn is running in a Codex chat: the panel says a new level applies from the next turn, as Codex documents', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'high'; }, after: function () { openEffort(); } },
-    { key: 'running-claude', title: 'A turn is running in a Claude chat: Claude doesn’t say when a change applies, so the panel promises nothing', run: function () { M.chat = 'frontend'; M.running = true; M.runLevel = 'high'; }, after: function () { openEffort(); } },
+    { key: 'one-open', title: 'Its Effort panel, open: the one level, pressed', run: function () { M.chat = 'local'; }, after: function () { openEffort(); } },
+    { key: 'running', title: 'A turn is running in a Codex chat: the panel is unchanged, and the working line says what Codex documents', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'high'; }, after: function () { openEffort(); } },
+    { key: 'running-claude', title: 'Changed while a Claude turn runs: Claude doesn’t say when a change applies, so the working line promises nothing', run: function () { M.chat = 'frontend'; M.running = true; M.runLevel = 'high'; CHATS.frontend.current = 'medium'; } },
     { key: 'running-changed', title: 'Changed while a Codex turn runs: Codex documents that the turn keeps its level and the next turn gets the new one', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'medium'; } },
-    { key: 'keyboard', title: 'The keyboard: Enter opens the panel on the level in effect, Right moves to the next and shows its description', run: function () { M.chat = 'frontend'; }, after: function () { openEffort(true); setTimeout(function () { var f = document.activeElement; if (f && f.dataset.level) f.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); }, 60); } },
+    { key: 'keyboard', title: 'The keyboard: Enter opens the panel on the level in effect, and Right moves to the next', run: function () { M.chat = 'frontend'; }, after: function () { openEffort(true); setTimeout(function () { var f = document.activeElement; if (f && f.dataset.level) f.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); }, 60); } },
     { key: 'none', title: 'A chat with no effort setting shows no button', run: function () { M.chat = 'notes'; } },
     { key: 'today', title: 'For comparison: the Thinking button as it is today', run: function () { M.today = true; } }
   ];

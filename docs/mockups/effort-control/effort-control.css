@@ -19,9 +19,6 @@
 .effort-panel .md-section-label { padding: 0; }
 .effort-seg { display: flex; inline-size: 100%; }
 .effort-seg > button { flex: 1 0 auto; justify-content: center; white-space: nowrap; }
-.effort-detail { margin: 0; min-block-size: 2.6em; font-size: var(--text-sm); color: var(--text-muted); }
-.effort-note { margin: 0; display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); }
-.effort-note .glyph { --glyph-size: 16px; flex: none; margin-top: 2px; color: var(--accent); }
 /* A folded toolbar draws the same panel inside the Agent group's menu. */
 .menu-command-panel .effort-panel { padding-inline: var(--space-3); }
 .menu-command-panel .effort-panel > .md-section-label { display: none; }
