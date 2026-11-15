@@ -945,3 +945,6 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
   .cleanup-lists { min-height: 18rem; }
   .chat-cleanup { overflow-y: auto; }
 }
+
+/* Keep reported Thinking values from changing the composer's geometry. */
+.composer-toolbar [data-command="thinking"] .toolbar-words { inline-size: 9rem; max-inline-size: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

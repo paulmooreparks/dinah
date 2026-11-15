@@ -3435,6 +3435,22 @@
         current: current, detail: current || undefined, items: items };
     }
 
+    function thinkingCommand() {
+      var offered = barOptions().filter(function (option) { return option.category === 'thought_level' && option.type === 'select'; });
+      var items = [], current = [];
+      offered.forEach(function (option, index) {
+        current.push(valueName(option, option.currentValue));
+        if (offered.length > 1) items.push({ heading: option.name });
+        optValues(option).forEach(function (value, item) {
+          items.push({ id: 'thinking-' + index + '-' + item, label: value.name, detail: value.description || undefined,
+            choice: 'chat-thinking-' + option.id, value: value.value, checked: value.value === option.currentValue,
+            run: function () { return setSessionOption(option.id, value.value); } });
+        });
+      });
+      return { id: 'thinking', label: 'Thinking', glyph: 'gear', hidden: !offered.length,
+        current: current.join(', '), detail: current.join(', ') || undefined, items: items };
+    }
+
     /* Menu entries that can do nothing at the moment are greyed out. */
     function commandEnabled(id) {
       const session = active && sessions[active];
@@ -3675,7 +3691,7 @@
             reason: 'The chat starts with its first message.', items: function () { return active && window.dinahBus ? window.dinahBus.addItems(active) : []; } },
           { id: 'remove-chat', actions: true, label: 'Delete Chat…', run: function () { if (active) openRemove(active); }, disabled: !active, danger: true },
           { id: 'clean-up-chats', actions: true, label: 'Clean Up Chats', run: function () { return window.dinahChatCleanup.open(); } },
-          Object.assign(providerCommand(), { actions: true }), Object.assign(modeCommand(), { actions: true }), modelCommand(),
+          Object.assign(providerCommand(), { actions: true }), Object.assign(modeCommand(), { actions: true }), modelCommand(), thinkingCommand(),
           { id: 'choose-model', actions: true, label: 'Choose the Model…', run: openModels, disabled: !byCat(barOptions(), 'model') },
           { id: 'add', label: 'Add', glyph: 'clip', items: addItems },
           { id: 'skills', label: 'Skills', glyph: 'slash', items: skillItems },
