@@ -12,6 +12,8 @@ Paul answered three questions in this chat on 15 November 2026.
 
 Paul also said on 15 November that the chart goes into the products built on Dinah as well. It is therefore built generically in Dinah, with no product's names or records in it, and reaches those products through their normal merge from Dinah.
 
+Paul approved the mockup on 15 November 2026 ("That's exactly what I have in mind"). It is in `docs/mockups/org-chart*.png`, with its source beside it. One change is made in the build: the line that stands for a folded team is a raised control that unfolds it, as PUDL requires for anything pressable.
+
 ## Shape
 
 The chart is a Dinah page with its own address, under the Architectural Principles. It is not a diagram document. It uses the drawing and layout code of the Diagrams applet, and it reads Dinah's own records of teams, leads, members, groups and chat state, so it adds no new record of its own.
@@ -26,6 +28,6 @@ Each box has a context menu, with the same actions reachable from the keyboard: 
 
 1. Chat cleanup and the Recycle Bin, which firing depends on.
 2. The ghost chats left behind by switching agent programs.
-3. The mockup, then a read-only live chart.
+3. The mockup (approved), then a read-only live chart. The read-only chart needs no deletion, so it can be built while the first two are finished, as long as it asks for a chat's sessions through the same function the cleanup uses, and so shows each chat once.
 4. The management actions on the chart.
 5. Moving a set of chats, or a whole team, to another agent program at once, which Paul asked for as a later step.
