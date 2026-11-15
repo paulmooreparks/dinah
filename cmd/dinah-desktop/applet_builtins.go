@@ -28,6 +28,7 @@ func (a *App) builtinAppletBundles() ([]applet.Bundle, error) {
 	bundles = append(bundles, product...)
 	makers := []func() (applet.Bundle, error){a.workspaceAppletBundle, a.chatAppletBundle, a.settingsAppletBundle, a.filesAppletBundle, a.terminalAppletBundle, a.skillsAppletBundle, a.windowsAppletBundle, a.teamAppletBundle, a.diagnosticsAppletBundle, a.documentsAppletBundle, a.documentThreadsAppletBundle}
 	makers = append(makers, a.standaloneAppletBundle)
+	makers = append(makers, a.requestSettlementBundle)
 	for _, app := range contentApps {
 		app := app
 		makers = append(makers, func() (applet.Bundle, error) { return a.contentAppletBundle(app) })

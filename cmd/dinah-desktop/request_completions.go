@@ -56,6 +56,9 @@ func (a *App) flushRequestCompletions() error {
 }
 
 func (a *App) reconcileRequestCompletions(ctx context.Context, b *bus.Bus) error {
+	if err := a.repairRequestProjections(); err != nil {
+		return err
+	}
 	if err := b.DispatchRequestCompletions(ctx); err != nil {
 		return err
 	}

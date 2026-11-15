@@ -321,6 +321,15 @@ func (w *Window) commitQuestion(scope Scope, key, outcome, actor string, in requ
 			return requestsettlement.Refuse(in, "cancelled", "The task authority was revoked."), nil
 		}
 	}
+	command := map[string]string{"dismissed": "Dismiss", "withdrawn": "Withdraw", "answered": "Answer", "cancelled": "Cancel"}[outcome]
+	releaseOperation, err := requestsettlement.Claim(w.options.State, actor, command, in)
+	if errors.Is(err, requestsettlement.ErrOperationChanged) {
+		return requestsettlement.Refuse(in, "operation_changed", err.Error()), nil
+	}
+	if err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	defer releaseOperation()
 	stamp := w.options.Now().UTC().Format(time.RFC3339Nano)
 	kind, wording := "owner", "The asking owner withdrew this request without answering."
 	if outcome == "dismissed" {
@@ -386,10 +395,26 @@ func (c Client) WithdrawQuestion(ctx context.Context, scope Scope, key, operatio
 	if err != nil {
 		return requestsettlement.Refuse(in, "not_authorized", err.Error()), nil
 	}
-	if err = c.window.options.Check(ctx, scope); err != nil {
-		return requestsettlement.Refuse(in, "not_authorized", err.Error()), nil
+	return c.window.withdrawQuestion(ctx, scope, key, operationID, requestsettlement.ServiceActor(scope.Service))
+}
+
+// WithdrawQuestionByChat is a root-window adapter. A registered service receives
+// only Client, and cannot select this actor or obtain this root port.
+func (w *Window) WithdrawQuestionByChat(ctx context.Context, scope Scope, key, operationID, canonicalChat string) (requestsettlement.Receipt, error) {
+	in := requestsettlement.Input{ID: key, Revision: 1, OperationID: operationID}
+	record, err := w.QuestionRecord(key)
+	if err != nil {
+		return requestsettlement.Receipt{}, err
 	}
-	record, err := c.window.QuestionRecord(key)
+	if canonicalChat == "" || record.Recipient != canonicalChat || record.Scope != scope || scope.OwnerChat == "" {
+		return requestsettlement.Refuse(in, "not_authorized", "This question belongs to another asking chat."), nil
+	}
+	return w.withdrawQuestion(ctx, scope, key, operationID, requestsettlement.ChatActor(canonicalChat))
+}
+
+func (w *Window) withdrawQuestion(ctx context.Context, scope Scope, key, operationID, actor string) (requestsettlement.Receipt, error) {
+	in := requestsettlement.Input{ID: key, Revision: 1, OperationID: operationID}
+	record, err := w.QuestionRecord(key)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return requestsettlement.Receipt{}, err
@@ -399,11 +424,64 @@ func (c Client) WithdrawQuestion(ctx context.Context, scope Scope, key, operatio
 	if scope != record.Scope {
 		return requestsettlement.Refuse(in, "not_authorized", "This question belongs to another owner."), nil
 	}
-	c.window.mu.Lock()
-	q := c.window.questions
-	c.window.mu.Unlock()
-	if record.Status == "open" && q != nil {
-		return q.withdraw(scope, in)
+	if record.Status != "open" {
+		return w.commitQuestion(scope, key, "withdrawn", actor, in, nil)
 	}
-	return c.window.commitQuestion(scope, key, "withdrawn", scope.Service, in, nil)
+	if err = w.options.Check(ctx, scope); err != nil {
+		return requestsettlement.Refuse(in, "not_authorized", err.Error()), nil
+	}
+	w.mu.Lock()
+	q := w.questions
+	w.mu.Unlock()
+	if record.Status == "open" && q != nil {
+		return q.withdraw(scope, in, actor)
+	}
+	return w.commitQuestion(scope, key, "withdrawn", actor, in, nil)
+}
+
+// QuestionOperation reads only this registered consumer's original withdrawal.
+// It needs no fresh execution authority and cannot settle a question.
+func (c Client) QuestionOperation(ctx context.Context, scope Scope, key, operation string) (requestsettlement.Receipt, error) {
+	in := requestsettlement.Input{ID: key, OperationID: operation, Revision: 1}
+	scope, err := c.scope(scope)
+	if err != nil || !requestsettlement.ValidOperationID(operation) {
+		return requestsettlement.Refuse(in, "not_authorized", "The original withdrawal could not be identified."), nil
+	}
+	if err := ctx.Err(); err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	return c.window.questionOperation(scope, key, operation, requestsettlement.ServiceActor(scope.Service))
+}
+
+func (w *Window) QuestionOperationByChat(ctx context.Context, scope Scope, key, operation, canonicalChat string) (requestsettlement.Receipt, error) {
+	in := requestsettlement.Input{ID: key, Revision: 1, OperationID: operation}
+	if err := ctx.Err(); err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	record, err := w.QuestionRecord(key)
+	if err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	if canonicalChat == "" || record.Recipient != canonicalChat || record.Scope != scope || scope.OwnerChat == "" {
+		return requestsettlement.Refuse(in, "not_authorized", "The withdrawal belongs to another asking chat."), nil
+	}
+	return w.questionOperation(scope, key, operation, requestsettlement.ChatActor(canonicalChat))
+}
+
+func (w *Window) questionOperation(scope Scope, key, operation, actor string) (requestsettlement.Receipt, error) {
+	in := requestsettlement.Input{ID: key, Revision: 1, OperationID: operation}
+	if !requestsettlement.ValidOperationID(operation) {
+		return requestsettlement.Refuse(in, "invalid_request", "The original operation ID is invalid."), nil
+	}
+	record, err := w.QuestionRecord(key)
+	if err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	if record.Scope != scope {
+		return requestsettlement.Refuse(in, "not_authorized", "The withdrawal belongs to another task or asking chat."), nil
+	}
+	if receipt, ok := record.Receipts[requestsettlement.Key(actor, "withdrawn", operation)]; ok {
+		return receipt, nil
+	}
+	return requestsettlement.Receipt{OperationID: operation, ID: key, State: "unknown"}, nil
 }

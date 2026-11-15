@@ -63,7 +63,11 @@ func (a *App) settleNotification(in requestsettlement.Input, actor, command stri
 	if err != nil {
 		return requestsettlement.Receipt{}, err
 	}
-	op := requestsettlement.Key(actor, command, in.OperationID)
+	operationActor := actor
+	if command == "Withdraw" {
+		operationActor = requestsettlement.ChatActor(actor)
+	}
+	op := requestsettlement.Key(operationActor, command, in.OperationID)
 	if previous, ok := store.ReportOperations[op]; ok {
 		if previous.Input != in {
 			return requestsettlement.Refuse(in, "operation_changed", "This operation ID describes different input."), nil
@@ -95,6 +99,14 @@ func (a *App) settleNotification(in requestsettlement.Input, actor, command stri
 	if source.Report.PermissionKey != "" || source.Report.Kind == "mention" && source.Report.Message != 0 {
 		return requestsettlement.Refuse(in, "source_required", "Settle the original question before changing its notification."), nil
 	}
+	release, err := requestsettlement.Claim(configDir(), operationActor, command, in)
+	if errors.Is(err, requestsettlement.ErrOperationChanged) {
+		return requestsettlement.Refuse(in, "operation_changed", err.Error()), nil
+	}
+	if err != nil {
+		return requestsettlement.Receipt{}, err
+	}
+	defer release()
 	status, kind, wording := "dismissed", "person", "The person dismissed this report without answering."
 	if command == "Withdraw" {
 		status, kind, wording = "withdrawn", "owner", "The asking chat withdrew this report without answering."

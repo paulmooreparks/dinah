@@ -24,6 +24,27 @@ type askPersonInput struct {
 }
 
 func (s *Server) addAskPersonTool(srv *mcp.Server) {
+	mcp.AddTool(srv, &mcp.Tool{Name: "request_operation", Description: "Read the receipt of your original request withdrawal after a lost response. This starts and settles nothing."}, func(ctx context.Context, _ *mcp.CallToolRequest, in struct {
+		ID          string `json:"id"`
+		OperationID string `json:"operationId"`
+	}) (*mcp.CallToolResult, any, error) {
+		me, err := s.current(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		r, err := s.bus.RequestOperation(ctx, me.ID, "Withdraw", in.OperationID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if r.State == "committed" && r.ID != in.ID {
+			r = requestsettlement.Refuse(requestsettlement.Input{ID: in.ID, OperationID: in.OperationID}, "not_authorized", "This operation belongs to another request.")
+		}
+		encoded, err := json.Marshal(r)
+		if err != nil {
+			return nil, nil, err
+		}
+		return text("%s", encoded), nil, nil
+	})
 	mcp.AddTool(srv, &mcp.Tool{Name: "withdraw_request", Description: "Withdraw your own open request to the person without answering it. Ownership comes from your authenticated chat. Reuse an operationId only for identical input."}, func(ctx context.Context, _ *mcp.CallToolRequest, in requestsettlement.Input) (*mcp.CallToolResult, any, error) {
 		me, err := s.current(ctx)
 		if err != nil {

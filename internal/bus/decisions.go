@@ -334,13 +334,6 @@ func rejectDecision(t *sql.Tx, op, fp, id string, revision int, closed bool, cod
 }
 
 func (b *Bus) DecisionOperation(ctx context.Context, op string) (DecisionReceipt, error) {
-	settled, err := b.RequestOperation(ctx, "person", "Dismiss", op)
-	if err != nil {
-		return DecisionReceipt{}, err
-	}
-	if settled.State == "committed" {
-		return DecisionReceipt{OperationID: op, ID: settled.ID, Revision: settled.Revision, State: "committed", Closed: true, MessageIDs: []int64{}}, nil
-	}
 	out := DecisionReceipt{OperationID: op, State: "unknown", MessageIDs: []int64{}}
 	if !decisionOperationID(op) {
 		return out, errors.New("This action could not be identified. Refresh and try again.")
@@ -350,8 +343,21 @@ func (b *Bus) DecisionOperation(ctx context.Context, op string) (DecisionReceipt
 		return out, err
 	}
 	defer t.Rollback()
-	out, _, err = decisionReceipt(t, op, "")
-	return out, err
+	previous, found, err := decisionReceipt(t, op, "")
+	if err != nil || found {
+		return previous, err
+	}
+	if err := t.Rollback(); err != nil {
+		return out, err
+	}
+	settled, err := b.RequestOperation(ctx, "person", "Dismiss", op)
+	if err != nil {
+		return out, err
+	}
+	if settled.State == "committed" {
+		return DecisionReceipt{OperationID: op, ID: settled.ID, Revision: settled.Revision, State: "committed", Closed: true, MessageIDs: []int64{}}, nil
+	}
+	return out, nil
 }
 
 func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (DecisionReceipt, error) {
@@ -506,6 +512,25 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 }
 
 func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (DecisionReceipt, error) {
+	if !decisionOperationID(in.OperationID) || in.Revision < 1 {
+		return DecisionReceipt{}, errors.New("This action could not be identified. Refresh and try again.")
+	}
+	if _, err := decisionMessageID(in.ID); err != nil {
+		return DecisionReceipt{}, err
+	}
+	// Old dismissal receipts remain authoritative after the adapter changes.
+	t, err := b.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return DecisionReceipt{}, err
+	}
+	previous, found, lookupErr := decisionReceipt(t, in.OperationID, decisionFingerprint("dismiss", in))
+	rollbackErr := t.Rollback()
+	if lookupErr != nil || rollbackErr != nil {
+		return DecisionReceipt{}, errors.Join(lookupErr, rollbackErr)
+	}
+	if found {
+		return previous, nil
+	}
 	r, err := b.DismissRequest(ctx, requestsettlement.Input{OperationID: in.OperationID, ID: in.ID, Revision: in.Revision})
 	out := DecisionReceipt{OperationID: r.OperationID, ID: r.ID, Revision: r.Revision, State: r.State, Closed: r.State == "committed", MessageIDs: []int64{}}
 	if r.State == "refused" {

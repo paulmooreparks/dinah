@@ -32,9 +32,13 @@ func (b *Bus) settleRequest(ctx context.Context, actor, command string, in reque
 		return out, nil
 	}
 	fp := decisionFingerprint(command, in)
+	operationActor := actor
+	if command == "Withdraw" {
+		operationActor = requestsettlement.ChatActor(actor)
+	}
 	err = b.tx(ctx, func(t *sql.Tx) error {
 		var encoded, old string
-		err := t.QueryRow(`SELECT fingerprint,receipt FROM request_settlement_operations WHERE actor=? AND command=? AND operation_id=?`, actor, command, in.OperationID).Scan(&old, &encoded)
+		err := t.QueryRow(`SELECT fingerprint,receipt FROM request_settlement_operations WHERE actor=? AND command=? AND operation_id=?`, operationActor, command, in.OperationID).Scan(&old, &encoded)
 		if err == nil {
 			if old != fp {
 				out = requestsettlement.Refuse(in, "operation_changed", "This operation ID already describes a different request.")
@@ -76,6 +80,15 @@ func (b *Bus) settleRequest(ctx context.Context, actor, command string, in reque
 			out = requestsettlement.Refuse(in, "revision_changed", "This request changed. Refresh it before continuing.")
 			return nil
 		}
+		release, err := requestsettlement.Claim(b.dir, operationActor, command, in)
+		if errors.Is(err, requestsettlement.ErrOperationChanged) {
+			out = requestsettlement.Refuse(in, "operation_changed", err.Error())
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		defer release()
 		status, kind, wording := "dismissed", "person", "The person dismissed this request without answering."
 		if command == "Withdraw" {
 			status, kind, wording = "withdrawn", "owner", "The asking chat withdrew this request without answering."
@@ -100,7 +113,7 @@ func (b *Bus) settleRequest(ctx context.Context, actor, command string, in reque
 		if err != nil {
 			return err
 		}
-		_, err = t.Exec(`INSERT INTO request_settlement_operations VALUES(?,?,?,?,?)`, actor, command, in.OperationID, fp, string(data))
+		_, err = t.Exec(`INSERT INTO request_settlement_operations VALUES(?,?,?,?,?)`, operationActor, command, in.OperationID, fp, string(data))
 		return err
 	})
 	// Dispatch failure leaves the durable obligation for later reconciliation.
@@ -117,6 +130,9 @@ func (b *Bus) RequestOperation(ctx context.Context, actor, command, operation st
 		return out, errors.New("invalid operation ID")
 	}
 	var encoded string
+	if command == "Withdraw" {
+		actor = requestsettlement.ChatActor(actor)
+	}
 	err := b.db.QueryRowContext(ctx, `SELECT receipt FROM request_settlement_operations WHERE actor=? AND command=? AND operation_id=?`, actor, command, operation).Scan(&encoded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, nil
@@ -200,4 +216,13 @@ func (b *Bus) RequestCompletionAvailable(ctx context.Context, recipient string) 
 	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions s WHERE s.id=? AND s.ended_at IS NULL AND s.removed_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM team_members tm WHERE tm.member=s.id AND tm.retired=1)`, recipient).Scan(&n)
 	return n == 1, err
+}
+
+func (b *Bus) RequestOwnerAvailable(ctx context.Context, owner string) (bool, error) {
+	t, err := b.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return false, err
+	}
+	defer t.Rollback()
+	return decisionSessionAvailable(t, owner)
 }

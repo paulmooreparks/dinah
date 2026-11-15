@@ -66,7 +66,7 @@ func standDown() string {
 
 // redirectedTools are the bus tools a stood-down server still lists, each
 // answering only that the window's server has it (Run).
-var redirectedTools = []string{"whoami", "sessions", "inbox", "send", "reply", "ask_person", "withdraw_request", "read_message", "read_attachment",
+var redirectedTools = []string{"whoami", "sessions", "inbox", "send", "reply", "ask_person", "withdraw_request", "request_operation", "read_message", "read_attachment",
 	"room_create", "room_join", "room_leave", "subscribe", "announce_release", "verdict", "rename"}
 
 // redirect is a stood-down server's answer to a call of one of its tools.

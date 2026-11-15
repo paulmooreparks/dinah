@@ -2,6 +2,7 @@ package bus
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"path/filepath"
 	"reflect"
@@ -112,5 +113,52 @@ func TestRequestSettlementDefersOfflineCompletionUntilTheOriginalChatReturns(t *
 	var output map[string]string
 	if err := json.Unmarshal(report.Output, &output); err != nil || len(output) != 2 || output["id"] != d.ID || output["outcome"] != "dismissed" {
 		t.Fatal("completion invented an answer or lost disposition", output, err)
+	}
+}
+
+func TestAvailableGroupRequestCanBeDismissedWithoutAnsweringItsMembers(t *testing.T) {
+	ctx := context.Background()
+	b, owner, _ := personRequestFixture(t)
+	other, err := b.RegisterSession(ctx, "window-group-peer", owner.WorkspacePath, "Peer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := b.CreateGroup(ctx, Sender{}, "Dismiss group fixture", []string{owner.ID, other.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := b.AskPerson(ctx, owner, AskPersonInput{OperationID: "group-asking", Group: "#" + group.Name, Questions: []PersonQuestion{{Number: 1, Text: "Continue?", Recommendation: "Wait."}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := b.DismissRequest(ctx, requestsettlement.Input{ID: d.ID, Revision: 1, OperationID: "dismiss-group-request"})
+	if err != nil || r.State != "committed" || r.Outcome != "dismissed" {
+		t.Fatal(r, err)
+	}
+	var replies, members int
+	if err := b.db.QueryRow(`SELECT COUNT(*) FROM messages WHERE reply_to=?`, d.MessageID).Scan(&replies); err != nil || replies != 0 {
+		t.Fatal("group dismissal answered the request", replies, err)
+	}
+	if err := b.db.QueryRow(`SELECT COUNT(*) FROM room_members WHERE room=? AND member IN (?,?)`, group.Name, owner.ID, other.ID).Scan(&members); err != nil || members != 2 {
+		t.Fatal("group dismissal changed membership", members, err)
+	}
+}
+
+func TestLegacyDismissalReceiptsSurviveTheNewAdapter(t *testing.T) {
+	ctx := context.Background()
+	b, _, d := personRequestFixture(t)
+	in := DismissDecisionInput{OperationID: "legacy-refusal", ID: d.ID, Revision: 1}
+	old := DecisionReceipt{OperationID: in.OperationID, ID: in.ID, Revision: 1, State: "rejected", MessageIDs: []int64{}, Reason: &DecisionRejection{Code: "dismissal_unavailable", Message: "This request can receive an answer."}}
+	if err := b.tx(ctx, func(tx *sql.Tx) error { return storeDecisionReceipt(tx, decisionFingerprint("dismiss", in), old) }); err != nil {
+		t.Fatal(err)
+	}
+	r, err := b.DismissDecision(ctx, in)
+	if err != nil || !reflect.DeepEqual(r, old) {
+		t.Fatal("legacy operation was reinterpreted", r, err)
+	}
+	in.OperationID = "newly-authorized-dismissal"
+	r, err = b.DismissDecision(ctx, in)
+	if err != nil || r.State != "committed" {
+		t.Fatal("new operation did not use approved blanket dismissal", r, err)
 	}
 }

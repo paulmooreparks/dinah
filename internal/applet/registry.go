@@ -73,7 +73,7 @@ func SupportedCapability(capability string) bool {
 		return true
 	}
 	switch capability {
-	case "person.approval", "diagnostics.read", "diagnostics.control", "artifact.create", "attention.request", "notification.post", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
+	case "person.approval", "diagnostics.read", "diagnostics.control", "artifact.create", "attention.request", "notification.post", "request.withdraw", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
 		return true
 	}
 	return false

@@ -49,6 +49,7 @@ type Question struct {
 }
 
 type QuestionEnd struct {
+	Revision    int    `json:"revision,omitempty"`
 	Disposition string `json:"disposition"`
 	Key         string `json:"key"`
 	Service     string `json:"service"`
@@ -85,6 +86,7 @@ type QuestionPorts struct {
 }
 
 type pendingQuestion struct {
+	revision    int
 	disposition string
 	execution   questionExecution
 	view        Question
@@ -156,6 +158,7 @@ func (q *Questions) ask(ctx context.Context, scope Scope, text string, spec Ques
 	p := &pendingQuestion{view: Question{QuestionOwner: owner, Key: "task-q-" + rand.Text(), Question: text, Options: slices.Clone(spec.Options), AskedAt: q.ports.Now().UTC(), AnswerType: spec.Type, MinLength: spec.MinLength, MaxLength: spec.MaxLength, MinSelections: spec.MinSelections, MaxSelections: spec.MaxSelections}, scope: scope, ctx: questionCtx, cancel: cancel, answer: make(chan questionResult, 1)}
 	if execution, ok := ctx.Value(questionExecutionKey{}).(questionExecution); ok {
 		p.execution = execution
+		p.revision = 1
 		if err := execution.window.admitQuestion(scope, execution.operation, p.view, q); err != nil {
 			return QuestionAnswer{}, err
 		}
@@ -164,7 +167,7 @@ func (q *Questions) ask(ctx context.Context, scope Scope, text string, spec Ques
 	if q.closed || questionCtx.Err() != nil {
 		q.mu.Unlock()
 		if p.execution.window != nil {
-			_, _ = p.execution.window.commitQuestion(scope, p.view.Key, "cancelled", "host", requestsettlement.Input{ID: p.view.Key, Revision: 1, OperationID: "host-cancel"}, nil)
+			_, _ = p.execution.window.commitQuestion(scope, p.view.Key, "cancelled", "host", requestsettlement.Input{ID: p.view.Key, Revision: 1, OperationID: "host-cancel:" + p.view.Key}, nil)
 			p.execution.window.flushQuestionEvents()
 		}
 		return QuestionAnswer{}, refusal("cancelled", "task question admission is closed")
@@ -194,13 +197,14 @@ func (q *Questions) finish(p *pendingQuestion) {
 	if current {
 		p.disposition = "cancelled"
 		if p.execution.window != nil {
-			r, err := p.execution.window.commitQuestion(p.scope, p.view.Key, "cancelled", "host", requestsettlement.Input{ID: p.view.Key, Revision: 1, OperationID: "host-cancel"}, nil)
+			r, err := p.execution.window.commitQuestion(p.scope, p.view.Key, "cancelled", "host", requestsettlement.Input{ID: p.view.Key, Revision: 1, OperationID: "host-cancel:" + p.view.Key}, nil)
 			if err != nil || r.State != "committed" {
 				q.mu.Unlock()
 				q.reconcile(p)
 				return
 			}
 			p.disposition = r.Outcome
+			p.revision = r.Revision
 		}
 		delete(q.pending, p.view.Key)
 	}
@@ -230,13 +234,14 @@ func (q *Questions) reconcile(p *pendingQuestion) {
 	}
 	delete(q.pending, p.view.Key)
 	p.disposition = record.Status
+	p.revision = record.Revision
 	p.answer <- result
 	q.mu.Unlock()
 	q.ended(p)
 }
 
 func (q *Questions) ended(p *pendingQuestion) {
-	q.ports.Emit("task:answered", QuestionEnd{Disposition: p.disposition, Key: p.view.Key, Service: p.scope.Service, Workspace: p.scope.Workspace, Task: p.scope.Task, Generation: p.scope.Generation})
+	q.ports.Emit("task:answered", QuestionEnd{Revision: p.revision, Disposition: p.disposition, Key: p.view.Key, Service: p.scope.Service, Workspace: p.scope.Workspace, Task: p.scope.Task, Generation: p.scope.Generation})
 }
 
 // Answer is called only from the window's existing trusted person Answer path.
@@ -281,7 +286,7 @@ func (q *Questions) settle(key string, answer QuestionAnswer, typed bool) error 
 	}
 	delete(q.pending, key)
 	if p.execution.window != nil {
-		r, err := p.execution.window.commitQuestion(p.scope, key, "answered", "person", requestsettlement.Input{ID: key, Revision: 1, OperationID: "person-answer"}, &validated)
+		r, err := p.execution.window.commitQuestion(p.scope, key, "answered", "person", requestsettlement.Input{ID: key, Revision: 1, OperationID: "person-answer:" + key}, &validated)
 		if err != nil || r.State != "committed" {
 			q.pending[key] = p
 			q.mu.Unlock()
@@ -290,6 +295,7 @@ func (q *Questions) settle(key string, answer QuestionAnswer, typed bool) error 
 			}
 			return refusal(r.Code, r.Text)
 		}
+		p.revision = r.Revision
 	}
 	p.disposition = "answered"
 	p.answer <- questionResult{answer: validated}
@@ -307,8 +313,8 @@ func (q *Questions) Dismiss(in requestsettlement.Input) (requestsettlement.Recei
 }
 
 // withdraw is reached through a registered Client whose service is fixed.
-func (q *Questions) withdraw(scope Scope, in requestsettlement.Input) (requestsettlement.Receipt, error) {
-	return q.endWithoutAnswer(in, "withdrawn", scope.Service, &scope)
+func (q *Questions) withdraw(scope Scope, in requestsettlement.Input, actor string) (requestsettlement.Receipt, error) {
+	return q.endWithoutAnswer(in, "withdrawn", actor, &scope)
 }
 
 func (q *Questions) endWithoutAnswer(in requestsettlement.Input, outcome, actor string, scope *Scope) (requestsettlement.Receipt, error) {
@@ -341,6 +347,7 @@ func (q *Questions) endWithoutAnswer(in requestsettlement.Input, outcome, actor 
 	}
 	delete(q.pending, in.ID)
 	p.disposition = outcome
+	p.revision = r.Revision
 	p.answer <- questionResult{err: refusal(outcome, "The request was "+outcome+" without an answer.")}
 	q.mu.Unlock()
 	p.execution.window.flushQuestionEvents()

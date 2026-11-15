@@ -230,6 +230,9 @@ func keptAttention(item Notification) bool {
 }
 
 func (a *App) Notifications() ([]Notification, error) {
+	if err := a.repairRequestProjections(); err != nil {
+		return nil, err
+	}
 	notificationStoreMu.Lock()
 	store, err := readNotifications()
 	notificationStoreMu.Unlock()
