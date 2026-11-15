@@ -1,0 +1,25 @@
+package main
+
+import (
+ "context"
+ "encoding/json"
+ "os"
+ "path/filepath"
+ "strings"
+ "studio/internal/bus"
+)
+
+func main() {
+ root:=os.Getenv("DINAH_HOME")
+ rel,err:=filepath.Rel(os.TempDir(),root)
+ if err!=nil||rel=="."||strings.HasPrefix(rel,"..") {panic("isolated temporary home required")}
+ b,err:=bus.Open();if err!=nil {panic(err)};defer b.Close()
+ ctx:=context.Background()
+ sender,err:=b.RegisterSession(ctx,"quality-fixture-sender",os.Args[1],"Invented Sender");if err!=nil {panic(err)}
+ group:=os.Args[2]
+ if group=="create" {
+  room,e:=b.CreateGroup(ctx,bus.Sender{},"Invented Unread Group",[]string{sender.ID});if e!=nil {panic(e)};group=room.Name
+ }
+ msg,err:=b.Send(ctx,bus.Sender{Session:&sender},"#"+group,os.Args[3],nil,0);if err!=nil {panic(err)}
+ json.NewEncoder(os.Stdout).Encode(map[string]any{"group":group,"message":msg})
+}
