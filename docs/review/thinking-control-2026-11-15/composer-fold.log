@@ -1,0 +1,19 @@
+PASS a wide composer shows provider, mode and model as their own buttons
+PASS a narrow composer folds the Agent group into one button
+PASS its menu keeps the provider, the mode and the model, each with its choice ticked
+PASS a choice made in the folded menu is the chat's choice
+PASS widening the window unfolds the group
+PASS every control in the composer toolbar has a glyph
+PASS the provider, the mode and the model have glyphs of their own
+stages 1200: {"Agent":1,"Message":1}; 900: {"Agent":1,"Message":1}; 700: {"Agent":2,"Message":2}; 520: {"Agent":3,"Message":3}; 380: {"Agent":5,"Message":5}
+PASS no group folds into a menu while another still shows its words
+PASS the Agent group shows its controls as glyphs alone before it folds
+PASS as glyphs alone they keep their words as their names and tooltips
+PASS the Agent group is not the first to fold into a menu
+PASS every control in sight has its accessible name at every width
+PASS a turn starting while a toolbar menu is open keeps its folding and Stop slot
+PASS a turn ending while a toolbar menu is open keeps its folding and Stop slot
+PASS the Turn group folds before the Agent and Message groups
+PASS no page errors
+
+
