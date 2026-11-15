@@ -3,6 +3,7 @@ const { start } = require('./lib/org-chart-fixture');
   const t = await start(), p = t.page, ok = t.ok, chart = t.chart;
   try {
     ok('Org Chart is reachable from the Window menu', await p.evaluate(() => dinahCommands.rows('window').some(row => row.label === 'Org Chart')));
+    ok('the live chart has no manual refresh control', await chart.getByRole('button', { name: 'Refresh', exact: true }).count() === 0 && !await chart.locator('button').filter({ hasText: 'Retry Loading' }).isVisible());
     ok('logical chats appear once despite native session references', await chart.locator('[data-org-chat]').evaluateAll(rows => new Set(rows.map(row => row.dataset.orgChat)).size === rows.length) && await chart.locator('[data-org-chat="mara"]').count() === 1);
     ok('Diagrams draws the reporting and dotted group connections', await chart.locator('svg path').count() > 0 && await chart.locator('svg [stroke-dasharray]').count() > 0);
     ok('folded teams use raised controls and hide their descendants', await chart.locator('[data-org-fold="research"]').evaluate(el => el.matches('button.btn') && el.getAttribute('aria-expanded') === 'false') && await chart.locator('[data-org-chat="bo"]').count() === 0);
@@ -43,6 +44,26 @@ const { start } = require('./lib/org-chart-fixture');
         }); return hits;
       });
       ok(theme + ' connectors at ' + width + ' never cross a chat, group or fold control', crossings.length === 0, JSON.stringify(crossings));
+      const groupGeometry = await chart.evaluate(root => {
+        const frames = Array.from(root.querySelectorAll('svg [data-node^="frame:"]')).map(el => el.getBoundingClientRect()), overlap = [], endpoints = [], connected = new Set();
+        function point(path, distance) { return path.getPointAtLength(distance).matrixTransform(path.getScreenCTM()); }
+        const paths = Array.from(root.querySelectorAll('svg [data-edge] path[stroke-dasharray]'));
+        paths.forEach(path => {
+          const a = point(path, 0), b = point(path, path.getTotalLength());
+          if (frames.some(f => Math.abs(a.x - b.x) < 0.1 ? (Math.abs(a.x - f.left) < 2 || Math.abs(a.x - f.right) < 2) && Math.min(Math.max(a.y, b.y), f.bottom) - Math.max(Math.min(a.y, b.y), f.top) > 2 : Math.abs(a.y - b.y) < 0.1 && (Math.abs(a.y - f.top) < 2 || Math.abs(a.y - f.bottom) < 2) && Math.min(Math.max(a.x, b.x), f.right) - Math.max(Math.min(a.x, b.x), f.left) > 2)) overlap.push(path.parentElement.dataset.edge);
+          const id = path.parentElement.dataset.edge; if (!id.endsWith(':end')) return;
+          const start = root.querySelector('svg [data-edge="' + CSS.escape(id.slice(0, -4) + ':start') + '"] path'), origin = point(start, 0);
+          const chat = Array.from(root.querySelectorAll('[data-org-chat]')).find(el => { const r = el.getBoundingClientRect(); return Math.abs(origin.x - r.right) < 2 && Math.abs(origin.y - r.y - r.height / 2) < 2; });
+          const target = Array.from(root.querySelectorAll('.org-chart-group')).find(el => { const r = el.getBoundingClientRect(); return Math.abs(b.x - r.right) < 2 && Math.abs(b.y - r.y - r.height / 2) < 2; });
+          const group = target && __orgModel.groups.find(g => g.id === target.dataset.orgGroup), member = chat && chat.dataset.orgChat;
+          const valid = group && member && group.memberIds.concat(group.ownerId || []).includes(member) && target.checkVisibility() && target.querySelector('strong').textContent === group.title;
+          endpoints.push(!!valid); if (valid) connected.add(group.id + ':' + member);
+        });
+        const expected = __orgModel.groups.flatMap(g => Array.from(new Set(g.memberIds.concat(g.ownerId || []))).map(id => g.id + ':' + id));
+        return { overlap, solid: root.querySelectorAll('svg [data-node^="frame:"] [stroke-dasharray]').length === 0, endpoints, complete: expected.every(id => connected.has(id)) };
+      });
+      ok(theme + ' group segments at ' + width + ' stay clear of quiet solid container edges', groupGeometry.solid && groupGeometry.overlap.length === 0, JSON.stringify(groupGeometry));
+      ok(theme + ' group lines at ' + width + ' end at their labelled group boxes', groupGeometry.complete && groupGeometry.endpoints.length > 0 && groupGeometry.endpoints.every(Boolean), JSON.stringify(groupGeometry));
       await t.shot('org-chart-' + theme + '-' + width);
       await chart.locator('[data-org-group="review"]').scrollIntoViewIfNeeded();
       await t.shot('org-chart-groups-' + theme + '-' + width);
@@ -50,7 +71,9 @@ const { start } = require('./lib/org-chart-fixture');
     }
     await p.evaluate(() => { __orgError = 'The chart could not be read.'; __emit('bus:changed', {}); }); await chart.getByRole('status').getByText('The chart could not be read.', { exact: true }).waitFor();
     ok('a failed read keeps the previous chart visible', await chart.locator('[data-org-chat="nina"]').count() === 1);
-    await p.evaluate(() => { __orgError = ''; __orgGate = new Promise(resolve => { window.__releaseOrg = resolve; }); __emit('bus:changed', {}); __emit('chat:restored', { sessionId: 'mara-current' }); });
+    ok('only an error reveals Retry Loading', await chart.getByRole('button', { name: 'Retry Loading', exact: true }).isVisible());
+    await p.evaluate(() => { __orgError = ''; __orgGate = new Promise(resolve => { window.__releaseOrg = resolve; }); });
+    await chart.getByRole('button', { name: 'Retry Loading', exact: true }).click(); await p.evaluate(() => __emit('chat:restored', { sessionId: 'mara-current' }));
     const reads = await p.evaluate(() => __orgReads); await p.evaluate(() => __releaseOrg());
     await p.waitForFunction(reads => __orgReads === reads + 1, reads);
     ok('refreshes are serialized and coalesced after the current read', await p.evaluate(reads => __orgReads === reads + 1, reads));

@@ -9,14 +9,22 @@
     var links = plan.edges.map(function (e) { return Object.assign({}, e, { fromSide: e.dotted ? 'right' : 'bottom', toSide: e.dotted ? 'right' : 'top', start: port(e.from, e.dotted ? 'right' : 'bottom'), end: port(e.to, e.dotted ? 'right' : 'top') }); });
     var xs = new Set([0, plan.width]), ys = new Set([0, plan.height]);
     obstacles.forEach(function (o) { xs.add(o.left); xs.add(o.right); ys.add(o.top); ys.add(o.bottom); });
+    plan.frames.forEach(function (f) { [f.x - 8, f.x + 8, f.x + f.width - 8, f.x + f.width + 8].forEach(function (x) { xs.add(Math.round(x)); }); [f.y - 8, f.y + 8, f.y + f.height - 8, f.y + f.height + 8].forEach(function (y) { ys.add(Math.round(y)); }); });
     links.forEach(function (e) { xs.add(e.start[0]); xs.add(e.end[0]); ys.add(e.start[1]); ys.add(e.end[1]); });
-    xs = Array.from(xs).sort(function (a, b) { return a - b; }); ys = Array.from(ys).sort(function (a, b) { return a - b; });
+    xs = Array.from(xs).filter(function (x) { return x >= 0 && x <= plan.width; }).sort(function (a, b) { return a - b; }); ys = Array.from(ys).filter(function (y) { return y >= 0 && y <= plan.height; }).sort(function (a, b) { return a - b; });
     var columns = xs.length, count = columns * ys.length, clear = new Map();
     function point(index) { return [xs[index % columns], ys[Math.floor(index / columns)]]; }
-    function free(a, b) {
-      var key = Math.min(a, b) + ':' + Math.max(a, b); if (clear.has(key)) return clear.get(key);
+    function free(a, b, edge) {
+      var ownFrame = edge.dotted && plan.frames.find(function (f) { return edge.from.x >= f.x && edge.from.y >= f.y && edge.from.x + edge.from.width <= f.x + f.width && edge.from.y + edge.from.height <= f.y + f.height; });
+      var key = JSON.stringify([!!edge.dotted, ownFrame ? ownFrame.id : null, Math.min(a, b), Math.max(a, b)]); if (clear.has(key)) return clear.get(key);
       var first = point(a), last = point(b), horizontal = first[1] === last[1];
       var allowed = !obstacles.some(function (o) { return horizontal ? first[1] > o.top && first[1] < o.bottom && Math.max(first[0], last[0]) > o.left && Math.min(first[0], last[0]) < o.right : first[0] > o.left && first[0] < o.right && Math.max(first[1], last[1]) > o.top && Math.min(first[1], last[1]) < o.bottom; });
+      if (allowed && edge.dotted) allowed = !plan.frames.some(function (f) {
+        if (f !== ownFrame && (horizontal ? first[1] > f.y - 6 && first[1] < f.y + f.height + 6 && Math.max(first[0], last[0]) > f.x - 6 && Math.min(first[0], last[0]) < f.x + f.width + 6 : first[0] > f.x - 6 && first[0] < f.x + f.width + 6 && Math.max(first[1], last[1]) > f.y - 6 && Math.min(first[1], last[1]) < f.y + f.height + 6)) return true;
+        // Perpendicular crossings leave a container at one point. Parallel
+        // segments stay clear of its border, so they cannot look like it.
+        return horizontal ? (Math.abs(first[1] - f.y) < 8 || Math.abs(first[1] - f.y - f.height) < 8) && Math.max(first[0], last[0]) > f.x - 8 && Math.min(first[0], last[0]) < f.x + f.width + 8 : (Math.abs(first[0] - f.x) < 8 || Math.abs(first[0] - f.x - f.width) < 8) && Math.max(first[1], last[1]) > f.y - 8 && Math.min(first[1], last[1]) < f.y + f.height + 8;
+      });
       clear.set(key, allowed); return allowed;
     }
     return links.map(function (edge) {
@@ -27,7 +35,7 @@
         var current = queue[first++], x = current % columns, y = Math.floor(current / columns), neighbors = [];
         if (x > 0) neighbors.push(current - 1); if (x + 1 < columns) neighbors.push(current + 1);
         if (y > 0) neighbors.push(current - columns); if (y + 1 < ys.length) neighbors.push(current + columns);
-        neighbors.forEach(function (next) { if (previous[next] === -2 && free(current, next)) { previous[next] = current; queue[last++] = next; } });
+        neighbors.forEach(function (next) { if (previous[next] === -2 && free(current, next, edge)) { previous[next] = current; queue[last++] = next; } });
       }
       if (previous[end] === -2) throw new Error('A chart connection could not be drawn without crossing a box.');
       var points = [], cursor = end;
@@ -69,7 +77,9 @@
           return y;
         }
       }
-      card(id, x + (w - cardW) / 2, y, cardW); y += 132;
+      card(id, x + (w - cardW) / 2, y, cardW);
+      if (!children.length) return y + 112;
+      y += 132;
       var columns = w >= 280 && children.length > 1 ? 2 : 1, childW = (w - (columns - 1) * 24) / columns;
       for (var i = 0; i < children.length; i += columns) {
         var bottom = y;
@@ -80,35 +90,48 @@
         });
         y = bottom + 16;
       }
-      return Math.max(start + 148, y);
+      return y;
     }
     var roots = teams.filter(function (t) { return !parent.has(t.leadId) && visible(t.leadId); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
-    var columns = width >= 650 ? 2 : 1, gutter = 24, sectionW = (width - gutter * (columns - 1)) / columns, y = 20;
+    var columns = width >= 650 ? 2 : 1, gutter = 24, sectionW = (width - 32 - gutter * (columns - 1)) / columns, y = 20;
+    var groups = view.groups.filter(function (g) { return g.resolution === 'repair' && !options.workspace && !options.find || g.memberIds.concat(g.ownerId || []).some(function (id) { return wanted.has(id); }); });
+    var groupBoxes = new Map();
+    function placeGroups(ready) {
+      var next = groups.filter(function (g) { return !groupBoxes.has(g.id) && ready(g); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
+      for (var index = 0; index < next.length; index += columns) {
+        next.slice(index, index + columns).forEach(function (g, slot) {
+          var w = Math.min(320, sectionW - 16), box = { id: 'group:' + g.id, sourceId: g.id, kind: 'group', x: 16 + slot * (sectionW + gutter) + (sectionW - w) / 2, y: y, width: w, height: 100 };
+          positions.push(box); groupBoxes.set(g.id, box);
+        }); y += 124;
+      }
+    }
     for (var r = 0; r < roots.length; r += columns) {
       var bottom = y;
       roots.slice(r, r + columns).forEach(function (t, index) {
-        var x = index * (sectionW + gutter), end = tree(t.leadId, x + 12, y + 20, sectionW - 24, new Set());
+        var x = 16 + index * (sectionW + gutter), end = tree(t.leadId, x + 12, y + 20, sectionW - 24, new Set());
         frames.push({ id: t.id, title: t.title, x: x, y: y, width: sectionW, height: end - y + 8 }); bottom = Math.max(bottom, end + 28);
-      }); y = bottom + 28;
+      }); y = bottom + 12;
+      placeGroups(function (g) { return g.memberIds.concat(g.ownerId || []).some(function (id) { return claimed.has(id); }); });
     }
     var grouped = new Set();
     view.groups.filter(function (g) { return g.resolution === 'resolved'; }).forEach(function (g) { g.memberIds.concat(g.ownerId || []).forEach(function (id) { grouped.add(id); }); });
     function remaining(title, predicate) {
       var rows = view.chats.filter(function (c) { return wanted.has(c.chatId) && !claimed.has(c.chatId) && predicate(c); }).sort(function (a, b) { return a.chatId.localeCompare(b.chatId); });
       if (!rows.length) return;
-      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - 32 - (cols - 1) * 16) / cols;
-      rows.forEach(function (c, index) { card(c.chatId, 16 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
+      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - 64 - (cols - 1) * 16) / cols;
+      rows.forEach(function (c, index) { card(c.chatId, 32 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
       y += 50 + Math.ceil(rows.length / cols) * 120;
-      frames.push({ id: title, title: title, x: 0, y: start, width: width, height: y - start - 16 }); y += 24;
+      frames.push({ id: title, title: title, x: 16, y: start, width: width - 32, height: y - start - 16 }); y += 24;
     }
     remaining('Group members', function (c) { return c.resolution === 'resolved' && grouped.has(c.chatId); });
+    placeGroups(function () { return true; });
     remaining('Free agents', function (c) { return c.resolution === 'resolved' && !parent.has(c.chatId) && !byLead.has(c.chatId); });
     remaining('Needs attention', function () { return true; });
-    var groups = view.groups.filter(function (g) { return g.resolution === 'repair' || g.memberIds.concat(g.ownerId || []).some(function (id) { return wanted.has(id); }); });
-    var repairs = view.teams.filter(function (t) { return t.resolution === 'repair'; }).map(function (t) { return Object.assign({ kind: 'team-repair' }, t); });
-    groups.concat(repairs).sort(function (a, b) { return a.id.localeCompare(b.id); }).forEach(function (g, index) {
-      var w = Math.min(320, width - 32), box = { id: 'group:' + g.id, sourceId: g.id, kind: g.kind || 'group', x: (width - w) / 2, y: y, width: w, height: 100 };
-      positions.push(box); y += 124;
+    view.teams.filter(function (t) { return t.resolution === 'repair' && (!options.workspace && !options.find || t.memberIds.concat(t.leadId || []).some(function (id) { return wanted.has(id); })); }).forEach(function (t) {
+      var w = Math.min(320, width - 32); positions.push({ id: 'repair:' + t.id, sourceId: t.id, kind: 'team-repair', x: (width - w) / 2, y: y, width: w, height: 100 }); y += 124;
+    });
+    groups.forEach(function (g, index) {
+      var box = groupBoxes.get(g.id);
       if (g.resolution !== 'resolved') return;
       var linked = new Set();
       g.memberIds.concat(g.ownerId || []).forEach(function (id) {
