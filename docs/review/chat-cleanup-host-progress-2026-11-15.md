@@ -41,3 +41,12 @@ The fixture now starts the real lifecycle watcher and joins it during cleanup. I
 
 
 The corrected named-chat fixture and focused cleanup suite passed in 5.829 seconds. The session-preferences fixture had the same missing watcher and now supplies one as well, preserving its existing saved-preference assertions. In the next full diagnostic run both fixtures passed (0.320 and 0.420 seconds respectively). That run continued to TestAFileReadForADocumentIsWatched near the end of the package and reached the investigator-imposed five-minute cap at 300.222 seconds. It did not stall again at either provider fixture. The next run uses the package's normal ten-minute budget with crash capture and ordinary package output. No test assertion deadline or expected result was relaxed. Vet passed for the desktop, bus, broker and host packages before these final fixture-only and bounded-report changes; a final-source repeat is required.
+
+
+## Immutable host candidate
+
+The full desktop package passed on source a285ebf1b7897251d342c251c1b467032aa2682e in 194.067 seconds through FIFO, with the chatcleanup_acceptance tag and the package's normal timeout. Crash capture is retained in %TEMP%/engine-cleanup-gate-d0886c023e2441698cd44e829618adea. The earlier red runs and fixture correction remain recorded above. A final-source shared-package run and vet are queued behind the priority document work. This is an integration candidate; Release's durable model and the drawing-lease combination remain separate gates.
+
+The test-only binding is cmd/dinah-desktop/chat_cleanup_acceptance_test.go. Its install, sweep and observe functions have the contract's package-local shapes. Observe reads raw persisted settings rather than invoking settings migration. Retained content stays observable in the archive; finalization preserves no chain relationship beyond minimal member tombstones, so independent per-member post-finalization observations should use the fixture's seeded identities. The fixture helpers in chat_cleanup_lifecycle_test.go supply invented transcripts, settings and stable bus places. Provider hooks receive provider and unmodified native ID, and the real lifecycle fixture watcher is required when a test expects the final provider to stop. No product test route was added.
+
+The frontend candidate remains 30a56fba. It has not yet been combined with this host tree. Independent Quality acceptance has not run. No merge, push, installation or real-home write has occurred.
