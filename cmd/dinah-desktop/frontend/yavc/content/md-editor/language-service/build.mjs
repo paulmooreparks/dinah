@@ -40,6 +40,21 @@ for (const [entry, target, globalName] of [['../vendor/codemirror-6.43/entry.js'
     const licenseTarget = target === 'worker.js' ? 'WORKER-LICENSES.txt' : '../vendor/codemirror-6.43/LICENSE.txt', licenseBytes = Buffer.from(licenses.join('\n\n') + '\n');
     output(licenseTarget, licenseBytes); manifest.outputs[licenseTarget] = digest(licenseBytes);
 }
+// Code grammars (docs/language-packs-design.md, decision 1): one classic script for each language, built from CodeMirror's legacy-mode package. A legacy mode is a plain object that holds no CodeMirror of its own, so the script needs no copy of the editor's bundle and cannot be loaded into one it does not match. Each script only records its mode as window.yavcCodeModes[id]; apps/md-editor/languages.js is the one table that says which file or fence is which language.
+const GRAMMARS = [['go', 'go', 'go']];
+{
+    const legacy = path.join(dependencies, 'node_modules', '@codemirror', 'legacy-modes'), info = JSON.parse(fs.readFileSync(path.join(legacy, 'package.json')));
+    manifest.packages['@codemirror/legacy-modes'] = { version: info.version, license: info.license };
+    for (const [id, file, name] of GRAMMARS) {
+        const contents = `import { ${name} as mode } from '@codemirror/legacy-modes/mode/${file}';\n(window.yavcCodeModes = window.yavcCodeModes || {})[${JSON.stringify(id)}] = mode;\n`;
+        const result = await build({ stdin: { contents, resolveDir: dependencies, sourcefile: 'grammar-' + id + '.js' }, bundle: true, format: 'iife', minify: true, legalComments: 'none', platform: 'browser', target: ['es2020'], write: false });
+        const target = '../vendor/codemirror-6.43/lang/' + id + '.js', bytes = result.outputFiles[0].contents;
+        fs.mkdirSync(path.dirname(path.resolve(here, target)), { recursive: true }); output(target, bytes); manifest.outputs[target] = digest(bytes);
+    }
+    const licenseFile = fs.readdirSync(legacy).find(f => /^licen[cs]e(\.txt|\.md)?$/i.test(f)), licenseTarget = '../vendor/codemirror-6.43/lang/LICENSE.txt';
+    const licenseBytes = Buffer.from('@codemirror/legacy-modes ' + info.version + ' (' + info.license + ')\n\n' + fs.readFileSync(path.join(legacy, licenseFile), 'utf8').replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').trimEnd() + '\n');
+    output(licenseTarget, licenseBytes); manifest.outputs[licenseTarget] = digest(licenseBytes);
+}
 manifest.packages = Object.fromEntries(Object.entries(manifest.packages).sort(([a], [b]) => a.localeCompare(b)));
 output('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 console.log(check ? 'Language-service artifacts match their pinned sources.' : 'Built shared CodeMirror LSP client and browser JSON server.');

@@ -96,10 +96,20 @@
     }
 
     var cmReady = null, pvReady = null, mmReady = null;
+    /* The table of languages the editor colours comes with CodeMirror, and each grammar loads later, when a file or a code block of its language appears. A table that cannot load leaves every file plain, as before. */
+    var languagesReady = null;
+    function languages() {
+        if (!languagesReady) { languagesReady = loadScript(HERE + 'languages.js' + STAMP).catch(function () { languagesReady = null; }); }
+        return languagesReady;
+    }
     function libs() {
-        if (window.CM && window.CM.EditorView) { return Promise.resolve(window.CM); }
-        if (!cmReady) { cmReady = loadScript(HERE + 'vendor/codemirror-6.43/codemirror.js?v=9').then(function () { return window.CM; }).catch(function (e) { cmReady = null; throw e; }); }
-        return cmReady;
+        var CM;
+        if (window.CM && window.CM.EditorView) { CM = Promise.resolve(window.CM); }
+        else {
+            if (!cmReady) { cmReady = loadScript(HERE + 'vendor/codemirror-6.43/codemirror.js?v=10').then(function () { return window.CM; }).catch(function (e) { cmReady = null; throw e; }); }
+            CM = cmReady;
+        }
+        return CM.then(function (lib) { return languages().then(function () { return lib; }); });
     }
     var pagesReady = null;
     function pages() {

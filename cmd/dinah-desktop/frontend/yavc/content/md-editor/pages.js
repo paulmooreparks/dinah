@@ -328,6 +328,10 @@
         if(piece.part){copy.style.paddingTop='0';copy.style.borderTop='0';copy.setAttribute('aria-label','Footnote '+piece.number+' continued');}
         return copy;
     }
+    /* What a layout is, as text, to tell whether the last one is the one before. A browser measures a place to a fraction of a pixel and not always to the same
+       fraction (a heading's place came out 506.10598 and then 506.10602 with nothing changed, in Firefox), so numbers are taken to a tenth of a pixel, or no
+       layout would ever equal the one before it and the page would lay out for as long as it was open (decision 197). */
+    function arrangement(parts) { return JSON.stringify(parts, function (key, value) { return typeof value === 'number' && isFinite(value) ? Math.round(value * 10) / 10 : value; }); }
     function preview(o) {
         var alive = true, raf = 0, signature = '';
         function schedule() {
@@ -338,14 +342,14 @@
                 try {
                     // Preview source wrappers do not participate in physical layout.
                     Array.from(o.flow.querySelectorAll('.dinah-src[data-start]')).reverse().forEach(function (node) { node.replaceWith.apply(node, Array.from(node.childNodes)); });
-                    var blocks = measured(o.flow, function () { return blocksOf(o.flow); }), layout = plan(blocks, page), next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
+                    var blocks = measured(o.flow, function () { return blocksOf(o.flow); }), layout = plan(blocks, page), next = arrangement([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
                     var d = surface(o.host, page); o.host.style.minHeight = (layout.count * (d.height + GAP) - GAP) + 'px'; o.host.setAttribute('data-page-count', layout.count);
                     o.changed(layout);
                     if (next !== signature) {
                         o.flow.querySelectorAll('.doc-page-gap').forEach(function (node) { node.remove(); }); o.flow.normalize();
                         blocks = measured(o.flow, function () { return blocksOf(o.flow); }); layout = plan(blocks, page);
                         if (window.yavcDocumentSettings) { window.yavcDocumentSettings.decorate(o.host, page, layout.count); }
-                        signature = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
+                        signature = arrangement([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
                         layout.gaps.slice().reverse().forEach(function (gap) { var block = blocks[gap.index];if(block.rowNode&&block.band){block.anchors.forEach(function(anchor,column){if(anchor)window.yavcPageLines.insert(o.flow,anchor,rowSpacer(gap,block,column));});}else window.yavcPageLines.insert(o.flow, block, spacer(gap.height, !!block.anchor, block, gap.header)); });
                         (layout.footnotes||[]).filter(function(note){return !note.part&&!note.sourceOnly;}).forEach(function(note){var node=blocks.footnotes.find(function(item){return item.label===note.label;}).node;node.classList.add('doc-footnote-paged');node.style.top=(note.top-(note.originTop||0))+'px';node.style.left=-(note.originLeft||0)+'px';node.style.width=note.width+'px';});
                         noteGaps(layout,blocks).reverse().forEach(function(gap){window.yavcPageLines.insert(o.flow,gap.block,spacer(gap.height,!!gap.block.anchor,gap.block));});
@@ -359,17 +363,32 @@
     }
     function plugin(PM, o) {
         var key = new PM.PluginKey('document-pages'), signature = '', raf = 0, alive = true,seenDoc=null,tableWidths=new WeakMap(),gapIds=new WeakMap(),gapSerial=0;
+        /* The arrangements this document has been laid out in since the last real input (an edit, a width, a picture or a font arriving). A layout that
+           comes out as one of them again is a cycle, in which each arrangement changes what the next one measures: it is kept as it is and the page
+           stops laying out until there is real input, so that a layout that cannot settle ends in a fixed arrangement and not in another pass. The
+           counts are for a host and for tests (docs/editing-settings-contract.md, "Layout counters"). */
+        var seen = new Set(), stopped = false, passes = 0, changes = 0, lastWidth = -1;
+        function release() { seen.clear(); if (stopped) { stopped = false; o.page.removeAttribute('data-layout-stopped'); } }
+        /* A pass that finds the arrangement it has already drawn writes nothing to the page: no attribute, no gap, no cap and no cover is written again, so
+           that the page's own writes do not make the next pass. furniture is what the last pass left in the page (the in-flow gaps, the caps and the covers of
+           frames, and the page's width), and ownSize the size of the flow when it finished, so that a change of size that is the page's own is not input. */
+        var furniture = '', ownSize = '';
+        function put(node, name, value) { value = String(value); if (node.getAttribute(name) !== value) { node.setAttribute(name, value); } }
+        function placed(dom) { return dom.querySelectorAll('.doc-page-gap[data-flow-gap]').length + ':' + dom.querySelectorAll('.doc-gap-cap').length + ':' + dom.querySelectorAll('.doc-gap-cover').length + ':' + Math.round(dom.getBoundingClientRect().width * 10); }
+        function sizeOf(dom) { var r = dom.getBoundingClientRect(); return Math.round(r.width * 10) + 'x' + Math.round(r.height * 10); }
         function gapIdentity(block){var node=block.rowNode||block.node;if(!gapIds.has(node))gapIds.set(node,++gapSerial);return gapIds.get(node);}
         function headerIdentity(block){return (block.headerRows||[]).map(function(row){return row.outerHTML;}).join('');}
         function tableDecorations(v,scale){
             var decorations=[];
             v.dom.querySelectorAll('table').forEach(function(table){
-                if(table.closest('.doc-page-gap')||!table.rows.length)return;
+                /* The first row that is the table's own: a gap before the first row is a row of one cell as wide as the table, which gave every column no width. */
+                var first=Array.from(table.rows).find(function(row){return !row.classList.contains('doc-page-gap');});
+                if(table.closest('.doc-page-gap')||!first)return;
                 var values=tableWidths.get(table);
-                if(!values){values={width:table.getBoundingClientRect().width/scale,cells:Array.from(table.rows[0].cells).map(function(cell){return cell.getBoundingClientRect().width/scale;})};tableWidths.set(table,values);}
+                if(!values){values={width:table.getBoundingClientRect().width/scale,cells:Array.from(first.cells).map(function(cell){return cell.getBoundingClientRect().width/scale;})};tableWidths.set(table,values);}
                 function range(node){var parent=node.parentNode,index=Array.prototype.indexOf.call(parent.childNodes,node);return [v.posAtDOM(parent,index),v.posAtDOM(parent,index+1)];}
                 var span=range(table);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{style:'table-layout:fixed;width:'+values.width+'px;'}));
-                Array.from(table.rows[0].cells).forEach(function(cell,index){var span=range(cell);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{style:'width:'+values.cells[index]+'px;'}));});
+                Array.from(first.cells).forEach(function(cell,index){var span=range(cell);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{style:'width:'+values.cells[index]+'px;'}));});
             });return decorations;
         }
         function schedule(v) {
@@ -378,6 +397,7 @@
                 raf = 0; if (!alive || v.isDestroyed) { return; }
                 var page = o.pagination && o.pagination();
                 if (!page || !v.dom.isConnected) {
+                    release();
                     if (signature) { signature = ''; if (o.syncSelection) { o.syncSelection(); } v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
                     return;
                 }
@@ -385,15 +405,19 @@
                 try {
                     // Keep mapped page furniture visible until its replacement
                     // has been measured. Clearing it paints a collapsed page.
-                    if(seenDoc!==v.state.doc){seenDoc=v.state.doc;tableWidths=new WeakMap();signature='';}
+                    if(seenDoc!==v.state.doc){seenDoc=v.state.doc;tableWidths=new WeakMap();signature='';release();}
+                    if (stopped) { return; }
+                    put(o.page, 'data-layout-passes', ++passes);
                     var d = surface(o.page, page), positions = []; v.state.doc.forEach(function (n, pos) { positions.push(pos); });
                     var blocks = measured(v.dom, function () { return blocksOf(v.dom, positions, function (node, offset) { return v.posAtDOM(node, offset); }); }), layout = plan(blocks, page);
-                    var next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
-                    o.page.style.minHeight = (layout.count * (d.height + GAP) - GAP) + 'px';
-                    o.page.setAttribute('data-page-count', layout.count);
+                    var next = arrangement([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
+                    if (next !== signature && seen.has(next)) { stopped = true; o.page.setAttribute('data-layout-stopped', ''); return; }
+                    var minimum = (layout.count * (d.height + GAP) - GAP) + 'px', changed = next !== signature;
+                    if (o.page.style.minHeight !== minimum) { o.page.style.minHeight = minimum; }
+                    put(o.page, 'data-page-count', layout.count);
                     if (o.paginated) { o.paginated(layout); }
-                    if (next !== signature) {
-                        signature = next;
+                    if (changed) {
+                        signature = next; seen.add(next); put(o.page, 'data-layout-changes', ++changes);
                         if (window.yavcDocumentSettings) { window.yavcDocumentSettings.decorate(o.page, page, layout.count); }
                         var scale=Number(o.page.style.zoom)||1,widgets=tableDecorations(v,scale);layout.gaps.forEach(function(gap){var block=blocks[gap.index];if(block.flow)return;
                             var identity=gapIdentity(block)+':'+gap.index+':'+gap.height+':'+gap.header+':'+(gap.header?headerIdentity(block):'');
@@ -406,8 +430,8 @@
                         if (o.syncSelection) { o.syncSelection(); }
                         v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.create(v.state.doc, widgets)).setMeta('addToHistory', false));
                     }
-                    applyFlowGaps(v.dom, layout, blocks);
-                    applyPieces(v.dom, d);
+                    if (changed || furniture !== placed(v.dom)) { applyFlowGaps(v.dom, layout, blocks); applyPieces(v.dom, d); furniture = placed(v.dom); }
+                    ownSize = sizeOf(v.dom);
                 } catch (err) { if (o.paginationProblem) { o.paginationProblem(err.message); } }
             });
         }
@@ -415,8 +439,11 @@
             state: { init: function () { return PM.DecorationSet.empty; }, apply: function (tr, value) { return tr.getMeta(key) || value.map(tr.mapping, tr.doc); } },
             props: { decorations: function (state) { return key.getState(state); } },
             view: function (v) {
-                alive = true; signature = ''; var ro = new ResizeObserver(function () { schedule(v); }); ro.observe(v.dom);
-                function loaded() { seenDoc=null;schedule(v); }
+                alive = true; signature = ''; release();
+                /* A change of width is real input. A change of height is the page's own, since the page makes it each time it lays out. */
+                var ro = new ResizeObserver(function (entries) { var width = entries.length ? entries[entries.length - 1].contentRect.width : lastWidth; if (Math.abs(width - lastWidth) > .5) { lastWidth = width; seenDoc = null; } else if (sizeOf(v.dom) === ownSize) { return; } schedule(v); }); ro.observe(v.dom);
+                /* A picture or a font that arrives is real input, and one that the page's own gaps draw again (the copy of a repeated header) is not. */
+                function loaded(e) { if (e && e.target && e.target.closest && e.target.closest('.doc-page-gap')) { return; } seenDoc=null;schedule(v); }
                 v.dom.addEventListener('load', loaded, true); document.fonts.addEventListener('loadingdone', loaded); schedule(v);
                 return { update: function () { schedule(v); }, destroy: function () { alive = false; cancelAnimationFrame(raf); raf = 0; ro.disconnect(); v.dom.removeEventListener('load', loaded, true); document.fonts.removeEventListener('loadingdone', loaded); } };
             }

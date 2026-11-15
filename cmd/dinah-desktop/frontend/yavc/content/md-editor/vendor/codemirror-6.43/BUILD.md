@@ -1,5 +1,7 @@
 # CodeMirror 6 for the site's editor
 
+On 2026-11-14 the shared bundle added the documented `LanguageDescription` and `LanguageSupport` exports, for code colouring (DESIGN.md decision 188). Each coloured language has its own small script in `lang/`, built by the same `language-service/build.mjs` from the pinned `@codemirror/legacy-modes` and listed in the same manifest; the kit loads the bundle with `?v=10`.
+
 On 2026-11-09 the shared bundle added the documented EditorSelection, ChangeSet and Facet exports for reversible source history. Package versions remain pinned. The kit loads the regenerated bundle with `?v=9`. Source history uses its own versioned serializer and does not access CodeMirror history internals.
 
 On 2026-11-09 the shared bundle added the existing pinned HTML language export for Editor's HTML source assistance. The language worker adds pinned Microsoft CSS 6.3.10 and HTML 5.6.2 services. The reproducible build and package manifest cover both outputs; the kit loads CodeMirror with `?v=8`.
