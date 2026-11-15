@@ -62,11 +62,11 @@ The result status is `removed`, `restored`, `deleted`, `refused` or `failed`. `D
 
 ## Retention and runtime behavior
 
-Removal keeps the transcript, chat settings and bus place on disk for thirty days. It unloads the conversation, closes its provider session where supported, revokes capabilities and releases its in-memory state. It never starts a provider to close a chat that is already closed. The retained chat is absent from ordinary lists, counts, Decisions and broadcasts. Startup does not load its transcript or start a provider for it. A bus send to it refuses with a removed-chat reason and creates no queued delivery; existing queued work is retained but cannot wake the chat.
+Removal keeps the transcript, chat settings and bus place on disk for thirty days. It closes the chat window, revokes capabilities and releases the application conversation state. It closes the provider session through documented individual unload where supported. The loaded-session exception below applies when that interface is absent. It never starts a provider to close a chat that is already closed. The retained chat is absent from ordinary lists, counts, Decisions and broadcasts. Startup does not load its transcript or start a provider for it. A bus send to it refuses with a removed-chat reason and creates no queued delivery; existing queued work is retained but cannot wake the chat.
 
-Restore reactivates the same bus identity and settings and returns the chat closed. It does not open the chat or start a provider. Expiry disposes of the application's retained files and queue while keeping a small permanent removal marker so old provider history cannot silently return to the list. With the provider-deletion switch off, final deletion never invokes a provider. If Paul enables it, only documented native deletion is used where supported; the immutable native identity is retained through interrupted finalization. The switch is host-owned and cannot be supplied by the page or an agent. Interrupted removal, restore and expiry must resume safely after restart, without duplicate queue ownership or reactivation of expired data.
+Restore reactivates the same bus identity and settings and returns the chat closed. It does not open the chat or start a provider. Expiry disposes of the application's retained files and queue while keeping a small permanent removal marker so old provider history cannot silently return to the list. The provider-deletion switch is enabled. Final deletion uses only documented native deletion where supported; the immutable native identity is retained through interrupted finalization. The switch is host-owned and cannot be supplied by the page or an agent. Interrupted removal, restore and expiry must resume safely after restart, without duplicate queue ownership or reactivation of expired data.
 
-The staging confirmation says: "The selected chats will move to the Recycle Bin now. They will stop running and can be restored for 30 days. Their agent programs' own histories are untouched at this step." The product substitutes its display name where appropriate. The earlier switch-off text was: "This permanently deletes the selected chats from this application, including their saved messages, settings and queued bus messages. This cannot be undone. Their agent programs' own histories are untouched." The host returns that text as `finalDeleteConfirmation`. Enabling provider deletion must update the authoritative text to identify supported native deletion and leave unsupported providers explicit. Only an ID tombstone survives final deletion; no title, workspace, options, pins or transcript remains.
+The staging confirmation says: "The selected chats will move to the Recycle Bin now and can be restored for 30 days. They will receive no further messages. A session that its agent program cannot unload may stay loaded until that program stops or the window restarts. Their agent programs' own histories are untouched at this step." The product substitutes its display name where appropriate. The final confirmation follows the enabled policy below. Only an ID tombstone survives final deletion; no title, workspace, options, pins or transcript remains.
 
 ## Verification
 
@@ -83,3 +83,69 @@ Each row adds `providerDeletion` with `supported`, `unsupported` or `unknown`, a
 A deleted result additionally has `providerCopyRemains` and `providerDeletionReason`. A provider refusal produces `ok: true, status: deleted` once local deletion succeeds, with `providerCopyRemains: true` and the provider's reason. The frontend displays that reason beside the completed local deletion. A local-erasure failure instead returns `failed`, preserving the durable finalization state for retry. Provider deletion precedes local erasure even on retries; already-absent provider sessions count as deleted when its documented response establishes absence.
 
 Stand-in tests must cover advertised deletion, absent capability and failed deletion, and prove that all three cases erase the local copy while only the advertised successful case removes the provider copy. Expiry uses the same finalization path as Delete Now and Empty Recycle Bin.
+
+
+## Loaded sessions without individual unload
+
+A loaded idle chat remains eligible when its agent program offers no documented individual unload. Binning closes its window and removes its application runtime conversation, ordinary listing entries, counts, Decisions and broadcast eligibility. No prompt, queued delivery, connection request or addressed bus message may reach it afterwards. The host must not stop unrelated chats to unload it. Its provider session can remain loaded until that provider has no other active chats, or until the next window restart, whichever occurs first. The application releases the provider process when no other chat needs it. A restart never reloads a binned session.
+
+Each bin row has `runtimeNote`, an authoritative string which is empty when no loaded session remains. Otherwise it names the program and says, for example, "Still loaded by Codex until the program stops or the window restarts." This note is an explicit exception to immediate provider-memory release; the retained chat still cannot receive work. Listing this note does not start or reconnect a provider.
+
+Restore reactivates the retained identities but leaves every session closed. Previously retained deliveries remain dormant until the person explicitly opens the chat or a new accepted message addresses it. Restore itself neither sends a prompt nor starts a provider.
+
+## One chat includes its switched session chain
+
+Cleanup groups the connected session chain into one logical row. The host includes edges from `ChatBindings`, `ChatTransfers`, `ChatTransferHistory` and saved transcript parent links. It includes allocated targets of unfinished or rejected switches, including targets recorded only in history. It does not treat an uncommitted target as the current display session. A committed current head supplies the row identity; a stable identity breaks ambiguous ties. Supplying any member identity to a mutation resolves the entire chain.
+
+Binning stages every member together. Eligibility covers every member, so a working or pinned member refuses the whole operation. Bus ownership shared only by members of the same chain is retained once; ownership outside the chain refuses removal. Restore restores the entire chain and its links while keeping all members closed. Final deletion asks each program to delete its native session through its documented interface, oldest session first, then erases the application's chain. Unsupported or failed native deletion does not stop the remaining members or local erasure.
+
+Rows add `sessionIds`, an array of all member identities in oldest-first order, and `programCopies`, an array with the following JSON shape:
+
+```json
+{
+  "sessionId": "provider:identity",
+  "provider": "codex",
+  "providerName": "Codex",
+  "deletion": "unsupported",
+  "copyRemains": true,
+  "reason": "This program offers no documented deletion."
+}
+```
+
+The `deletion` value is `supported`, `unsupported` or `unknown`. Before final deletion, `copyRemains` is true because staging preserves every provider copy. The row's authoritative confirmation identifies each known unsupported program. Final results also include `programCopies` with the observed result for every member. `providerCopyRemains` is true when any copy remains, and `providerDeletionReason` summarizes those reasons. The existing result identity remains the input identity, so the page can update its original row in place. Lifecycle events are emitted for each physical session identity so existing frontend controllers are disposed of.
+
+## Independent acceptance bindings
+
+The implementation handover must include test-only bindings, compiled with the `chatcleanup_acceptance` build tag in the desktop package. They must not add a product route, applet action or bus tool. The binding will use these package-local Go shapes, available to same-package acceptance tests:
+
+```go
+type chatCleanupAcceptanceHooks struct {
+    Now func() time.Time
+    DeleteProvider func(context.Context, string, string) (supported bool, err error)
+    UnloadProvider func(context.Context, string, string) (supported bool, err error)
+}
+
+func (a *App) chatCleanupAcceptanceInstall(h chatCleanupAcceptanceHooks) (restore func())
+func (a *App) chatCleanupAcceptanceSweep() error
+func (a *App) chatCleanupAcceptanceObserve(id string) (chatCleanupAcceptanceState, error)
+
+type chatCleanupAcceptanceState struct {
+    SessionIDs []string
+    Binned bool
+    Tombstoned bool
+    TranscriptPresent bool
+    SettingsPresent bool
+    QueuePresent bool
+    BusActive bool
+    RuntimeLoaded bool
+    ProviderLoaded bool
+    RemovedAt time.Time
+    ExpiresAt time.Time
+}
+```
+
+The provider callbacks receive provider identity and native session identity, in that order. A false supported result simulates an absent documented capability; a true result with an error simulates a failed documented operation. The install function returns a cleanup function which restores the prior hooks. Nil callbacks retain production behavior. Tests may advance a captured clock and call Sweep without sleeping. Sweep runs the same expiry and interrupted-operation reconciliation used by the product.
+
+Observe reads durable artifacts and runtime ownership without opening a chat, starting a provider or mutating state. For a chain, the boolean presence fields are true when any member has that state; SessionIDs exposes the complete group for per-member observations. Tombstoned is true only when every member retains only its permanent removal identity. Tests also inspect the isolated home directly to prove that titles, options, pins and transcript bytes are absent after final deletion. The handover supplies the isolated App fixture setup and shutdown, plus stand-in provider start, prompt and unload counters, so zero starts and zero wakeups can be asserted independently.
+
+Required chain coverage includes three agent programs, one without deletion, and history-only allocated targets. Loaded-session coverage bins a session without individual unload, attempts direct and queued input, restarts on the same home and proves that it is never reloaded. Provider deletion coverage includes successful deletion, missing capability and failure, with provider-first ordering observed before local erasure. These bindings are a handover requirement, not a claim that implementation or execution has completed.
