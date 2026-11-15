@@ -52,6 +52,8 @@ Every input identity produces one result in input order, even if another identit
 }
 ```
 
+The host emits `chat:removed` with `{sessionId}` after removal has committed and runtime disposal has completed. Frontend listeners use the existing idempotent chat removal/disposal path to discard controllers, cached rows and notices. Restore emits `chat:restored` with `{sessionId}` after reactivation, without opening a chat. The page still applies each call result in place, so it does not depend on event arrival order.
+
 The result status is `removed`, `restored`, `refused` or `failed`. `row` is the authoritative current row when available, otherwise null. A refused or failed result always has a nonempty `error`. The frontend updates that identity's existing row in place, then may refresh the snapshot while preserving its current positions. Removed entries have `removedAt`, `expiresAt`, `restorable` and any `restoreRefusal`. Legacy permanent removals cannot be restored when their history was already discarded; they must never be presented as recoverable.
 
 ## Retention and runtime behavior
