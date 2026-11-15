@@ -76,7 +76,7 @@ func TestTaskHostAllocationPersistsRealAppBoundaries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(conn.calls) != 0 {
+			if len(conn.calls.Snapshot()) != 0 {
 				t.Fatal("review contacted provider")
 			}
 			handle, err := h.Begin(context.Background(), review.ID)
@@ -97,7 +97,7 @@ func TestTaskHostAllocationPersistsRealAppBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			allocations := 0
-			for _, call := range conn.calls {
+			for _, call := range conn.calls.Snapshot() {
 				if call.method == "session/new" {
 					allocations++
 				}

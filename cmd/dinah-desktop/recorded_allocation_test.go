@@ -69,7 +69,7 @@ func TestRecordedAllocationUsesTheRealHostReceiptBridge(t *testing.T) {
 				}
 			}
 			calls := 0
-			for _, call := range conn.calls {
+			for _, call := range conn.calls.Snapshot() {
 				if call.method == "session/new" {
 					calls++
 				}

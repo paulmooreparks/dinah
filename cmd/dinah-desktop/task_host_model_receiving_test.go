@@ -86,7 +86,7 @@ func TestTaskHostModelReceiptAndRuntimeRelease(t *testing.T) {
 			}
 			f.peer.mu.Lock()
 			defer f.peer.mu.Unlock()
-			for _, call := range f.peer.calls {
+			for _, call := range f.peer.calls.Snapshot() {
 				if call.method == "session/delete" {
 					t.Fatal("runtime release deleted native history")
 				}

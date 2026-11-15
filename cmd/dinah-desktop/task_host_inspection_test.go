@@ -27,7 +27,7 @@ func TestTaskInspectionReadsOnlyLocalWorkspaceChatsAndConfiguration(t *testing.T
 	if action, err := a.describeTaskAction(context.Background(), scope, "dinah.notifications/post@1"); err != nil || action.Digest == "" || len(action.InputSchema) == 0 {
 		t.Fatalf("action: %+v %v", action, err)
 	}
-	if len(connection.calls) != 0 || a.runtime.ConversationCountLocked() != 0 {
+	if len(connection.calls.Snapshot()) != 0 || a.runtime.ConversationCountLocked() != 0 {
 		t.Fatal("local inspection loaded or queried a native session")
 	}
 }

@@ -86,7 +86,7 @@ func TestAppTaskQuestionUsesPersonAnswerWithoutChatState(t *testing.T) {
 	if end := <-ended; end.Key != question.Key {
 		t.Fatal(end)
 	}
-	if len(a.PendingTaskPermissions()) != 0 || a.runtime.ConversationCountLocked() != before || len(conn.calls) != 0 {
+	if len(a.PendingTaskPermissions()) != 0 || a.runtime.ConversationCountLocked() != before || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("task question changed chats or contacted a provider")
 	}
 	if err := a.Answer(question.Key, "yes"); err == nil {
