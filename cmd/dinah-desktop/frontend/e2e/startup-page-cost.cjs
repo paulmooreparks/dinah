@@ -76,6 +76,14 @@ async function run(name,provider,mode,query,judge){
    await p.waitForFunction(id=>dinahChats.ref(id)&&dinahChats.ref(id).life==='open',controlID);
    result.restored=await p.evaluate(id=>dinahChats.ref(id),controlID);
    assert.equal(result.restored.id,controlID);assert.equal(result.restored.provider,result.open.provider);
+   if(process.env.DINAH_STARTUP_AUDIT_TURNS==='1'){
+    await p.evaluate(()=>{__auditPhase='invented-turn';});
+    const composer=p.locator('.win[data-chat-current] textarea[data-view-id="prompt"]');
+    await composer.fill('Complete this invented receiving turn.');await composer.press('Enter');
+    await p.locator('.win[data-chat-current]').getByText('Invented answer.',{exact:true}).first().waitFor();
+    await p.waitForFunction(id=>dinahChats.ref(id)?.exec?.state==='idle',controlID);
+    result.completedInventedTurn=true;
+   }
   }
   result.final=await call('StartupPageCounters');result.calls=(result.openCalls||[]).concat(await p.evaluate(()=>__auditCalls));
   result.boundaryTrace=await call('StartupPageTrace');

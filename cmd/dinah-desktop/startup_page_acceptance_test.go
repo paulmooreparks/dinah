@@ -103,7 +103,14 @@ func TestStartupPageCostHost(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/version":
 			_ = json.NewEncoder(w).Encode(map[string]string{"version": "fixture-1"})
-		case "/api/tags", "/api/ps":
+		case "/api/tags":
+			_ = json.NewEncoder(w).Encode(map[string]any{"models": []any{map[string]any{"name": "fixture:4b", "model": "fixture:4b", "size": 1048576, "details": map[string]string{"parameter_size": "4.0B"}}}})
+		case "/api/show":
+			_ = json.NewEncoder(w).Encode(map[string]any{"capabilities": []string{"completion", "thinking"}, "model_info": map[string]any{"general.architecture": "fixture", "fixture.context_length": 32768}})
+		case "/api/chat":
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": "Invented answer."}, "done": true, "done_reason": "stop", "prompt_eval_count": 8, "eval_count": 4})
+		case "/api/ps":
 			_ = json.NewEncoder(w).Encode(map[string]any{"models": []any{}})
 		default:
 			http.Error(w, "fixture refuses unexpected request", 400)
@@ -169,6 +176,13 @@ func TestStartupPageCostHost(t *testing.T) {
 	defer cancel()
 	a.ctx = ctx
 	a.nativeAPI = &fakeNativeWindow{}
+	skillDir := filepath.Join(a.settings.Workspace, ".fixture-skills", "invented-skill")
+	if err := os.MkdirAll(skillDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: invented-skill\ndescription: An invented receiving skill.\n---\nUse only the invented receiving fixture.\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	controlID, controlProvider := os.Getenv("DINAH_STARTUP_CONTROL_ID"), os.Getenv("DINAH_STARTUP_CONTROL_PROVIDER")
 	if controlID == "" {
 		controlID, controlProvider = "fixture-open", "devin"
@@ -178,7 +192,7 @@ func TestStartupPageCostHost(t *testing.T) {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatal(err)
 		}
-		data, _ := json.Marshal(map[string]any{"id": controlID, "cwd": a.settings.Workspace, "title": "Positive control", "model": "", "contextRev": 4, "messages": []any{}})
+		data, _ := json.Marshal(map[string]any{"id": controlID, "cwd": a.settings.Workspace, "title": "Positive control", "model": "fixture:4b", "contextRev": 4, "messages": []any{}})
 		if err := os.WriteFile(filepath.Join(dir, controlID[len("ollama:"):]+".json"), data, 0600); err != nil {
 			t.Fatal(err)
 		}
