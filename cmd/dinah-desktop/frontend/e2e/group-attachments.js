@@ -36,7 +36,7 @@ const { settled, settledCount } = require('./lib/settled');
         BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person] }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => messages.slice(),
         BusMarkGroupRead: async () => {},
-        Sessions: async () => [{sessionId:'chat-docs',title:'Docs Pass',cwd:'C:/Work/docs',open:true,queued:[]}],
+        Sessions: async () => [{sessionId:'chat-docs',title:'Docs Pass',cwd:'C:/Work/docs',open:true,queued:[]},{sessionId:'chat-sheet',title:'Sheet Helper',cwd:'C:/Work/harbor',open:true,queued:[]}],
         AppletCatalog: async () => [{id:'example.review',title:'Review',actions:[{ref:'example.review/read@1',title:'Read',description:'Read reviews'}]}],
         PickAttachments: async () => { __calls.push(['pick']); return [{ kind: 'file', name: 'picked.csv', mimeType: 'text/csv', data: btoa('a,b\n1,2\n'), size: 8 }]; },
         // Go turns a file address into its path and says where it opens
@@ -138,7 +138,9 @@ const { settled, settledCount } = require('./lib/settled');
     });
     for (const [menu, label, kind] of [
       ['Mention an Open Document', 'Notes', 'draft'],
-      ['Mention an Open Document', 'Docs Pass', 'chat'],
+      // A member chat is offered once, as a member; a chat outside the group
+      // is the chat reference (docs/design/group-mentions.md).
+      ['Mention an Open Document', 'Sheet Helper', 'chat'],
       ['Windows and Applets', 'Review', 'applet'],
       ['Windows and Applets', 'Editor', 'window']
     ]) {
@@ -150,7 +152,9 @@ const { settled, settledCount } = require('./lib/settled');
       await room.getByRole('button', {name:'Send',exact:true}).click();
       await p.waitForFunction(kind => __calls.some(c => c[0] === 'group-send' && c[4].some(f => f.kind === kind)), kind);
       const sent = (await calls('group-send')).at(-1);
-      ok(kind + ' sends context without notifying members', sent[3].length === 0 && sent[4][0].kind === kind && !sent[4][0].token);
+      // The reference keeps the @word it was written as, which the host stores
+      // so the message can draw it as a reference again (docs/design/group-mentions.md).
+      ok(kind + ' sends context without notifying members', sent[3].length === 0 && sent[4][0].kind === kind && String(sent[4][0].token || '').startsWith('@'));
       await chips.waitFor({state:'hidden'});
     }
 

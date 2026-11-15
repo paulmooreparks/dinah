@@ -33,6 +33,11 @@ type Bus struct {
 }
 
 const schema = `
+CREATE TABLE IF NOT EXISTS message_presentation (
+ message_id INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+ shown_text TEXT NOT NULL,
+ references_json TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS decision_answer_origins (
  message_id INTEGER PRIMARY KEY REFERENCES messages(id),
  origin TEXT NOT NULL

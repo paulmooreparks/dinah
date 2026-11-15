@@ -29,27 +29,29 @@ import (
 // Mentions are the members it mentions. Line is the sentence a group shows
 // for a member who joined or left (bus.MemberKind).
 type BusMessage struct {
-	AnswerOrigin  *bus.AnswerOrigin `json:"answerOrigin,omitempty"`
-	ID            int64             `json:"id"`
-	CreatedAt     string            `json:"createdAt"`
-	Kind          string            `json:"kind"`
-	From          string            `json:"from"`
-	FromSession   string            `json:"fromSession,omitempty"`
-	FromPerson    bool              `json:"fromPerson"`
-	FromWorkspace string            `json:"fromWorkspace"`
-	To            string            `json:"to"`
-	Room          string            `json:"room"`
-	RoomTitle     string            `json:"roomTitle,omitempty"`
-	Mentions      []BusMention      `json:"mentions"`
-	Reach         *bus.GroupReach   `json:"reach,omitempty"`
-	Line          string            `json:"line,omitempty"`
-	ReplyTo       int64             `json:"replyTo"`
-	Text          string            `json:"text"`
-	Version       string            `json:"version,omitempty"`
-	Verdict       string            `json:"verdict,omitempty"`
-	Attachments   []BusAttachment   `json:"attachments"`
-	Unread        bool              `json:"unread"`
-	Dismissed     bool              `json:"dismissed"`
+	ShownText     *string                `json:"shownText,omitempty"`
+	References    []bus.MessageReference `json:"references,omitempty"`
+	AnswerOrigin  *bus.AnswerOrigin      `json:"answerOrigin,omitempty"`
+	ID            int64                  `json:"id"`
+	CreatedAt     string                 `json:"createdAt"`
+	Kind          string                 `json:"kind"`
+	From          string                 `json:"from"`
+	FromSession   string                 `json:"fromSession,omitempty"`
+	FromPerson    bool                   `json:"fromPerson"`
+	FromWorkspace string                 `json:"fromWorkspace"`
+	To            string                 `json:"to"`
+	Room          string                 `json:"room"`
+	RoomTitle     string                 `json:"roomTitle,omitempty"`
+	Mentions      []BusMention           `json:"mentions"`
+	Reach         *bus.GroupReach        `json:"reach,omitempty"`
+	Line          string                 `json:"line,omitempty"`
+	ReplyTo       int64                  `json:"replyTo"`
+	Text          string                 `json:"text"`
+	Version       string                 `json:"version,omitempty"`
+	Verdict       string                 `json:"verdict,omitempty"`
+	Attachments   []BusAttachment        `json:"attachments"`
+	Unread        bool                   `json:"unread"`
+	Dismissed     bool                   `json:"dismissed"`
 	// Relay is set on a team member's message to the person that was rerouted to its lead: the
 	// group shows it for the person, who is not notified (teams.go).
 	Relay *BusRelay `json:"relay,omitempty"`
@@ -211,6 +213,7 @@ func busMessage(m bus.Message) BusMessage {
 		from = speakerName(bus.Human)
 	}
 	out := BusMessage{AnswerOrigin: m.AnswerOrigin.Clone(), ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, From: from, FromSession: m.FromSession, FromPerson: person,
+		ShownText: m.ShownText, References: m.References,
 		FromWorkspace: m.FromWorkspaceLabel, To: m.ToPerson, Room: m.Room, RoomTitle: m.RoomTitle, Mentions: []BusMention{},
 		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread, Dismissed: m.Dismissed, Reach: m.Reach}
 	if m.Kind == bus.MemberKind {
@@ -480,6 +483,7 @@ func (a *App) BusDeleteGroup(group string) error {
 // group's limit (groupFileLimit) is refused with the member that set it, as
 // the group's box refuses the file past the limit.
 func (a *App) BusSendToGroup(group, text string, mentions []string, files []Attachment) (BusMessage, error) {
+	shownText := text
 	text, uploads, err := a.groupAttachments(text, files)
 	if err != nil {
 		return BusMessage{}, err
@@ -489,6 +493,19 @@ func (a *App) BusSendToGroup(group, text string, mentions []string, files []Atta
 		return BusMessage{}, err
 	}
 	var out BusMessage
+	references := []bus.MessageReference{}
+	for _, at := range files {
+		if at.Kind == "file" {
+			continue
+		}
+		r := bus.MessageReference{Kind: at.Kind, Name: at.Name, Token: at.Token}
+		if at.Kind == "chat" {
+			if s := a.session(at.SessionID); s != nil {
+				r.Workspace = a.chatWorkspaceName(s.Cwd())
+			}
+		}
+		references = append(references, r)
+	}
 	err = a.busHost().With(func(b *bus.Bus) error {
 		r, err := b.Room(context.Background(), group)
 		if err != nil {
@@ -497,7 +514,7 @@ func (a *App) BusSendToGroup(group, text string, mentions []string, files []Atta
 		if limit := a.busRoom(b, r).FileLimit; limit != nil && len(kept) > limit.Limit {
 			return fmt.Errorf("the message has %d files, and %s", len(kept), limit.Reason)
 		}
-		m, err := b.SendFiles(context.Background(), "#"+r.Name, text, kept, 0, mentions)
+		m, err := b.SendFilesPresented(context.Background(), "#"+r.Name, text, kept, 0, mentions, bus.MessagePresentation{ShownText: shownText, References: references})
 		out = busMessage(m)
 		return err
 	})

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Group mentions mockup</title>
+  <!-- The shipped stylesheets, in the order index.html loads them. -->
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/bus-applets.css">
+  <!-- The palette appearance.js applies in the real window, captured from it. -->
+  <link rel="stylesheet" href="clear-chime-tokens.css">
+  <!-- The proposal. -->
+  <link rel="stylesheet" href="group-mentions.css">
+  <style>
+    /* Mockup scaffolding only: a top bar with the Try menu, one group chat
+       window, and the index of states. None of this is proposed. */
+    body { margin: 0; }
+    body.frame { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--text); }
+    .mock-top { flex: none; display: flex; align-items: center; gap: var(--space-2); height: 40px; padding: 0 var(--space-2); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+    .mock-top .mock-try { margin-inline-start: auto; display: flex; align-items: center; gap: var(--space-2); }
+    .mock-top .form-select { height: 28px; padding-block: 0; font-size: var(--text-sm); max-width: 16rem; }
+    .mock-win { position: relative; inset: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; width: auto; height: auto; border-radius: 0; border-width: 0; }
+    .mock-win > .win-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0; margin: 0; border: 0; }
+    .mock-log { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-5); display: grid; align-content: start; gap: var(--space-3); }
+    .mock-note-region { position: fixed; z-index: 1001; inset-block-start: 48px; inset-inline-end: var(--space-4); width: min(24rem, calc(100vw - 2 * var(--space-4))); }
+    @media (max-width: 640px) { .mock-top .mock-try > span { display: none; } .mock-top .form-select { max-width: 11rem; } .mock-log { padding-inline: var(--space-3); } }
+    body.index { padding: var(--space-5); max-width: 70rem; }
+    body.index li { margin: var(--space-1) 0; }
+  </style>
+  <!-- The shipped mention list, which draws a one-on-one chat's @ list and a group's. -->
+  <script>window.dinahHelpers = { composing: function (e) { return !!(e && e.isComposing); } };</script>
+  <script src="../../../cmd/dinah-desktop/frontend/mention-list.js" defer></script>
+  <script src="group-mentions.js" defer></script>
+</head>
+<body></body>
+</html>

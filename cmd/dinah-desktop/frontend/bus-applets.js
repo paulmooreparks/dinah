@@ -173,6 +173,59 @@
       t.parentNode.replaceChild(frag, t);
     });
   }
+  /* A reference in a group message asks no one, so it is drawn apart from a
+     mention: plain text with its kind's glyph and a dotted underline, told
+     from a mention by weight, colour and glyph together. */
+  var REFERENCE_GLYPH = { draft: 'document', resource: 'file', chat: 'comments', window: 'window', applet: 'app' };
+  function markReferences(el, m) {
+    var refs = (m.references || []).filter(function (r) { return r.token; }).sort(function (a, b) { return b.token.length - a.token.length; });
+    if (!refs.length) return;
+    var walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { return n.parentElement.closest('pre, code, a, .msg-math, .mention, .mention-ref') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; } });
+    var texts = [];
+    while (walk.nextNode()) texts.push(walk.currentNode);
+    texts.forEach(function (t) {
+      var text = t.nodeValue, at = 0, frag = null;
+      while (at < text.length) {
+        var next = -1, which = null;
+        refs.forEach(function (r) { var i = text.indexOf(r.token, at); if (i >= 0 && (next < 0 || i < next)) { next = i; which = r; } });
+        if (next < 0) break;
+        frag = frag || document.createDocumentFragment();
+        if (next > at) frag.appendChild(document.createTextNode(text.slice(at, next)));
+        var ref = node('span', 'mention-ref');
+        ref.title = 'A reference to ' + which.name + '. It asks no one to answer.';
+        var g = node('span', 'glyph'); g.style.setProperty('--glyph', 'var(--glyph-' + (REFERENCE_GLYPH[which.kind] || 'link') + ')'); g.setAttribute('aria-hidden', 'true');
+        ref.append(g, document.createTextNode(which.token));
+        frag.appendChild(ref);
+        at = next + which.token.length;
+      }
+      if (!frag) return;
+      if (at < text.length) frag.appendChild(document.createTextNode(text.slice(at)));
+      t.parentNode.replaceChild(frag, t);
+    });
+  }
+  /* Under a group message: who was asked to answer, from the reach the
+     engine stored with it, and what was only referred to. The same difference
+     the marks in the text show, said in words. */
+  function joinNames(list) { return list.length < 3 ? list.join(' and ') : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1]; }
+  function reachLines(m) {
+    if (!m.room) return null;
+    var asked = m.reach && m.reach.reach ? m.reach.reach.map(function (x) { return x.title; }).filter(Boolean) : [];
+    var referred = (m.references || []).map(function (r) { return r.kind === 'chat' && r.workspace ? r.name + ' (' + r.workspace + ')' : r.name; }).filter(Boolean);
+    if (!asked.length && !referred.length) return null;
+    var box = node('div', 'msg-reach');
+    function line(glyphName, words, names, mark) {
+      var p = node('p'); p.dataset[mark] = '';
+      var g = node('span', 'glyph'); g.style.setProperty('--glyph', 'var(--glyph-' + glyphName + ')'); g.setAttribute('aria-hidden', 'true');
+      var span = node('span', null, words + ' ');
+      span.appendChild(node('strong', null, joinNames(names)));
+      span.appendChild(document.createTextNode('.'));
+      p.append(g, span);
+      box.appendChild(p);
+    }
+    if (asked.length) line('comments', 'Asked to answer:', asked, 'asked');
+    if (referred.length) line('link', 'Referred to, not asked:', referred, 'referred');
+    return box;
+  }
   /* The workspace folder a message's sender works in, from which a path
      the message gives as a link is read; the person has none. */
   function senderFolder(m) {
@@ -215,7 +268,11 @@
     window.dinahRegional.stamp(sent, m.createdAt, 'dayTime');
     tail.appendChild(sent);
     head.appendChild(tail);
-    var view = window.dinahChatText.card({ you: !!m.fromPerson, text: String(m.text || ''), label: head, act: act });
+    /* shownText is the person's own words, without the reference blocks that
+       go to the members' agents with the message (docs/design/group-mentions.md);
+       a message stored before it existed has none, and an empty one is a
+       message of files or references alone. */
+    var view = window.dinahChatText.card({ you: !!m.fromPerson, text: String(m.shownText != null ? m.shownText : (m.text || '')), label: head, act: act });
     view.div.classList.add('bus-message');
     view.div.dataset.busMessage = String(m.id);
     view.message = m;
@@ -225,7 +282,7 @@
       relay.append(glyph, document.createTextNode('For Paul through ' + m.relay.leadTitle));
       view.div.insertBefore(relay, view.el);
     }
-    view.decorate = function (el) { markMentions(el, m); };
+    view.decorate = function (el) { markMentions(el, m); markReferences(el, m); };
     // The paths in a message are read from its sender's folder.
     view.cwd = function () { return senderFolder(m); };
     if (m.kind === 'release') view.div.insertBefore(node('p', 'bus-message-kind', 'Release ' + m.version), view.el);
@@ -233,6 +290,8 @@
     // The attachments go under the text, outside it, so that drawing the
     // text again never takes them away.
     if (m.attachments && m.attachments.length) view.div.insertBefore(window.dinahChatText.attachments(m.attachments), view.foot);
+    var reach = reachLines(m);
+    if (reach) view.div.insertBefore(reach, view.foot);
     window.dinahChatText.draw(view);
     return view;
   }
@@ -284,9 +343,10 @@
         changed: function () { changed(); }, toast: attachmentFailed,
         limit: o.limit, alive: function () { return form.isConnected; } });
       input.addEventListener('change', function () { chips.add(input.files); input.value = ''; text.focus(); });
+      // In a group, the Add menu's Mention opens the full @ list, the members first (docs/design/group-mentions.md).
       var attach = node('button', 'btn group-add'); attach.type = 'button'; attach.setAttribute('data-command', 'group-add');
       var unregisterAdd = pudlCommands.register(form, function () { return [{ id: 'group-add', label: 'Add', glyph: 'clip', disabled: closed,
-        items: function () { return dinahComposer.addItems({full:chips.full,fullReason:chips.fullReason,files:box.attach,browse:box.browse,mention:function (scope) { box.addMention(scope); }}); } }]; });
+        items: function () { return dinahComposer.addItems({full:chips.full,fullReason:chips.fullReason,files:box.attach,browse:box.browse,mention:function (scope) { box.addMention(scope === 'all' ? 'members' : scope); }}); } }]; });
       parts.el.querySelector('.composer-actions').insertBefore(attach, go);
       form.append(list, input);
       // A picture or a file pasted into the box goes with the message. Text
@@ -353,7 +413,7 @@
     function submit() {
       var words = text.value.trim();
       if ((!words && !files.length) || sending || closed) return;
-      var state = box.read(), sent = chips ? chips.files().concat(files.filter(function (f) { return f.kind !== 'file' && (!f.token || referenceToken(f.token).test(text.value)); }).map(function (f) { var at = Object.assign({}, f); delete at.token; return at; })) : [];
+      var state = box.read(), sent = chips ? chips.files().concat(files.filter(function (f) { return f.kind !== 'file' && (!f.token || referenceToken(f.token).test(text.value)); }).map(function (f) { return Object.assign({}, f); })) : [];
       sending = true; changed();
       Promise.resolve(o.send(words, state, sent)).then(function () {
         if (words) box.history.push(Object.assign({}, state, { text: words }));
@@ -842,7 +902,7 @@
       var ids = mentioned.filter(function (x) { return text.indexOf('@' + x.title) >= 0; }).map(function (x) { return x.id; }).concat(typedMentions(text, members()));
       return ids.filter(function (id, i) { return ids.indexOf(id) === i; });
     }
-    var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ and a chat\'s title to ask particular chats, or @everyone to ask them all.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
+    var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ for a member to ask, or for a window, an applet, a document or another chat to refer to.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
       return send(text, bound(text), files);
     } });
     box.extra = { read: function () { return { mentioned: mentioned.slice() }; }, write: function (state) { mentioned = (state.mentioned || []).slice(); close(); } };
@@ -884,9 +944,14 @@
       if (r.reason === 'lead') return 'Reaches the lead, ' + names(r.reach);
       return 'Reaches ' + names(r.reach);
     }
+    /* References never change who a message reaches; the line counts them. */
+    function referenceWords() {
+      var n = box ? box.files().filter(function (f) { return f.token && referenceToken(f.token).test(box.text.value); }).length : 0;
+      return n ? (n === 1 ? '1 reference asks' : n + ' references ask') + ' no one.' : '';
+    }
     function drawReach(r) {
       shown = r;
-      var words = reachWords(r);
+      var refs = referenceWords(), words = reachWords(r) + (refs ? (r ? '. ' : '') + refs : '');
       if (reachLine.textContent !== words) { reachLine.textContent = words; reachLine.title = words; }
       box.text.placeholder = !r ? IDLE_HINT
         : r.everyone ? 'Type @ to choose who answers, or send to everyone'
@@ -933,7 +998,7 @@
     askReach();
     var pop = box.pop;
     pop.classList.add('group-mention-pop'); pop.setAttribute('aria-label', 'Members');
-    var text = box.text, choices = [], chosen = 0, start = -1, scope = 'members', catalog = null;
+    var text = box.text, choices = [], chosen = 0, start = -1, scope = 'members', catalog = null, catalogAsked = false;
     text.setAttribute('aria-autocomplete', 'list'); text.setAttribute('aria-controls', pop.id);
     function close() { pop.hidden = true; start = -1; scope = 'members'; text.removeAttribute('aria-expanded'); }
     /* The @ the caret follows and what has been typed after it. Titles have
@@ -955,15 +1020,28 @@
       choices = members().filter(function (m) { return m.state !== 'person' && m.title.toLowerCase().indexOf(q.q) >= 0; })
         .map(function (m) { var state = memberState(m); return { id: m.id, title: m.title, meta: [m.workspace, state.life === 'closed' ? 'closed, opens in the background for the mention' : ''].filter(Boolean).join(', '), state: state }; });
       if ('everyone'.indexOf(q.q) === 0) choices.push({ id: 'everyone', title: 'everyone', meta: 'Every member chat, opening closed ones in the background' });
-      // Typing that matches no member is not a mention, so the list closes
-      // rather than offering Add a Chat… alone under every word.
       if (scope !== 'members') {
         choices = catalog.items(q.q, scope).map(function (c) { return Object.assign({}, c, { title: c.label }); });
-      } else if (!choices.length && q.q) { close(); return; }
-      if (scope === 'members') choices.push({ add: true, title: 'Add a Chat…', meta: 'Put another chat in the group' });
+      } else {
+        /* After the members, what a one-on-one chat's @ offers (chat-mentions.js):
+           windows, applets, open documents and other chats, each a reference that
+           asks no one. A chat that is a member is listed once, as a member. Add a
+           Chat… stays at the end of the members (Paul, 16 November 2026). */
+        choices.push({ add: true, title: 'Add a Chat…', meta: 'Put another chat in the group' });
+        catalog = catalog || window.dinahChatReferences.catalog();
+        if (!catalogAsked) { catalogAsked = true; catalog.load().then(function () { if (!reachEnded && !pop.hidden && scope === 'members') drawPop(); }); }
+        var memberIds = [].concat.apply([], members().map(function (m) { return [m.id, m.chat].filter(Boolean); }));  // a member's bus identity and its chat's session
+        var refs = catalog.items(q.q, 'all').filter(function (c) { return !(c.att && c.att.kind === 'chat' && memberIds.indexOf(c.att.sessionId) >= 0); }).map(function (c) {
+          return Object.assign({}, c, { title: c.label, group: c.group === 'Open Chats' ? 'Other Chats, referred to and not asked' : c.group, meta: (c.meta ? c.meta + ' · ' : '') + 'a reference, asks no one' });
+        });
+        // Typing that matches nothing is not a mention, so the list closes
+        // rather than offering Add a Chat… alone under every word.
+        if (choices.length === 1 && !refs.length && q.q) { close(); return; }
+        choices = choices.concat(refs);
+      }
       chosen = Math.min(chosen, choices.length - 1);
-      var items = choices.map(function (c) { return { group: c.group || 'Members', label: c.title, meta: c.meta, badge: c.state && !c.att ? stateBadge(c.state) : null, key: c.add ? 'add' : c.ins || c.id }; });
-      window.dinahMentionList.draw(pop, items, chosen, pick, { hint: catalog && scope !== 'members' && catalog.failed() ? 'Applet lookup failed. Reopen Add to retry.' : 'Enter or Tab adds · Up and Down choose · Esc closes' });
+      var items = choices.map(function (c) { return { group: c.group || 'Members, asked to answer', label: c.title, meta: c.meta, badge: c.state && !c.att ? stateBadge(c.state) : null, key: c.add ? 'add' : c.ins || c.id }; });
+      window.dinahMentionList.draw(pop, items, chosen, pick, { hint: catalog && catalog.failed() ? 'Applet lookup failed. Reopen Add to retry.' : scope === 'members' ? 'Members are asked to answer; everything else is a reference and asks no one · Enter or Tab adds · Esc closes' : 'Enter or Tab adds · Up and Down choose · Esc closes' });
       text.setAttribute('aria-expanded', 'true');
     }
     function pick(i) {
