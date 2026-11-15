@@ -23,3 +23,9 @@ The evidence is in [the review directory](thinking-control-2026-11-15/). Browser
 ## Retained follow-up
 
 The Team Lead accepted the read-only chart in message 8866. Its next stage must space different group lanes by at least a gutter's width. That improvement is not part of this Thinking change. The Import from Codex page remains queued after this handover and needs Release's reviewed host contract.
+
+## Cleanup integration
+
+The branch was rebased onto master db6f8d1131ceae0cefa6a3e8e08848f16d2b2584 at the Team Lead's request. The app.css conflict keeps both the cleanup styles and Thinking sizing. The chat command conflict keeps Delete Chat, its Recycle Bin operation and Clean Up Chats, adding only Thinking after Model. Product source is now bfd5384a and the viewport fixture is a907f89f. The previous source IDs above are historical references from before the rebase.
+
+The rebased branch passed chat-cleanup, composer-fold and thinking-control together in 27 seconds. The command used -Only thinking-control,composer-fold,chat-cleanup and output folder %TEMP%/thinking-cleanup-rebased-20261115. The attached browser log now records that combined run. No cleanup behaviour or host code was changed by the resolution.

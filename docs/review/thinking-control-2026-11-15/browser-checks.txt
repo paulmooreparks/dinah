@@ -1,3 +1,47 @@
+PASS the bin discloses a loaded program without hiding the deletion policy
+PASS an earlier agent program finds the whole switched chat
+PASS working and pinned chats cannot be selected and explain why
+PASS unknown counts and dates are explicit
+PASS selection keeps every row and toolbar fixed
+PASS cancelling changes no chats
+PASS a pending batch keeps the list fixed
+PASS mixed results never move an existing row or the taskbar in any sampled frame
+PASS success and later failures are reported independently
+PASS staging preserves the unsent chat message
+PASS restore leaves the chat closed and reports its result
+PASS Restore returns closed metadata without provider discovery
+PASS Restore preserves the unsent chat message
+PASS a refused Restore is reported on its bin row rather than the retained active-list result
+PASS final deletion uses the row confirmation verbatim
+PASS a failed final deletion stays on its bin row
+PASS a remaining agent copy is disclosed after local deletion
+PASS final deletion forgets only that chat composer value
+PASS emptying the bin uses the aggregate confirmation verbatim
+PASS filter state is addressable
+PASS narrow controls and rows fit their page
+PASS reloading the page restores its filter from the URL
+PASS no page errors
+
+
+PASS a wide composer shows provider, mode and model as their own buttons
+PASS a narrow composer folds the Agent group into one button
+PASS its menu keeps the provider, the mode and the model, each with its choice ticked
+PASS a choice made in the folded menu is the chat's choice
+PASS widening the window unfolds the group
+PASS every control in the composer toolbar has a glyph
+PASS the provider, the mode and the model have glyphs of their own
+stages 1200: {"Agent":1,"Message":1}; 900: {"Agent":1,"Message":1}; 700: {"Agent":2,"Message":2}; 520: {"Agent":3,"Message":3}; 380: {"Agent":5,"Message":5}
+PASS no group folds into a menu while another still shows its words
+PASS the Agent group shows its controls as glyphs alone before it folds
+PASS as glyphs alone they keep their words as their names and tooltips
+PASS the Agent group is not the first to fold into a menu
+PASS every control in sight has its accessible name at every width
+PASS a turn starting while a toolbar menu is open keeps its folding and Stop slot
+PASS a turn ending while a toolbar menu is open keeps its folding and Stop slot
+PASS the Turn group folds before the Agent and Message groups
+PASS no page errors
+
+
 PASS the toolbar shows the reported current Thinking name
 PASS the menu uses the agent names without invented levels
 PASS the selected value uses the ordinary per-chat option call
