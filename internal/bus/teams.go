@@ -177,21 +177,33 @@ func (b *Bus) SetLead(ctx context.Context, member, lead string) (string, error) 
 }
 
 func (b *Bus) setLead(t *sql.Tx, member, lead string) (string, error) {
+	if err := checkTeamLead(t, member, lead); err != nil {
+		return "", err
+	}
+	return b.assignLead(t, member, lead)
+}
+
+// CheckTeamLead reads the same preconditions that SetLead checks in its transaction.
+func (b *Bus) CheckTeamLead(member, lead string) error {
+	return checkTeamLead(b.db, member, lead)
+}
+
+func checkTeamLead(t querier, member, lead string) error {
 	if member == lead {
-		return "", errors.New("a chat cannot lead itself")
+		return errors.New("a chat cannot lead itself")
 	}
 	memberTitle, err := knownSession(t, member)
 	if err != nil {
-		return "", err
+		return err
 	}
 	leadTitle, err := knownSession(t, lead)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// The lead's own chain must not reach the member.
 	chain, err := chainOf(t, lead)
 	if err != nil {
-		return "", err
+		return err
 	}
 	for _, c := range chain {
 		if c == member {
@@ -203,9 +215,13 @@ func (b *Bus) setLead(t *sql.Tx, member, lead string) (string, error) {
 					break
 				}
 			}
-			return "", fmt.Errorf("%s cannot be a member of %s's team, because %s already leads it (%s)", memberTitle, leadTitle, leadTitle, strings.Join(names, " is led by "))
+			return fmt.Errorf("%s cannot be a member of %s's team, because %s already leads it (%s)", memberTitle, leadTitle, leadTitle, strings.Join(names, " is led by "))
 		}
 	}
+	return nil
+}
+
+func (b *Bus) assignLead(t *sql.Tx, member, lead string) (string, error) {
 	previous, _, err := teamLeadOf(t, member)
 	if err != nil {
 		return "", err
@@ -285,32 +301,8 @@ type LeftOut struct {
 // a chat has only one. It returns the members made and the chats left out.
 func (b *Bus) MakeGroupTeam(ctx context.Context, group, lead string) (made []string, left []LeftOut, err error) {
 	err = b.tx(ctx, func(t *sql.Tx) error {
-		key, _, err := findGroup(t, group)
+		key, err := checkGroupTeam(t, group, lead)
 		if err != nil {
-			return err
-		}
-		var isMember int
-		if err := t.QueryRow(`SELECT COUNT(*) FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, key, lead).Scan(&isMember); err != nil {
-			return err
-		}
-		if isMember == 0 {
-			return errors.New("the chat that leads a team must be a member of the group")
-		}
-		var current string
-		if err := t.QueryRow(`SELECT lead FROM rooms WHERE name = ?`, key).Scan(&current); err != nil {
-			return err
-		}
-		if current != "" && current != lead {
-			title, _ := knownSession(t, current)
-			return fmt.Errorf("this group is already the team channel of %s", title)
-		}
-		var other string
-		err = t.QueryRow(`SELECT name FROM rooms WHERE lead = ? AND name <> ?`, lead, key).Scan(&other)
-		if err == nil {
-			title, _ := knownSession(t, lead)
-			return fmt.Errorf("%s already leads a team with its own group; a chat leads one team", title)
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
 		if _, err := t.Exec(`UPDATE rooms SET lead = ? WHERE name = ?`, lead, key); err != nil {
@@ -373,6 +365,44 @@ func slicesContains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// CheckGroupTeam reads the same conversion preconditions as MakeGroupTeam.
+func (b *Bus) CheckGroupTeam(group, lead string) error {
+	_, err := checkGroupTeam(b.db, group, lead)
+	return err
+}
+
+func checkGroupTeam(t querier, group, lead string) (string, error) {
+	key, _, err := findGroup(t, group)
+	if err != nil {
+		return "", err
+	}
+	var isMember int
+	if err := t.QueryRow(`SELECT COUNT(*) FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, key, lead).Scan(&isMember); err != nil {
+		return "", err
+	}
+	if isMember == 0 {
+		return "", errors.New("the chat that leads a team must be a member of the group")
+	}
+	var current string
+	if err := t.QueryRow(`SELECT lead FROM rooms WHERE name = ?`, key).Scan(&current); err != nil {
+		return "", err
+	}
+	if current != "" && current != lead {
+		title, _ := knownSession(t, current)
+		return "", fmt.Errorf("this group is already the team channel of %s", title)
+	}
+	var other string
+	err = t.QueryRow(`SELECT name FROM rooms WHERE lead = ? AND name <> ?`, lead, key).Scan(&other)
+	if err == nil {
+		title, _ := knownSession(t, lead)
+		return "", fmt.Errorf("%s already leads a team with its own group; a chat leads one team", title)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	return key, nil
 }
 
 // LeadRemoved is called when a chat is deleted. The members it led become ordinary chats that reach
