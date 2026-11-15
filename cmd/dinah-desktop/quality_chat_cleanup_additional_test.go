@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -25,4 +26,46 @@ func TestQualityCleanupAllocationRefusal(t *testing.T) {
 		t.Fatal("allocation refusal changed retained chat")
 	}
 	qualityNoStarts(t, before, after)
+}
+
+// This probe checks delivery while another conversation retains the shared process.
+func TestQualityCleanupLoadedDeliveryRefusal(t *testing.T) {
+	f := qualityCleanupNew(t).(*qualityHostCleanup)
+	id := "fixture:cannot-unload"
+	f.Seed(qualityCleanupSeed{ID: id, Loaded: true, CanUnload: false, ProviderDelete: "unsupported"})
+	before := f.Observe(id)
+	if !before.Loaded || !before.Open {
+		t.Fatal("fixture was not loaded")
+	}
+	rs := f.Act("remove", id)
+	if len(rs) != 1 || !rs[0].OK {
+		t.Fatal(rs)
+	}
+	rows, err := f.a.ListChatCleanup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, row := range rows.Removed {
+		if row.SessionID == id {
+			found = strings.Contains(strings.ToLower(row.RuntimeNote), "still loaded")
+		}
+	}
+	if !found {
+		t.Fatal("removed inventory omitted still-loaded text")
+	}
+	if !f.Observe(id).Loaded {
+		t.Fatal("shared provider stopped before delivery probe")
+	}
+	if f.Send("direct", id) == nil {
+		t.Fatal("binned loaded recipient accepted delivery")
+	}
+	qualityNoStarts(t, before, f.Observe(id))
+	f.Restart()
+	after := f.Observe(id)
+	qualityBinned(t, after)
+	qualityNoStarts(t, before, after)
+	if after.Loaded {
+		t.Fatal("binned chat reloaded at startup")
+	}
 }

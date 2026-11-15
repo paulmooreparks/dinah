@@ -32,12 +32,6 @@ type qualityHostCleanup struct {
 
 func init() {
 	qualityCleanupFactory = func(t *testing.T) qualityCleanupFixture {
-		if strings.HasPrefix(t.Name(), "TestQualityCleanupLoadedWithoutUnload") {
-			t.Fatal("this host binding does not yet implement the runtime, bus-routing and ownership observations required by this case")
-		}
-		if strings.Contains(t.Name(), "TestQualityCleanupProviderDeletion") && strings.HasSuffix(t.Name(), "/expire") {
-			t.Fatal("expiry outcome projection is pending; no result is synthesized from expected state")
-		}
 		providers := chatCleanupAcceptanceCountProviders(t)
 		a := newFileAccessFixtureApp(t)
 		providers.Bind(t, a)
@@ -51,7 +45,7 @@ func init() {
 	}
 }
 func (f *qualityHostCleanup) install() {
-	f.a.chatCleanupAcceptanceInstall(chatCleanupAcceptanceHooks{Now: func() time.Time { return f.now }, DeleteProvider: func(_ context.Context, _, id string) (bool, error) {
+	f.a.chatCleanupAcceptanceInstall(chatCleanupAcceptanceHooks{Now: func() time.Time { return f.now }, UnloadProvider: func(context.Context, string, string) (bool, error) { return false, nil }, DeleteProvider: func(_ context.Context, _, id string) (bool, error) {
 		r, ok := f.a.cleanupRecord(id)
 		if !ok || r.Group == "" {
 			f.t.Fatal("provider delete without retained archive")
@@ -72,14 +66,14 @@ func (f *qualityHostCleanup) install() {
 	}})
 }
 func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
-	if s.Loaded {
-		f.t.Fatal("runtime and bus fixture binding is pending")
-	}
 	f.seeds[s.ID] = s
 	f.copies[s.ID] = true
 	provider := strings.SplitN(s.ID, ":", 2)[0]
+	if s.Loaded {
+		provider = "codex"
+	}
 	recipient := ""
-	if s.Queued > 0 {
+	if s.Queued > 0 || s.Loaded {
 		owner := s.ID
 		if len(s.Chain) > 0 {
 			owner = s.Chain[0]
@@ -91,6 +85,19 @@ func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
 		workspace = f.t.TempDir()
 	}
 	cleanupFixtureChat(f.t, f.a, s.ID, provider, workspace, recipient)
+	if s.Loaded {
+		other := "codex:quality-shared-provider-control"
+		cleanupFixtureChat(f.t, f.a, other, provider, workspace, "")
+		for _, id := range []string{other} {
+			if _, err := f.a.OpenSessionAt(workspace, id); err != nil {
+				f.t.Fatal(err)
+			}
+		}
+		f.a.runtime.PutConversationLocked(s.ID, newSessionState(&sessionSeed{ID: s.ID, Provider: provider, Cwd: workspace}, sessionInitial{Open: true}))
+		if f.providers.Count(provider, "") != 1 || f.providers.Count(provider, "session/load") != 1 {
+			f.t.Fatal("loaded seed did not exercise counted launch and loads")
+		}
+	}
 	if s.Working {
 		f.a.runtime.PutConversationLocked(s.ID, newSessionState(&sessionSeed{ID: s.ID, Provider: provider, Cwd: f.ws}, sessionInitial{Open: true, Working: true}))
 	}
@@ -178,6 +185,24 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 	case "empty":
 		rs = f.a.EmptyChatRecycleBin()
 	case "expire":
+		previous := f.a.sink
+		f.a.sink = func(name string, data any) {
+			if name == "chat:finalized" {
+				payload, ok := data.(map[string]any)
+				if !ok {
+					f.t.Fatal("unexpected finalized payload")
+				}
+				result, ok := payload["result"].(ChatCleanupResult)
+				if !ok {
+					f.t.Fatal("missing actual finalized result")
+				}
+				rs = append(rs, result)
+			}
+			if previous != nil {
+				previous(name, data)
+			}
+		}
+		defer func() { f.a.sink = previous }()
 		if e := f.a.chatCleanupAcceptanceSweep(); e != nil {
 			f.t.Fatal(e)
 		}
@@ -225,6 +250,8 @@ func (f *qualityHostCleanup) Send(route, id string) error {
 	return err
 }
 func (f *qualityHostCleanup) Restart() {
+	f.a.lifecycle().StopAll()
+	f.a.turnIO().Close(3 * time.Second)
 	f.a.busHost().CloseHandle()
 	f.a.queueStore.Close()
 	f.a.closeAppletBridge()
