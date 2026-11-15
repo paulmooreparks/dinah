@@ -54,7 +54,7 @@ func TestCleanupCurrentLeadRefusedByEveryEntry(t *testing.T) {
 		t.Fatal("stale delete authority was accepted", result, err)
 	}
 	after, err := os.ReadFile(transcriptPath("codex:a"))
-	if err != nil || string(before) != string(after) || removed != 0 || len(peer.calls) != 0 || a.removedChat("codex:a") {
+	if err != nil || string(before) != string(after) || removed != 0 || len(peer.calls.Snapshot()) != 0 || a.removedChat("codex:a") {
 		t.Fatal("refusal changed chat or provider state", err, removed, peer.calls)
 	}
 }

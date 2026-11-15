@@ -69,7 +69,7 @@ func TestOrgChartReplaceLeadRetainsTeamAndRefusesLeadAssignment(t *testing.T) {
 	if _, err := a.SetTeamLead("codex:a", "codex:c"); err != nil {
 		t.Fatal("former lead cannot move after replacement", err)
 	}
-	if len(peer.calls) != 0 {
+	if len(peer.calls.Snapshot()) != 0 {
 		t.Fatal("team management contacted provider")
 	}
 }
