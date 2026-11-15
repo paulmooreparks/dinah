@@ -14,11 +14,14 @@ import (
 	"studio/internal/bus"
 	"studio/internal/claudeagent"
 	"studio/internal/layout"
+	"studio/internal/sessionhost"
 	"studio/internal/workspaces"
 )
 
 // Settings are the person's choices that outlast a restart.
 type Settings struct {
+	// logicalEvidence belongs to one detached query snapshot and is never saved.
+	logicalEvidence map[string]sessionhost.TranscriptHead
 	// BackgroundChatLimit bounds chats opened for bus messages. Zero uses eight.
 	BackgroundChatLimit    int                            `json:"backgroundChatLimit,omitempty"`
 	NativeSessions         map[string]nativeSessionRecord `json:"nativeSessions,omitempty"`
@@ -435,6 +438,12 @@ func (s Settings) clone() (Settings, error) {
 	}
 	if len(s.WorkspaceRecords) > 0 {
 		out.WorkspaceRecords = workspaces.Copy(s.WorkspaceRecords)
+	}
+	if s.logicalEvidence != nil {
+		out.logicalEvidence = make(map[string]sessionhost.TranscriptHead, len(s.logicalEvidence))
+		for id, header := range s.logicalEvidence {
+			out.logicalEvidence[id] = header
+		}
 	}
 	return out, nil
 }
