@@ -1,0 +1,48 @@
+PASS Org Chart is reachable from the Window menu
+PASS the live chart has no manual refresh control
+PASS logical chats appear once despite native session references
+PASS Diagrams draws the reporting and dotted group connections
+PASS folded teams use raised controls and hide their descendants
+PASS repair entries explain the problem and offer no management menu
+PASS management actions are disabled and explain that they are coming next
+PASS the chat context menu is available from the keyboard
+PASS unfolding preserves one box for every chat
+PASS Find a Chat retains the reporting context of a match
+PASS the filter has an address
+PASS reloading the address restores its filter and chart
+PASS workspace filtering leaves out other workspaces
+PASS nested teams retain one box for the shared lead and member
+PASS light chart at 1440 fits its reading surface
+PASS light connectors at 1440 never cross a chat, group or fold control
+PASS light group segments at 1440 stay clear of quiet solid container edges
+PASS light group routes at 1440 never traverse panel interiors or share another group lane
+PASS light group lines at 1440 end at their labelled group boxes
+PASS dark chart at 1440 fits its reading surface
+PASS dark connectors at 1440 never cross a chat, group or fold control
+PASS dark group segments at 1440 stay clear of quiet solid container edges
+PASS dark group routes at 1440 never traverse panel interiors or share another group lane
+PASS dark group lines at 1440 end at their labelled group boxes
+PASS light chart at 390 fits its reading surface
+PASS light connectors at 390 never cross a chat, group or fold control
+PASS light group segments at 390 stay clear of quiet solid container edges
+PASS light group routes at 390 never traverse panel interiors or share another group lane
+PASS light group lines at 390 end at their labelled group boxes
+PASS dark chart at 390 fits its reading surface
+PASS dark connectors at 390 never cross a chat, group or fold control
+PASS dark group segments at 390 stay clear of quiet solid container edges
+PASS dark group routes at 390 never traverse panel interiors or share another group lane
+PASS dark group lines at 390 end at their labelled group boxes
+PASS a failed read keeps the previous chart visible
+PASS only an error reveals Retry Loading
+PASS refreshes are serialized and coalesced after the current read
+PASS chart refresh does not discover history or open a chat
+PASS no page errors
+
+
+PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 1440
+PASS state refresh keeps the drawing, chat elements and keyboard focus at 1440
+PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 390
+PASS state refresh keeps the drawing, chat elements and keyboard focus at 390
+PASS no page errors
+
+

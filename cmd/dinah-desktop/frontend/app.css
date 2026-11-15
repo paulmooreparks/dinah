@@ -945,3 +945,24 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
   .cleanup-lists { min-height: 18rem; }
   .chat-cleanup { overflow-y: auto; }
 }
+/* The chart keeps its reading surface and each chat box fixed while state changes. */
+.org-chart { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.org-chart-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); flex: none; }
+.org-chart-toolbar select { width: 15rem; max-width: 100%; }
+.org-chart-toolbar input { width: 15rem; min-width: 8rem; flex: 1; }
+.org-chart-status { margin: 0; padding: 0 var(--space-3); height: 2.8em; flex: none; overflow: auto; font-size: var(--text-sm); }
+.org-chart-legend { margin: 0; padding: 0 var(--space-3) var(--space-2); flex: none; font-size: var(--text-sm); }
+.org-chart-scroll { flex: 1; min-height: 0; min-width: 0; overflow: auto; scrollbar-gutter: stable; background: var(--bg); }
+.org-chart-canvas { position: relative; margin: 16px; isolation: isolate; }
+.org-chart-lines { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
+.org-chart-chat, .org-chart-group { position: absolute; display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; box-sizing: border-box; min-width: 0; overflow: hidden; }
+.org-chart-title, .org-chart-meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; min-width: 0; }
+.org-chart-title { padding-right: 18px; font-size: var(--text-sm); }
+.org-chart-meta { font-size: var(--text-xs); }
+.org-chart-state { margin-top: auto; display: block; height: 24px; overflow: hidden; }
+.org-chart-chat [data-row-actions] { position: absolute; right: 3px; top: 7px; }
+.org-chart-chat:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 5px; }
+.org-chart-repair { color: var(--warn); font-size: var(--text-sm); }
+.org-chart-fold { position: absolute; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org-chart-section { position: absolute; margin: 0; font-size: var(--text-sm); line-height: 20px; }
+@media (max-width: 600px) { .org-chart-toolbar select { width: 100%; } .org-chart-legend { font-size: var(--text-xs); } }
