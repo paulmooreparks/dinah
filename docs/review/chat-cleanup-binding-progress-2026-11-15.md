@@ -40,3 +40,31 @@ Quality will run the following gates when Engine supplies the immutable combined
 - The interim member query must move, restore and delete the owned chain together while leaving a fork and a workspace move untouched.
 
 The frozen assertions remain unchanged. Additional binding requirements and any new assertions for allocation or descendant refusal will be recorded explicitly. No acceptance is inferred from the choice of interim implementation. Quality awaits Engine's bindings and retains these gates; no test was queued for this documentation change.
+
+## Corrected combined candidate checks
+
+Quality merged the complete interim-resolver candidate and then the standalone Codex deletion guard and its damaged-transcript correction. The product source matches e4ae7b4145ffe7b229e2a44133fad28ab1556d5c. Quality's additional files contain only acceptance assertions and bindings. The original frozen assertions remain unchanged.
+
+Before the guard correction arrived, the working/pinned refusal, protected history member, mixed batch, switched-chain and separate-recipient cases passed on 974bf516 in 5.541 seconds through ticket 2203. That run is bounded to its earlier source. The later binding gives the workspace-move fixture its own directory rather than sharing the source workspace.
+
+The added allocation assertion reserves a live transfer before any runtime exists and checks refusal without a launch. The independent-descendant assertion connects the real Codex adapter and host guard to an invented subprocess, observes thread/delete requests, and checks both a separate recipient and damaged transcript-only identity. Its allowed owned-descendant control must produce a native delete. Cleanup's documented-deletion callback feeds the adapter refusal into the actual finalization result; local cleanup must report that the provider copy remains while preserving the independent descendant.
+
+The linked-record binding opens and edits a real local document draft and records transcript references to it and its document. It compares the workspace file, Recent Documents index, workspace record and persisted draft JSON across the frozen lifecycle. It opens the stand-in provider explicitly and obtains a real managed drawing lease, probes authority before binning, starts a request that reaches a substituted renderer, checks cancellation and old-token refusal, and checks fresh authority after explicit reopening. Rendering is substituted; native page disposal is outside this test. An HTTP write observer has a positive control against a local fake server. The content fixture is local, so it does not exercise a remote document provider or real credentials.
+
+Tickets 2212 and 2214 were withdrawn before execution while completing the bindings and protocol headers. Ticket 2215 is the selected combined run. Its final binding source before execution is 4a3cbf6e. Results are pending; no integration acceptance follows from this preparation.
+
+### Final scoped result
+
+The first combined selected run failed in 7.816 seconds only at the post-restart workspace-record comparison. A focused evidence run reproduced that failure in 1.224 seconds. The retained snapshots in cleanup-record-evidence-20261115 show that both mountAlias fields were empty before restart and became 003 on restart. Quality had constructed the workspace record without the normal ensureWorkspaceMountAliases registration step. Document bytes, the Recent Documents record and the document draft did not change. The corrected seed calls that production registration helper before recording the baseline. No frozen assertion or product source changed.
+
+On the corrected seed, all eight selected groups passed in 7.123 seconds. They covered the linked-record/drawing lifecycle, allocation-in-progress refusal, independent-descendant deletion refusal with an allowed-delete control, working/pinned refusals, protected history members, mixed batches, whole switched chains and separate forks/workspace moves. The normalized snapshots are retained in cleanup-record-evidence-20261115-normalized. The HTTP mutation observer remained at zero after its positive control. No picture bytes returned from cancelled work. Old authority failed after binning and Restore; explicit reopening obtained fresh valid authority, which the second removal revoked.
+
+The earlier dormancy/counted positive control, draft/stale-save, exact expiry boundary and six provider-delete outcomes were then rerun on the same corrected combined product source and passed in 5.434 seconds. All runs used scripts/with-test-lock.ps1. No runner remains active or queued.
+
+Quality accepts the three integration gates specified in message 8821 on product candidate e4ae7b4145ffe7b229e2a44133fad28ab1556d5c, within the documented invented-provider, local-document and substituted-renderer boundaries. The independently owned descendant test invokes the real Codex adapter through the documented-deletion fixture callback; it does not perform an account-backed native deletion. Engine still owns the full package/vet gate and the combined handover. This result authorizes no install or merge from Quality. The loaded-without-unload frozen case and expiry provider-result matrix remain outside this selected binding; their absence is not presented as a pass.
+
+Selected command:
+
+`go test -tags quality_chat_cleanup,chatcleanup_acceptance ./cmd/dinah-desktop -run '^TestQualityCleanup(OwnershipAndLeases|AllocationRefusal|IndependentDescendant|SwitchedChain|SeparateRecipients|Refusals|ProtectedChain|MixedBatch)$' -count=1 -timeout 90s`
+
+The preceding counted-startup command in this record was used for the final regression rerun. The original frozen assertion file remains byte-for-byte unchanged from d4eba107.

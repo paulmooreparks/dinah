@@ -22,6 +22,7 @@ type qualityLinkedState struct {
 	workspaceID string
 	leases      map[string]*qualityLease
 	writes      atomic.Int32
+	snapshots   int
 }
 type qualityLease struct {
 	env       map[string]string
@@ -37,7 +38,10 @@ func (f *qualityHostCleanup) SeedLinkedRecords(ids []string) {
 	f.linked = &qualityLinkedState{leases: map[string]*qualityLease{}}
 	record := newWorkspaceRecord(f.ws)
 	f.linked.workspaceID = record.ID
-	if err := f.a.updateSettings(func(s *Settings) error { s.WorkspaceRecords = append(s.WorkspaceRecords, record); return nil }); err != nil {
+	if err := f.a.updateSettings(func(s *Settings) error {
+		s.WorkspaceRecords = append(s.WorkspaceRecords, record)
+		return ensureWorkspaceMountAliases(s.WorkspaceRecords)
+	}); err != nil {
 		f.t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(f.ws, "linked.md"), []byte("# Invented document\n"), 0600); err != nil {
@@ -119,7 +123,21 @@ func (f *qualityHostCleanup) LinkedRecords() map[string]string {
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	return map[string]string{"document": string(data), "document-record": string(recent), "workspace-record": string(record), "document-draft": draft.Text, "document-draft-record": string(raw)}
+	out := map[string]string{"document": string(data), "document-record": string(recent), "workspace-record": string(record), "document-draft": draft.Text, "document-draft-record": string(raw)}
+	if dir := os.Getenv("QUALITY_CLEANUP_EVIDENCE"); dir != "" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			f.t.Fatal(err)
+		}
+		encoded, err := json.MarshalIndent(out, "", "  ")
+		if err != nil {
+			f.t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("linked-%02d.json", f.linked.snapshots)), encoded, 0600); err != nil {
+			f.t.Fatal(err)
+		}
+		f.linked.snapshots++
+	}
+	return out
 }
 func (f *qualityHostCleanup) RemoteWrites() int { return int(f.linked.writes.Load()) }
 func (f *qualityHostCleanup) OpenWithLeases(id string) map[string]string {
