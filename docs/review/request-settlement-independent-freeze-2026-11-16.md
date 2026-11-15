@@ -45,3 +45,7 @@ Retain raw request bodies, authenticated actor context, command descriptors, sou
 This is an independent freeze for receiving, not host or product acceptance. Engine retains implementation, schema migration and binding responsibility. Missing seams remain unverified. Any assertion correction must name its reason and retain the original failure. Syntax validation will be recorded separately. No settlement implementation has been read or run by Quality.
 
 The frozen file passed node --check through the canonical shared PowerShell 7 runner, exit zero. This is syntax evidence only. The 48 implementation cases remain unbound.
+
+## Attention-report race correction
+
+Engine identified a freeze error in message 9927. A local attention report has no Answer operation. The original shared three-way assertion incorrectly invented one despite the contract limiting descriptors to the source's existing answer commands. The report case now races its two supported commands, Dismiss and owner Withdraw, and separately requires a real attempted unsupported Answer to be refused without authority or side effects. It does not prescribe request_closed for that unsupported call. The six answerable-source races remain unchanged. All other assertions and the 48-case count remain unchanged. This correction was made from the approved contract before reviewing the settlement implementation.

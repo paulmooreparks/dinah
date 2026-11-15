@@ -61,10 +61,15 @@ for(const source of sources) for(const outcome of ['dismissed','withdrawn']) tes
 });
 for(const source of sources) test(`${source}: Answer Dismiss and Withdraw compete once`,async t=>{
   const e=await capture(t,'concurrent-settlement',source);
-  assert.deepEqual(e.commands,['Answer','Dismiss','Withdraw']);
+  assert.deepEqual(e.commands,source==='attention-report'?['Dismiss','Withdraw']:['Answer','Dismiss','Withdraw']);
+  if(source==='attention-report') {
+    assert.equal(e.unsupportedAnswer.accepted,false);
+    assert.equal(e.unsupportedAnswer.authorityGranted,false);
+    assert.equal(e.unsupportedAnswer.sideEffects,0);
+  }
   assert.equal(e.responses.filter(r=>r.accepted).length,1);
   const winner=e.responses.find(r=>r.accepted);
-  assert.ok(['answered','dismissed','withdrawn'].includes(winner.outcome));
+  assert.ok((source==='attention-report'?['dismissed','withdrawn']:['answered','dismissed','withdrawn']).includes(winner.outcome));
   assert.equal(e.after.record.status,winner.outcome);
   assert.equal(e.after.record.id,e.before.record.id);same(e.after.record.request,e.before.record.request);
   same(e.after.record.sourceLink,e.before.record.sourceLink);
