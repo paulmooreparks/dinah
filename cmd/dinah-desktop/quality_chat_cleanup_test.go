@@ -20,6 +20,8 @@ type qualityCleanupFixture interface {
 	Advance(time.Duration)
 	Observe(string) qualityCleanupState
 	Events() []qualityCleanupEvent
+	SaveUIState(map[string]string)
+	ReadUIState() map[string]string
 }
 type qualityCleanupSeed struct {
 	ID                      string
@@ -315,6 +317,61 @@ func TestQualityCleanupProtectedChain(t *testing.T) {
 					t.Fatal("refusal split the chain")
 				}
 			}
+		})
+	}
+}
+
+func TestQualityCleanupDraftsAndStaleSave(t *testing.T) {
+	for _, action := range []string{"delete", "expire"} {
+		t.Run(action, func(t *testing.T) {
+			f := qualityCleanupNew(t)
+			ids := []string{"codex:draft-earlier", "claude:draft-current"}
+			stale := map[string]string{"quality-unrelated-preference": "retained"}
+			for _, id := range ids {
+				f.Seed(qualityCleanupSeed{ID: id, Chain: ids, CanUnload: true, ProviderDelete: "supported"})
+				stale["dinah-draft:chat:"+id] = "invented composer draft for " + id
+			}
+			f.SaveUIState(stale)
+			checkPresent := func() {
+				t.Helper()
+				got := f.ReadUIState()
+				for k, v := range stale {
+					if got[k] != v {
+						t.Fatalf("retained UI value changed: %s", k)
+					}
+				}
+			}
+			checkPresent()
+			qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
+			checkPresent()
+			f.Restart()
+			checkPresent()
+			qualityCleanupResultFor(t, f.Act("restore", ids[0]), ids[0], "restored")
+			checkPresent()
+			qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
+			if action == "expire" {
+				f.Advance(30 * 24 * time.Hour)
+			}
+			f.Act(action, ids[1])
+			checkAbsent := func() {
+				t.Helper()
+				got := f.ReadUIState()
+				for _, id := range ids {
+					if _, ok := got["dinah-draft:chat:"+id]; ok {
+						t.Fatal("finalized chain draft remains or was revived")
+					}
+				}
+				if got["quality-unrelated-preference"] != "retained" {
+					t.Fatal("unrelated UI state was lost")
+				}
+			}
+			checkAbsent()
+			f.SaveUIState(stale)
+			checkAbsent()
+			f.Restart()
+			checkAbsent()
+			f.SaveUIState(stale)
+			checkAbsent()
 		})
 	}
 }

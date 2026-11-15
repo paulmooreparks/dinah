@@ -33,3 +33,11 @@ The source was formatted with gofmt. The FIFO compile-only command `go test -tag
 The candidate supplies chatCleanupAcceptanceInstall, chatCleanupAcceptanceSweep and chatCleanupAcceptanceObserve under chatcleanup_acceptance. The adapter will use its Now, DeleteProvider and UnloadProvider hooks, plus independent counters and direct isolated-store inspection. HistoryOnly seeds an allocated switch target recorded only in transfer history. It must remain part of cleanup while not becoming the displayed current session. The test tag quality_chat_cleanup is combined with chatcleanup_acceptance at handover.
 
 The native deletion event sequence must follow the oldest-first chain order before any local chain erasure. Per-member programCopies must describe every native result and the aggregate providerCopyRemains must be true when any member remains. These observations are additional receiving assertions to bind with the amended result shape; the factory must preserve their actual values.
+
+## Composer draft amendment
+
+Contract 6b756c8587d5d46ea1e348da35602611766c2442 adds durable composer drafts. The independent cases seed distinct drafts for the current and earlier switched sessions, preserve them through staging, restart and Restore, then check erasure through final deletion and expiry. Each case submits the original stale full-state payload after finalization and again after restart. Neither write may restore either draft, while an unrelated preference must survive.
+
+SaveUIState must call the real host full-state save path with a copy of the supplied map. ReadUIState must read the persisted isolated ui-state.json, without filtering in the test adapter. The binder must not mutate the stale input map. The implementation review must also verify that tombstone filtering and finalization share serialization; sequential stale writes alone cannot prove their concurrency discipline. Frontend receiving checks must observe zero Sessions or SessionsAt calls during removal and Restore.
+
+The amended suite passed FIFO compile-only verification in 0.210 seconds, with no tests selected. Acceptance remains pending the implementation handover.
