@@ -271,6 +271,11 @@ func (w *Window) write(record taskRecord, r Receipt) error {
 	if err != nil {
 		return refusal("persistence_failed", err.Error())
 	}
+	if w.options.AfterSave != nil {
+		if err := w.options.AfterSave(clone(r)); err != nil {
+			return refusal("outcome_unknown", "The write result is unknown. Reconcile the original operation before taking further action: "+err.Error())
+		}
+	}
 	if w.options.Emit != nil {
 		w.events = append(w.events, clone(r))
 	}

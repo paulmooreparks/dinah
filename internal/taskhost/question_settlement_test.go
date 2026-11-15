@@ -3,10 +3,73 @@ package taskhost
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"studio/internal/requestsettlement"
 	"testing"
 )
+
+func TestQuestionWriteBoundariesExposeSourceAndObligationTogether(t *testing.T) {
+	w, _, now, _ := fixture(t)
+	q, asked, ended, scope := questionFixture(t)
+	result := make(chan error, 1)
+	w.options.Backend = backendFunc(func(ctx context.Context, s Scope, _ Operation, _ Capture) Outcome {
+		_, err := q.Ask(ctx, s, "Continue?", []QuestionOption{{OptionID: "yes", Name: "Yes"}})
+		result <- err
+		return Outcome{State: "failed", Code: "worker-returned"}
+	})
+	p := plan(*now)
+	p.Scope = scope
+	p.Permits = []Permit{{Kind: "AskPerson", Target: "question"}}
+	h := begin(t, w, p)
+	op := Operation{ID: "asking", Kind: "AskPerson", Target: "question"}
+	if _, err := w.Start(context.Background(), h, op); err != nil {
+		t.Fatal(err)
+	}
+	view := <-asked
+	observed := []QuestionRecord{}
+	observe := func(r Receipt) error {
+		if r.Disposition != "dismissed" {
+			return nil
+		}
+		// This reads the actual records.Store, independently of the Window's
+		// in-memory record and its receipt returned to the caller.
+		source, err := ReadQuestionRecord(w.options.State, view.Key)
+		if err == nil {
+			observed = append(observed, source)
+		}
+		return err
+	}
+	w.options.Save = observe
+	w.options.AfterSave = func(r Receipt) error {
+		if err := observe(r); err != nil {
+			return err
+		}
+		if r.Disposition == "dismissed" {
+			return errors.New("injected loss of the committed response")
+		}
+		return nil
+	}
+	in := requestsettlement.Input{ID: view.Key, Revision: 1, OperationID: "lost-response"}
+	_, err := w.DismissQuestion(in)
+	var unknown *Error
+	if !errors.As(err, &unknown) || unknown.Code != "outcome_unknown" {
+		t.Fatal("the injected response loss was reported as a known result", err)
+	}
+	if len(observed) != 2 || observed[0].Status != "open" || observed[0].Completion != nil || observed[1].Status != "dismissed" || observed[1].Completion == nil || observed[1].Completion.Outcome != "dismissed" {
+		t.Fatal("independent checkpoints separated the closed source from its obligation", observed)
+	}
+	if err := <-result; err == nil {
+		t.Fatal("the reconciled waiter received an answer")
+	}
+	if e := <-ended; e.Disposition != "dismissed" {
+		t.Fatal("the committed disposition was lost after response loss", e)
+	}
+	repeat, err := w.DismissQuestion(in)
+	if err != nil || repeat.State != "committed" || repeat.Outcome != "dismissed" || len(observed) != 2 {
+		t.Fatal("receipt reconciliation repeated settlement", repeat, err, observed)
+	}
+}
 
 func TestReviewedQuestionDismissAndWithdrawalPersistBeforeReleasingTheWaiter(t *testing.T) {
 	for _, outcome := range []string{"dismissed", "withdrawn"} {

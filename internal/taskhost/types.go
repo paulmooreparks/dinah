@@ -175,6 +175,9 @@ type Options struct {
 	Lifecycle func(string)
 	// Save injects receipt persistence failures in tests before the real write.
 	Save func(Receipt) error
+	// AfterSave observes the completed durable write before publication. Tests
+	// can lose its response while reading the committed record independently.
+	AfterSave func(Receipt) error
 }
 
 // Handle contains no serializable authority. A handle belongs to one Window.
