@@ -6,4 +6,4 @@ The strip rendering case previously created a nested team through current SetLea
 
 The page mutation case previously checked for the former 'already leads' substring. It now requires the complete approved refusal with the current team's title. The refused assignment and all surrounding membership/group assertions remain unchanged. This is an explicit expectation update for the already approved wording change, rather than a new behavior change.
 
-Focused verification is pending. Front End retains the full-package rerun and both-product receiving gates. This test-only correction makes no new product, rendered or installed acceptance claim.
+Both corrected tests passed three race/all-vet repetitions in 7.035 seconds on Engine source e2d26c5b. The complete desktop package then passed without race instrumentation and with all vet analyzers on receiving source 26ae8cab; its receipt is recorded in the main receiving note. Front End retains the full-package rerun and both-product receiving gates. This test-only correction makes no new product, rendered or installed acceptance claim.
