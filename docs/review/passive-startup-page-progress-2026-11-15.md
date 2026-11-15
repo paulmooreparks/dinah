@@ -16,7 +16,7 @@ The hidden production executable preserved the copied installed build's visible 
 
 The production executable's SHA-256 is ec1bc219e6f52f418b30c42ee6dc3752f613a4391d06b2b3d3fa9c16703f83a2. Machine-specific evidence stays outside the public repository. The public-content guard passed on the initial combined candidate, and subsequent added-line scans found zero forbidden terms.
 
-Quality independently passed eight zero-contact cases and four supplemental opening/restoration/completed-turn controls on product source 69e25b08. The remaining frozen baseline, trigger and inventory/order controls are still required before acceptance.
+Quality independently passed all 35 frozen checks on product source 69e25b08, including baseline queries, deferred triggers, opening/restoration/completed turns for all four programs, inventory and response ordering. Its final binding separates slash input from focus and observes the catalog request before focus. Quality then reviewed the bin correction at 8c253de6 and passed the cleanup, passive-startup and chart-stability suites, including the paused-listing regression. Quality's page-startup receiving hold is cleared.
 
 ## Fixture corrections and limits
 
@@ -26,10 +26,10 @@ The regression deliberately pauses an older listing, restores a chat externally,
 
 The installed Dinah executable reproduced the stale actionable row after external restore. Its copied executable hash is 67dcca0850bf4094e16996ea78b604c4e02e2fcb619d95bfb992394248966dae. All active-inventory agreement checks passed in that control, while the added bin check failed. This is also an installed-product fault.
 
-Production source 8c253de639bc8b023e3f9a442b045be8dfafd8d5 passed the fifteen-phase hidden lifecycle journey with bin consistency checked at every phase. Its executable hash is 419056ae471909996df0dde4b4c50a531437406c364d339f935cfa31b9ae9009. Protected documents were unchanged, with zero remote writes and browser errors. Independent receiving remains required before acceptance.
+Production source 8c253de639bc8b023e3f9a442b045be8dfafd8d5 passed the fifteen-phase hidden lifecycle journey with bin consistency checked at every phase. Its executable hash is 419056ae471909996df0dde4b4c50a531437406c364d339f935cfa31b9ae9009. Independent receiving then passed ten lifecycle phases on that same verified executable, including repeated removal/restore with empty rendered and authoritative bins. Protected documents were unchanged, with zero prompts, ownership warnings, remote writes and browser errors. That independent run does not cover the installed-baseline restart or native final-deletion controls, which retain their producer evidence above.
 
 The counted peer initially omitted a Codex workspace and used a Claude reference without its provider prefix. Its Ollama saved record also lacked a selected model. These invented records are corrected; production ownership and model checks remain unchanged. The completed-turn locator now targets the current chat window rather than a hidden spare composer. The lifecycle runner explicitly opens the Chats panel and lists each fixture workspace before asserting its native rows. No expected identity, title, state or preservation assertion was removed.
 
-Release's ownership-conflict, legacy-cache ordering and repair-title findings are covered by Engine's correction. Independent runtime clearance and the remaining Quality checks remain receiving gates. This result is not an installation or merge recommendation.
+Release's ownership-conflict, legacy-cache ordering and repair-title findings are covered by Engine's correction. Release's independent runtime clearance remains a receiving gate. Quality has cleared its page-startup hold. This result is not an installation or merge recommendation.
 
 The tagged host does not execute native Wails startup. Native Claude adapter maintenance and the separately recorded manual-calibration runtime crash remain outside the page-startup claim. No real provider account, visible window, push or installation was used.
