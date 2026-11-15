@@ -41,7 +41,7 @@ var pageMethods = func() map[string]pageMethodClass {
 	}
 	list(pageQuery, `
  OllamaMemory
- ListSetAsidePrograms ListChatCleanup
+ ListSetAsidePrograms ListChatCleanup OrgChart
  Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
