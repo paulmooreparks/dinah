@@ -1,4 +1,3 @@
-menus-through-updates
 PASS menu: chat updates leave the View menu and its Skin list open, focus on Bevel
 PASS menu: the keyboard goes on from that row
 PASS menu: Enter chooses the row as it is now
@@ -10,9 +9,8 @@ PASS ribbon: Escape then an update leaves the dropdown closed
 PASS no page errors
 
 
-
-org-chart
 PASS Org Chart is reachable from the Window menu
+PASS the live chart has no manual refresh control
 PASS logical chats appear once despite native session references
 PASS Diagrams draws the reporting and dotted group connections
 PASS folded teams use raised controls and hide their descendants
@@ -27,20 +25,27 @@ PASS workspace filtering leaves out other workspaces
 PASS nested teams retain one box for the shared lead and member
 PASS light chart at 1440 fits its reading surface
 PASS light connectors at 1440 never cross a chat, group or fold control
+PASS light group segments at 1440 stay clear of quiet solid container edges
+PASS light group lines at 1440 end at their labelled group boxes
 PASS dark chart at 1440 fits its reading surface
 PASS dark connectors at 1440 never cross a chat, group or fold control
+PASS dark group segments at 1440 stay clear of quiet solid container edges
+PASS dark group lines at 1440 end at their labelled group boxes
 PASS light chart at 390 fits its reading surface
 PASS light connectors at 390 never cross a chat, group or fold control
+PASS light group segments at 390 stay clear of quiet solid container edges
+PASS light group lines at 390 end at their labelled group boxes
 PASS dark chart at 390 fits its reading surface
 PASS dark connectors at 390 never cross a chat, group or fold control
+PASS dark group segments at 390 stay clear of quiet solid container edges
+PASS dark group lines at 390 end at their labelled group boxes
 PASS a failed read keeps the previous chart visible
+PASS only an error reveals Retry Loading
 PASS refreshes are serialized and coalesced after the current read
 PASS chart refresh does not discover history or open a chat
 PASS no page errors
 
 
-
-org-chart-stability
 PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 1440
 PASS state refresh keeps the drawing, chat elements and keyboard focus at 1440
 PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 390
@@ -48,8 +53,6 @@ PASS state refresh keeps the drawing, chat elements and keyboard focus at 390
 PASS no page errors
 
 
-
-window-commands
 PASS the workspace's windows are listed for an agent, with the window in front
 PASS another workspace's agent sees none of them
 PASS a window's commands are listed through the bridge, with their keys and state
