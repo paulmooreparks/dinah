@@ -20,6 +20,10 @@ Quality independently passed eight zero-contact cases and four supplemental open
 
 ## Fixture corrections and limits
 
+Independent lifecycle receiving found that an externally restored chat remained in Clean Up Chats' Recycle Bin with enabled actions even after the host reported no removed record. Earlier active-inventory comparisons did not inspect the bin. The page had only appended removed rows during authority refreshes. It now removes absent actionable rows and disables bin actions during the read. A removal or restore event during an outstanding read schedules a subsequent read, so the older snapshot cannot consume that event. Completed local receipts retain their disabled actions.
+
+The regression deliberately pauses an older listing, restores a chat externally, and then releases the older snapshot. It requires the stale bin row to disappear and the restored chat to appear in Chats. The existing fixture now updates its host lists after successful mutations; previously it returned already-restored and deleted rows indefinitely. All earlier refusal, disclosure, draft-preservation and frame assertions remain. The cleanup, passive-startup and chart-stability suites passed together in 10 seconds. Production receiving of this correction is pending.
+
 The counted peer initially omitted a Codex workspace and used a Claude reference without its provider prefix. Its Ollama saved record also lacked a selected model. These invented records are corrected; production ownership and model checks remain unchanged. The completed-turn locator now targets the current chat window rather than a hidden spare composer. The lifecycle runner explicitly opens the Chats panel and lists each fixture workspace before asserting its native rows. No expected identity, title, state or preservation assertion was removed.
 
 Release's ownership-conflict, legacy-cache ordering and repair-title findings are covered by Engine's correction. Independent runtime clearance and the remaining Quality checks remain receiving gates. This result is not an installation or merge recommendation.
