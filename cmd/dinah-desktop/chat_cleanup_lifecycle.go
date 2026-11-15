@@ -276,6 +276,10 @@ func (a *App) finishRetainingChat(group string) error {
 		return err
 	}
 	a.releaseUnusedCleanupProviders()
+	// Removing a member changes the remaining chats' lead and team state.
+	// Publish those changes before a caller starts its next inventory read.
+	a.sendTeamStates()
+	a.sendChatStates()
 	for _, member := range archive.Membership.Members {
 		a.emit("chat:removed", map[string]string{"sessionId": member.SessionID})
 	}

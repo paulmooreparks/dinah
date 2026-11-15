@@ -32,6 +32,12 @@ type SavedChatInventory struct {
 // SavedChats observes local ownership and already-present runtimes. Native
 // history discovery remains in the explicit session-list entry points.
 func (a *App) SavedChats() (SavedChatInventory, error) {
+	return a.savedChatsAtBoundary(nil)
+}
+
+// The private boundary lets receiving schedule a real publisher after the
+// snapshot, without a timer delay or a retry in the production query.
+func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, error) {
 	view := SavedChatInventory{Chats: []SavedChatInfo{}}
 	if err := a.captureRuntimeInventory(); err != nil {
 		return view, err
@@ -53,6 +59,9 @@ func (a *App) SavedChats() (SavedChatInventory, error) {
 	a.mu.Unlock()
 	if err != nil {
 		return view, err
+	}
+	if afterSnapshot != nil {
+		afterSnapshot()
 	}
 	busTitles, err := a.inventoryBusTitles(saved)
 	if err != nil {
