@@ -99,7 +99,9 @@ func (a *App) withDiagramServers(channel *appletChannel, provider, workspace str
 		if !server.DiagramPictures {
 			continue
 		}
-		if provider != "codex" && provider != "claude" && provider != "ollama" {
+		// Only a provider that takes managed servers in a chat's session can be
+		// given the lease without writing it to a settings file.
+		if !providerRegistry[provider].ManagedServers {
 			d.notice = diagramUnsupported
 			continue
 		}
