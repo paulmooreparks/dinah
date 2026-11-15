@@ -1,6 +1,6 @@
 # Read-only Org Chart
 
-The live page is being built on `frontend/org-chart-live`, based on master `26d67f03`. It follows the approved mockup and the query contract frozen at `77559d93` on Engine's cleanup branch. The implementation is generic in Dinah. Engine owns the App query; Release owns logical chat admission and resolution.
+The UI candidate is ready on `frontend/org-chart-live`, based on master `26d67f03`. Its product source is `ed02aee943c16c5ceced3735e10daf4c89b29d10`, following the initial source and checks at `e2cae3d49ea04a962f32ddf3715037d3629938c6`. It follows the approved mockup and the query contract frozen at `77559d93` on Engine's cleanup branch. The implementation is generic in Dinah. Engine owns the App query; Release owns logical chat admission and resolution.
 
 ## Behaviour
 
@@ -14,10 +14,22 @@ The first browser run used FIFO ticket 2148 and completed both suites in 27 seco
 
 The second browser run passed both width frame checks and all interaction checks except the menu's disabled-state assertion. PUDL uses `aria-disabled`, so the test now checks that documented state. Focused frontend policy, UTF-8 and asset checks passed under ticket 2154 in 0.471 seconds.
 
-Four browser suites passed together under ticket 2160 in 29 seconds: `menus-through-updates`, `org-chart`, `org-chart-stability` and `window-commands`. The screenshots then exposed connector crossings that the original suite did not measure. A new path-intersection assertion is frozen with that source before the routing fix. Ticket 2165 was cancelled while queued to give Paul's document check priority. The page is not ready for handover yet.
+Four browser suites passed together under ticket 2160 in 29 seconds: `menus-through-updates`, `org-chart`, `org-chart-stability` and `window-commands`. The screenshots then exposed connector crossings that the original suite did not measure. The new path-intersection assertion was frozen with `e2cae3d4` before the routing fix. Ticket 2165 was cancelled while queued to give Paul's document check priority.
+
+An isolated, unchanged checkout of `e2cae3d4` reproduced all four intersection failures in six seconds. The wide chart crossed another chat and a nested fold control. The narrow chart crossed intervening members. The same assertions passed after the corridor routing fix, with no changed threshold. [The failing log](org-chart-live-2026-11-15/connectors-before.txt) is retained.
+
+## Final verification
+
+All four browser suites passed together again under FIFO ticket 2171 in 29 seconds. The path assertions pass in light and dark at both 1440 and 390 pixels. The frame suite records 104 samples across both widths while execution state, long titles, long program names and explanations change. It verifies fixed box, canvas, scroll and taskbar geometry, retained SVG and chat elements, and retained keyboard focus. The interaction suite also verifies URL reload, workspace and search filters, nested membership, repair entries, folding, keyboard menus, serialized refresh, a failed read and removal-triggered refresh without history discovery.
+
+Focused frontend ownership, UTF-8 and release-asset checks passed on the final source under FIFO ticket 2173 in 0.407 seconds. Whitespace checks passed.
+
+The final screenshots and frame measurements are in [the evidence directory](org-chart-live-2026-11-15/). All eight screenshots were visually inspected. The main view and group area are captured in both themes at both widths. [The browser log](org-chart-live-2026-11-15/browser-checks.txt) records every assertion.
+
+The final browser command was `pwsh ./cmd/dinah-desktop/frontend/e2e/run.ps1 -Only org-chart,org-chart-stability,window-commands,menus-through-updates -Jobs 1 -Out $env:TEMP/org-chart-live-routed-20261115`. The focused Go command was `pwsh ./scripts/with-test-lock.ps1 go test ./cmd/dinah-desktop -run 'Test(FrontendJobsStayInTheirHomes|FrontendRulesFindTheirHomes|ReleaseAssetsExcludeLocalFixtures|ThePagesTextFilesAreUTF8)$' -count=1`.
 
 ## Integration boundary
 
-These checks drive the real page in a hidden browser with invented OrgChart snapshots. They do not prove the pending host query, logical-chat admission or native runtime behaviour. The page calls no discovery or open method. A combined host candidate is required before product acceptance.
+These checks drive the real page in a hidden browser with invented OrgChart snapshots. They do not prove the pending host query, logical-chat admission or native runtime behaviour. The page calls no discovery or open method. Engine must combine its query and Release's admission adapter with this UI before product acceptance. The chart remains read-only; importing conversations is the next assigned page after this stage.
 
 No visible window, real home, native agent history, credentials or remote service is used. Nothing is pushed, merged or installed by Front End.

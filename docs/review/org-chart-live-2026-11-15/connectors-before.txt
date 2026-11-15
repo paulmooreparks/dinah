@@ -1,0 +1,27 @@
+PASS Org Chart is reachable from the Window menu
+PASS logical chats appear once despite native session references
+PASS Diagrams draws the reporting and dotted group connections
+PASS folded teams use raised controls and hide their descendants
+PASS repair entries explain the problem and offer no management menu
+PASS management actions are disabled and explain that they are coming next
+PASS the chat context menu is available from the keyboard
+PASS unfolding preserves one box for every chat
+PASS Find a Chat retains the reporting context of a match
+PASS the filter has an address
+PASS reloading the address restores its filter and chart
+PASS workspace filtering leaves out other workspaces
+PASS nested teams retain one box for the shared lead and member
+PASS light chart at 1440 fits its reading surface
+FAIL light connectors at 1440 never cross a chat, group or fold control :: [["team:mara:nina","nested"],["group:2:lena:out","mara"],["group:2:tess:out","ivo"]]
+PASS dark chart at 1440 fits its reading surface
+FAIL dark connectors at 1440 never cross a chat, group or fold control :: [["team:mara:nina","nested"],["group:2:lena:out","mara"],["group:2:tess:out","ivo"]]
+PASS light chart at 390 fits its reading surface
+FAIL light connectors at 390 never cross a chat, group or fold control :: [["team:lena:tess","oren"],["team:mara:nina","ivo"]]
+PASS dark chart at 390 fits its reading surface
+FAIL dark connectors at 390 never cross a chat, group or fold control :: [["team:lena:tess","oren"],["team:mara:nina","ivo"]]
+PASS a failed read keeps the previous chart visible
+PASS refreshes are serialized and coalesced after the current read
+PASS chart refresh does not discover history or open a chat
+PASS no page errors
+
+
