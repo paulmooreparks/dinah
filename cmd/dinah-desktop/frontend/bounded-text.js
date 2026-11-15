@@ -9,8 +9,9 @@
   }
   /* A text within the limit is drawn by small. Its second argument is true
      when the element still shows the paged view, so that a caller drawing
-     incrementally knows to start again. */
-  function draw(el, text, small) {
+     incrementally knows to start again. keepPlace lets the owning transcript
+     finish a page change and its scroll correction in the same render. */
+  function draw(el, text, small, keepPlace) {
     if (text.length <= limit) { small(text, views.delete(el)); return; }
     var view = views.get(el);
     if (!view) {
@@ -22,7 +23,7 @@
       function button(label, move) {
         var b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm'; b.textContent = label;
         b.addEventListener('click', function () {
-          move(); window.dinahRender.enqueue(el, null, function () { if (el.isConnected && views.get(el) === view) paint(); }, null, 'large text page');
+          move(); window.dinahRender.enqueue(el, null, function () { if (el.isConnected && views.get(el) === view) { if (view.keepPlace) view.keepPlace(paint); else paint(); } }, null, 'large text page');
         });
         bar.appendChild(b); return b;
       }
@@ -34,7 +35,7 @@
       view.body.style.cssText = 'display:block;white-space:pre-wrap;overflow-wrap:anywhere';
       el.append(bar, view.body);
     }
-    view.text = text;
+    view.text = text; view.keepPlace = keepPlace;
     function paint() {
       var count = Math.ceil(view.text.length / limit);
       view.page = view.tail ? count - 1 : Math.max(0, Math.min(view.page, count - 1));
