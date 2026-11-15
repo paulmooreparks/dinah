@@ -52,6 +52,9 @@ func TestDiagramLeaseUsesProfileWorkspaceAndFileAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer revoke()
+	if env["DIAGRAM_PICTURE_ROOT"] != record.ExecutionPath || !filepath.IsAbs(env["DIAGRAM_PICTURE_ROOT"]) {
+		t.Fatal("managed environment omitted the resolved absolute workspace root")
+	}
 	text := []byte("graph TD; A-->B")
 	name := filepath.Join(root, "diagram.mmd")
 	if err = os.WriteFile(name, text, 0600); err != nil {

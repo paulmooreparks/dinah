@@ -86,7 +86,7 @@ func (a *App) issueDiagramLease(chatID, serverName string) (map[string]string, f
 	if err != nil {
 		return nil, nil, err
 	}
-	return map[string]string{"DIAGRAM_PICTURE_LEASE": lease, "DIAGRAM_PICTURE_ENDPOINT": endpoint, "DIAGRAM_PICTURE_WORKSPACE": record.ID}, func() { service.Revoke(lease) }, nil
+	return map[string]string{"DIAGRAM_PICTURE_LEASE": lease, "DIAGRAM_PICTURE_ENDPOINT": endpoint, "DIAGRAM_PICTURE_WORKSPACE": record.ID, "DIAGRAM_PICTURE_ROOT": record.ExecutionPath}, func() { service.Revoke(lease) }, nil
 }
 
 func (a *App) drawDiagramSnapshot(assets fs.FS) diagrampicture.Renderer {
