@@ -198,8 +198,13 @@ func (x *groupMentionsFixture) prompts() []promptCall {
 }
 
 // settle is the completion barrier: it rings the watcher, waits until no
-// chat has a turn in progress, and rings again, until a ring starts nothing
-// new and every chat is idle. It fails if the work has not settled in time.
+// chat has a turn in progress, joins each turn's finalization, and rings
+// again, until a ring starts nothing new and every chat is idle. A turn shows
+// idle (NextTurn) before it has saved its transcript and published its state
+// (CommitTurn, EmitSession), all under the chat's submission lock, so the
+// barrier takes and releases that lock for every chat and then completes the
+// pending chat-state publications, as NewSessionWithProviderAt does. It fails
+// if the work has not settled in time.
 func (x *groupMentionsFixture) settle() error {
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -211,13 +216,25 @@ func (x *groupMentionsFixture) settle() error {
 			}
 			time.Sleep(25 * time.Millisecond)
 		}
-		if len(x.prompts()) == before {
+		x.joinFinalization()
+		if len(x.prompts()) == before && !x.anyWorking() {
 			return nil
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("the watcher kept starting turns for 15 seconds")
 		}
 	}
+}
+
+// joinFinalization waits for each chat's finishing turn to release its
+// submission lock, then completes the chat-state publications it scheduled.
+func (x *groupMentionsFixture) joinFinalization() {
+	for _, c := range x.chats {
+		if s := x.a.session(c.ChatID); s != nil {
+			s.BeginSubmission().Release()
+		}
+	}
+	x.a.sendChatStates()
 }
 
 // anyWorking says whether any of the fixture's chats has a turn in progress.
@@ -371,6 +388,11 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 		x.a = again
 		return result(true, nil)
 	case "protectedState":
+		// The snapshot is taken only once every turn has finished and
+		// published, so the saved-chat read sees settled state.
+		if err := x.settle(); err != nil {
+			return result(nil, fmt.Errorf("observation before the snapshot: %w", err))
+		}
 		// The state a group mention must leave alone, with what a message is
 		// expected to change (last activity, unread counts, the newest
 		// message, chat states) left out: each group's title, lead, budget
