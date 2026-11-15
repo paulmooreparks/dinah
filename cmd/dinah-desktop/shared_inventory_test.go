@@ -4,10 +4,93 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"studio/internal/acp"
 )
+
+func TestSharedInventoryConflictingRefreshPersistsHoldAcrossRestart(t *testing.T) {
+	for _, changedScope := range []bool{false, true} {
+		t.Run(map[bool]string{false: "program", true: "workspace"}[changedScope], func(t *testing.T) {
+			a, _ := providerTestApp(t)
+			ws, other := t.TempDir(), t.TempDir()
+			if err := a.recordListedSessions("devin", ws, []acp.SessionInfo{{SessionID: "held-conflict", Cwd: ws, Title: "Safe title"}, {SessionID: "keep", Cwd: ws, Title: "Keep"}}); err != nil {
+				t.Fatal(err)
+			}
+			provider, scope := "claude", ws
+			if changedScope {
+				provider, scope = "devin", other
+			}
+			seq, err := a.beginListing(provider, scope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := a.finishListing(provider, scope, seq, []acp.SessionInfo{{SessionID: "held-conflict", Cwd: scope, Title: "Contradiction"}}, true); err == nil {
+				t.Fatal("conflict accepted")
+			}
+			loaded, err := loadSettings()
+			if err != nil {
+				t.Fatal(err)
+			}
+			a.settings = loaded
+			row := loaded.ListedChats["held-conflict"]
+			if row.Repair == "" || len(row.Conflicts) != 1 || row.Title != "Safe title" || row.Provider != "devin" || row.Workspace != ws {
+				t.Fatalf("lost conflict evidence: %+v", row)
+			}
+			if loaded.ListingScopes[listingScopeKey(provider, scope)].Complete {
+				t.Fatal("contradictory refresh claimed completeness")
+			}
+			if err := a.recordListedSessions("devin", ws, []acp.SessionInfo{{SessionID: "held-conflict", Cwd: ws, Title: "Safe title"}}); err != nil {
+				t.Fatal(err)
+			}
+			if a.settings.ListedChats["held-conflict"].Repair == "" || len(a.settings.ListedChats["held-conflict"].Conflicts) != 1 {
+				t.Fatal("later refresh released repair hold")
+			}
+			if err := a.RemoveChat("held-conflict"); err == nil {
+				t.Fatal("repair authorized deletion")
+			}
+		})
+	}
+}
+
+func TestSharedInventoryLegacyAmbiguityRetainsBothObservations(t *testing.T) {
+	a, _ := providerTestApp(t)
+	ws := t.TempDir()
+	if err := a.recordListedSessions("devin", ws, []acp.SessionInfo{{SessionID: "legacy", Cwd: ws, Title: "Sequenced title"}}); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := a.settings.clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy.ListedChats["legacy"] = listedChat{Provider: "devin", Workspace: ws, Title: "Legacy title", ObservedAt: "2026-11-15T14:00:00Z"}
+	data, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir(), "settings.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := loaded.ListedChats["legacy"]
+	if row.Repair == "" || row.Title != "Legacy title" || len(row.Conflicts) != 1 || row.Conflicts[0].Title != "Sequenced title" {
+		t.Fatalf("lost legacy observations: %+v", row)
+	}
+	if err := saveSettings(loaded); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row := loaded.ListedChats["legacy"]; row.Repair == "" || len(row.Conflicts) != 1 {
+		t.Fatalf("repair lost on rewrite: %+v", row)
+	}
+}
 
 func TestSharedInventoryRetainsNativeTitlesWithoutProviderContact(t *testing.T) {
 	starts := orgChartForbidProviderStarts(t)
@@ -140,7 +223,7 @@ func TestSharedInventorySurvivesOlderBuildDroppingCacheFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := loadSettings()
-	if err != nil || second.ListedChats["claude:kept"] != first.ListedChats["claude:kept"] {
+	if err != nil || !reflect.DeepEqual(second.ListedChats["claude:kept"], first.ListedChats["claude:kept"]) {
 		t.Fatalf("older write erased inventory %+v %v", second.ListedChats, err)
 	}
 	a.settings = second

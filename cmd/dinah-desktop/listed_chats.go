@@ -18,16 +18,39 @@ import (
 // listedChat retains provider metadata separately from the person's title.
 // It cannot change a removal reservation or establish a switch relationship.
 type listedChat struct {
-	Provider         string `json:"provider"`
-	Workspace        string `json:"workspace"`
-	Title            string `json:"title,omitempty"`
-	LocalTitle       string `json:"localTitle,omitempty"`
-	LocalObservation bool   `json:"localObservation,omitempty"`
-	Repair           string `json:"repair,omitempty"`
-	UpdatedAt        string `json:"updatedAt,omitempty"`
-	ObservedAt       string `json:"observedAt"`
-	Freshness        string `json:"freshness,omitempty"`
-	Sequence         uint64 `json:"sequence,omitempty"`
+	Provider         string                  `json:"provider"`
+	Workspace        string                  `json:"workspace"`
+	Title            string                  `json:"title,omitempty"`
+	LocalTitle       string                  `json:"localTitle,omitempty"`
+	LocalObservation bool                    `json:"localObservation,omitempty"`
+	Repair           string                  `json:"repair,omitempty"`
+	UpdatedAt        string                  `json:"updatedAt,omitempty"`
+	ObservedAt       string                  `json:"observedAt"`
+	Freshness        string                  `json:"freshness,omitempty"`
+	Sequence         uint64                  `json:"sequence,omitempty"`
+	Conflicts        []listedChatObservation `json:"conflicts,omitempty"`
+}
+
+// Conflicting observations are evidence only and never grant ownership.
+type listedChatObservation struct {
+	Provider   string `json:"provider"`
+	Workspace  string `json:"workspace"`
+	Title      string `json:"title,omitempty"`
+	UpdatedAt  string `json:"updatedAt,omitempty"`
+	ObservedAt string `json:"observedAt,omitempty"`
+	Sequence   uint64 `json:"sequence,omitempty"`
+}
+
+func retainListingConflict(prior, observed listedChat, reason string) listedChat {
+	prior.Repair = reason
+	evidence := listedChatObservation{observed.Provider, observed.Workspace, observed.Title, observed.UpdatedAt, observed.ObservedAt, observed.Sequence}
+	for _, existing := range prior.Conflicts {
+		if existing == evidence {
+			return prior
+		}
+	}
+	prior.Conflicts = append(prior.Conflicts, evidence)
+	return prior
 }
 
 type listingScope struct {
@@ -93,7 +116,8 @@ func (a *App) finishListing(provider, workspace string, sequence uint64, rows []
 		}
 		safe[row.SessionID] = listedChat{Provider: provider, Workspace: row.Cwd, Title: title, UpdatedAt: row.UpdatedAt, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Freshness: "lastKnown", Sequence: sequence}
 	}
-	return a.updateSettings(func(s *Settings) error {
+	var conflictErr error
+	err := a.updateSettings(func(s *Settings) error {
 		key := listingScopeKey(provider, workspace)
 		scope, exists := s.ListingScopes[key]
 		if !exists || sequence == 0 || sequence > scope.Next {
@@ -102,16 +126,35 @@ func (a *App) finishListing(provider, workspace string, sequence uint64, rows []
 		if sequence <= scope.Accepted {
 			return nil
 		}
+		if s.ListedChats == nil {
+			s.ListedChats = map[string]listedChat{}
+		}
 		for id, row := range safe {
 			if _, held := s.RemovedChats[id]; held {
 				continue
 			}
 			if prior := s.ListedChats[id]; prior.Provider != "" && (prior.Provider != provider || !layout.SamePath(prior.Workspace, row.Workspace)) {
-				return fmt.Errorf("listed chat %q conflicts with its recorded program or workspace", id)
+				problem := fmt.Errorf("listed chat %q conflicts with its recorded program or workspace", id)
+				s.ListedChats[id] = retainListingConflict(prior, row, problem.Error())
+				conflictErr = errors.Join(conflictErr, problem)
+				continue
 			}
 			if saved := s.SessionProviders[id]; saved != "" && saved != provider {
-				return fmt.Errorf("listed chat %q conflicts with its saved program", id)
+				problem := fmt.Errorf("listed chat %q conflicts with its saved program", id)
+				prior, exists := s.ListedChats[id]
+				if !exists {
+					prior = row
+				}
+				s.ListedChats[id] = retainListingConflict(prior, row, problem.Error())
+				conflictErr = errors.Join(conflictErr, problem)
 			}
+		}
+		// Commit the hold before reporting failure. A contradictory refresh cannot
+		// establish completeness or replace any other observation.
+		if conflictErr != nil {
+			scope.Accepted, scope.Complete = sequence, false
+			s.ListingScopes[key] = scope
+			return nil
 		}
 		if s.ListedChats == nil {
 			s.ListedChats = map[string]listedChat{}
@@ -126,6 +169,7 @@ func (a *App) finishListing(provider, workspace string, sequence uint64, rows []
 			row.LocalTitle = s.ListedChats[id].LocalTitle
 			row.LocalObservation = s.ListedChats[id].LocalObservation
 			row.Repair = s.ListedChats[id].Repair
+			row.Conflicts = s.ListedChats[id].Conflicts
 			s.ListedChats[id] = row
 		}
 		if complete {
@@ -146,6 +190,7 @@ func (a *App) finishListing(provider, workspace string, sequence uint64, rows []
 		s.ListingScopes[key] = scope
 		return nil
 	})
+	return errors.Join(err, conflictErr)
 }
 
 // Runtime titles have separate provenance because an opened conversation may
@@ -251,9 +296,19 @@ func reconcileListedChatProjection(s *Settings) error {
 			return errors.New("chat inventory contains invalid identity metadata")
 		}
 		if existing, ok := s.ListedChats[id]; ok && (existing.Provider != row.Provider || !layout.SamePath(existing.Workspace, row.Workspace)) {
-			existing.Repair = "Recorded chat program or workspace conflicts with its durable inventory. Repair ownership before using this chat."
+			existing = retainListingConflict(existing, row, "Recorded chat program or workspace conflicts with its durable inventory. Repair ownership before using this chat.")
 			s.ListedChats[id] = existing
 			continue
+		}
+		if existing, ok := s.ListedChats[id]; ok {
+			if existing.Repair != "" {
+				// An older projection or later listing cannot release a repair hold.
+				continue
+			}
+			if existing.Sequence == 0 && row.Sequence != 0 && (existing.Title != row.Title || existing.UpdatedAt != row.UpdatedAt || existing.ObservedAt != row.ObservedAt) {
+				s.ListedChats[id] = retainListingConflict(existing, row, "A legacy listing changed recorded metadata without an orderable revision. Review both observations before using this chat.")
+				continue
+			}
 		}
 		if existing := s.ListedChats[id]; existing.Sequence > row.Sequence {
 			continue

@@ -137,8 +137,12 @@ func (a *App) SavedChats() (SavedChatInventory, error) {
 		}
 		if resolveErr != nil {
 			row.ID, row.Resolution, row.Reason = id, "repair", resolveErr.Error()
-			row.Title = saved.SessionTitles[reference]
-			row.Cwd, row.Provider = saved.logicalEvidence[reference].Workspace, saved.logicalEvidence[reference].Provider
+			if title := saved.SessionTitles[reference]; title != "" {
+				row.Title = title
+			}
+			if evidence := saved.logicalEvidence[reference]; evidence.Workspace != "" && evidence.Provider != "" {
+				row.Cwd, row.Provider = evidence.Workspace, evidence.Provider
+			}
 		}
 		if row.Resolution == "resolved" && (row.Cwd == "" || row.Provider == "") {
 			row.ID, row.Resolution = id, "repair"
