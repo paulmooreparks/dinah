@@ -18,10 +18,20 @@ import (
 // speaks.
 type Conn struct {
 	*acp.Conn
-	handler  acp.Handler
-	mu       sync.Mutex
-	sessions map[string]*session
-	models   []model
+	handler       acp.Handler
+	mu            sync.Mutex
+	sessions      map[string]*session
+	models        []model
+	deletionGuard func(context.Context, string, []string) error
+}
+
+// SetDeletionGuard installs the host's ownership check. Codex deletes spawned
+// descendants with their root, so deletion requires a host decision for the
+// complete descendant inventory before issuing the destructive request.
+func (c *Conn) SetDeletionGuard(guard func(context.Context, string, []string) error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.deletionGuard = guard
 }
 
 // options is how the transport runs Codex: its message bodies and

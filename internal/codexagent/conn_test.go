@@ -205,6 +205,9 @@ func TestCloseUnsubscribesAndLoadResumes(t *testing.T) {
 	if init.AgentCapabilities.SessionCapabilities.Close == nil {
 		t.Fatal("session/close is not advertised")
 	}
+	if init.AgentCapabilities.SessionCapabilities.Delete == nil {
+		t.Fatal("session/delete is not advertised")
+	}
 	var notActive *acp.Error
 	if err := c.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: "codex:saved"}, nil); !errors.As(err, &notActive) || notActive.Code != acp.CodeResourceNotFound {
 		t.Fatalf("closing a session that is not active answered %v", err)

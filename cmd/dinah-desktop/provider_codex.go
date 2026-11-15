@@ -237,7 +237,11 @@ var codexAdapter = &providerAdapter{
 			return providerStart{}, err
 		}
 		return providerStart{launch: func(handler acp.Handler) (agentConnection, error) {
-			return codexagent.Start(executable, []string{"app-server"}, neutral, handler, nil)
+			conn, err := codexagent.Start(executable, []string{"app-server"}, neutral, handler, nil)
+			if err == nil {
+				conn.SetDeletionGuard(a.codexDeletionGuard)
+			}
+			return conn, err
 		}}, nil
 	},
 }
