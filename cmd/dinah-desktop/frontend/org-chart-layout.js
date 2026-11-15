@@ -5,21 +5,21 @@
   // Diagrams still draws every segment with its documented straight route.
   function routes(plan) {
     var obstacles = plan.positions.concat(plan.controls).map(function (p) { return { left: Math.floor(p.x - 6), right: Math.ceil(p.x + p.width + 6), top: Math.floor(p.y - 6), bottom: Math.ceil(p.y + p.height + 6) }; });
-    function port(p, side) { return side === 'bottom' ? [Math.round(p.x + p.width / 2), Math.ceil(p.y + p.height + 6)] : side === 'top' ? [Math.round(p.x + p.width / 2), Math.floor(p.y - 6)] : [Math.ceil(p.x + p.width + 6), Math.round(p.y + p.height / 2)]; }
+    function port(p, side) { return side === 'bottom' ? [Math.round(p.x + p.width / 2), Math.ceil(p.y + p.height + 6)] : side === 'top' ? [Math.round(p.x + p.width / 2), Math.floor(p.y - 6)] : [side === 'left' ? Math.floor(p.x - 6) : Math.ceil(p.x + p.width + 6), Math.round(p.y + p.height / 2)]; }
     var groupIds = Array.from(new Set(plan.edges.filter(function (e) { return e.dotted; }).map(function (e) { return e.to.id; }))).sort(), occupied = [];
     var links = plan.edges.map(function (e) {
-      var side = e.dotted ? 'right' : 'bottom', start = port(e.from, side);
+      var side = e.dotted ? groupIds.indexOf(e.to.id) % 2 ? 'left' : 'right' : 'bottom', start = port(e.from, side);
       if (e.dotted) {
         var memberships = plan.edges.filter(function (other) { return other.dotted && other.from === e.from; }).map(function (other) { return other.to.id; }).sort();
         start[1] = Math.round(e.from.y + e.from.height * (memberships.indexOf(e.to.id) + 1) / (memberships.length + 1));
         var frame = plan.frames.find(function (f) { return e.from.x >= f.x && e.from.y >= f.y && e.from.x + e.from.width <= f.x + f.width && e.from.y + e.from.height <= f.y + f.height; });
-        if (frame && plan.positions.concat(plan.controls).some(function (p) { return p !== e.from && start[1] > p.y - 6 && start[1] < p.y + p.height + 6 && p.x >= e.from.x + e.from.width && p.x < frame.x + frame.width; })) { side = 'left'; start[0] = Math.floor(e.from.x - 6); }
+        if (frame && plan.positions.concat(plan.controls).some(function (p) { return p !== e.from && start[1] > p.y - 6 && start[1] < p.y + p.height + 6 && (side === 'right' ? p.x >= e.from.x + e.from.width && p.x < frame.x + frame.width : p.x + p.width <= e.from.x && p.x + p.width > frame.x); })) { side = side === 'left' ? 'right' : 'left'; start[0] = port(e.from, side)[0]; }
       }
       return Object.assign({}, e, { fromSide: side, toSide: e.dotted ? 'right' : 'top', start: start, end: port(e.to, e.dotted ? 'right' : 'top') });
     });
     var xs = new Set([0, plan.width]), ys = new Set([0, plan.height]);
     obstacles.forEach(function (o) { xs.add(o.left); xs.add(o.right); ys.add(o.top); ys.add(o.bottom); });
-    plan.frames.forEach(function (f) { groupIds.forEach(function (_, i) { xs.add(Math.round(f.x - 8 - i * 8)); xs.add(Math.round(f.x + f.width + 8 + i * 8)); ys.add(Math.round(f.y - 8 - i * 8)); ys.add(Math.round(f.y + f.height + 8 + i * 8)); }); [f.x - 8, f.x + 8, f.x + f.width - 8, f.x + f.width + 8].forEach(function (x) { xs.add(Math.round(x)); }); [f.y - 8, f.y + 8, f.y + f.height - 8, f.y + f.height + 8].forEach(function (y) { ys.add(Math.round(y)); }); });
+    plan.frames.forEach(function (f) { groupIds.forEach(function (_, i) { xs.add(Math.round(f.x - 16 - i * 16)); xs.add(Math.round(f.x + f.width + 16 + i * 16)); ys.add(Math.round(f.y - 16 - i * 16)); ys.add(Math.round(f.y + f.height + 16 + i * 16)); }); [f.x - 8, f.x + 8, f.x + f.width - 8, f.x + f.width + 8].forEach(function (x) { xs.add(Math.round(x)); }); [f.y - 8, f.y + 8, f.y + f.height - 8, f.y + f.height + 8].forEach(function (y) { ys.add(Math.round(y)); }); });
     links.forEach(function (e) { xs.add(e.start[0]); xs.add(e.end[0]); ys.add(e.start[1]); ys.add(e.end[1]); });
     xs = Array.from(xs).filter(function (x) { return x >= 0 && x <= plan.width; }).sort(function (a, b) { return a - b; }); ys = Array.from(ys).filter(function (y) { return y >= 0 && y <= plan.height; }).sort(function (a, b) { return a - b; });
     var columns = xs.length, count = columns * ys.length, clear = new Map();
@@ -33,11 +33,11 @@
         if (!(f === ownFrame && horizontal && first[1] === edge.start[1] && (edge.fromSide === 'right' ? Math.min(first[0], last[0]) >= edge.start[0] : Math.max(first[0], last[0]) <= edge.start[0])) && (horizontal ? first[1] > f.y - 6 && first[1] < f.y + f.height + 6 && Math.max(first[0], last[0]) > f.x - 6 && Math.min(first[0], last[0]) < f.x + f.width + 6 : first[0] > f.x - 6 && first[0] < f.x + f.width + 6 && Math.max(first[1], last[1]) > f.y - 6 && Math.min(first[1], last[1]) < f.y + f.height + 6)) return true;
         // Perpendicular crossings leave a container at one point. Parallel
         // segments stay clear of its border, so they cannot look like it.
-        return horizontal ? (Math.abs(first[1] - f.y) < 8 || Math.abs(first[1] - f.y - f.height) < 8) && Math.max(first[0], last[0]) > f.x - 8 && Math.min(first[0], last[0]) < f.x + f.width + 8 : (Math.abs(first[0] - f.x) < 8 || Math.abs(first[0] - f.x - f.width) < 8) && Math.max(first[1], last[1]) > f.y - 8 && Math.min(first[1], last[1]) < f.y + f.height + 8;
+        return horizontal ? (Math.abs(first[1] - f.y) < 16 || Math.abs(first[1] - f.y - f.height) < 16) && Math.max(first[0], last[0]) > f.x - 8 && Math.min(first[0], last[0]) < f.x + f.width + 8 : (Math.abs(first[0] - f.x) < 16 || Math.abs(first[0] - f.x - f.width) < 16) && Math.max(first[1], last[1]) > f.y - 8 && Math.min(first[1], last[1]) < f.y + f.height + 8;
       });
       if (allowed && edge.dotted) allowed = !occupied.some(function (r) {
         if (r.group === edge.to.id || horizontal !== r.horizontal) return false;
-        return horizontal ? Math.abs(first[1] - r.a[1]) < 6 && Math.min(Math.max(first[0],last[0]),Math.max(r.a[0],r.b[0])) > Math.max(Math.min(first[0],last[0]),Math.min(r.a[0],r.b[0])) : Math.abs(first[0] - r.a[0]) < 6 && Math.min(Math.max(first[1],last[1]),Math.max(r.a[1],r.b[1])) > Math.max(Math.min(first[1],last[1]),Math.min(r.a[1],r.b[1]));
+        return horizontal ? Math.abs(first[1] - r.a[1]) < 16 && Math.min(Math.max(first[0],last[0]),Math.max(r.a[0],r.b[0])) > Math.max(Math.min(first[0],last[0]),Math.min(r.a[0],r.b[0])) : Math.abs(first[0] - r.a[0]) < 16 && Math.min(Math.max(first[1],last[1]),Math.max(r.a[1],r.b[1])) > Math.max(Math.min(first[1],last[1]),Math.min(r.a[1],r.b[1]));
       });
       clear.set(key, allowed); return allowed;
     }
@@ -95,7 +95,7 @@
       card(id, x + (w - cardW) / 2, y, cardW);
       if (!children.length) return y + 112;
       y += 132;
-      var columns = w >= 220 && children.length > 1 ? 2 : 1, childW = (w - (columns - 1) * 24) / columns;
+      var columns = w >= 288 && children.length > 1 ? 2 : 1, childW = (w - (columns - 1) * 24) / columns;
       for (var i = 0; i < children.length; i += columns) {
         var bottom = y;
         children.slice(i, i + columns).forEach(function (child, index) {
@@ -108,8 +108,10 @@
       return y;
     }
     var roots = teams.filter(function (t) { return !parent.has(t.leadId) && visible(t.leadId); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
-    var columns = width >= 650 ? 2 : 1, margin = 16 + view.groups.length * 8, gutter = margin * 2, sectionW = (width - margin * 2 - gutter * (columns - 1)) / columns, y = margin;
     var groups = view.groups.filter(function (g) { return g.resolution === 'repair' && !options.workspace && !options.find || g.memberIds.concat(g.ownerId || []).some(function (id) { return wanted.has(id); }); });
+    // Both sides provide lanes. Reserve readable cards before adding more gutter.
+    var columns = width >= 650 ? 2 : 1, margin = Math.min(16 + Math.ceil(groups.length / 2) * 16, Math.max(16, Math.floor((width - 144 * columns) / (2 * columns))));
+    var gutter = margin * 2, sectionW = (width - margin * 2 - gutter * (columns - 1)) / columns, y = margin;
     var groupBoxes = new Map();
     function placeGroups(ready) {
       var next = groups.filter(function (g) { return !groupBoxes.has(g.id) && ready(g); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
@@ -133,8 +135,8 @@
     function remaining(title, predicate) {
       var rows = view.chats.filter(function (c) { return wanted.has(c.chatId) && !claimed.has(c.chatId) && predicate(c); }).sort(function (a, b) { return a.chatId.localeCompare(b.chatId); });
       if (!rows.length) return;
-      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - margin * 2 - 32 - (cols - 1) * 16) / cols;
-      rows.forEach(function (c, index) { card(c.chatId, margin + 16 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
+      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - margin * 2 - 24 - (cols - 1) * 16) / cols;
+      rows.forEach(function (c, index) { card(c.chatId, margin + 12 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
       y += 50 + Math.ceil(rows.length / cols) * 120;
       frames.push({ id: title, title: title, x: margin, y: start, width: width - margin * 2, height: y - start - 16 }); y += 24;
     }

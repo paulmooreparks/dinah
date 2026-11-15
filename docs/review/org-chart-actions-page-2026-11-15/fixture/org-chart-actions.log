@@ -1,0 +1,22 @@
+PASS the context action is addressable and retains filter and fold state
+PASS lead choices are distinct from member choices
+PASS loading and choosing a form perform no mutation
+PASS partial results preserve the form and result geometry
+PASS partial creation retains every member refusal and disables duplicate creation
+PASS recovery selects the retained group
+PASS browser Back retains the partial result instead of offering another creation
+PASS recovery converts the same group without creating another
+PASS reload restores the form draft without replaying its mutation
+PASS a lost creation result cannot automatically create a duplicate
+PASS the management form fits 1440 in light
+PASS the management form fits 1440 in dark
+PASS the management form fits 390 in light
+PASS the management form fits 390 in dark
+PASS deletion shows the authoritative confirmation verbatim
+PASS opening deletion makes no deletion request
+PASS only submission moves the canonical chat to the bin
+PASS starting a chat requires explicit workspace and program choices
+PASS the returned chat opens without a second creation request
+PASS no page errors
+
+

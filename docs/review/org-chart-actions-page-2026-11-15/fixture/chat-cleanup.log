@@ -1,0 +1,25 @@
+PASS the bin discloses a loaded program without hiding the deletion policy
+PASS an earlier agent program finds the whole switched chat
+PASS working and pinned chats cannot be selected and explain why
+PASS unknown counts and dates are explicit
+PASS selection keeps every row and toolbar fixed
+PASS cancelling changes no chats
+PASS a pending batch keeps the list fixed
+PASS mixed results never move an existing row or the taskbar in any sampled frame
+PASS success and later failures are reported independently
+PASS staging preserves the unsent chat message
+PASS restore leaves the chat closed and reports its result
+PASS Restore returns closed metadata without provider discovery
+PASS Restore preserves the unsent chat message
+PASS a refused Restore is reported on its bin row rather than the retained active-list result
+PASS final deletion uses the row confirmation verbatim
+PASS a failed final deletion stays on its bin row
+PASS a remaining agent copy is disclosed after local deletion
+PASS final deletion forgets only that chat composer value
+PASS emptying the bin uses the aggregate confirmation verbatim
+PASS filter state is addressable
+PASS narrow controls and rows fit their page
+PASS reloading the page restores its filter from the URL
+PASS no page errors
+
+

@@ -15,7 +15,7 @@ function model() {
 async function start() {
   const t = await launch({ viewport: { width: 1440, height: 1000 }, args: model(), ready: 'workbench', app: value => {
     window.__orgModel = value; window.__orgReads = 0;
-    return { OrgChart: async () => { window.__orgReads++; if (window.__orgGate) await window.__orgGate; if (window.__orgError) throw new Error(window.__orgError); return JSON.parse(JSON.stringify(window.__orgModel)); } };
+    return { OrgChart: async () => { window.__orgReads++; if (window.__orgGate) await window.__orgGate; if (window.__orgError) throw new Error(window.__orgError); return JSON.parse(JSON.stringify(window.__orgModel)); }, OrgChartActions: async chatId => ({ chatId, title: 'Chat', actions: [], unavailable: ['assign_team','make_lead','create_team','create_group','start_chat','delete_chat'].map(kind => ({ kind, reason: 'Unavailable in this fixture.' })) }) };
   } });
   t.key = await t.page.evaluate(() => dinahWorkbench.open('org-chart', 'fold=research'));
   t.chart = t.page.locator('[data-win="' + t.key + '"] .org-chart');
