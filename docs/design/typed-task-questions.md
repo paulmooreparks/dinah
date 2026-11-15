@@ -20,6 +20,8 @@ Typed AskPerson results are {answer:{type,text or optionIds}} under the ordinary
 
 ## Delivery and verification
 
+Pending snapshots recheck the consumer's current local task generation. If that record changed or disappeared, the host cancels and withdraws its pending question before returning the refreshed view. This also applies to existing single-option questions; their input, output and trusted submission representations remain unchanged. The recheck starts no provider or action work.
+
 This branch changes the generic host only. Notifications, Decisions and Flow need the same typed rendering and trusted submission adapter. Dinah Front End owns the question UI after its small interactive mockup update is approved. Host support alone does not claim rendered or installed acceptance.
 
 Quality should freeze independent checks for the declared type bounds, Unicode counting, strict input shapes, offered-option validation, copied snapshots, single settlement across views, cancellation, stale generations, trusted submission and absence of service answering authority. Engine will bind those checks to the real App and reviewed AskPerson operation path. Existing task-question tests and frozen host assertions remain unchanged. Tests use invented tasks and isolated stores and prove zero provider/action/remote writes with counted boundaries and positive controls where needed.

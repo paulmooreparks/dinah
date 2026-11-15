@@ -3,6 +3,7 @@ package taskhost
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"slices"
 	"sync"
 	"time"
@@ -34,10 +35,15 @@ type QuestionOption struct {
 
 type Question struct {
 	QuestionOwner
-	Key      string           `json:"key"`
-	Question string           `json:"question"`
-	Options  []QuestionOption `json:"options"`
-	AskedAt  time.Time        `json:"askedAt"`
+	Key           string           `json:"key"`
+	Question      string           `json:"question"`
+	Options       []QuestionOption `json:"options"`
+	AskedAt       time.Time        `json:"askedAt"`
+	AnswerType    string           `json:"answerType,omitempty"`
+	MinLength     int              `json:"minLength,omitempty"`
+	MaxLength     int              `json:"maxLength,omitempty"`
+	MinSelections int              `json:"minSelections,omitempty"`
+	MaxSelections int              `json:"maxSelections,omitempty"`
 }
 
 type QuestionEnd struct {
@@ -46,6 +52,26 @@ type QuestionEnd struct {
 	Workspace  string `json:"workspace"`
 	Task       string `json:"task"`
 	Generation string `json:"generation"`
+}
+
+func (q Question) MarshalJSON() ([]byte, error) {
+	type plain Question
+	data, err := json.Marshal(plain(q))
+	if err != nil || q.AnswerType == "" {
+		return data, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, err
+	}
+	if q.AnswerType == "text" {
+		fields["minLength"], _ = json.Marshal(q.MinLength)
+		fields["maxLength"], _ = json.Marshal(q.MaxLength)
+	} else {
+		fields["minSelections"], _ = json.Marshal(q.MinSelections)
+		fields["maxSelections"], _ = json.Marshal(q.MaxSelections)
+	}
+	return json.Marshal(fields)
 }
 
 type QuestionPorts struct {
@@ -60,7 +86,7 @@ type pendingQuestion struct {
 	scope  Scope
 	ctx    context.Context
 	cancel context.CancelFunc
-	answer chan string
+	answer chan QuestionAnswer
 }
 
 type Questions struct {
@@ -81,36 +107,47 @@ func NewQuestions(ports QuestionPorts) (*Questions, error) {
 }
 
 func (q *Questions) Ask(ctx context.Context, scope Scope, text string, options []QuestionOption) (string, error) {
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-	if !validScope(scope) || text == "" || len(text) > 65536 || len(options) == 0 || len(options) > 16 {
-		return "", refusal("stale", "a task question requires bounded text and answer options")
-	}
-	seen := map[string]bool{}
-	for _, option := range options {
-		if option.OptionID == "" || option.Name == "" || len(option.OptionID) > 512 || len(option.Name) > 4096 || seen[option.OptionID] {
-			return "", refusal("stale", "question options must have distinct bounded identities and names")
-		}
-		seen[option.OptionID] = true
-	}
-	if err := q.ports.Check(ctx, scope); err != nil {
-		return "", err
-	}
-	owner, err := q.ports.Describe(ctx, scope)
+	answer, err := q.ask(ctx, scope, text, QuestionSpec{Options: options})
 	if err != nil {
 		return "", err
 	}
+	return answer.OptionIDs[0], nil
+}
+
+func (q *Questions) AskTyped(ctx context.Context, scope Scope, text string, spec QuestionSpec) (QuestionAnswer, error) {
+	if spec.Type != "text" && spec.Type != "multiple" {
+		return QuestionAnswer{}, refusal("stale", "a typed question requires text or multiple selection")
+	}
+	return q.ask(ctx, scope, text, spec)
+}
+
+func (q *Questions) ask(ctx context.Context, scope Scope, text string, spec QuestionSpec) (QuestionAnswer, error) {
+	if err := ctx.Err(); err != nil {
+		return QuestionAnswer{}, err
+	}
+	if !validScope(scope) || text == "" || len(text) > 65536 {
+		return QuestionAnswer{}, refusal("stale", "a task question requires bounded text and answer options")
+	}
+	if err := spec.validate(); err != nil {
+		return QuestionAnswer{}, err
+	}
+	if err := q.ports.Check(ctx, scope); err != nil {
+		return QuestionAnswer{}, err
+	}
+	owner, err := q.ports.Describe(ctx, scope)
+	if err != nil {
+		return QuestionAnswer{}, err
+	}
 	if owner.Service != scope.Service || owner.Workspace != scope.Workspace || owner.Task != scope.Task || owner.Generation != scope.Generation || owner.ServiceName == "" || owner.WorkspaceName == "" || owner.TaskTitle == "" || (owner.Target.Href == "") == (owner.Target.Reason == "") {
-		return "", refusal("unavailable", "the task question's trusted display metadata is incomplete")
+		return QuestionAnswer{}, refusal("unavailable", "the task question's trusted display metadata is incomplete")
 	}
 	questionCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	p := &pendingQuestion{view: Question{QuestionOwner: owner, Key: "task-q-" + rand.Text(), Question: text, Options: slices.Clone(options), AskedAt: q.ports.Now().UTC()}, scope: scope, ctx: questionCtx, cancel: cancel, answer: make(chan string, 1)}
+	p := &pendingQuestion{view: Question{QuestionOwner: owner, Key: "task-q-" + rand.Text(), Question: text, Options: slices.Clone(spec.Options), AskedAt: q.ports.Now().UTC(), AnswerType: spec.Type, MinLength: spec.MinLength, MaxLength: spec.MaxLength, MinSelections: spec.MinSelections, MaxSelections: spec.MaxSelections}, scope: scope, ctx: questionCtx, cancel: cancel, answer: make(chan QuestionAnswer, 1)}
 	q.mu.Lock()
 	if q.closed || questionCtx.Err() != nil {
 		q.mu.Unlock()
-		return "", refusal("cancelled", "task question admission is closed")
+		return QuestionAnswer{}, refusal("cancelled", "task question admission is closed")
 	}
 	q.pending[p.view.Key] = p
 	q.mu.Unlock()
@@ -124,7 +161,7 @@ func (q *Questions) Ask(ctx context.Context, scope Scope, text string, options [
 		case answer := <-p.answer:
 			return answer, nil
 		default:
-			return "", refusal("cancelled", "the task question was cancelled or revoked")
+			return QuestionAnswer{}, refusal("cancelled", "the task question was cancelled or revoked")
 		}
 	}
 }
@@ -148,6 +185,15 @@ func (q *Questions) ended(p *pendingQuestion) {
 // Answer is called only from the window's existing trusted person Answer path.
 // Scope and revocation are rechecked after locating the opaque question key.
 func (q *Questions) Answer(key, option string) error {
+	return q.settle(key, QuestionAnswer{OptionIDs: []string{option}}, false)
+}
+
+// AnswerTyped is reached only through the trusted window answer entry point.
+func (q *Questions) AnswerTyped(key string, answer QuestionAnswer) error {
+	return q.settle(key, answer, true)
+}
+
+func (q *Questions) settle(key string, answer QuestionAnswer, typed bool) error {
 	q.mu.Lock()
 	p := q.pending[key]
 	q.mu.Unlock()
@@ -163,8 +209,13 @@ func (q *Questions) Answer(key, option string) error {
 		q.finish(p)
 		return err
 	}
-	if !slices.ContainsFunc(p.view.Options, func(o QuestionOption) bool { return o.OptionID == option }) {
-		return refusal("not_authorized", "the answer is outside the offered choices")
+	if typed != (p.view.AnswerType != "") {
+		return refusal("not_authorized", "this question requires its declared answer entry point")
+	}
+	spec := QuestionSpec{Type: p.view.AnswerType, Options: p.view.Options, MinLength: p.view.MinLength, MaxLength: p.view.MaxLength, MinSelections: p.view.MinSelections, MaxSelections: p.view.MaxSelections}
+	validated, err := spec.validateAnswer(answer)
+	if err != nil {
+		return err
 	}
 	q.mu.Lock()
 	if q.pending[key] != p || p.ctx.Err() != nil {
@@ -172,7 +223,7 @@ func (q *Questions) Answer(key, option string) error {
 		return refusal("stale", "the task question ended before the answer")
 	}
 	delete(q.pending, key)
-	p.answer <- option
+	p.answer <- validated
 	q.mu.Unlock()
 	q.ended(p)
 	return nil
@@ -181,6 +232,20 @@ func (q *Questions) Answer(key, option string) error {
 func (q *Questions) Pending() []Question {
 	if q == nil {
 		return []Question{}
+	}
+	q.mu.Lock()
+	pending := make([]*pendingQuestion, 0, len(q.pending))
+	for _, p := range q.pending {
+		pending = append(pending, p)
+	}
+	q.mu.Unlock()
+	// Consumer generations can change independently of an execution handle.
+	// Refreshing the pending view withdraws authority that no longer exists.
+	for _, p := range pending {
+		if p.ctx.Err() != nil || q.ports.Check(p.ctx, p.scope) != nil {
+			p.cancel()
+			q.finish(p)
+		}
 	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
