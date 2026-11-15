@@ -2,6 +2,16 @@
 
 The page uses the shared recorded inventory on top of master c399ac9d. Engine's ba43df29 implementation and a77e3e0e conflict/title correction are included. Chats, Org Chart and Clean Up Chats preserve common identity, title, state and workspace filtering. Canonical chat identity links relationships to the current session reference; repair rows explain their condition and offer no opening target.
 
+## Receiving correction on the shipped base
+
+The branch is rebased onto master 73174ebb, which includes the separately shipped bin correction and calibration fixture lock. Production and test source is frozen at 34ba9fb971591aefe7cf776a3184cc11ba2fd5a6. The correction adds the agreed NativeSessionsRequireImport registry fact, enabled only for Codex, and replaces both passive-query name comparisons. Unknown programs remain visible for repair with safe titles and cannot authorize cleanup or contact a provider.
+
+The inventory browser failure was fixture setup. Workbench readiness does not open Chats after the blank composer is removed from startup. The suite now waits for UI-state restoration and opens Chats before using its existing scope choice. Its invented rows and delayed/failing responses use SavedChats. Identity, title, state, rename, removal, restore and stale-error assertions remain. The former native-listing ordering assertion now requires one captured passive query with zero native reads and zero separate ownership reads.
+
+All twelve requested page/workspace suites passed in 33 seconds. The additional workspace-render audit passed in four seconds. Full internal/profile and internal/providers packages passed in 7.209 and 0.382 seconds. The final selected desktop/sessionhost checks passed with race detection and all vet analyzers in 24.524 and 1.113 seconds, including the existing import/admission, recorded-native, repair, ordering, Release correction and cleanup cases. The existing linker manifest warning remains.
+
+The new unknown-program fixture initially assigned into an uninitialized provider map. Its setup now initializes that map; no assertion changed. The focused regression and the final broader selection pass. Earlier Quality and Release results below describe their original source. Their confirmation of this bounded rebased host correction is requested separately. No browser or desktop was visible, no real provider account was contacted, and no merge, push or installation occurred.
+
 Startup reads SavedChats and DeclaredProviders. Explicit Refresh Chats asks each declared provider in the selected workspace and then rereads SavedChats, ignoring intermediate responses. Successful opening and saved-layout restoration refresh only the opened provider, coalesced by workspace and provider. Removal invalidates an outstanding inventory read before a replacement read can begin.
 
 Fresh layouts open no blank New Chat window. Restoring an old layout removes its blank composer while retaining saved conversation windows. Explicit New Chat remains available. Skills wait for composer focus or slash input, prices follow open providers with the declared capability, and hidden judgement settings do not read calibration reports. Manual calibration remains explicit.
@@ -30,6 +40,6 @@ Production source 8c253de639bc8b023e3f9a442b045be8dfafd8d5 passed the fifteen-ph
 
 The counted peer initially omitted a Codex workspace and used a Claude reference without its provider prefix. Its Ollama saved record also lacked a selected model. These invented records are corrected; production ownership and model checks remain unchanged. The completed-turn locator now targets the current chat window rather than a hidden spare composer. The lifecycle runner explicitly opens the Chats panel and lists each fixture workspace before asserting its native rows. No expected identity, title, state or preservation assertion was removed.
 
-Release's ownership-conflict, legacy-cache ordering and repair-title findings are covered by Engine's correction. Release's independent runtime clearance remains a receiving gate. Quality has cleared its page-startup hold. This result is not an installation or merge recommendation.
+Release's ownership-conflict, legacy-cache ordering and repair-title findings are covered by Engine's correction. Release cleared the focused runtime gate on the previous corrected source, recorded at 9c93a020. Quality cleared its page-startup hold there as well. Confirmation of the rebased host correction above remains separate. This result is not an installation or merge recommendation.
 
 The tagged host does not execute native Wails startup. Native Claude adapter maintenance and the separately recorded manual-calibration runtime crash remain outside the page-startup claim. No real provider account, visible window, push or installation was used.
