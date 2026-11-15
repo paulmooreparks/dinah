@@ -375,3 +375,99 @@ func TestQualityCleanupDraftsAndStaleSave(t *testing.T) {
 		})
 	}
 }
+
+// These methods bind the existing stores and authority services, not a model.
+type qualityCleanupOwnershipFixture interface {
+	SeedLinkedRecords([]string)
+	LinkedRecords() map[string]string
+	RemoteWrites() int
+	OpenWithLeases(string) map[string]string
+	UseLease(string) error
+	StartPendingLeaseWork(string)
+	PendingLeaseWork(string) (cancelled, completed bool)
+}
+
+func TestQualityCleanupOwnershipAndLeases(t *testing.T) {
+	f := qualityCleanupNew(t)
+	o, ok := f.(qualityCleanupOwnershipFixture)
+	if !ok {
+		t.Fatal("ownership and lease binding is required")
+	}
+	ids := []string{"codex:linked-old", "claude:linked-current"}
+	for _, id := range ids {
+		f.Seed(qualityCleanupSeed{ID: id, Chain: ids, CanUnload: true, ProviderDelete: "supported"})
+	}
+	o.SeedLinkedRecords(ids)
+	original := o.LinkedRecords()
+	for _, key := range []string{"document", "document-record", "document-draft", "document-draft-record"} {
+		if original[key] == "" {
+			t.Fatalf("missing linked fixture %s", key)
+		}
+	}
+	checkRecords := func() {
+		t.Helper()
+		got := o.LinkedRecords()
+		if len(got) != len(original) {
+			t.Fatal("cleanup changed linked record inventory")
+		}
+		for k, v := range original {
+			if got[k] != v {
+				t.Fatalf("cleanup changed linked record %s", k)
+			}
+		}
+		if o.RemoteWrites() != 0 {
+			t.Fatal("cleanup caused a remote write")
+		}
+	}
+	leases := o.OpenWithLeases(ids[1])
+	if leases["drawing"] == "" {
+		t.Fatal("no real drawing lease was issued")
+	}
+	for _, token := range leases {
+		if token == "" || o.UseLease(token) != nil {
+			t.Fatal("lease was not valid before removal")
+		}
+		o.StartPendingLeaseWork(token)
+	}
+	qualityCleanupResultFor(t, f.Act("remove", ids[0]), ids[0], "removed")
+	checkRecords()
+	checkRevoked := func() {
+		t.Helper()
+		for _, token := range leases {
+			if o.UseLease(token) == nil {
+				t.Fatal("old lease still grants authority")
+			}
+		}
+	}
+	checkRevoked()
+	for _, token := range leases {
+		cancelled, completed := o.PendingLeaseWork(token)
+		if !cancelled || completed {
+			t.Fatal("pending authorized work was not stopped")
+		}
+	}
+	qualityCleanupResultFor(t, f.Act("restore", ids[1]), ids[1], "restored")
+	checkRecords()
+	checkRevoked()
+	fresh := o.OpenWithLeases(ids[1])
+	if fresh["drawing"] == "" {
+		t.Fatal("reopen did not issue fresh drawing authority")
+	}
+	for kind, token := range fresh {
+		if token == "" || token == leases[kind] || o.UseLease(token) != nil {
+			t.Fatal("reopen did not create valid fresh authority")
+		}
+	}
+	checkRevoked()
+	qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
+	for _, token := range fresh {
+		if o.UseLease(token) == nil {
+			t.Fatal("second removal retained fresh authority")
+		}
+	}
+	qualityCleanupResultFor(t, f.Act("delete", ids[0]), ids[0], "deleted")
+	checkRecords()
+	checkRevoked()
+	f.Restart()
+	checkRecords()
+}

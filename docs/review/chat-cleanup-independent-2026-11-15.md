@@ -41,3 +41,13 @@ Contract 6b756c8587d5d46ea1e348da35602611766c2442 adds durable composer drafts. 
 SaveUIState must call the real host full-state save path with a copy of the supplied map. ReadUIState must read the persisted isolated ui-state.json, without filtering in the test adapter. The binder must not mutate the stale input map. The implementation review must also verify that tombstone filtering and finalization share serialization; sequential stale writes alone cannot prove their concurrency discipline. Frontend receiving checks must observe zero Sessions or SessionsAt calls during removal and Restore.
 
 The amended suite passed FIFO compile-only verification in 0.210 seconds, with no tests selected. Acceptance remains pending the implementation handover.
+
+## Referenced records and revoked leases
+
+The independent ownership case follows contract c858e112fbce957a418b2b46d67badb9a3db77ba and assignment 8540. It seeds a switched chat referencing a document and a document draft, captures their bytes and records, and compares them after binning, Restore, final deletion and restart. Its remote-write counter must remain zero throughout. Document drafts are distinct from composer drafts, which the preceding tests erase at final deletion.
+
+SeedLinkedRecords creates invented records in the real isolated stores and chat references to them. LinkedRecords returns detached snapshots of the referenced bytes and records. It also includes any associated comments, suggestions, attachments, publication records, workspace files, invented credentials and tool registrations that the fixture seeds. It must read actual persisted values without normalizing away changes. RemoteWrites records all mutating requests at the fake service after setup; documented provider-session deletion is observed separately and is not a remote content write.
+
+OpenWithLeases uses the ordinary opening path with stand-in providers and returns the actual issued authority tokens by kind, including drawing. UseLease attempts a harmless authorized request through the real service, with no remote write. The test proves validity before removal, refusal after removal and Restore, fresh authority on explicit reopen, and continued refusal of old authority. StartPendingLeaseWork creates a cancellable request held before its effect. PendingLeaseWork observes actual cancellation and releases any held completion to prove revoked work cannot finish with authority. These bindings must cover every issued lease kind and must never invent token validity in test code. Missing bindings fail acceptance.
+
+The ownership amendment passed FIFO compile-only verification in 0.284 seconds, with no tests selected. Runtime acceptance remains pending.
