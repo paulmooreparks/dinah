@@ -152,6 +152,7 @@
     win.dataset.winGlyph = cfg.glyph || 'app';
     if (cfg.icon) win.dataset.winIcon = cfg.icon;
     if (cfg.dockOnly) win.setAttribute('data-win-dock-only', '');
+    if (cfg.dockOnly || /^dock-/.test(cfg.mode || '')) win.setAttribute('data-win-narrow', 'keep');
     // A desktop file has no public HTTP address to share.
     win.setAttribute('data-win-href', '');
     // A kind that shows status in its title bar (cfg.statuses) has PUDL's
