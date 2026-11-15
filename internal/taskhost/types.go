@@ -89,6 +89,7 @@ type Operation struct {
 }
 
 type Receipt struct {
+	Disposition   string          `json:"disposition,omitempty"`
 	ID            string          `json:"id"`
 	Scope         Scope           `json:"scope"`
 	Operation     string          `json:"operation"`
@@ -150,7 +151,10 @@ type Options struct {
 	// Resolve and Check read current local authority and never start a provider.
 	Resolve func(context.Context, Scope) (Binding, error)
 	Check   func(context.Context, Scope) error
-	// HoldTask acquires the consumer record lock for reconciliation only.
+	// QuestionRecipient resolves the asking chat once, when its question is admitted.
+	QuestionRecipient func(Scope) string
+	// HoldTask acquires the consumer record lock while reconciling receipts or
+	// committing a person's question settlement against its current generation.
 	HoldTask       func(context.Context, Scope) (func() error, error)
 	Admit          func(context.Context, Scope, Operation) error
 	TargetRevision func(context.Context, Scope, Permit) (string, error)

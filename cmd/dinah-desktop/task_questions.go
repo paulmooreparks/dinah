@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"studio/internal/requestsettlement"
 	"studio/internal/services"
 	"studio/internal/taskhost"
 )
@@ -30,7 +31,14 @@ func (a *App) taskQuestionService() (*taskhost.Questions, error) {
 		if check == nil {
 			check = a.checkTaskIdentity
 		}
-		questions, err := taskhost.NewQuestions(taskhost.QuestionPorts{Describe: describe, Check: check, Emit: a.emit})
+		questions, err := taskhost.NewQuestions(taskhost.QuestionPorts{Describe: describe, Check: check, Emit: func(name string, value any) {
+			a.emit(name, value)
+			if name == "task:answered" {
+				if err := a.flushRequestCompletions(); err != nil {
+					logf("core", "error", "keeping request completion notices: %v", err)
+				}
+			}
+		}})
 		a.taskQuestions.mu.Lock()
 		a.taskQuestions.questions, a.taskQuestions.err = questions, err
 		a.taskQuestions.mu.Unlock()
@@ -47,6 +55,25 @@ func (a *App) PendingTaskPermissions() []taskhost.Question {
 	questions := a.taskQuestions.questions
 	a.taskQuestions.mu.Unlock()
 	return questions.Pending()
+}
+
+type TaskQuestionDisposition struct {
+	Key      string `json:"key"`
+	Revision int    `json:"revision"`
+	requestsettlement.Disposition
+}
+
+// TaskQuestionStatus is a passive read of the actual durable question record.
+func (a *App) TaskQuestionStatus(key string) (TaskQuestionDisposition, error) {
+	a.taskServices.mu.Lock()
+	h := a.taskServices.host
+	a.taskServices.mu.Unlock()
+	if h == nil {
+		record, err := taskhost.ReadQuestionRecord(configDir(), key)
+		return TaskQuestionDisposition{Key: key, Revision: record.Revision, Disposition: record.Disposition}, err
+	}
+	record, err := h.QuestionRecord(key)
+	return TaskQuestionDisposition{Key: key, Revision: record.Revision, Disposition: record.Disposition}, err
 }
 
 func (a *App) describeTaskQuestion(ctx context.Context, scope taskhost.Scope) (taskhost.QuestionOwner, error) {

@@ -57,7 +57,8 @@ func (a *App) startTaskServices() error {
 	a.taskServices.once.Do(func() {
 		h, err := taskhost.New(taskhost.Options{
 			State: configDir(), Resolve: a.taskWorkspace, Check: a.checkTaskIdentity,
-			HoldTask: a.holdTaskRecord, Admit: a.admitTaskOperation, Confirm: a.confirmTaskReview, TargetRevision: a.taskTargetRevision,
+			QuestionRecipient: func(s taskhost.Scope) string { return a.knownBusID(s.OwnerChat) },
+			HoldTask:          a.holdTaskRecord, Admit: a.admitTaskOperation, Confirm: a.confirmTaskReview, TargetRevision: a.taskTargetRevision,
 			Resource:   a.taskResource,
 			Operations: a.taskHostOperations, DescribeChats: a.describeTaskChats, CheckProgram: a.checkTaskProgram, DescribeAction: a.describeTaskAction,
 			Backend: taskBackend{a}, RoomsAvailable: func() bool { return a.taskRooms() != nil },

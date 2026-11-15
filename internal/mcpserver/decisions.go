@@ -7,6 +7,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"studio/internal/bus"
+	"studio/internal/requestsettlement"
 )
 
 type personQuestionInput struct {
@@ -23,6 +24,21 @@ type askPersonInput struct {
 }
 
 func (s *Server) addAskPersonTool(srv *mcp.Server) {
+	mcp.AddTool(srv, &mcp.Tool{Name: "withdraw_request", Description: "Withdraw your own open request to the person without answering it. Ownership comes from your authenticated chat. Reuse an operationId only for identical input."}, func(ctx context.Context, _ *mcp.CallToolRequest, in requestsettlement.Input) (*mcp.CallToolResult, any, error) {
+		me, err := s.current(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		r, err := s.bus.WithdrawRequest(ctx, me, in)
+		if err != nil {
+			return nil, nil, err
+		}
+		encoded, err := json.Marshal(r)
+		if err != nil {
+			return nil, nil, err
+		}
+		return text("%s", encoded), nil, nil
+	})
 	mcp.AddTool(srv, &mcp.Tool{Name: "ask_person", Description: "Ask for a decision only the person can make. Always give a recommendation for each numbered question, with optional choices. Never use this for progress reports. This stores a durable request in Decisions and returns its receipt immediately; the person's answers arrive over the bus. Use a unique operationId and reuse it only to retry identical input after a lost receipt. Supply group to keep the decision and answer in that group; otherwise it goes directly to the person."}, func(ctx context.Context, _ *mcp.CallToolRequest, in askPersonInput) (*mcp.CallToolResult, any, error) {
 		me, err := s.current(ctx)
 		if err != nil {

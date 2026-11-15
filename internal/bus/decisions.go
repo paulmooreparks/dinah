@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"studio/internal/appletcontext"
+	"studio/internal/requestsettlement"
 )
 
 type PersonQuestion struct {
@@ -32,6 +33,7 @@ type AskPersonInput struct {
 }
 
 type Decision struct {
+	requestsettlement.Disposition
 	ID              string           `json:"id"`
 	Revision        int              `json:"revision"`
 	MessageID       int64            `json:"messageId"`
@@ -190,6 +192,18 @@ func decisionMessageID(id string) (int64, error) {
 	return n, nil
 }
 
+// DecisionForMessage resolves a projection's original source identity without
+// requiring the page to guess whether it was an explicit request or a mention.
+func (b *Bus) DecisionForMessage(ctx context.Context, message int64) (Decision, error) {
+	t, err := b.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return Decision{}, err
+	}
+	defer t.Rollback()
+	d, _, err := b.decision(t, message)
+	return d, err
+}
+
 func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 	out := Decision{Questions: []PersonQuestion{}, Revision: 1, Kind: "mention"}
 	m, err := scanMessage(t.QueryRow(messageSelect+` WHERE m.id=?`, id))
@@ -220,14 +234,27 @@ func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 		return out, false, err
 	}
 	out.ID = decisionIdentity(out.Kind, id)
+	out.Status = "open"
+	if closed {
+		out.Status = "answered"
+	}
+	err = t.QueryRow(`SELECT status,settled_at,actor_kind FROM request_settlements WHERE request_id=?`, out.ID).Scan(&out.Status, &out.SettledAt, &out.ActorKind)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return out, false, err
+	}
+	if out.SettledAt != "" {
+		closed = true
+		if out.Kind == "mention" {
+			out.Revision++
+		}
+	}
 	if !closed {
-		out.CanDismiss = out.Kind == "mention"
+		out.CanDismiss = true
 		if out.Kind == "request" {
 			available, err := decisionDestinationAvailable(t, out)
 			if err != nil {
 				return out, false, err
 			}
-			out.CanDismiss = !available
 			if !available {
 				out.DismissalReason = "The asking chat or group is no longer available."
 			}
@@ -307,6 +334,13 @@ func rejectDecision(t *sql.Tx, op, fp, id string, revision int, closed bool, cod
 }
 
 func (b *Bus) DecisionOperation(ctx context.Context, op string) (DecisionReceipt, error) {
+	settled, err := b.RequestOperation(ctx, "person", "Dismiss", op)
+	if err != nil {
+		return DecisionReceipt{}, err
+	}
+	if settled.State == "committed" {
+		return DecisionReceipt{OperationID: op, ID: settled.ID, Revision: settled.Revision, State: "committed", Closed: true, MessageIDs: []int64{}}, nil
+	}
 	out := DecisionReceipt{OperationID: op, State: "unknown", MessageIDs: []int64{}}
 	if !decisionOperationID(op) {
 		return out, errors.New("This action could not be identified. Refresh and try again.")
@@ -457,63 +491,31 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			}
 		}
 		out = DecisionReceipt{OperationID: in.OperationID, State: "committed", ID: d.ID, Revision: d.Revision, Closed: closed, MessageIDs: []int64{reply}}
+		if closed {
+			stamp := b.stamp()
+			if _, err = t.Exec(`INSERT INTO request_settlements VALUES(?,?,?,?)`, d.ID, "answered", stamp, "person"); err != nil {
+				return err
+			}
+			if _, err = t.Exec(`INSERT INTO request_completion_obligations VALUES(?,?,?,?,?)`, d.ID, d.AskerSession, "answered", "The person answered this request.", reply); err != nil {
+				return err
+			}
+		}
 		return storeDecisionReceipt(t, fp, out)
 	})
 	return out, err
 }
 
 func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (DecisionReceipt, error) {
-	var out DecisionReceipt
-	if !decisionOperationID(in.OperationID) || in.Revision < 1 {
-		return out, errors.New("This action could not be identified. Refresh and try again.")
+	r, err := b.DismissRequest(ctx, requestsettlement.Input{OperationID: in.OperationID, ID: in.ID, Revision: in.Revision})
+	out := DecisionReceipt{OperationID: r.OperationID, ID: r.ID, Revision: r.Revision, State: r.State, Closed: r.State == "committed", MessageIDs: []int64{}}
+	if r.State == "refused" {
+		out.State = "rejected"
+		out.Reason = &DecisionRejection{Code: r.Code, Message: r.Text}
+		if r.Code == "request_closed" {
+			out.Closed = true
+			out.Reason.Code = "decision_closed"
+		}
 	}
-	id, err := decisionMessageID(in.ID)
-	if err != nil {
-		return out, err
-	}
-	fp := decisionFingerprint("dismiss", in)
-	err = b.tx(ctx, func(t *sql.Tx) error {
-		var found bool
-		var err error
-		out, found, err = decisionReceipt(t, in.OperationID, fp)
-		if err != nil || found {
-			return err
-		}
-		d, closed, err := b.decision(t, id)
-		if errors.Is(err, sql.ErrNoRows) {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 0, true, "decision_unavailable", "This request is no longer available. Refresh the list.")
-			return err
-		}
-		if err != nil {
-			return err
-		}
-		if d.ID != in.ID {
-			return errors.New("This request could not be identified. Refresh the list.")
-		}
-		if closed {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This request is already closed. Refresh the list.")
-			return err
-		}
-		if d.Revision != in.Revision {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This request changed. Refresh it before dismissing it.")
-			return err
-		}
-		if !d.CanDismiss {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "dismissal_unavailable", "This request can receive an answer. Refresh it before continuing.")
-			return err
-		}
-		if d.Kind == "request" {
-			d.Revision++
-			if _, err = t.Exec(`UPDATE person_requests SET revision=?,closed=1 WHERE message_id=?`, d.Revision, id); err != nil {
-				return err
-			}
-		}
-		if _, err = t.Exec(`UPDATE deliveries SET inbox_dismissed_at=? WHERE message_id=? AND recipient_kind='human'`, b.stamp(), id); err != nil {
-			return err
-		}
-		out = DecisionReceipt{OperationID: in.OperationID, State: "committed", ID: d.ID, Revision: d.Revision, Closed: true, MessageIDs: []int64{}}
-		return storeDecisionReceipt(t, fp, out)
-	})
 	return out, err
 }
 

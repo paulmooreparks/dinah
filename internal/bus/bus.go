@@ -191,6 +191,9 @@ func (b *Bus) RegisterSession(ctx context.Context, id, workspacePath, title stri
 	if err != nil {
 		return Session{}, err
 	}
+	// A resumed asking chat receives its original pending completion. A failed
+	// dispatch leaves the obligation intact and does not undo registration.
+	_ = b.DispatchRequestCompletions(ctx)
 	return b.Session(ctx, id)
 }
 

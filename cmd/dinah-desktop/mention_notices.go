@@ -23,6 +23,9 @@ const mentionBodyLimit = 400
 // those whose message the person has answered. The bus watcher calls it each time
 // the bus has changed, and it runs nowhere else, so two passes never overlap.
 func (a *App) noticeMentions(ctx context.Context, b *bus.Bus) {
+	if err := a.reconcileRequestCompletions(ctx, b); err != nil {
+		logf("bus", "error", "reconciling request completion notices: %v", err)
+	}
 	baseline, err := a.mentionBaseline(ctx, b)
 	if err != nil {
 		logf("bus", "error", "finding where the mentions of the person begin: %v", err)

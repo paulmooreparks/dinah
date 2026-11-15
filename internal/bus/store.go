@@ -38,6 +38,27 @@ CREATE TABLE IF NOT EXISTS message_presentation (
  shown_text TEXT NOT NULL,
  references_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS request_settlements (
+ request_id TEXT PRIMARY KEY,
+ status TEXT NOT NULL,
+ settled_at TEXT NOT NULL,
+ actor_kind TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS request_settlement_operations (
+ actor TEXT NOT NULL,
+ command TEXT NOT NULL,
+ operation_id TEXT NOT NULL,
+ fingerprint TEXT NOT NULL,
+ receipt TEXT NOT NULL,
+ PRIMARY KEY(actor,command,operation_id)
+);
+CREATE TABLE IF NOT EXISTS request_completion_obligations (
+ request_id TEXT PRIMARY KEY,
+ recipient TEXT NOT NULL,
+ outcome TEXT NOT NULL,
+ wording TEXT NOT NULL,
+ message_id INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS decision_answer_origins (
  message_id INTEGER PRIMARY KEY REFERENCES messages(id),
  origin TEXT NOT NULL

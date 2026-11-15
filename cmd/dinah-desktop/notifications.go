@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"studio/internal/requestsettlement"
 )
 
 // Notification is a report kept under Notifications: what a toast said, with a kind for where it came from
@@ -35,6 +37,8 @@ type Notification struct {
 	OriginProvider  string   `json:"originProvider,omitempty"`
 	OriginStarted   string   `json:"originStarted,omitempty"`
 	IncidentVersion string   `json:"incidentVersion,omitempty"`
+	// RequestOwner is captured by the host when it first keeps the report.
+	RequestOwner string `json:"requestOwner,omitempty"`
 	// DraftID is the draft a report is about, which the card reopens.
 	DraftID string `json:"draftId,omitempty"`
 	// Lead is the chat ID, in the window, of the lead a failed relay was rerouted to, so the card can link to it.
@@ -57,9 +61,11 @@ type Notification struct {
 var notificationDraftID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type notificationStore struct {
-	Version            int               `json:"version"`
-	Items              []Notification    `json:"items"`
-	RecoveryDismissals map[string]string `json:"recoveryDismissals,omitempty"`
+	Version            int                               `json:"version"`
+	Items              []Notification                    `json:"items"`
+	RecoveryDismissals map[string]string                 `json:"recoveryDismissals,omitempty"`
+	ReportSettlements  map[string]notificationSettlement `json:"reportSettlements,omitempty"`
+	ReportOperations   map[string]notificationOperation  `json:"reportOperations,omitempty"`
 }
 
 var notificationStoreMu sync.Mutex
@@ -252,29 +258,20 @@ func (a *App) Notifications() ([]Notification, error) {
 // ClearNotifications dismisses every report. Questions are not reports and
 // are not touched.
 func (a *App) ClearNotifications() error {
-	notificationStoreMu.Lock()
-	defer notificationStoreMu.Unlock()
-	store, err := readNotifications()
+	items, err := a.Notifications()
 	if err != nil {
 		return err
 	}
-	store.Items = pruned(store.Items)
-	incidents, err := a.recoveryNotifications()
-	if err != nil {
-		return err
-	}
-	if store.RecoveryDismissals == nil {
-		store.RecoveryDismissals = map[string]string{}
-	}
-	for _, item := range incidents {
-		if item.IncidentVersion != "" {
-			store.RecoveryDismissals[item.ID] = item.IncidentVersion
+	var failures []error
+	for _, item := range items {
+		if item.PermissionKey != "" && a.pendingPermission(item.PermissionKey) {
+			continue
+		}
+		if err := a.DismissNotification(item.ID); err != nil {
+			failures = append(failures, err)
 		}
 	}
-	for i := range store.Items {
-		store.Items[i].Dismissed = true
-	}
-	return writeNotifications(store)
+	return errors.Join(failures...)
 }
 func (a *App) SaveNotification(item Notification) (Notification, error) {
 	saved, _, err := a.saveNotification(item)
@@ -285,6 +282,7 @@ func (a *App) SaveNotification(item Notification) (Notification, error) {
 // the identity of one already kept is not kept again, whether or not it was
 // dismissed.
 func (a *App) saveNotification(item Notification) (Notification, bool, error) {
+	item.RequestOwner = a.knownBusID(item.SessionID)
 	if err := validateNotification(item); err != nil {
 		return Notification{}, false, err
 	}
@@ -309,7 +307,29 @@ func (a *App) saveNotification(item Notification) (Notification, bool, error) {
 	}
 	return item, true, nil
 }
-func (a *App) DismissNotification(id string) error {
+
+// These fields belong to the same durable write as the report projection.
+type notificationSettlement struct {
+	ID       string       `json:"id"`
+	Revision int          `json:"revision"`
+	Report   Notification `json:"report"`
+	requestsettlement.Disposition
+	Completion notificationCompletion `json:"completion"`
+}
+
+type notificationCompletion struct {
+	Recipient string `json:"recipient,omitempty"`
+	Outcome   string `json:"outcome"`
+	Wording   string `json:"wording"`
+	MessageID int64  `json:"messageId,omitempty"`
+}
+
+type notificationOperation struct {
+	Input   requestsettlement.Input   `json:"input"`
+	Receipt requestsettlement.Receipt `json:"receipt"`
+}
+
+func (a *App) dismissNotificationProjection(id string) error {
 	if !notificationID.MatchString(id) {
 		return errors.New("invalid notification identity")
 	}
