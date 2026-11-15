@@ -394,6 +394,8 @@
     "decisions-answer-card",
     "decisions-answer-layout",
     "decisions-answer-stability",
+    "transcript-row-stability",
+    "carry-on-stability",
     "settings-set-aside-list",
     "settings-updates-set-aside",
     "settings-set-aside-remove",

@@ -178,6 +178,34 @@
     log.addEventListener('scroll', check, { passive: true }); log.addEventListener('dinah:scroll-restored', restored);
     ['wheel', 'touchstart', 'pointerdown'].forEach(function (name) { log.addEventListener(name, input, { passive: true }); });
     log.addEventListener('keydown', input);
+    // A new row has no remembered size. Measure its content box before auto
+    // visibility can skip it, then keep that measurement as its first fallback.
+    var sizingRoot = o.root || content, sizingRows = new WeakSet();
+    var rowSizes = new ResizeObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var row = entry.target;
+        if (!sizingRoot.contains(row) || entry.contentRect.height <= 0) return;
+        var height = entry.contentRect.height + 'px';
+        if (row.style.getPropertyValue('--activity-estimated-block-size') !== height) row.style.setProperty('--activity-estimated-block-size', height);
+        if (!row.hasAttribute('data-transcript-measured')) row.setAttribute('data-transcript-measured', '');
+      });
+    });
+    function sizeRows(node, removed) {
+      if (node.nodeType !== 1) return;
+      var rows = Array.from(node.querySelectorAll('.activity-row'));
+      if (node.matches('.activity-row')) rows.unshift(node);
+      rows.forEach(function (row) {
+        if (removed && !sizingRoot.contains(row)) { rowSizes.unobserve(row); sizingRows.delete(row); }
+        else if (!sizingRows.has(row)) { sizingRows.add(row); rowSizes.observe(row); }
+      });
+    }
+    var rowChanges = new MutationObserver(function (changes) {
+      changes.forEach(function (change) {
+        change.removedNodes.forEach(function (node) { sizeRows(node, true); });
+        change.addedNodes.forEach(function (node) { sizeRows(node, false); });
+      });
+    });
+    rowChanges.observe(sizingRoot, { childList: true, subtree: true }); sizeRows(sizingRoot, false);
     var mutation = new MutationObserver(schedule); mutation.observe(content, { childList: true, subtree: true, characterData: true });
     var resize = new ResizeObserver(schedule); resize.observe(content); resize.observe(log);
     document.addEventListener('pudl:windows-change', schedule); document.addEventListener('visibilitychange', schedule);
@@ -196,7 +224,7 @@
       },
       destroy: function () {
         known.clear(); unseen.clear(); navigationTarget = null;
-        disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); controls.remove(); divider.remove();
+        disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); rowChanges.disconnect(); rowSizes.disconnect(); controls.remove(); divider.remove();
         jump.removeEventListener('click', latest); stopped.removeEventListener('click', whereStopped);
         log.removeEventListener('scroll', check); log.removeEventListener('dinah:scroll-restored', restored);
         ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (name) { log.removeEventListener(name, input); });

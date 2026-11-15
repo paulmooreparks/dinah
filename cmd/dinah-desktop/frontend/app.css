@@ -5,7 +5,7 @@
 .shell-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1; }
 .dinah-workbench, .dinah-workbench-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .dinah-window:is([data-win-kind="chat"], [data-win-kind="chat-session"]) > .dinah-applet { display: flex; overflow: hidden; }
-.chat-instance { --decision-answer-height: 20rem; display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
+.chat-instance { --decision-answer-height: 20rem; --host-result-height: 12rem; display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
 .dinah-window .chat-pane { flex: 1; min-width: 0; }
 .dinah-window .shell-sidebar, .browser-applet { min-width: 0; }
 .dinah-window[data-win-kind="workspace"] > .dinah-applet { display: flex; overflow: hidden; }
@@ -180,6 +180,11 @@
 .delivered-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; }
 .delivered-card > .card-body > :first-child { margin-top: 0; }
 .delivered-card > .card-body > :last-child { margin-bottom: 0; }
+/* Host notices keep one frame from waiting preview through rendered body. */
+.host-result-row { --activity-estimated-block-size: var(--host-result-height); }
+.host-result-card { height: var(--host-result-height, 12rem); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; }
+.host-result-card > .card-head { flex: none; box-sizing: border-box; height: 4rem; overflow: auto; }
+.host-result-card > .card-body { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; overflow-anchor: none; }
 .decision-answer-row { --activity-estimated-block-size: var(--decision-answer-height); }
 .decision-answer-card { height: var(--decision-answer-height, 20rem); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; }
 .decision-answer-card > .card-head { flex: none; box-sizing: border-box; height: 4rem; overflow: auto; display: flex; align-items: center; gap: var(--space-2); }
@@ -768,7 +773,7 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 
 /* Keep transcript DOM mounted while the browser skips distant message layout. */
 @supports (content-visibility: auto) and (contain-intrinsic-block-size: auto 120px) {
-  .chat-instance .run:not([data-preserve-scroll-layout]) .run-log:not([data-preserve-scroll-layout]) .activity-row { content-visibility:auto; contain-intrinsic-block-size:auto var(--activity-estimated-block-size, 120px); }
+  .chat-instance .run:not([data-preserve-scroll-layout]) .run-log:not([data-preserve-scroll-layout]) .activity-row[data-transcript-measured] { content-visibility:auto; contain-intrinsic-block-size:auto var(--activity-estimated-block-size, 120px); }
 }
 @media print { .chat-instance .activity-row { content-visibility:visible; } }
 

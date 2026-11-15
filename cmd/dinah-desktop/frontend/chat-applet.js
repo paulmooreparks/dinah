@@ -1757,7 +1757,7 @@
           dirtyGroups.add(live);
         }
         trimMarker(s);
-      });
+      }, true);
     }
     function trimmedRow(s) {
       var first = s.log.firstElementChild;
@@ -1971,8 +1971,9 @@
       s.current = null;
       var waiting = d.id != null && s.arriving && s.arriving[d.id];
       var decisionAnswer = window.dinahDecisionAnswerCard.valid(d.answerOrigin);
+      var hostResult = !decisionAnswer && d.kind === 'host_result';
       // Keep the measured row and its scroll anchor while its contents change.
-      var li = row(s, 'delivered-row' + (decisionAnswer ? ' decision-answer-row' : ''), waiting);
+      var li = row(s, 'delivered-row' + (decisionAnswer ? ' decision-answer-row' : hostResult ? ' host-result-row' : ''), waiting);
       if (waiting) { delete li.dataset.arriving; delete s.arriving[d.id]; tidyArriving(s); }
       var at = d.time ? new Date(d.time) : null, t = li.querySelector('.activity-time');
       if (at && !isNaN(at)) dinahRegional.stamp(t, at, 'clock');
@@ -1980,7 +1981,7 @@
       var long = text.length > DELIVERED_FOLD_CHARS || text.split('\n').length > DELIVERED_FOLD_LINES;
       var card = decisionAnswer ? window.dinahDecisionAnswerCard.create(d.answerOrigin, heading) : document.createElement('section');
       if (!decisionAnswer) {
-        card.className = 'card disclosure delivered-card';
+        card.className = 'card disclosure delivered-card' + (hostResult ? ' host-result-card' : '');
         card.innerHTML = '<div class="card-head"><button type="button" class="card-toggle" aria-expanded="' + !long + '"></button>' +
           '<span class="card-title delivered-heading"></span><span class="card-summary delivered-summary"></span></div><div class="card-body msg-text delivered-text"></div>';
       }
@@ -2026,9 +2027,9 @@
       s.arriving = s.arriving || {};
       if (s.arriving[msg.id]) return;
       var li = document.createElement('li');
-      li.className = 'activity-row arriving-row' + (msg.decisionAnswer === true ? ' decision-answer-row' : ''); li.dataset.arriving = String(msg.id);
+      li.className = 'activity-row arriving-row' + (msg.decisionAnswer === true ? ' decision-answer-row' : msg.kind === 'host_result' ? ' host-result-row' : ''); li.dataset.arriving = String(msg.id);
       var card = document.createElement('section');
-      card.className = 'card arriving-card';
+      card.className = 'card arriving-card' + (msg.kind === 'host_result' && msg.decisionAnswer !== true ? ' host-result-card' : '');
       if (msg.decisionAnswer === true) card.classList.add('decision-answer-card');
       card.innerHTML = '<div class="card-head"><span class="badge" data-state="waiting" title="Waiting to be delivered" aria-label="Waiting to be delivered">Waiting</span><span class="card-title arriving-heading"></span></div><div class="card-body msg-text arriving-text"></div>';
       card.querySelector('.arriving-heading').textContent = 'Arriving: message from ' + arrivingFrom(msg);
@@ -2039,13 +2040,19 @@
     }
     // The line after the cards that counts the waiting messages not described.
     function arrivingMore(s) {
-      if (s.arrivingMoreLi) { s.arrivingMoreLi.remove(); s.arrivingMoreLi = null; }
-      if (!s.arrivingMore) return;
-      var li = document.createElement('li');
-      li.className = 'activity-row arriving-row arriving-more';
-      var p = document.createElement('p'); p.className = 'activity-muted';
-      p.textContent = s.arrivingMore === 1 ? 'One more message is waiting.' : s.arrivingMore + ' more messages are waiting.';
-      li.appendChild(p); s.log.appendChild(li); s.arrivingMoreLi = li;
+      var li = s.arrivingMoreLi;
+      if (!s.arrivingMore) {
+        if (li) li.remove();
+        s.arrivingMoreLi = null;
+        return;
+      }
+      if (!li) {
+        li = document.createElement('li');
+        li.className = 'activity-row arriving-row arriving-more';
+        var p = document.createElement('p'); p.className = 'activity-muted';
+        li.appendChild(p); s.log.appendChild(li); s.arrivingMoreLi = li;
+      }
+      li.firstElementChild.textContent = s.arrivingMore === 1 ? 'One more message is waiting.' : s.arrivingMore + ' more messages are waiting.';
     }
     function tidyArriving(s) {
       if (!Object.keys(s.arriving || {}).length && s.arrivingMoreLi) { s.arrivingMoreLi.remove(); s.arrivingMoreLi = null; s.arrivingMore = 0; }
@@ -2080,8 +2087,9 @@
        renderer (chat-text.js), which draws only the block still arriving
        while a message streams in and shows the foot once it is long. */
     function draw(m) {
+      m.keepPlace = keepChatPlace;
       if (m.kind === 'decision-answer') return;
-      if (m.kind === 'thought') window.dinahBoundedText.draw(m.el, m.text, function (text) { m.el.textContent = text; });
+      if (m.kind === 'thought') window.dinahBoundedText.draw(m.el, m.text, function (text) { m.el.textContent = text; }, keepChatPlace);
       else window.dinahChatText.draw(m);
       drawMessageImages(m);
     }

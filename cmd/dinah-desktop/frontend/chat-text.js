@@ -596,7 +596,7 @@
      foot. A text larger than bounded-text.js allows is shown as plain text
      in pages. */
   function draw(m) {
-    window.dinahBoundedText.draw(m.el, m.text, function (text, paged) { drawMarkdown(m, text, paged); drawDiagrams(m.el); });
+    window.dinahBoundedText.draw(m.el, m.text, function (text, paged) { drawMarkdown(m, text, paged); drawDiagrams(m.el); }, m.keepPlace);
     drawFoot(m);
   }
 
