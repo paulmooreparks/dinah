@@ -30,8 +30,6 @@ const { choose, shows, rowsOf } = require('./lib/commands');
     const evidence = [];
     for (const width of [1440, 390]) {
       await p.setViewportSize({ width, height: 1000 });
-      if (width === 1440) await chat.evaluate(root => { window.pudlWindows.snap(root.dataset.win, 'floating'); root.style.width = '1000px'; });
-      else await chat.locator('[data-win-action="maximize"]').click();
       await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
       if (width === 1440) ok('a wide chat exposes Thinking beside Model', await chat.locator('[data-command="thinking"]').isVisible());
       const frames = await chat.evaluate(async root => {
@@ -47,6 +45,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
       });
       evidence.push({width,...frames});
       ok('Thinking value updates keep every sampled toolbar and composer box fixed at ' + width, frames.samples.every(s => JSON.stringify(s) === JSON.stringify(frames.baseline)));
+      ok('the chat fits the viewport at ' + width, await chat.evaluate(root => { const r = root.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1; }));
       ok('the narrow composer has no horizontal overflow at ' + width, await chat.locator('.composer-bar').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
       await t.shot('thinking-' + width);
       await rowsOf(p, chat, 'thinking'); await t.shot('thinking-menu-' + width); await p.keyboard.press('Escape');
