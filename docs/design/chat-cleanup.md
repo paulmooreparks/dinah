@@ -154,3 +154,12 @@ Required chain coverage includes three agent programs, one without deletion, and
 ## Retained composer drafts and stale page writes
 
 Staging retains the composer draft stored in `ui-state.json` under `dinah-draft:chat:<identity>` for every member of the switched chain. Restore preserves those drafts. Final deletion and expiry erase those values along with the other local data. The host serializes finalization with UI-state saves and filters permanently tombstoned chat identities from every subsequent save, so a stale full-state write cannot revive an erased draft. The independent acceptance fixture must exercise a stale save after final deletion and after expiry, including a draft for an earlier switched session. Frontend removal events discard cached rows without provider discovery; Restore applies the authoritative returned row to the closed-chat cache without calling Sessions or SessionsAt.
+
+
+## Ownership and runtime authority
+
+Binning, Restore and final deletion affect only the chat's own records and runtime state, including every session in its switched chain, and the agent program's copy through its documented delete. A reference from a chat does not confer ownership of the referenced record. Cleanup never changes or deletes documents, document drafts, comments, suggestions, attachments, publication records, workspace files, remote-service data, credentials or tool registrations. The composer text described above is chat-owned UI state; it is distinct from a document draft.
+
+Entering the bin revokes every runtime lease and capability held by every chain member, including drawing leases. It cancels pending work authorized through those leases and prevents any later completion from exercising revoked authority. Restore cannot reactivate a previous lease. The next explicit open or accepted new message creates a fresh runtime and fresh leases through the ordinary documented opening path.
+
+Acceptance seeds a switched chat which refers to a document and a document draft. It bins, restores and finally deletes that chain, then compares the referenced bytes and records with their original values and asserts zero remote writes. The test also attempts to use the old drawing lease after binning and after Restore; both attempts must refuse. An open after Restore obtains new authority without making the old lease valid. The isolated handover must expose the existing lease service through a test-only binding when needed, without adding a product route.
