@@ -27,11 +27,12 @@ type qualityHostCleanup struct {
 	wakes     int
 	addresses map[string]string
 	groups    map[string]string
+	linked    *qualityLinkedState
 }
 
 func init() {
 	qualityCleanupFactory = func(t *testing.T) qualityCleanupFixture {
-		if !strings.HasPrefix(t.Name(), "TestQualityCleanupDraftsAndStaleSave") && !strings.HasPrefix(t.Name(), "TestQualityCleanupExpiryBoundary") && !strings.HasPrefix(t.Name(), "TestQualityCleanupProviderDeletion") && !strings.HasPrefix(t.Name(), "TestQualityCleanupDormancy") {
+		if strings.HasPrefix(t.Name(), "TestQualityCleanupLoadedWithoutUnload") {
 			t.Fatal("this host binding does not yet implement the runtime, bus-routing and ownership observations required by this case")
 		}
 		if strings.Contains(t.Name(), "TestQualityCleanupProviderDeletion") && strings.HasSuffix(t.Name(), "/expire") {
@@ -71,7 +72,7 @@ func (f *qualityHostCleanup) install() {
 	}})
 }
 func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
-	if s.Working || s.Pinned || s.Loaded {
+	if s.Loaded {
 		f.t.Fatal("runtime and bus fixture binding is pending")
 	}
 	f.seeds[s.ID] = s
@@ -86,6 +87,19 @@ func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
 		recipient = "window-quality-" + strings.ReplaceAll(owner, ":", "-")
 	}
 	cleanupFixtureChat(f.t, f.a, s.ID, provider, f.ws, recipient)
+	if s.Working {
+		f.a.runtime.PutConversationLocked(s.ID, newSessionState(&sessionSeed{ID: s.ID, Provider: provider, Cwd: f.ws}, sessionInitial{Open: true, Working: true}))
+	}
+	if s.Pinned {
+		if err := f.a.updateSettings(func(v *Settings) error {
+			record := newWorkspaceRecord(f.ws)
+			record.Pins = []WorkspacePin{{Kind: "chat", Session: s.ID}}
+			v.WorkspaceRecords = append(v.WorkspaceRecords, record)
+			return nil
+		}); err != nil {
+			f.t.Fatal(err)
+		}
+	}
 	if recipient != "" {
 		if e := f.a.busHost().With(func(b *bus.Bus) error {
 			session, e := b.Session(context.Background(), recipient)
