@@ -192,6 +192,9 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 	if err != nil || partial.Status != "partial" || partial.GroupID == "" || !strings.Contains(partial.Message, "retained") {
 		t.Fatal(partial, err)
 	}
+	if len(partial.Members) != 1 || partial.Members[0].ChatID != "codex:d" || partial.Members[0].Status != "left_out" || partial.Members[0].Reason == "" {
+		t.Fatal("conversion failure lost member outcomes", partial)
+	}
 	room, err := a.BusGroup(partial.GroupID)
 	if err != nil || room.Lead != "" {
 		t.Fatal("retained ordinary group missing", room, err)

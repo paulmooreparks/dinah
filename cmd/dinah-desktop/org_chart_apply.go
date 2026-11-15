@@ -46,6 +46,12 @@ func (a *App) applyOrgChartAction(r OrgChartActionRequest, afterGroup func(strin
 	}
 	if action == nil {
 		out.Message = "This action is unavailable. Refresh the chart."
+		for _, unavailable := range view.Unavailable {
+			if unavailable.Kind == r.Kind {
+				out.Message = unavailable.Reason
+				break
+			}
+		}
 		return out, nil
 	}
 	if r.Token == "" || r.Token != action.Token {
@@ -72,6 +78,20 @@ func (a *App) applyOrgChartAction(r OrgChartActionRequest, afterGroup func(strin
 		if e != nil {
 			out.Status = "partial"
 			out.Message = "The group was retained, but it could not be made a team: " + e.Error()
+			members := r.MemberIDs
+			if r.Kind == "make_lead" {
+				for _, candidate := range x.view.Groups {
+					if candidate.ID == group {
+						members = candidate.MemberIDs
+						break
+					}
+				}
+			}
+			for _, id := range members {
+				if id != lead {
+					out.Members = append(out.Members, OrgChartMemberOutcome{ChatID: id, Status: "left_out", Reason: e.Error()})
+				}
+			}
 			if fresh, e := a.OrgChartActions(lead); e == nil {
 				for _, v := range fresh.Actions {
 					if v.Kind == "make_lead" && slices.ContainsFunc(v.Groups, func(c OrgChartChoice) bool { return c.ID == group }) {
