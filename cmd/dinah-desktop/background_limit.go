@@ -24,7 +24,7 @@ func (a *App) BackgroundChatLimit() int {
 // Lowering the limit never closes a working chat.
 func (a *App) SetBackgroundChatLimit(limit int) error {
 	if limit < 1 || limit > bushost.MaxBackgroundSlots {
-		return fmt.Errorf("choose a background chat limit from 1 to %d", bushost.MaxBackgroundSlots)
+		return fmt.Errorf("Choose a maximum number of background chats from 1 to %d.", bushost.MaxBackgroundSlots)
 	}
 	if err := a.updateSettings(func(s *Settings) error {
 		s.BackgroundChatLimit = limit

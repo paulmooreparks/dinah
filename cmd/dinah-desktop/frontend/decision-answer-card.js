@@ -18,7 +18,7 @@
       group.appendChild(node('p', '', q.text));
       group.appendChild(node('h4', '', 'Answer'));
       group.appendChild(node('p', '', q.answer));
-      if (q.asRecommended) group.appendChild(node('p', 'text-muted decision-answer-mode', 'As recommended.'));
+      if (q.asRecommended) group.appendChild(node('p', 'text-muted decision-answer-mode', 'You chose As Recommended.'));
       body.appendChild(group);
     });
     var footer = node('div', 'decision-answer-footer'), link = node('a', '', 'Open Request in Decisions');

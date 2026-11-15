@@ -26,7 +26,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     ok('a read error remains visible', true);
   } finally { await t.close(); }
   const empty = await setup([]);
-  try { await empty.page.waitForFunction(() => document.querySelector('.decisions-status').textContent === 'No open requests.'); empty.ok('empty requests have an honest empty state', await empty.page.locator('.decisions-row').count() === 0); } finally { await empty.close(); }
+  try { await empty.page.waitForFunction(() => document.querySelector('.decisions-status').textContent === 'There are no open requests.'); empty.ok('empty requests have an honest empty state', await empty.page.locator('.decisions-row').count() === 0); } finally { await empty.close(); }
   const absent = await setup([], { unavailable: true });
   try { await absent.page.waitForFunction(() => document.querySelector('.decisions-status').textContent.includes('not available')); absent.ok('an unavailable engine disables request reads', await absent.page.getByRole('button', { name: 'Refresh', exact: true }).isDisabled()); } finally { await absent.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

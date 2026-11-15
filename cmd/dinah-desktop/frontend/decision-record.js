@@ -4,13 +4,13 @@
   var node = window.dinahHelpers.node;
   window.dinahDecisionRecord = function (detail, id, validItem, current) {
     var frame = node('section', 'decisions-record'), source = node('header', 'decisions-source');
-    var title = node('h2', '', 'Original Request'), meta = node('p', 'text-muted', 'Reading the request.'); source.append(title, meta);
-    var status = node('div', 'decisions-delivery'); status.setAttribute('role', 'status'); status.textContent = 'Reading the original request without changing it.';
+    var title = node('h2', '', 'Original Request'), meta = node('p', 'text-muted', 'Loading the request.'); source.append(title, meta);
+    var status = node('div', 'decisions-delivery'); status.setAttribute('role', 'status'); status.textContent = 'Loading the original request without changing it.';
     var content = node('div', 'decisions-content'); frame.append(source, status, content); detail.replaceChildren(frame);
     function active() { return frame.isConnected && current(); }
     function read() {
       status.classList.remove('danger');
-      status.textContent = 'Reading the original request without changing it.'; content.replaceChildren();
+      status.textContent = 'Loading the original request without changing it.'; content.replaceChildren();
       Promise.resolve().then(function () {
         var app = window.dinahHelpers.app();
         if (!app || !app.DecisionByID) throw new Error('This build cannot show closed requests.');
@@ -27,17 +27,17 @@
           group.appendChild(node('p', 'decisions-question-text', q.text));
           if (item.kind === 'request') {
             group.appendChild(node('p', 'decisions-recommendation', 'Recommendation: ' + q.recommendation));
-            group.appendChild(node('p', '', q.answered ? 'Answer: ' + q.answer : 'This question has no answer.'));
+            group.appendChild(node('p', '', q.answered ? 'Answer: ' + q.answer : 'This question has not been answered.'));
           }
           content.appendChild(group);
         });
         content.appendChild(node('p', 'decisions-destination', 'Originally sent to ' + item.destination + '.'));
       }).catch(function (error) {
         if (!active()) return;
-        status.textContent = 'This request is unavailable. Its answer remains in the transcript.';
+        status.textContent = 'This request is unavailable. You can still read its answer in the chat.';
         status.classList.add('danger');
         content.replaceChildren(node('p', 'text-muted', window.dinahHelpers.message(error, 'sentence')));
-        var retry = node('button', 'btn btn-sm', 'Retry Request Lookup'); retry.type = 'button'; retry.addEventListener('click', read); content.appendChild(retry);
+        var retry = node('button', 'btn btn-sm', 'Try Again'); retry.type = 'button'; retry.addEventListener('click', read); content.appendChild(retry);
       });
     }
     read();

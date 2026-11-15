@@ -37,7 +37,7 @@ module.exports = async function run(name) {
         ok('only the caller is labelled this window without changing geometry', await page.locator('#updates-running [data-key="100"]').textContent().then(s => s.includes('PID 100 (this window): installed copy')) && (await text('updates-running')).split('(this window)').length === 2 && JSON.stringify(selfBefore) === JSON.stringify(await geometry(t)));
         await page.evaluate(() => { __u.status.running[0].current = false; __u.status.behind = 1; });
         await page.locator('#updates-refresh').click(); await settle(t);
-        ok('an older caller keeps its this window label and restart explanation', (await page.locator('#updates-running [data-key="100"]').textContent()).includes('(this window): older copy; restart its owner when ready'));
+        ok('an older caller keeps its this window label and restart explanation', (await page.locator('#updates-running [data-key="100"]').textContent()).includes('(this window): older copy; restart the program that started it when ready'));
         await page.evaluate(() => { __u.status.running[0].current = true; __u.status.behind = 0; });
         ok('Settings commands preserve PUDL disabled action meaning', await page.evaluate(() => pudlApplets.commandsIn(document.querySelector('#settings').closest('.win')).some(c => c.label === 'Install Update' && c.disabled)));
         await setRelease(t, { current: '2.0.1', latest: '2.0.1', available: false });
@@ -50,7 +50,7 @@ module.exports = async function run(name) {
         ok('reordering process inventory retains row identity and focus', JSON.stringify(ids) === JSON.stringify(await page.locator('#updates-running > div').evaluateAll(es => es.map(e => e.dataset.key))) && await page.locator('#updates-running .updates-row-text').first().evaluate(el => el === document.activeElement));
         await page.evaluate(() => { __u.status.running = [__u.status.running[0], {pid:999,path:'C:/Fixture/tools.exe',version:'unknown',current:false}]; });
         await page.locator('#updates-refresh').click(); await settle(t);
-        ok('removed rows keep place and new processes append', (await text('updates-running')).includes('No longer reported') && (await page.locator('#updates-running > div').last().getAttribute('data-key')) === '999');
+        ok('removed rows keep place and new processes append', (await text('updates-running')).includes('This copy is no longer reported') && (await page.locator('#updates-running > div').last().getAttribute('data-key')) === '999');
       } else if (name === 'available') {
         const before = await geometry(t);
         await setRelease(t, { latest: '2.0.1', available: true, notes: '<img src=x onerror=alert(1)>\nA much longer explanation. '.repeat(500) });
@@ -141,7 +141,7 @@ module.exports = async function run(name) {
       } else if (name === 'errors') {
         await page.evaluate(() => { __fail.Check='Synthetic release check failed'; });
         await page.locator('#updates-check').click(); await settle(t);
-        ok('failed check preserves the last successful reading visibly', (await text('updates-release-status')).includes('last successful') && await page.locator('#updates-install').isDisabled());
+        ok('failed check preserves the last successful reading visibly', (await text('updates-release-status')).includes('previous release details') && await page.locator('#updates-install').isDisabled());
         await page.evaluate(() => { __fail.Check=''; });
         const cases = ['Download failed before placement', 'Candidate refused: missing component', 'Reported-version mismatch', 'Placement failed; previous components restored', 'Placement and restore failed; installed releases are mixed'];
         for (const error of cases) {
@@ -150,11 +150,11 @@ module.exports = async function run(name) {
         }
         await page.evaluate(() => { __u.status.installed[1].version='2.0.1'; __u.status.installed[2].version=''; __u.status.installed[2].error='version query failed'; });
         await page.locator('#updates-refresh').click(); await settle(t);
-        ok('mixed and unknown installed components cannot hide behind success', (await text('updates-programs')).includes('version query failed') && (await text('updates-inventory-status')).includes('unidentifiable'));
+        ok('mixed and unknown installed components cannot hide behind success', (await text('updates-programs')).includes('version query failed') && (await text('updates-inventory-status')).includes('could not be identified'));
         await t.shot('updates-mixed-installation');
         await page.evaluate(() => { __fail.Status='Synthetic inventory failure'; });
         await page.locator('#updates-refresh').click(); await settle(t);
-        ok('failed inventory retains data as an old reading', (await text('updates-inventory-status')).includes('last successful reading'));
+        ok('failed inventory retains data as an old reading', (await text('updates-inventory-status')).includes('previous details are still shown'));
         await page.evaluate(() => { __fail.FindPackageUpdates='Synthetic package failure'; });
         await page.locator('#updates-package-check').click();
         await page.waitForFunction(() => document.querySelector('#updates-package-status').textContent.includes('Synthetic package failure'));
@@ -194,7 +194,7 @@ module.exports = async function run(name) {
         ok('repair is gated before preview', await page.locator('#updates-repair-apply').isDisabled());
         await page.locator('#updates-repair-check').click();
         await page.waitForFunction(() => document.querySelector('#updates-repair-apply').getAttribute('aria-disabled') === 'false');
-        ok('preview names stale client, scope, custom entry and installed destination', (await text('updates-repair')).includes('Would repair') && (await text('updates-repair')).includes('project C:/Project') && (await text('updates-repair')).includes('Custom entry kept') && (await text('updates-repair')).includes('Installed tools: C:/Fixture/bin/tools.exe'));
+        ok('preview names stale client, scope, custom entry and installed destination', (await text('updates-repair')).includes('This entry would be repaired.') && (await text('updates-repair')).includes('project C:/Project') && (await text('updates-repair')).includes('This entry has custom settings and will be kept.') && (await text('updates-repair')).includes('Installed tools: C:/Fixture/bin/tools.exe'));
         ok('service details and unreported-override limitation stay visible', (await text('updates-repair-lines')).includes('owned earlier entry') && (await text('settings-updates')).includes('Unreported workspace overrides remain unverified'));
         ok('preview is read only', !(await ledger(t)).some(c => c[0] === 'RepairAgentSettings'));
         await t.shot('updates-repair-preview');
@@ -204,18 +204,18 @@ module.exports = async function run(name) {
         ok('double repair admits one preview-bound operation', (await ledger(t)).filter(c => c[0] === 'RepairAgentSettings').length === 1 && (await ledger(t)).find(c => c[0] === 'RepairAgentSettings')[1] === 'preview-1');
         await page.evaluate(() => { __hold.RepairAgentSettings=false;__pending.RepairAgentSettings[0](); });
         await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('Some settings'));
-        ok('partial repair reports successes, failures and backup without retry', (await text('updates-repair')).includes('Repaired') && (await text('updates-repair')).includes('read-back failed') && (await text('updates-repair')).includes('Backup:'));
+        ok('partial repair reports successes, failures and backup without retry', (await text('updates-repair')).includes('This entry was repaired.') && (await text('updates-repair')).includes('read-back failed') && (await text('updates-repair')).includes('Backup:'));
         await page.evaluate(() => { __u.preview.findings.forEach(f => {f.state='current';});__u.preview.findings[0].state='absent'; });
         await page.locator('#updates-repair-check').click();
-        await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('No owned stale'));
-        ok('absent entries are never added and current entries need no repair', await page.locator('#updates-repair-apply').isDisabled() && (await text('updates-repair')).includes('none will be added'));
+        await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('No entries need repair'));
+        ok('absent entries are never added and current entries need no repair', await page.locator('#updates-repair-apply').isDisabled() && (await text('updates-repair')).includes('None will be added.'));
         await page.evaluate(() => { __fail.PreviewAgentSettings='Settings parse failed'; });
         await page.locator('#updates-repair-check').click();
         await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('parse failed'));
-        ok('repair failure preserves other working sections', (await text('updates-inventory-status')).includes('read') && await page.locator('#updates-check').isEnabled());
+        ok('repair failure preserves other working sections', (await text('updates-inventory-status')).includes('The installed versions are shown.') && await page.locator('#updates-check').isEnabled());
         await page.evaluate(() => { __fail.PreviewAgentSettings=''; __u.preview.findings[0].state='stale'; delete __u.preview.token; });
         await page.locator('#updates-repair-check').click();
-        await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('lacks its token'));
+        await page.waitForFunction(() => document.querySelector('#updates-repair-status').textContent.includes('repair preview is incomplete'));
         ok('malformed preview refuses mutation instead of inventing authority', await page.locator('#updates-repair-apply').isDisabled());
       }
     }

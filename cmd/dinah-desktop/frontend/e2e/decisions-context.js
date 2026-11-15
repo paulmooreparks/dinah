@@ -9,7 +9,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
   try {
     await p.evaluate(() => { __holdContext = true; });
     await choose(t, 'r100'); await p.waitForFunction(() => window.__contextPending?.length === 1);
-    ok('slow context has a fixed placeholder', await p.locator('.decisions-context-body').getAttribute('aria-busy') === 'true' && (await p.locator('.decisions-context').innerText()).includes('Reading the group conversation.'));
+    ok('slow context has a fixed placeholder', await p.locator('.decisions-context-body').getAttribute('aria-busy') === 'true' && (await p.locator('.decisions-context').innerText()).includes('Loading the group conversation.'));
     await p.getByLabel('Your Reply', { exact: true }).fill('Keep this draft while reading.');
     const before = await bounds();
     await p.evaluate(messages => { __contextMessages = messages; __holdContext = false; __contextPending.splice(0).forEach(resolve => resolve()); }, messages);
@@ -32,16 +32,16 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     ok('late context cannot replace a direct request', await p.locator('[data-context-message]').count() === 0 && (await p.locator('.decisions-context').innerText()).includes('sent directly'));
     await p.evaluate(() => { __contextFailure = true; }); await choose(t, 'r200');
-    await p.getByRole('button', { name: 'Retry Conversation', exact: true }).waitFor(); const failed = await bounds();
+    await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor(); const failed = await bounds();
     ok('structured requests retain recommendations when context fails', await p.locator('.decisions-recommendation').count() === 2 && (await p.locator('.decisions-context').innerText()).includes('could not be read'));
     await t.shot('decisions-context-error');
     await p.evaluate(() => { __contextFailure = false; __contextMessages = []; });
-    await p.getByRole('button', { name: 'Retry Conversation', exact: true }).click();
+    await p.getByRole('button', { name: 'Try Again', exact: true }).click();
     await p.waitForFunction(() => document.querySelector('.decisions-context').textContent.includes('no earlier messages'));
     ok('empty context and retry retain the same bounds', JSON.stringify(failed) === JSON.stringify(await bounds()));
     for (const invalid of [[...messages, messages[0]], [{ ...messages[0], room: 'another-group' }], [{ ...messages[0], id: 200 }], [messages[1], messages[0]], [{ ...messages[0], createdAt: 'invalid' }]]) {
       await choose(t, 'r300'); await p.evaluate(value => { __contextMessages = value; }, invalid); await choose(t, 'r200');
-      await p.getByRole('button', { name: 'Retry Conversation', exact: true }).waitFor();
+      await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
       ok('invalid context is refused without exposing messages', await p.locator('[data-context-message]').count() === 0 && JSON.stringify(failed) === JSON.stringify(await bounds()));
     }
     await choose(t, 'r300');

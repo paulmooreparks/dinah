@@ -291,7 +291,7 @@
         entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace, origin); } });
       if (item.lead && app().RemoveChat) entry.actions.push({ label: 'Remove Chat…', run: function () { return openRemove(item.lead, origin); } });
         entry.actions.push({ label: 'Refresh Recovery Status', run: function () { return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); }); } });
-      if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Delivery', run: function () {
+      if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Message', run: function () {
           return app().RetryWaitingSession(item.lead).then(function () { return restoreNotifications(); });
         } });
       return entry;
@@ -344,7 +344,7 @@
           return index.resolve(latest.message).then(function (id) { return id ? window.dinahDecisions.openRequest(id) : openSource(); });
         }).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return dismissAttention(ids); }).finally(function () { attentionNavigation--; });
       }
-      var actions = [{ label: decisionId ? 'Open Decision' : latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
+      var actions = [{ label: decisionId ? 'Open Request in Decisions' : latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
       if (latest.kind === 'relay' && latest.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(latest.lead); } });
       notices.add({ id: group.id, type: latest.kind === 'attention' ? 'question' : latest.kind === 'relay' ? 'warning' : 'info', needsPerson: true,
         title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,

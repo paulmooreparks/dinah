@@ -36,7 +36,7 @@ const { launch } = require('./lib/page');
     ok('routing recovery has actual target details, review and Dismiss, without retry',
       await conflict.getByRole('button', { name: 'Review Chat', exact: true }).count() === 1 && await conflict.getByRole('button', { name: 'Recover Original Chat', exact: true }).count() === 1 &&
       await conflict.getByRole('button', { name: /Retry/ }).count() === 0 && await conflict.getByRole('button', { name: 'Dismiss', exact: true }).count() === 1 && (await conflict.textContent()).includes('Actual target retained'));
-    await retry.getByRole('button', { name: 'Retry Waiting Delivery', exact: true }).click();
+    await retry.getByRole('button', { name: 'Retry Waiting Message', exact: true }).click();
     await retry.waitFor({ state: 'detached' });
     ok('explicit retry addresses its original owner and removes only completed state', await page.evaluate(() => __calls.some(c => c[0] === 'retry' && c[1] === 'codex:retry')) && await conflict.count() === 1);
     await conflict.getByRole('button', { name: 'Review Chat', exact: true }).click();

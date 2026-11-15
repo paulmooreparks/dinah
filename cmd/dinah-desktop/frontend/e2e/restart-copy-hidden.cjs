@@ -63,7 +63,7 @@ const until = async (fn, label) => {
     stats.attentionCards = await page.locator('#questions .attention-kept').count();
     await page.evaluate(() => dinahWorkbench.open('decisions'));
     if(stats.decisionRows) await page.waitForSelector('.decisions-row');
-    else await page.getByText('No open requests.', {exact:true}).waitFor();
+    else await page.getByText('There are no open requests.', {exact:true}).waitFor();
     stats.initialRenderedDecisionRows = await page.locator('.decisions-row').count();
     stats.workingChats = (await page.evaluate(() => go.main.App.UpdateState())).working;
     stats.statusCount = await page.locator('#status-decisions').getAttribute('data-status-count');

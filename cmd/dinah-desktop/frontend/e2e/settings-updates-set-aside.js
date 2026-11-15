@@ -31,7 +31,7 @@ const { copy, start: startAside, finish: finishAside } = require('./lib/set-asid
     await p.locator('#ask-no').click(); await ready();
     ok('cancellation retains the selected copy', await row(1).locator('input').isChecked());
     await p.locator('#set-aside-remove').click(); await p.locator('#ask-yes').click();
-    await p.waitForFunction(() => document.querySelector('#set-aside-results').textContent.includes('Reported removed size: 1,024 bytes')); await ready();
+    await p.waitForFunction(() => document.querySelector('#set-aside-results').textContent.includes('Combined size of removed files: 1,024 bytes')); await ready();
     ok('removal uses only the selected identity and retains its row', await p.evaluate(id => { const calls = __updateCalls.filter(call => call[0] === 'RemoveSetAsidePrograms'); return calls.length === 1 && JSON.stringify(calls[0][1]) === JSON.stringify({ ids: [id] }); }, copy(1).id) && await row(1).locator('input').isDisabled());
     await p.locator('#settings-tab-set-aside').click(); await ready();
     ok('Updates removal is reflected in Settings with its result', (await p.locator('#set-aside-results').innerText()).includes('1,024 bytes') && await row(1).locator('input').isDisabled() && await row(2).locator('input').isDisabled() && await row(3).locator('input').isDisabled());
@@ -55,7 +55,7 @@ const { copy, start: startAside, finish: finishAside } = require('./lib/set-asid
     const page = standalone.page;
     standalone.ok('Settings keeps its original card without an updates service', await page.locator('#settings-tab-updates').isHidden() && await page.locator('#settings-set-aside #set-aside-card').isVisible() && await page.locator('#updates-set-aside').isHidden());
     await page.locator('#set-aside-list input').first().check();
-    standalone.ok('the standalone card still selects eligible copies', (await page.locator('#set-aside-total').innerText()).includes('1 selected; total logical size: 1,024 bytes'));
+    standalone.ok('the standalone card still selects eligible copies', (await page.locator('#set-aside-total').innerText()).includes('1 selected. Combined file size: 1,024 bytes'));
     await page.reload(); await page.locator('#settings-set-aside [data-copy-id]').first().waitFor();
     standalone.ok('the standalone address restores without an Updates entry', await page.locator('#settings-tab-updates').isHidden() && await page.locator('#settings-set-aside #set-aside-card').isVisible() && await page.locator('#set-aside-card').count() === 1);
     standalone.ok('no Updates operation is needed for standalone Settings', !(await standalone.calls('CallService')).some(call => call[1] === 'updates'));

@@ -45,7 +45,7 @@ func openAside(path string, access, share uint32) (*os.File, string, error) {
 	if err != nil || attrs.FileAttributes&(windows.FILE_ATTRIBUTE_REPARSE_POINT|windows.FILE_ATTRIBUTE_DIRECTORY) != 0 {
 		f.Close()
 		if err == nil {
-			err = errors.New("the path is not an ordinary executable file")
+			err = errors.New("This copy is not a regular program file.")
 		}
 		return nil, "", err
 	}
@@ -80,7 +80,7 @@ func runningAsideImages() (map[string][]uint32, []string, error) {
 			break
 		}
 		if len(ids) >= 65536 {
-			return nil, nil, errors.New("the process list exceeded the inspection limit")
+			return nil, nil, errors.New("There are too many running programs to check safely.")
 		}
 		ids = make([]uint32, len(ids)*2)
 	}
@@ -109,7 +109,7 @@ func runningAsideImages() (map[string][]uint32, []string, error) {
 	}
 	warnings := []string{}
 	if unavailable > 0 {
-		warnings = append(warnings, fmt.Sprintf("%d processes could not be inspected or exited during inspection. Windows checks executable use again when removing a copy.", unavailable))
+		warnings = append(warnings, fmt.Sprintf("%d running programs could not be checked or closed during the check. Windows checks whether a copy is in use again before removing it.", unavailable))
 	}
 	return images, warnings, nil
 }
@@ -165,7 +165,7 @@ func removeAside(file asideFile, check func() error) (string, error) {
 	f, identity, err := openAside(file.path, windows.DELETE|windows.FILE_READ_ATTRIBUTES, windows.FILE_SHARE_READ)
 	if err != nil {
 		if errors.Is(err, windows.ERROR_SHARING_VIOLATION) || errors.Is(err, windows.ERROR_ACCESS_DENIED) {
-			return "in_use", errors.New("Windows refused exclusive deletion access; the copy may be in use or access is denied")
+			return "in_use", errors.New("Windows would not allow removal. This copy may be in use, or you may not have permission to remove it.")
 		}
 		return "io_error", err
 	}
@@ -175,7 +175,7 @@ func removeAside(file asideFile, check func() error) (string, error) {
 		return "io_error", err
 	}
 	if identity != file.identity || info.Size() != file.SizeBytes {
-		return "changed_or_missing", errors.New("the selected executable changed; refresh the list")
+		return "changed_or_missing", errors.New("The selected program copy changed. Refresh the list.")
 	}
 	if err := check(); err != nil {
 		return "changed_or_missing", err
@@ -184,7 +184,7 @@ func removeAside(file asideFile, check func() error) (string, error) {
 	err = windows.SetFileInformationByHandle(windows.Handle(f.Fd()), windows.FileDispositionInfo, &deleteFile, 1)
 	if err != nil {
 		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) || errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			return "in_use", errors.New("Windows refused deletion; the executable may be running or access is denied")
+			return "in_use", errors.New("Windows would not allow removal. This copy may be running, or you may not have permission to remove it.")
 		}
 		return "io_error", err
 	}

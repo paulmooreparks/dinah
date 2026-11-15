@@ -54,13 +54,13 @@ func (b *Bus) DecisionByID(ctx context.Context, identity string) (DecisionDetail
 	defer tx.Rollback()
 	d, closed, err := b.decision(tx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return out, errors.New("this decision is no longer available")
+		return out, errors.New("This request is no longer available.")
 	}
 	if err != nil {
 		return out, err
 	}
 	if d.ID != identity {
-		return out, errors.New("decision identity has the wrong kind")
+		return out, errors.New("This request could not be identified. Refresh the list.")
 	}
 	if d.Kind == "mention" {
 		var eligible bool
@@ -69,7 +69,7 @@ func (b *Bus) DecisionByID(ctx context.Context, identity string) (DecisionDetail
 			return out, err
 		}
 		if !eligible {
-			return out, errors.New("this decision is no longer available")
+			return out, errors.New("This request is no longer available.")
 		}
 	}
 	d.CanDismiss, d.DismissalReason = false, ""

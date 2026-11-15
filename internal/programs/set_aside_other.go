@@ -24,5 +24,5 @@ func runningAsideImages() (map[string][]uint32, []string, error) {
 }
 
 func removeAside(file asideFile, check func() error) (string, error) {
-	return "unsupported", errors.New("removing set-aside programs is supported only on Windows")
+	return "unsupported", errors.New("Removing set-aside programs is supported only on Windows.")
 }

@@ -73,7 +73,7 @@ async function stop(p) {
   check('confirmation names both copies and total',prompt.includes(names.old)&&prompt.includes(names.manual)&&prompt.includes('3,072 bytes'));
   check('confirmation precedes deletion',fs.existsSync(path.join(bin,names.old))&&fs.existsSync(path.join(bin,names.manual)));
   await page.locator('#ask-yes').click();
-  await page.waitForFunction(()=>document.querySelector('#set-aside-results').textContent.includes('Reported removed size: 3,072 bytes.'));
+  await page.waitForFunction(()=>document.querySelector('#set-aside-results').textContent.includes('Combined size of removed files: 3,072 bytes.'));
   await page.waitForFunction(()=>document.querySelector('#set-aside-status').textContent.includes('2 copies listed'));
   const text=await page.locator('#set-aside-results').innerText();
   check('both results report removal',text.includes(names.old+': Removed.')&&text.includes(names.manual+': Removed.'));

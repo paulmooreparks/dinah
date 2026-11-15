@@ -22,14 +22,14 @@
     area.appendChild(node('h3', '', 'Before This Message'));
     var body = node('div', 'decisions-context-body'); area.appendChild(body);
     function read() {
-      body.replaceChildren(node('p', 'text-muted', 'Reading the group conversation.')); body.setAttribute('aria-busy', 'true');
+      body.replaceChildren(node('p', 'text-muted', 'Loading the group conversation.')); body.setAttribute('aria-busy', 'true');
       Promise.resolve().then(function () {
         var app = window.dinahHelpers.app();
-        if (!app || !app.BusGroupMessageContext) throw new Error('Conversation context is unavailable in this build.');
+        if (!app || !app.BusGroupMessageContext) throw new Error('Earlier group messages are unavailable in this build.');
         return app.BusGroupMessageContext(item.group, item.messageId);
       }).then(function (messages) {
         if (!area.isConnected) return;
-        if (!valid(messages, item)) throw new Error('The conversation response is invalid.');
+        if (!valid(messages, item)) throw new Error('The earlier group messages could not be loaded.');
         body.replaceChildren();
         if (!messages.length) body.appendChild(node('p', 'text-muted', 'There are no earlier messages in this group.'));
         messages.forEach(function (message) {
@@ -44,7 +44,7 @@
       }).catch(function (error) {
         if (!area.isConnected) return;
         body.replaceChildren(node('p', 'text-muted', 'Conversation could not be read. ' + window.dinahHelpers.message(error, 'sentence')));
-        var retry = node('button', 'btn btn-sm', 'Retry Conversation'); retry.type = 'button'; retry.addEventListener('click', read); body.appendChild(retry);
+        var retry = node('button', 'btn btn-sm', 'Try Again'); retry.type = 'button'; retry.addEventListener('click', read); body.appendChild(retry);
       }).finally(function () { body.removeAttribute('aria-busy'); });
     }
     if (item.group) read(); else body.appendChild(node('p', 'text-muted', 'This request was sent directly and has no group conversation.'));
