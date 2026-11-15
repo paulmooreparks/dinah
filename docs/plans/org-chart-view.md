@@ -14,6 +14,8 @@ Paul also said on 15 November that the chart goes into the products built on Din
 
 Paul approved the mockup on 15 November 2026 ("That's exactly what I have in mind"). It is in `docs/mockups/org-chart*.png`, with its source beside it. One change is made in the build: the line that stands for a folded team is a raised control that unfolds it, as PUDL requires for anything pressable.
 
+After the first build, Paul rejected its corrections mockup and asked for the chart to be redone on the model of his 13 November canvas. He approved the redone mockup in `docs/mockups/org-chart/index.html` on 15 November 2026 ("Yes, that is much better"), with one correction. A team lead cannot be assigned to a team while any chat reports to it. Its members have to be reassigned first, and only once no chat reports to it may the lead be assigned. Assign to a Team is therefore unavailable for a lead with members, and its reason says so. The host refuses the same request, so the rule does not depend on the page. In the redone chart, groups appear as buttons on their members' boxes and in a list of groups with their members. No group is drawn as an empty container, and there are no dotted lines. Every actions button is always visible.
+
 ## Shape
 
 The chart is a Dinah page with its own address, under the Architectural Principles. It is not a diagram document. It uses the drawing and layout code of the Diagrams applet, and it reads Dinah's own records of teams, leads, members, groups and chat state, so it adds no new record of its own.
