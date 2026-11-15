@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"studio/internal/sessionhost"
+	"testing"
+)
 
 func TestCodexDeletionRefusesIndependentDescendant(t *testing.T) {
 	s := Settings{SessionTitles: map[string]string{"codex:other": "Separate chat"},
@@ -43,5 +48,26 @@ func TestCodexDeletionAllowsOwnedAbandonedCandidate(t *testing.T) {
 	s := Settings{ChatTransfers: map[string]chatTransfer{"codex:root": {Source: "codex:root", Target: "codex:child", Stage: "rejected"}}}
 	if err := codexDeletionOwnership(s, nil, "codex:root", []string{"codex:child"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCodexDeletionTranscriptEvidenceDoesNotNeedReadableContent(t *testing.T) {
+	dir := t.TempDir()
+	path := sessionhost.TranscriptPath(dir, "codex:child")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("damaged transcript"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	known, err := codexDeletionTranscriptIDs(dir, []string{"codex:child", "codex:absent"})
+	if err != nil || !known["codex:child"] || known["codex:absent"] {
+		t.Fatalf("transcript evidence = %v, %v", known, err)
+	}
+	if err := codexDeletionOwnership(Settings{}, known, "codex:root", []string{"codex:child"}); err == nil {
+		t.Fatal("damaged independent transcript authorized native deletion")
+	}
+	if _, err := codexDeletionTranscriptIDs(string([]byte{0}), []string{"codex:child"}); err == nil {
+		t.Fatal("filesystem error was treated as absent ownership")
 	}
 }
