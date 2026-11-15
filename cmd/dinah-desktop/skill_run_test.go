@@ -59,7 +59,7 @@ func TestSkillRunStartsAChatWithItsInstructions(t *testing.T) {
 	}
 	var prompt *acp.PromptParams
 	model := ""
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		switch p := call.params.(type) {
 		case acp.PromptParams:
 			prompt = &p

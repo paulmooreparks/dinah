@@ -45,7 +45,7 @@ func (c *judgeConn) Call(ctx context.Context, method string, p, out any) error {
 	defer c.mu.Unlock()
 	switch method {
 	case "session/new":
-		c.calls = append(c.calls, providerCall{method, p})
+		c.calls.Add(providerCall{method, p})
 		c.newParams = p.(acp.NewSessionParams)
 		if c.beforeNew != nil {
 			c.beforeNew(c)
@@ -53,7 +53,7 @@ func (c *judgeConn) Call(ctx context.Context, method string, p, out any) error {
 		*out.(*acp.NewSessionResult) = acp.NewSessionResult{SessionID: c.id, ConfigOptions: c.options}
 		return nil
 	case "session/prompt":
-		c.calls = append(c.calls, providerCall{method, p})
+		c.calls.Add(providerCall{method, p})
 		if entries, err := os.ReadDir(c.newParams.Cwd); err == nil {
 			c.folderEmpty = len(entries) == 0
 		}
@@ -69,13 +69,13 @@ func (c *judgeConn) Call(ctx context.Context, method string, p, out any) error {
 		*out.(*acp.PromptResult) = acp.PromptResult{StopReason: "end_turn"}
 		return nil
 	case "session/close", "session/delete":
-		c.calls = append(c.calls, providerCall{method, p})
+		c.calls.Add(providerCall{method, p})
 		return nil
 	}
 	return c.testProviderConnection.Call(ctx, method, p, out)
 }
 
-func judgeConnApp(t *testing.T) (*App, *judgeConn, *[]string) {
+func judgeConnApp(t *testing.T) (*App, *judgeConn, func() []string) {
 	t.Helper()
 	a, c := providerTestApp(t)
 	jc := &judgeConn{testProviderConnection: c, a: a, id: "judge-session", answer: `{"line":"Judged"}`, used: 4321}
@@ -83,19 +83,16 @@ func judgeConnApp(t *testing.T) (*App, *judgeConn, *[]string) {
 	init := a.runtime.ProviderLocked("codex").Initialization()
 	init.AgentCapabilities.SessionCapabilities.Close = &struct{}{}
 	setTestInitialization(a, "codex", init)
-	var mu sync.Mutex
-	var events []string
+	var events testCollector[string]
 	a.sink = func(name string, _ any) {
-		mu.Lock()
-		events = append(events, name)
-		mu.Unlock()
+		events.Add(name)
 	}
-	return a, jc, &events
+	return a, jc, events.Snapshot
 }
 
 func (c *judgeConn) called(method string) int {
 	n := 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == method {
 			n++
 		}
@@ -124,16 +121,16 @@ func TestAnAgentJudgeCallRunsInAnEmptyFolderAndCountsTheReportedUsage(t *testing
 		t.Fatalf("the folder was not removed: %v", err)
 	}
 	if c.called("session/set_config_option") != 1 || c.called("session/close") != 1 {
-		t.Fatalf("calls %+v", c.calls)
+		t.Fatalf("calls %+v", c.calls.Snapshot())
 	}
-	prompt := c.calls[len(c.calls)-2].params.(acp.PromptParams).Prompt[0].Text
+	prompt := c.calls.Snapshot()[len(c.calls.Snapshot())-2].params.(acp.PromptParams).Prompt[0].Text
 	if !strings.Contains(prompt, "Name the chat.") || !strings.Contains(prompt, `{"x":1}`) {
 		t.Fatalf("prompt %q", prompt)
 	}
 	// Nothing of the call reached a chat or the page.
-	for _, e := range *events {
+	for _, e := range events() {
 		if strings.HasPrefix(e, "agent:") || strings.HasPrefix(e, "chat:") {
-			t.Fatalf("the call was shown as %s: %v", e, *events)
+			t.Fatalf("the call was shown as %s: %v", e, events())
 		}
 	}
 }
@@ -150,7 +147,7 @@ func TestAnAgentJudgeSessionIsDeletedWhenTheAgentCan(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.called("session/delete") != 1 || c.called("session/close") != 0 {
-		t.Fatalf("calls %+v", c.calls)
+		t.Fatalf("calls %+v", c.calls.Snapshot())
 	}
 }
 
@@ -177,7 +174,7 @@ func TestAnAgentJudgeIsRefusedEveryRequest(t *testing.T) {
 		t.Fatal("a judge read a file")
 	}
 	if c.called("session/close") != 1 {
-		t.Fatalf("the session was not ended: %+v", c.calls)
+		t.Fatalf("the session was not ended: %+v", c.calls.Snapshot())
 	}
 	// With no rejection offered the request is answered as cancelled.
 	c.duringPrompt = func(c *judgeConn) {
@@ -259,13 +256,13 @@ func TestAJudgeSessionsCommandsNeverReachTheChats(t *testing.T) {
 		t.Fatalf("the commands are %+v", got)
 	}
 	n := 0
-	for _, e := range *events {
+	for _, e := range events() {
 		if e == "agent:commands" {
 			n++
 		}
 	}
 	if n != 1 {
-		t.Fatalf("%d command events: %v", n, *events)
+		t.Fatalf("%d command events: %v", n, events())
 	}
 }
 
@@ -283,7 +280,7 @@ func TestAnAgentProvidersModelsComeFromItsModelSetting(t *testing.T) {
 		}
 	}
 	if c.called("session/close") != 1 {
-		t.Fatalf("calls %+v", c.calls)
+		t.Fatalf("calls %+v", c.calls.Snapshot())
 	}
 }
 

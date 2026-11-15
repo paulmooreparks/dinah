@@ -33,7 +33,7 @@ func TestPermissionAttentionSurvivesCancellationAndRestartUntilAnswered(t *testi
 	if err != nil || len(items) != 1 || items[0].Body != "Approve this step" || items[0].SessionTitle != "Review" || items[0].PermissionKey != key {
 		t.Fatalf("saved attention: %+v %v", items, err)
 	}
-	if len(native.shown) != 1 {
+	if len(native.shown.Snapshot()) != 1 {
 		t.Fatal("native signal was not paired with saved attention")
 	}
 	a.permissions().CancelSession("chat")

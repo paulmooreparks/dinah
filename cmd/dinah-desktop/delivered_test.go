@@ -172,7 +172,7 @@ func (d *deliveredChat) replay(t *testing.T, extra ...string) {
 		}
 	}
 	var calls []acp.PromptParams
-	for _, call := range d.c.calls {
+	for _, call := range d.c.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			calls = append(calls, call.params.(acp.PromptParams))
 		}

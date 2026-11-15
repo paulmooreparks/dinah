@@ -94,7 +94,7 @@ func TestAClosedChatsQueueWaitsUntilItIsOpened(t *testing.T) {
 	b, c2 := restarted(t, a)
 	b.queueRestorer().Sweep()
 	if countCalls(c2, "session/new")+countCalls(c2, "session/load")+countCalls(c2, "session/prompt") != 0 {
-		t.Fatalf("a closed chat's queue ran: %+v", c2.calls)
+		t.Fatalf("a closed chat's queue ran: %+v", c2.calls.Snapshot())
 	}
 	if kept, _ := b.queueStore.Load(info.ID); len(kept) != 3 {
 		t.Fatalf("the queue of the closed chat is %d messages", len(kept))

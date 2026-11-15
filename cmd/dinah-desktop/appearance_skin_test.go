@@ -15,10 +15,10 @@ import (
 // build lacks is kept as the choice and Standard is drawn; the skins offered come from the release's catalogue.
 func TestTheSkinIsKeptInTheAppearanceStoreAndTheCatalogueDecidesWhatIsDrawn(t *testing.T) {
 	a, _ := providerTestApp(t)
-	var events []map[string]any
+	var events testCollector[map[string]any]
 	a.sink = func(name string, data any) {
 		if name == "appearance:changed" {
-			events = append(events, data.(map[string]any))
+			events.Add(data.(map[string]any))
 		}
 	}
 	snapshot, err := a.ReadAppearance()
@@ -35,8 +35,8 @@ func TestTheSkinIsKeptInTheAppearanceStoreAndTheCatalogueDecidesWhatIsDrawn(t *t
 	if err != nil || saved.State.Skin != chosen || saved.Effective != chosen {
 		t.Fatalf("choosing %s: %+v %v", chosen, saved, err)
 	}
-	if len(events) != 1 || events[0]["skin"] != chosen || events[0]["revision"] != saved.Revision {
-		t.Fatalf("the change was announced as %v", events)
+	if len(events.Snapshot()) != 1 || events.Snapshot()[0]["skin"] != chosen || events.Snapshot()[0]["revision"] != saved.Revision {
+		t.Fatalf("the change was announced as %v", events.Snapshot())
 	}
 	// A page that does not say which skin keeps the stored one.
 	next := saved.State

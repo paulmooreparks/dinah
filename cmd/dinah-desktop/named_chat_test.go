@@ -10,7 +10,7 @@ import (
 func TestCreateNamedChatMakesAFinishedChatAndSendsNoPrompt(t *testing.T) {
 	a, c := providerTestApp(t)
 	c.newIDs = []string{"codex:named"}
-	before := len(c.calls)
+	before := len(c.calls.Snapshot())
 	info, err := a.CreateNamedChat(t.TempDir(), "codex", "", "  Fix the Parser ")
 	if err != nil {
 		t.Fatal(err)
@@ -18,7 +18,7 @@ func TestCreateNamedChatMakesAFinishedChatAndSendsNoPrompt(t *testing.T) {
 	if info.Title != "Fix the Parser" || a.session(info.ID) == nil {
 		t.Fatalf("the chat: %+v", info)
 	}
-	for _, call := range c.calls[before:] {
+	for _, call := range c.calls.Snapshot()[before:] {
 		if _, ok := call.params.(acp.PromptParams); ok {
 			t.Fatalf("a prompt was sent: %+v", call)
 		}
@@ -28,12 +28,12 @@ func TestCreateNamedChatMakesAFinishedChatAndSendsNoPrompt(t *testing.T) {
 func TestCreateNamedChatWithoutATitleMakesNothing(t *testing.T) {
 	a, c := providerTestApp(t)
 	c.newIDs = []string{"codex:named"}
-	before := len(c.calls)
+	before := len(c.calls.Snapshot())
 	if _, err := a.CreateNamedChat(t.TempDir(), "codex", "", "   "); err == nil {
 		t.Fatal("expected a refusal")
 	}
-	if len(c.calls) != before {
-		t.Fatalf("a chat was started: %d calls", len(c.calls)-before)
+	if len(c.calls.Snapshot()) != before {
+		t.Fatalf("a chat was started: %d calls", len(c.calls.Snapshot())-before)
 	}
 }
 

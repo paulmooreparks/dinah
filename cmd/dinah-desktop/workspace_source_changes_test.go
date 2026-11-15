@@ -19,15 +19,15 @@ func TestASourceChangedWhereItIsKeptIsSentToThePageOnce(t *testing.T) {
 	service, ref := resourceTestService(t, source)
 	a := service.app
 	var mu sync.Mutex
-	var got []WorkspaceMountChange
+	var got testCollector[WorkspaceMountChange]
 	a.sink = func(name string, data any) {
 		if change, ok := data.(WorkspaceMountChange); ok && name == "workspace:changed" && change.Kind == "source-changed" {
 			mu.Lock()
-			got = append(got, change)
+			got.Add(change)
 			mu.Unlock()
 		}
 	}
-	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got) }
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got.Snapshot()) }
 	if workspaces.SourceChangesHeard() {
 		t.Fatal("changes are heard before the window starts")
 	}
@@ -45,8 +45,8 @@ func TestASourceChangedWhereItIsKeptIsSentToThePageOnce(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	time.Sleep(2 * watchQuiet)
-	if n := count(); n != 1 || got[0].WorkspaceID != ref.WorkspaceID || got[0].SourceID != "wiki" {
-		t.Fatalf("a burst of changes sent %d events: %+v", n, got)
+	if n := count(); n != 1 || got.Snapshot()[0].WorkspaceID != ref.WorkspaceID || got.Snapshot()[0].SourceID != "wiki" {
+		t.Fatalf("a burst of changes sent %d events: %+v", n, got.Snapshot())
 	}
 	a.stopSourceChanges()
 	if workspaces.SourceChangesHeard() {
@@ -55,7 +55,7 @@ func TestASourceChangedWhereItIsKeptIsSentToThePageOnce(t *testing.T) {
 	workspaces.SourceChanged("wiki")
 	time.Sleep(2 * watchQuiet)
 	if n := count(); n != 1 {
-		t.Fatalf("a change after the window stopped was sent: %+v", got)
+		t.Fatalf("a change after the window stopped was sent: %+v", got.Snapshot())
 	}
 }
 

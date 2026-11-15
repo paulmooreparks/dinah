@@ -191,11 +191,11 @@ func useTestSource(t *testing.T, files map[string]string) {
 func TestPackagesUpdateFromASource(t *testing.T) {
 	isolateWorkspaceSettings(t)
 	a := closeBusWhenDone(t, NewApp())
-	var events []string
+	var events testCollector[string]
 	a.sink = func(name string, data any) {
 		if strings.HasPrefix(name, "packages:") {
 			b, _ := json.Marshal(data)
-			events = append(events, name+" "+string(b))
+			events.Add(name + " " + string(b))
 		}
 	}
 	tg, err := personalPackageTargets()
@@ -221,8 +221,8 @@ func TestPackagesUpdateFromASource(t *testing.T) {
 	if m, _ := setup.InstalledPersonal(tg, "team-setup"); m == nil || m.Version != "16" {
 		t.Fatalf("an update was installed without asking: %+v", m)
 	}
-	if len(events) != 1 || !strings.HasPrefix(events[0], "packages:update-available") || !strings.Contains(events[0], `"to":"17"`) || strings.Contains(events[0], `"reason"`) {
-		t.Fatalf("events %v", events)
+	if len(events.Snapshot()) != 1 || !strings.HasPrefix(events.Snapshot()[0], "packages:update-available") || !strings.Contains(events.Snapshot()[0], `"to":"17"`) || strings.Contains(events.Snapshot()[0], `"reason"`) {
+		t.Fatalf("events %v", events.Snapshot())
 	}
 	// The person installs it from the offer.
 	p, err = setup.PlanPersonal(filepath.Join(packageUpdatesDir(), "team-setup-v17.zip"), tg, "1.20.0")
@@ -239,7 +239,7 @@ func TestPackagesUpdateFromASource(t *testing.T) {
 	// A hand-changed copy makes the next offer say so, and it is made once.
 	os.WriteFile(filepath.Join(tg.Folders[workspaces.Skills], "concept-review", "SKILL.md"), []byte("My words.\n"), 0o644)
 	useTestSource(t, map[string]string{"18": makePackage(t, "team-setup", "18", skill("Newer.\n"))})
-	events = nil
+	events.Reset()
 	for i := 0; i < 2; i++ {
 		if err := a.checkPackageUpdates(); err != nil {
 			t.Fatal(err)
@@ -248,8 +248,8 @@ func TestPackagesUpdateFromASource(t *testing.T) {
 	if m, _ := setup.InstalledPersonal(tg, "team-setup"); m.Version != "17" {
 		t.Fatal("a hand-changed install was updated without asking")
 	}
-	if len(events) != 1 || !strings.HasPrefix(events[0], "packages:update-available") || !strings.Contains(events[0], "changed by hand") {
-		t.Fatalf("events %v", events)
+	if len(events.Snapshot()) != 1 || !strings.HasPrefix(events.Snapshot()[0], "packages:update-available") || !strings.Contains(events.Snapshot()[0], "changed by hand") {
+		t.Fatalf("events %v", events.Snapshot())
 	}
 	status, err := a.FindPackageUpdates()
 	if err != nil || len(status.Updates) != 1 || !strings.Contains(status.Updates[0].Reason, "changed by hand") {

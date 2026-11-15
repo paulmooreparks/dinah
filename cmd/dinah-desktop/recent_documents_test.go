@@ -22,10 +22,10 @@ func TestRecentDocumentsRecordsThePersonsOpens(t *testing.T) {
 	record := newWorkspaceRecord(dir)
 	record.Name = "Projects"
 	a.settings.WorkspaceRecords = []WorkspaceRecord{record}
-	var told []RecentChange
+	var told testCollector[RecentChange]
 	a.sink = func(name string, data any) {
 		if name == "documents:recent" {
-			told = append(told, data.(RecentChange))
+			told.Add(data.(RecentChange))
 		}
 	}
 
@@ -48,8 +48,8 @@ func TestRecentDocumentsRecordsThePersonsOpens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 3 || len(told) != 3 {
-		t.Fatalf("recent %+v, told %d times", got, len(told))
+	if len(got) != 3 || len(told.Snapshot()) != 3 {
+		t.Fatalf("recent %+v, told %d times", got, len(told.Snapshot()))
 	}
 	if got[0].File != elsewhere || got[0].Kind != recent.KindComputerFile || got[0].WorkspaceName != "Projects" {
 		t.Fatalf("newest %+v", got[0])
@@ -57,7 +57,7 @@ func TestRecentDocumentsRecordsThePersonsOpens(t *testing.T) {
 	if got[1].Ref == nil || got[1].Ref.Path != "notes.md" || got[2].Ref == nil || got[2].Ref.Path != "plan.md" || got[2].WorkspaceName != "Projects" {
 		t.Fatalf("older %+v %+v", got[1], got[2])
 	}
-	for _, change := range told {
+	for _, change := range told.Snapshot() {
 		if change.Error != "" {
 			t.Fatalf("recording failed: %s", change.Error)
 		}

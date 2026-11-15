@@ -154,31 +154,31 @@ func TestWorkspaceMountChangesOnlyPublishAfterSave(t *testing.T) {
 	isolateWorkspaceSettings(t)
 	v, _ := mountTestVFS(t)
 	a := v.service.app
-	var events []WorkspaceMountChange
+	var events testCollector[WorkspaceMountChange]
 	a.sink = func(name string, data any) {
 		if name == "workspace:changed" {
-			events = append(events, data.(WorkspaceMountChange))
+			events.Add(data.(WorkspaceMountChange))
 		}
 	}
 	record, err := a.RenameWorkspace("resource-workspace", "Updated Name")
-	if err != nil || record.MountAlias != "Updated Name" || len(events) != 1 || events[0].Kind != "workspace-renamed" {
-		t.Fatalf("rename %+v events %+v %v", record, events, err)
+	if err != nil || record.MountAlias != "Updated Name" || len(events.Snapshot()) != 1 || events.Snapshot()[0].Kind != "workspace-renamed" {
+		t.Fatalf("rename %+v events.Snapshot() %+v %v", record, events.Snapshot(), err)
 	}
-	if _, err := a.RenameWorkspace("missing", "Name"); err == nil || len(events) != 1 {
+	if _, err := a.RenameWorkspace("missing", "Name"); err == nil || len(events.Snapshot()) != 1 {
 		t.Fatal("failed mutation emitted a change")
 	}
-	if _, err := a.AttachLocalWorkspaceSource(record.ID, t.TempDir(), "Attached"); err != nil || len(events) != 2 || events[1].Kind != "source-attached" {
-		t.Fatalf("attach events %+v %v", events, err)
+	if _, err := a.AttachLocalWorkspaceSource(record.ID, t.TempDir(), "Attached"); err != nil || len(events.Snapshot()) != 2 || events.Snapshot()[1].Kind != "source-attached" {
+		t.Fatalf("attach events.Snapshot() %+v %v", events.Snapshot(), err)
 	}
-	if _, err := a.DetachWorkspaceSource(record.ID, events[1].SourceID); err != nil || len(events) != 3 || events[2].Kind != "source-detached" {
-		t.Fatalf("detach events %+v %v", events, err)
+	if _, err := a.DetachWorkspaceSource(record.ID, events.Snapshot()[1].SourceID); err != nil || len(events.Snapshot()) != 3 || events.Snapshot()[2].Kind != "source-detached" {
+		t.Fatalf("detach events.Snapshot() %+v %v", events.Snapshot(), err)
 	}
 	blocked := filepath.Join(t.TempDir(), "blocked")
 	if err := os.WriteFile(blocked, []byte("file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	configOverride = blocked
-	if _, err := a.RenameWorkspace(record.ID, "Failed Save"); err == nil || len(events) != 3 {
+	if _, err := a.RenameWorkspace(record.ID, "Failed Save"); err == nil || len(events.Snapshot()) != 3 {
 		t.Fatal("failed persistence emitted a change")
 	}
 	if a.settings.WorkspaceRecords[0].Name != "Updated Name" {

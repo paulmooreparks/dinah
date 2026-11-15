@@ -69,7 +69,7 @@ func TestContinuationCreatesLinkedChatWithoutPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			t.Fatal("switch sent a prompt")
 		}
@@ -107,7 +107,7 @@ func TestContinuationCreatesLinkedChatWithoutPrompt(t *testing.T) {
 	}
 	a.turnIO().Run(next, promptPointer("Continue the report", []acp.ContentBlock{{Type: "text", Text: "Continue the report"}}))
 	var sent acp.PromptParams
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			sent = call.params.(acp.PromptParams)
 		}
@@ -132,7 +132,7 @@ func TestContinuationRejectsChangedOrUnavailableHistory(t *testing.T) {
 	if _, err := a.ContinueSessionWithProvider(s.ID(), "codex", p.Revision); err == nil {
 		t.Fatal("outdated confirmation accepted")
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("outdated confirmation created provider session")
 	}
 	missing := newSessionState(&sessionSeed{ID: "never-captured", Provider: "devin", Cwd: s.Cwd()}, sessionInitial{Open: true})

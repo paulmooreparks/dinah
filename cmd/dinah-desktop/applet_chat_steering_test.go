@@ -193,7 +193,7 @@ func TestChatQuestionSteersActiveTurnOrFallsBackOnce(t *testing.T) {
 					t.Fatalf("reply %v, error %v, want %q", r.out, r.err, want)
 				}
 			}
-			calls := append([]providerCall(nil), base.testProviderConnection.calls...)
+			calls := append([]providerCall(nil), base.testProviderConnection.calls.Snapshot()...)
 			prompts := 0
 			for _, call := range calls {
 				if call.method == "session/cancel" {

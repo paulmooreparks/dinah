@@ -509,7 +509,7 @@ func TestOpeningAContinuedChatOpensOnlyItsHead(t *testing.T) {
 	if info.ID != "codex:third" {
 		t.Fatalf("the open returned %s, not the newest continuation", info.ID)
 	}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method != "session/load" {
 			continue
 		}

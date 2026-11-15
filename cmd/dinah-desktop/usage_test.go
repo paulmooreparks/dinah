@@ -17,7 +17,7 @@ type usageTestConnection struct {
 }
 
 func (c *usageTestConnection) Call(ctx context.Context, method string, params, out any) error {
-	c.calls = append(c.calls, providerCall{method, params})
+	c.calls.Add(providerCall{method, params})
 	deadline, ok := ctx.Deadline()
 	if !ok || time.Until(deadline) > 8*time.Second {
 		return errors.New("account calls must be bounded")
@@ -69,8 +69,8 @@ func TestProviderUsageReportsAllBuckets(t *testing.T) {
 	if first.Primary.UsedPercent == nil || *first.Primary.UsedPercent != 0 || *first.Primary.WindowDurationMins != 300 || *first.Secondary.UsedPercent != 80 || *first.Secondary.ResetsAt != 1731547200 {
 		t.Fatalf("window data changed: %+v", first)
 	}
-	if len(c.calls) != 2 || c.calls[0].method != "account/read" || c.calls[1].method != "account/rateLimits/read" {
-		t.Fatalf("unexpected calls: %+v", c.calls)
+	if len(c.calls.Snapshot()) != 2 || c.calls.Snapshot()[0].method != "account/read" || c.calls.Snapshot()[1].method != "account/rateLimits/read" {
+		t.Fatalf("unexpected calls: %+v", c.calls.Snapshot())
 	}
 	data, _ := json.Marshal(got)
 	if strings.Contains(string(data), "private@example.com") {
@@ -124,8 +124,8 @@ func TestProviderUsageAccountRouting(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			a, c := usageTestApp(t, tt.account, `{}`)
 			got := a.ProviderUsage("codex")
-			if got.Status != tt.status || got.URL != tt.url || len(got.Buckets) != 0 || len(c.calls) != 1 {
-				t.Fatalf("incorrect account routing: %+v; calls %+v", got, c.calls)
+			if got.Status != tt.status || got.URL != tt.url || len(got.Buckets) != 0 || len(c.calls.Snapshot()) != 1 {
+				t.Fatalf("incorrect account routing: %+v; calls %+v", got, c.calls.Snapshot())
 			}
 		})
 	}
@@ -146,12 +146,12 @@ func TestProviderUsageErrorsNeverFallBackToDevin(t *testing.T) {
 	a, c := usageTestApp(t, `{}`, `{}`)
 	a.settings.UsagePage = "https://devin.example/custom"
 	got := a.ProviderUsage("devin")
-	if got.Status != "external" || got.URL != a.settings.UsagePage || len(c.calls) != 0 {
+	if got.Status != "external" || got.URL != a.settings.UsagePage || len(c.calls.Snapshot()) != 0 {
 		t.Fatalf("Devin usage changed: %+v", got)
 	}
 	for _, provider := range []string{"claude", "ollama", "unknown"} {
 		got := a.ProviderUsage(provider)
-		if got.Status != "unavailable" || got.URL != "" || len(c.calls) != 0 {
+		if got.Status != "unavailable" || got.URL != "" || len(c.calls.Snapshot()) != 0 {
 			t.Fatalf("unsupported provider fell through: %+v", got)
 		}
 	}

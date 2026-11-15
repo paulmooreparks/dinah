@@ -23,7 +23,7 @@ func TestDevinPricesWaitForRequestAndUseInitializedExecutable(t *testing.T) {
 	a.devinPrices.path, a.devinPrices.version, a.devinPrices.at = "invented-old-devin.exe", "old-version", time.Now()
 	a.noteDevinPriceSource("invented-current-devin.exe")
 	noMorePrices(t, events)
-	if reads() != 0 || len(conn.calls) != 0 {
+	if reads() != 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("recording initialized provider identity fetched prices")
 	}
 	_ = a.ModelPrices("devin")

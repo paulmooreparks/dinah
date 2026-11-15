@@ -62,8 +62,8 @@ func TestSetAsideChoiceStartsOffAndThenTheAdaptersRuleStands(t *testing.T) {
 	}
 	c.asideTurns = 2
 	n, err := ollamaSetAside(a, a.sessionConn(s), s.ID())
-	if err != nil || n != 2 || len(c.asideRequests) != 1 || asideRequestTurns(t, c.asideRequests[0]) != nil {
-		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests, err)
+	if err != nil || n != 2 || len(c.asideRequests.Snapshot()) != 1 || asideRequestTurns(t, c.asideRequests.Snapshot()[0]) != nil {
+		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests.Snapshot(), err)
 	}
 	if rows, _ := a.JudgementRecords(JudgementFilter{Kind: "set-aside-choice"}); len(rows.Records) != 1 || rows.Records[0].Why != "off" {
 		t.Fatalf("records %+v", rows.Records)
@@ -77,12 +77,12 @@ func TestTheTurnsAJudgeChoosesAreWhatTheAdapterIsAsked(t *testing.T) {
 	a, c, s := setAsideApp(t, true)
 	c.asideTurns = 2
 	n, err := ollamaSetAside(a, a.sessionConn(s), s.ID())
-	if err != nil || n != 2 || len(c.asideRequests) != 1 {
-		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests, err)
+	if err != nil || n != 2 || len(c.asideRequests.Snapshot()) != 1 {
+		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests.Snapshot(), err)
 	}
 	// The stand-in skips the first two turns and takes 3 and 4, which free 1700.
-	if got := asideRequestTurns(t, c.asideRequests[0]); !slices.Equal(got, []int{3, 4}) {
-		t.Fatalf("the adapter was asked to set aside %v: %v", got, c.asideRequests[0])
+	if got := asideRequestTurns(t, c.asideRequests.Snapshot()[0]); !slices.Equal(got, []int{3, 4}) {
+		t.Fatalf("the adapter was asked to set aside %v: %v", got, c.asideRequests.Snapshot()[0])
 	}
 	rows, _ := a.JudgementRecords(JudgementFilter{Kind: "set-aside-choice"})
 	if len(rows.Records) != 1 || rows.Records[0].Used != "judge" || rows.Records[0].EffectKind != "chat" || rows.Records[0].EffectID != s.ID() {
@@ -107,20 +107,22 @@ func TestAnAnswerThatIsNotAllowedFallsBackToTheOldestTurns(t *testing.T) {
 		"no turn":                     `{"turns":[]}`,
 	} {
 		set.SetJudge(&answering{answer}, "test", "tokens")
-		c.asideRequests = nil
-		if n, err := ollamaSetAside(a, a.sessionConn(s), s.ID()); err != nil || len(c.asideRequests) != 1 || asideRequestTurns(t, c.asideRequests[0]) != nil || n != 0 {
-			t.Errorf("%s: turns %d, requests %v, %v", name, n, c.asideRequests, err)
+		c.asideRequests.Reset()
+		if n, err := ollamaSetAside(a, a.sessionConn(s), s.ID()); err != nil || len(c.asideRequests.Snapshot()) != 1 || asideRequestTurns(t, c.asideRequests.Snapshot()[0]) != nil || n != 0 {
+			t.Errorf("%s: turns %d, requests %v, %v", name, n, c.asideRequests.Snapshot(), err)
 		}
 	}
 	// The adapter refuses a list a judge's answer passed, and the oldest are set aside.
 	set.SetJudge(&answering{`{"turns":[3,4]}`}, "test", "tokens")
-	c.asideRequests, c.refuseChosen, c.asideTurns = nil, true, 4
+	c.asideRequests.Reset()
+	c.refuseChosen, c.asideTurns = true, 4
 	n, err := ollamaSetAside(a, a.sessionConn(s), s.ID())
-	if err != nil || n != 4 || len(c.asideRequests) != 2 || asideRequestTurns(t, c.asideRequests[0]) == nil || asideRequestTurns(t, c.asideRequests[1]) != nil {
-		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests, err)
+	if err != nil || n != 4 || len(c.asideRequests.Snapshot()) != 2 || asideRequestTurns(t, c.asideRequests.Snapshot()[0]) == nil || asideRequestTurns(t, c.asideRequests.Snapshot()[1]) != nil {
+		t.Fatalf("turns %d, requests %v, %v", n, c.asideRequests.Snapshot(), err)
 	}
 	// Turns that cannot free what is needed even all together are never shown.
-	c.refuseChosen, c.asideRequests = false, nil
+	c.refuseChosen = false
+	c.asideRequests.Reset()
 	c.offered = &ollamaagent.AsideTurns{Needed: 99999, Turns: offeredTurns().Turns}
 	before, _ := a.JudgementRecords(JudgementFilter{Kind: "set-aside-choice"})
 	if _, err := ollamaSetAside(a, a.sessionConn(s), s.ID()); err != nil {

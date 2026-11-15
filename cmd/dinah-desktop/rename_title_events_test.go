@@ -14,7 +14,7 @@ func TestClosedChatRenameEmitsTitlesAfterSuccessfulSave(t *testing.T) {
 	if a.session(id) != nil || a.settings.BusSessions[id] != "" {
 		t.Fatal("fixture has a chat window or recipient")
 	}
-	var events []map[string]string
+	var events testCollector[map[string]string]
 	a.sink = func(name string, data any) {
 		if name != "agent:titles" {
 			return
@@ -24,18 +24,18 @@ func TestClosedChatRenameEmitsTitlesAfterSuccessfulSave(t *testing.T) {
 		if err != nil || !maps.Equal(saved.SessionTitles, titles) {
 			t.Errorf("event preceded durable title save: %+v %v", saved.SessionTitles, err)
 		}
-		events = append(events, titles)
+		events.Add(titles)
 	}
 	for _, title := range []string{"Renamed closed chat", ""} {
 		returned, err := a.RenameSession(id, title)
-		if err != nil || len(events) == 0 || !reflect.DeepEqual(returned, events[len(events)-1]) {
-			t.Fatalf("rename result %+v %v, events %+v", returned, err, events)
+		if err != nil || len(events.Snapshot()) == 0 || !reflect.DeepEqual(returned, events.Snapshot()[len(events.Snapshot())-1]) {
+			t.Fatalf("rename result %+v %v, events %+v", returned, err, events.Snapshot())
 		}
 	}
-	if len(events) != 2 || events[0][id] != "Renamed closed chat" || events[1][id] != "" {
-		t.Fatalf("title events %+v", events)
+	if len(events.Snapshot()) != 2 || events.Snapshot()[0][id] != "Renamed closed chat" || events.Snapshot()[1][id] != "" {
+		t.Fatalf("title events %+v", events.Snapshot())
 	}
-	if len(conn.calls) != 0 {
+	if len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("renaming a closed chat contacted a provider")
 	}
 }

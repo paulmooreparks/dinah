@@ -50,8 +50,8 @@ type switchEvent struct {
 	StateVer float64 `json:"stateVer"`
 }
 
-func watchSwitch(a *App) *[]switchEvent {
-	var events []switchEvent
+func watchSwitch(a *App) *testCollector[switchEvent] {
+	var events testCollector[switchEvent]
 	a.sink = func(name string, data any) {
 		if name != "agent:session" {
 			return
@@ -59,7 +59,7 @@ func watchSwitch(a *App) *[]switchEvent {
 		raw, _ := json.Marshal(data)
 		var e switchEvent
 		if json.Unmarshal(raw, &e) == nil {
-			events = append(events, e)
+			events.Add(e)
 		}
 	}
 	return &events
@@ -122,7 +122,7 @@ func TestASwitchReportsEachStageInTheChatsState(t *testing.T) {
 	if _, err := a.ContinueSessionWithProvider(s.ID(), "codex", p.Revision); err != nil {
 		t.Fatal(err)
 	}
-	stages, labels, last := stagesOf(*events, s.ID())
+	stages, labels, last := stagesOf(events.Snapshot(), s.ID())
 	if !slices.Equal(stages, []string{"summary", "starting", "handover", "opening"}) ||
 		!slices.Equal(labels, []string{"Building the summary of the conversation", "Starting Codex", "Handing the conversation over", "Opening the new chat"}) {
 		t.Fatalf("stages %v, labels %v", stages, labels)
@@ -131,7 +131,7 @@ func TestASwitchReportsEachStageInTheChatsState(t *testing.T) {
 		t.Fatalf("after the switch %+v", last)
 	}
 	var versions []float64
-	for _, e := range *events {
+	for _, e := range events.Snapshot() {
 		if e.Session == s.ID() {
 			versions = append(versions, e.StateVer)
 		}
@@ -150,7 +150,7 @@ func TestASwitchThatFailsLeavesTheChatAsItWas(t *testing.T) {
 	s := switchSource(t, a, "devin")
 	unchanged := func(name string, wantStages []string, reason string) {
 		t.Helper()
-		stages, _, last := stagesOf(*events, s.ID())
+		stages, _, last := stagesOf(events.Snapshot(), s.ID())
 		if !slices.Equal(stages, wantStages) || last == nil || last.Switch == nil || last.Switch.Stage != "" || !strings.Contains(last.Switch.Failed, reason) || last.Switch.Kind != "provider" || last.Switch.To != "Codex" {
 			t.Fatalf("%s: stages %v, last %+v", name, stages, last)
 		}
@@ -161,7 +161,7 @@ func TestASwitchThatFailsLeavesTheChatAsItWas(t *testing.T) {
 		if head, err := a.ResolveSessionContinuation(s.ID()); err != nil || head != s.ID() {
 			t.Fatalf("%s: the chat is linked to %q (%v)", name, head, err)
 		}
-		*events = nil
+		events.Reset()
 	}
 	p, _ := a.PreviewSessionContinuation(s.ID(), "codex")
 	// The new provider cannot start a session.
@@ -249,7 +249,7 @@ func TestAChatMovesToAnotherWorkspaceByContinuation(t *testing.T) {
 	// The settings that grant no authority were applied to the new chat, and the
 	// permission mode was not.
 	applied := map[string]bool{}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if p, ok := call.params.(acp.SetConfigOptionParams); ok && call.method == "session/set_config_option" && p.SessionID == result.Session.ID {
 			applied[p.ConfigID] = true
 		}
@@ -257,7 +257,7 @@ func TestAChatMovesToAnotherWorkspaceByContinuation(t *testing.T) {
 	if !applied["model"] || !applied["effort"] || applied["mode"] || len(result.OptionsNotCarried) != 0 {
 		t.Fatalf("applied %v, refused %v", applied, result.OptionsNotCarried)
 	}
-	stages, labels, _ := stagesOf(*events, s.ID())
+	stages, labels, _ := stagesOf(events.Snapshot(), s.ID())
 	if !slices.Equal(stages, []string{"summary", "starting", "handover", "opening"}) || labels[1] != "Starting the chat in "+filepath.Base(other) {
 		t.Fatalf("stages %v labels %v", stages, labels)
 	}

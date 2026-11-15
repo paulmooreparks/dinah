@@ -28,7 +28,7 @@ func endRound(t *testing.T, a *App) {
 
 func countCalls(c *testProviderConnection, method string) int {
 	n := 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == method {
 			n++
 		}

@@ -319,7 +319,7 @@ func TestABackgroundChatClosesItselfWhenIdle(t *testing.T) {
 	}
 	// It came back without the agent loading it a second time.
 	loads := 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/load" {
 			loads++
 		}

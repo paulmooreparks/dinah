@@ -74,7 +74,7 @@ func TestDevinSteeringUsesReachedHooksWithoutCancelling(t *testing.T) {
 	if late := a.turnIO().SettleSteers(s); len(late) != 0 {
 		t.Fatal("a delivered Devin steer was queued again")
 	}
-	for _, call := range base.calls {
+	for _, call := range base.calls.Snapshot() {
 		if call.method == "session/cancel" {
 			t.Fatal("Devin steering cancelled the turn")
 		}
@@ -90,10 +90,10 @@ func TestNativeSteeringDeliveryAndFallback(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			a, base, s, _, _ := busChat(t)
 			s.StartWork()
-			var states []string
+			var states testCollector[string]
 			a.sink = func(name string, data any) {
 				if name == "agent:steer" {
-					states = append(states, data.(map[string]any)["state"].(string))
+					states.Add(data.(map[string]any)["state"].(string))
 				}
 			}
 			conn := &steeringTestConnection{testProviderConnection: base, receive: func(p acp.PromptParams, delivered func()) error {
@@ -127,7 +127,7 @@ func TestNativeSteeringDeliveryAndFallback(t *testing.T) {
 			if wantLate && (!late[0].Late() || !strings.Contains(promptText(&late[0]), "Keep the API.")) {
 				t.Fatalf("lost late input: %+v", late)
 			}
-			for _, call := range base.calls {
+			for _, call := range base.calls.Snapshot() {
 				if call.method == "session/cancel" {
 					t.Fatal("Steer cancelled the turn")
 				}
@@ -142,8 +142,8 @@ func TestNativeSteeringDeliveryAndFallback(t *testing.T) {
 			if mode == "rejected" {
 				want = "pending,rejected"
 			}
-			if strings.Join(states, ",") != want {
-				t.Fatalf("states %v, want %s", states, want)
+			if strings.Join(states.Snapshot(), ",") != want {
+				t.Fatalf("states %v, want %s", states.Snapshot(), want)
 			}
 			if late := a.turnIO().SettleSteers(s); len(late) != 0 {
 				t.Fatal("late steer sent twice")

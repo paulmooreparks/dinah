@@ -109,7 +109,7 @@ func TestAsyncQuestionWakesOnlyItsIdleCallerWithoutPolling(t *testing.T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var caller, recipient int
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method != "session/prompt" {
 			continue
 		}
@@ -191,7 +191,7 @@ func TestAsyncReplyArrivesAfterActiveTurnBeforeQueuedWork(t *testing.T) {
 	inner.mu.Lock()
 	defer inner.mu.Unlock()
 	var texts []string
-	for _, call := range inner.calls {
+	for _, call := range inner.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			p := call.params.(acp.PromptParams)
 			if p.SessionID == caller.ID() {
@@ -363,7 +363,7 @@ func TestInterruptedAsyncQuestionIsRecoveredWithoutReplay(t *testing.T) {
 	c := a.runtime.ProviderLocked("codex").Connection().(*answeringConnection)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("recovering the interrupted request replayed the question")
 	}
 }

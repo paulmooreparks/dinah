@@ -17,15 +17,15 @@ func TestWatchFoldersSendsDiskChanges(t *testing.T) {
 	v, root := mountTestVFS(t)
 	a := v.service.app
 	var mu sync.Mutex
-	var got []WorkspaceMountChange
+	var got testCollector[WorkspaceMountChange]
 	a.sink = func(name string, data any) {
 		if change, ok := data.(WorkspaceMountChange); ok && name == "workspace:changed" && change.Kind == "disk-changed" {
 			mu.Lock()
-			got = append(got, change)
+			got.Add(change)
 			mu.Unlock()
 		}
 	}
-	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got) }
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got.Snapshot()) }
 	wait := func(n int) {
 		t.Helper()
 		deadline := time.Now().Add(testWait)
@@ -50,8 +50,8 @@ func TestWatchFoldersSendsDiskChanges(t *testing.T) {
 	}
 	wait(1)
 	time.Sleep(2 * watchQuiet)
-	if n := count(); n != 1 || got[0].WorkspaceID != workspaceID || got[0].SourceID != "source-one" {
-		t.Fatalf("a burst of writes sent %d events: %+v", n, got)
+	if n := count(); n != 1 || got.Snapshot()[0].WorkspaceID != workspaceID || got.Snapshot()[0].SourceID != "source-one" {
+		t.Fatalf("a burst of writes sent %d events: %+v", n, got.Snapshot())
 	}
 	if err := a.WatchFolders(nil); err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestWatchFoldersSendsDiskChanges(t *testing.T) {
 	}
 	time.Sleep(4 * watchQuiet)
 	if n := count(); n != 1 {
-		t.Fatalf("a folder no longer shown sent an event: %+v", got)
+		t.Fatalf("a folder no longer shown sent an event: %+v", got.Snapshot())
 	}
 }
 
@@ -96,15 +96,15 @@ func TestAFileReadForADocumentIsWatched(t *testing.T) {
 	v, root := mountTestVFS(t)
 	a := v.service.app
 	var mu sync.Mutex
-	var got []WorkspaceMountChange
+	var got testCollector[WorkspaceMountChange]
 	a.sink = func(name string, data any) {
 		if change, ok := data.(WorkspaceMountChange); ok && name == "workspace:changed" && change.Kind == "disk-changed" {
 			mu.Lock()
-			got = append(got, change)
+			got.Add(change)
 			mu.Unlock()
 		}
 	}
-	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got) }
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got.Snapshot()) }
 	wait := func(n int) {
 		t.Helper()
 		deadline := time.Now().Add(testWait)
@@ -112,7 +112,7 @@ func TestAFileReadForADocumentIsWatched(t *testing.T) {
 			time.Sleep(20 * time.Millisecond)
 		}
 		if count() != n {
-			t.Fatalf("%d events, want %d: %+v", count(), n, got)
+			t.Fatalf("%d events, want %d: %+v", count(), n, got.Snapshot())
 		}
 	}
 	t.Cleanup(func() {
@@ -127,15 +127,15 @@ func TestAFileReadForADocumentIsWatched(t *testing.T) {
 	if err := os.WriteFile(drawing, []byte("a -> b"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := a.ReadWorkspaceMountText("/workspaces/first/local/drawings/plan.d2", 0); err != nil || !got.Found {
-		t.Fatalf("read %+v %v", got, err)
+	if read, err := a.ReadWorkspaceMountText("/workspaces/first/local/drawings/plan.d2", 0); err != nil || !read.Found {
+		t.Fatalf("read %+v %v", read, err)
 	}
 	if err := os.WriteFile(drawing, []byte("a -> c"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	wait(1)
-	if got[0].WorkspaceID != a.settings.WorkspaceRecords[0].ID || got[0].SourceID != "source-one" {
-		t.Fatalf("the event is for another source: %+v", got[0])
+	if got.Snapshot()[0].WorkspaceID != a.settings.WorkspaceRecords[0].ID || got.Snapshot()[0].SourceID != "source-one" {
+		t.Fatalf("the event is for another source: %+v", got.Snapshot()[0])
 	}
 
 	// The page showing other folders, or none, leaves the read folder watched.
@@ -149,8 +149,8 @@ func TestAFileReadForADocumentIsWatched(t *testing.T) {
 	wait(2)
 
 	// A file that is not there yet is watched for as well.
-	if got, err := a.ReadWorkspaceMountText("/workspaces/first/local/drawings/later.d2", 0); err != nil || got.Found {
-		t.Fatalf("a missing file: %+v %v", got, err)
+	if read, err := a.ReadWorkspaceMountText("/workspaces/first/local/drawings/later.d2", 0); err != nil || read.Found {
+		t.Fatalf("a missing file: %+v %v", read, err)
 	}
 	time.Sleep(2 * watchQuiet)
 	if err := os.WriteFile(filepath.Join(root, "drawings", "later.d2"), []byte("x -> y"), 0600); err != nil {
@@ -181,6 +181,6 @@ func TestAFileReadForADocumentIsWatched(t *testing.T) {
 	}
 	time.Sleep(4 * watchQuiet)
 	if count() != before {
-		t.Fatalf("a folder that was let go sent an event: %+v", got)
+		t.Fatalf("a folder that was let go sent an event: %+v", got.Snapshot())
 	}
 }

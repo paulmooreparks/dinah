@@ -48,7 +48,7 @@ func TestOrgChartExportHiddenSeed(t *testing.T) {
 	if _, err := a.OrgChart(); err != nil {
 		t.Fatal(err)
 	}
-	if len(connection.calls) != 0 {
+	if len(connection.calls.Snapshot()) != 0 {
 		t.Fatal("seed contacted a provider")
 	}
 	a.busHost().CloseHandle()

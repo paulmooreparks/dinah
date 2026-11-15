@@ -38,7 +38,7 @@ type providerCall struct {
 type testProviderConnection struct {
 	done    chan struct{}
 	once    sync.Once
-	calls   []providerCall
+	calls   testCollector[providerCall]
 	options []acp.ConfigOption
 	// closeErr is the answer to session/close.
 	closeErr error
@@ -59,7 +59,7 @@ type testProviderConnection struct {
 	// set-aside requests as they were made, and refuseChosen makes a request that
 	// lists turns fail, as the adapter does with a list it will not allow.
 	offered       *ollamaagent.AsideTurns
-	asideRequests []any
+	asideRequests testCollector[any]
 	refuseChosen  bool
 	// newIDs are the IDs session/new gives, in turn; the last is kept. newErr makes
 	// session/new fail, and onNew runs when it is called, to change things while a
@@ -77,7 +77,7 @@ func newTestProviderConnection() *testProviderConnection {
 }
 
 func (c *testProviderConnection) Call(_ context.Context, method string, params any, result any) error {
-	c.calls = append(c.calls, providerCall{method, params})
+	c.calls.Add(providerCall{method, params})
 	switch method {
 	case "skills/list":
 		if c.skillError != nil {
@@ -114,7 +114,7 @@ func (c *testProviderConnection) Call(_ context.Context, method string, params a
 		}
 		*result.(*ollamaagent.AsideTurns) = *c.offered
 	case ollamaagent.SetAsideMethod:
-		c.asideRequests = append(c.asideRequests, params)
+		c.asideRequests.Add(params)
 		if m, ok := params.(map[string]any); ok && c.refuseChosen && m["turns"] != nil {
 			return fmt.Errorf("those turns cannot be set aside")
 		}
@@ -150,7 +150,7 @@ func (c *testProviderConnection) Call(_ context.Context, method string, params a
 	return nil
 }
 func (c *testProviderConnection) Notify(method string, params any) error {
-	c.calls = append(c.calls, providerCall{method, params})
+	c.calls.Add(providerCall{method, params})
 	return nil
 }
 func (c *testProviderConnection) Done() <-chan struct{}                     { return c.done }
@@ -332,7 +332,7 @@ func TestCodexSessionRoutingAndManagedApplets(t *testing.T) {
 	if info.Provider != "codex" || info.ID != "codex:created" || a.runtime.ProviderLocked("devin") != nil {
 		t.Fatalf("wrong session provider: %+v", info)
 	}
-	checkManagedAppletServer(t, a, c.calls[0].params.(codexagent.SessionParams).McpServers)
+	checkManagedAppletServer(t, a, c.calls.Snapshot()[0].params.(codexagent.SessionParams).McpServers)
 	if got := string(a.SessionOptions(info.ID)[0].CurrentValue); got != `"codex-default"` {
 		t.Fatalf("Codex received wrong default: %s", got)
 	}
@@ -348,7 +348,7 @@ func TestCodexSessionRoutingAndManagedApplets(t *testing.T) {
 		t.Fatal(err)
 	}
 	foundPrompt, foundCancel := false, false
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		switch call.method {
 		case "session/prompt":
 			p := call.params.(acp.PromptParams)
@@ -358,7 +358,7 @@ func TestCodexSessionRoutingAndManagedApplets(t *testing.T) {
 		}
 	}
 	if !foundPrompt || !foundCancel {
-		t.Fatalf("provider routing missing prompt or cancellation: %v", c.calls)
+		t.Fatalf("provider routing missing prompt or cancellation: %v", c.calls.Snapshot())
 	}
 	if _, err := os.Stat(filepath.Join(ws, ".devin")); !os.IsNotExist(err) {
 		t.Fatalf("Codex session created Devin configuration: %v", err)
@@ -368,7 +368,7 @@ func TestCodexSessionRoutingAndManagedApplets(t *testing.T) {
 		t.Fatal(err)
 	}
 	foundLoad := false
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/load" {
 			p := call.params.(codexagent.SessionParams)
 			checkManagedAppletServer(t, a, p.McpServers)

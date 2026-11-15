@@ -11,10 +11,10 @@ import (
 // apart from an API key, and the page is told.
 func TestClaudesAccountReportIsKept(t *testing.T) {
 	a, _ := providerTestApp(t)
-	var told []ProviderAccount
+	var told testCollector[ProviderAccount]
 	a.sink = func(name string, data any) {
 		if name == "agent:account" {
-			told = append(told, data.(ProviderAccount))
+			told.Add(data.(ProviderAccount))
 		}
 	}
 	a.newAgentHandler().Notify(claudeagent.AuthStatusFromClaude, json.RawMessage(`{"authStatus":{"kind":"account","label":"Claude Max","account":{"plan":"max"}}}`))
@@ -26,7 +26,7 @@ func TestClaudesAccountReportIsKept(t *testing.T) {
 		t.Fatalf("an API key was taken for a subscription: %+v", got)
 	}
 	a.newAgentHandler().Notify(claudeagent.AuthStatusFromClaude, json.RawMessage(`{"nothing":true}`))
-	if len(told) != 2 {
-		t.Fatalf("the page was told %d times", len(told))
+	if len(told.Snapshot()) != 2 {
+		t.Fatalf("the page was told %d times", len(told.Snapshot()))
 	}
 }

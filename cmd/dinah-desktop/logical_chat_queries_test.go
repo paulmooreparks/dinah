@@ -49,7 +49,7 @@ func TestOrgChartIncludesTranscriptOnlyChatWithoutHistoryDiscovery(t *testing.T)
 	if err != nil || len(view.Chats) != 1 || view.Chats[0].ChatID != id || view.Chats[0].Workspace != ws {
 		t.Fatalf("transcript inventory %+v %v", view, err)
 	}
-	if len(connection.calls) != 0 || starts.Load() != 0 {
+	if len(connection.calls.Snapshot()) != 0 || starts.Load() != 0 {
 		t.Fatal("local transcript discovery started a provider")
 	}
 }

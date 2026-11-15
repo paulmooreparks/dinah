@@ -29,7 +29,7 @@ func TestSharedInventoryUnknownProgramRequiresRepair(t *testing.T) {
 	if err != nil || len(listing.Rows) != 1 || listing.Rows[0].Eligible || listing.Rows[0].Refusal == "" {
 		t.Fatalf("unknown program must not authorize cleanup: %+v %v", listing.Rows, err)
 	}
-	if starts.Load() != 0 || len(conn.calls) != 0 {
+	if starts.Load() != 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("unknown program repair contacted a provider")
 	}
 }
@@ -137,7 +137,7 @@ func TestSharedInventoryRetainsNativeTitlesWithoutProviderContact(t *testing.T) 
 			t.Fatalf("native row %+v", row)
 		}
 	}
-	if starts.Load() != 0 || len(conn.calls) != 0 {
+	if starts.Load() != 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("passive inventory contacted a provider")
 	}
 	if _, err := a.RenameSession("devin:native", "Person's name"); err != nil {
@@ -338,7 +338,7 @@ func TestSharedInventoryRetainsRuntimeTitleWithSeparateProvenance(t *testing.T) 
 	if err != nil || len(view.Chats) != 1 || view.Chats[0].Title != "Observed runtime title" || view.Chats[0].Open {
 		t.Fatalf("runtime metadata lost across reconstruction %+v %v", view, err)
 	}
-	if len(conn.calls) != 0 {
+	if len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("runtime capture contacted provider")
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -31,9 +32,11 @@ func budgetRow(t *testing.T, a *App, lead *Session, provider string) TeamBudgetR
 // and makes the figure incomplete, with no remaining shown; passing the allowance warns once and holds nothing; the page is
 // not shown the reports.
 func TestATeamsBudgetCountsReportedUsageAndSaysWhenItIsIncomplete(t *testing.T) {
-	a, lead, member, _, _, _ := teamApp(t)
+	var eventsMu sync.Mutex
 	var events []string
-	a.sink = func(name string, _ any) { events = append(events, name) }
+	a, lead, member, _, _, _ := teamAppConfigured(t, func(a *App) {
+		a.sink = func(name string, _ any) { eventsMu.Lock(); events = append(events, name); eventsMu.Unlock() }
+	})
 	row, err := a.SetTeamBudget(lead.ID(), []TeamAllowanceInput{{Provider: "codex", Allowance: 2000}})
 	if err != nil || len(row.Rows) != 1 || row.Rows[0].Unit != "tokens" || row.Rows[0].Allowance != 2000 || !row.Rows[0].Complete || row.Rows[0].Remaining == nil || *row.Rows[0].Remaining != 2000 {
 		t.Fatalf("the budget as set: %+v %v", row, err)
@@ -71,9 +74,12 @@ func TestATeamsBudgetCountsReportedUsageAndSaysWhenItIsIncomplete(t *testing.T) 
 		t.Fatalf("%d warnings", cards)
 	}
 	// The reports are not forwarded to the page.
-	for _, e := range events {
+	eventsMu.Lock()
+	capturedEvents := append([]string(nil), events...)
+	eventsMu.Unlock()
+	for _, e := range capturedEvents {
 		if e == "agent:update" {
-			t.Fatalf("a turn_cost report was shown: %v", events)
+			t.Fatalf("a turn_cost report was shown: %v", capturedEvents)
 		}
 	}
 	// A chat that is not a team member has its turns recorded nowhere.
