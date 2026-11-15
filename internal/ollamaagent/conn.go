@@ -645,6 +645,13 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 		c.mu.Unlock()
 	}
 	c.settle(ctx, &rec)
+	// A new chat must be recoverable even if the person restarts before
+	// sending its first prompt. Refuse creation if its record cannot be kept.
+	if method == "session/new" {
+		if err := c.save(rec); err != nil {
+			return err
+		}
+	}
 	c.mu.Lock()
 	if old := c.sessions[rec.ID]; old != nil && old.busy {
 		c.mu.Unlock()
