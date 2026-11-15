@@ -1,0 +1,119 @@
+app-ui3
+PASS sidebar shows the workspace name
+PASS the earlier session is listed
+PASS the workspace chooser lists recents
+PASS switching workspace shows its sessions
+PASS sending with no session starts one and sends to it
+PASS the mode reads Work
+PASS the model button shows the session model
+PASS New Session opens a draft without creating another agent session
+PASS the new session has an empty log
+PASS a background question is counted
+PASS it is not shown over this session
+PASS the session list marks it
+PASS Notifications opens its own window
+PASS and focuses Allow
+PASS reopening replays the history
+PASS the drop-up offers the session model and the favorites
+PASS choosing a favorite sets this session only
+PASS the button follows
+PASS All Models opens its own dialog
+PASS choosing in the dialog sets the model and closes it
+PASS the default is saved
+PASS pinning a model makes it a favorite
+PASS a new session starts with the default model
+PASS double-click turns the row into a field
+PASS Enter saves the name
+PASS the list shows the new name
+PASS the window title shows it
+PASS F2 opens the rename form
+PASS Esc leaves the name as it was
+PASS the rename action updates the window title
+PASS deletion asks first and explains the Recycle Bin
+PASS a refusal explains why and offers no hiding bypass
+PASS deletion takes it off the list and closes its window
+PASS the menu of a row asks to remove that chat, and opens no window for it
+PASS leaving the question keeps the chat
+PASS each group's count matches the chat rows it shows
+PASS Clean Up Chats is available in the Chats browser menu
+PASS no page errors
+
+
+
+chat-cleanup
+PASS the bin discloses a loaded program without hiding the deletion policy
+PASS an earlier agent program finds the whole switched chat
+PASS working and pinned chats cannot be selected and explain why
+PASS unknown counts and dates are explicit
+PASS selection keeps every row and toolbar fixed
+PASS cancelling changes no chats
+PASS a pending batch keeps the list fixed
+PASS mixed results never move an existing row or the taskbar in any sampled frame
+PASS success and later failures are reported independently
+PASS staging preserves the unsent chat message
+PASS restore leaves the chat closed and reports its result
+PASS Restore returns closed metadata without provider discovery
+PASS Restore preserves the unsent chat message
+PASS a refused Restore is reported on its bin row rather than the retained active-list result
+PASS final deletion uses the row confirmation verbatim
+PASS a failed final deletion stays on its bin row
+PASS a remaining agent copy is disclosed after local deletion
+PASS final deletion forgets only that chat composer value
+PASS emptying the bin uses the aggregate confirmation verbatim
+PASS filter state is addressable
+PASS narrow controls and rows fit their page
+PASS reloading the page restores its filter from the URL
+PASS no page errors
+
+
+
+drafts
+PASS a chat's draft is saved as it is typed, in the UI state
+PASS no page errors
+PASS after a restart the chat's box shows its draft
+PASS Up brings back the last message sent
+PASS while an earlier message is in the box, the draft set aside stays saved
+PASS Down returns to the draft
+PASS a sent message drops the chat's saved draft
+PASS no page errors
+PASS after the next restart the chat's box is empty
+PASS the mention is chosen
+PASS a group's draft is saved with the chats it mentions
+PASS no page errors
+PASS after a restart the group's box shows its draft
+PASS Up brings back the person's last message in the group
+PASS Down returns to the group's draft
+PASS the restored draft is sent with the chats it mentions
+PASS a sent message drops the group's saved draft
+PASS no page errors
+PASS a restored mention is still one unit that Backspace takes out whole
+PASS deleting a group drops its saved draft
+PASS no page errors
+PASS no page errors
+
+
+
+menus-through-updates
+PASS menu: chat updates leave the View menu and its Skin list open, focus on Bevel
+PASS menu: the keyboard goes on from that row
+PASS menu: Enter chooses the row as it is now
+PASS menu: the Skin list ticks the chosen skin alone
+PASS ribbon: chat updates leave the Skin dropdown open, focus on Bevel
+PASS ribbon: the keyboard goes on and Enter chooses the row as it is now
+PASS ribbon: the Skin dropdown ticks the chosen skin alone
+PASS ribbon: Escape then an update leaves the dropdown closed
+PASS no page errors
+
+
+
+recovery-card
+PASS both cards offer Recover, Remove Chat and Dismiss, and Clear All is available
+PASS Remove asks first, explaining the 30-day Recycle Bin
+PASS a failed removal says so, changes nothing, and Remove can be pressed again
+PASS Remove removes exactly the card's chat, with no window opened in its place
+PASS the other chat with the same title keeps its card
+PASS a dismissed card stays hidden after a reload, and the removed one stays gone
+PASS ordinary Remove closes the chat's window and opens no New Chat or other window
+PASS no page errors
+
+
