@@ -34,7 +34,7 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
  evidence.managementLoaded=await page.evaluate(()=>!!window.dinahOrgChartManagement);
  evidence.documentState=await page.evaluate(()=>document.readyState);
  evidence.resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(r=>new URL(r.name).pathname));
- await page.waitForFunction(()=>window.dinahOrgChartManagement&&window.dinahCommands.rows('window').some(row=>row.label==='Org Chart'),null,{timeout:10000});
+ await page.waitForFunction(()=>window.pudlWindows&&window.dinahOrgChartManagement&&window.dinahCommands.rows('window').some(row=>row.label==='Org Chart'),null,{timeout:10000});
  evidence.managementReady=await page.evaluate(()=>!!window.dinahOrgChartManagement);
  const initial=await call('OrgChart');evidence.snapshots.push(initial);
  if(profile==='engine') {
@@ -102,7 +102,7 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
   check('only explicit Start a Chat reaches the refusing stand-in',fs.existsSync(refusalPath)&&fs.readFileSync(refusalPath,'utf8').trim().length>0);
   await page.screenshot({path:path.join(out,'org-chart-actions-host-result.png')});
   live=await call('OrgChart');await panel.getByRole('button',{name:'Back to Chart',exact:true}).click();
-  await page.waitForFunction(generation=>document.querySelector('.org-chart-canvas').dataset.generation===generation,live.generation);
+  await page.waitForFunction(generation=>document.querySelector('.org-chart-canvas').dataset.generation===generation||/could not/.test(document.querySelector('.org-chart-status').textContent),live.generation);
   evidence.returnedStructure={expected:live.chats.map(c=>c.chatId),visible:await chart.locator('[data-org-chat]').evaluateAll(rows=>rows.map(r=>r.dataset.orgChat)),status:await chart.locator('.org-chart-status').innerText()};
   evidence.actionSnapshot=live;await page.screenshot({path:path.join(out,'org-chart-actions-host-structure.png')});
   check('returning from management renders the changed real structure',await chart.locator('[data-org-chat]').count()===live.chats.length);

@@ -5,15 +5,15 @@
   // Diagrams still draws every segment with its documented straight route.
   function routes(plan) {
     var obstacles = plan.positions.concat(plan.controls).map(function (p) { return { left: Math.floor(p.x - 6), right: Math.ceil(p.x + p.width + 6), top: Math.floor(p.y - 6), bottom: Math.ceil(p.y + p.height + 6) }; });
-    function port(p, side) { return side === 'bottom' ? [Math.round(p.x + p.width / 2), Math.ceil(p.y + p.height + 6)] : side === 'top' ? [Math.round(p.x + p.width / 2), Math.floor(p.y - 6)] : [Math.ceil(p.x + p.width + 6), Math.round(p.y + p.height / 2)]; }
+    function port(p, side) { return side === 'bottom' ? [Math.round(p.x + p.width / 2), Math.ceil(p.y + p.height + 6)] : side === 'top' ? [Math.round(p.x + p.width / 2), Math.floor(p.y - 6)] : [side === 'left' ? Math.floor(p.x - 6) : Math.ceil(p.x + p.width + 6), Math.round(p.y + p.height / 2)]; }
     var groupIds = Array.from(new Set(plan.edges.filter(function (e) { return e.dotted; }).map(function (e) { return e.to.id; }))).sort(), occupied = [];
     var links = plan.edges.map(function (e) {
-      var side = e.dotted ? 'right' : 'bottom', start = port(e.from, side);
+      var side = e.dotted ? groupIds.indexOf(e.to.id) % 2 ? 'left' : 'right' : 'bottom', start = port(e.from, side);
       if (e.dotted) {
         var memberships = plan.edges.filter(function (other) { return other.dotted && other.from === e.from; }).map(function (other) { return other.to.id; }).sort();
         start[1] = Math.round(e.from.y + e.from.height * (memberships.indexOf(e.to.id) + 1) / (memberships.length + 1));
         var frame = plan.frames.find(function (f) { return e.from.x >= f.x && e.from.y >= f.y && e.from.x + e.from.width <= f.x + f.width && e.from.y + e.from.height <= f.y + f.height; });
-        if (frame && plan.positions.concat(plan.controls).some(function (p) { return p !== e.from && start[1] > p.y - 6 && start[1] < p.y + p.height + 6 && p.x >= e.from.x + e.from.width && p.x < frame.x + frame.width; })) { side = 'left'; start[0] = Math.floor(e.from.x - 6); }
+        if (frame && plan.positions.concat(plan.controls).some(function (p) { return p !== e.from && start[1] > p.y - 6 && start[1] < p.y + p.height + 6 && (side === 'right' ? p.x >= e.from.x + e.from.width && p.x < frame.x + frame.width : p.x + p.width <= e.from.x && p.x + p.width > frame.x); })) { side = side === 'left' ? 'right' : 'left'; start[0] = port(e.from, side)[0]; }
       }
       return Object.assign({}, e, { fromSide: side, toSide: e.dotted ? 'right' : 'top', start: start, end: port(e.to, e.dotted ? 'right' : 'top') });
     });
