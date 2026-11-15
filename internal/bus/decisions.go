@@ -177,7 +177,7 @@ func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (D
 // range without walking the subsequent message history. Structured requests
 // remain independent of that boundary and of any delivery state.
 // List, entry count and individual resolution all use this predicate.
-const openDecisionSQL = ` FROM messages m JOIN (
+const activeDecisionSQL = ` FROM messages m JOIN (
  SELECT message_id AS id FROM person_requests WHERE closed=0
  UNION SELECT message_id FROM deliveries
  WHERE recipient_kind='human' AND cancelled_at IS NULL AND inbox_dismissed_at IS NULL
@@ -188,6 +188,8 @@ const openDecisionSQL = ` FROM messages m JOIN (
  AND EXISTS (SELECT 1 FROM deliveries d WHERE d.message_id=m.id AND d.recipient_kind='human' AND d.cancelled_at IS NULL AND d.inbox_dismissed_at IS NULL)
  AND NOT EXISTS (SELECT 1 FROM messages later WHERE later.room=m.room AND later.id>m.id AND later.from_session='' AND later.from_name='paul')
  AND NOT EXISTS (SELECT 1 FROM messages reply WHERE reply.reply_to=m.id AND reply.from_session='' AND reply.from_name='paul' AND reply.kind='text'))) `
+
+const openDecisionSQL = activeDecisionSQL + ` AND NOT EXISTS (SELECT 1 FROM sessions removed WHERE removed.id=m.from_session AND removed.removed_at IS NOT NULL)`
 
 func decisionMessageID(id string) (int64, error) {
 	parts := strings.Split(id, ":")

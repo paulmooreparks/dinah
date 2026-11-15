@@ -57,9 +57,30 @@ func decodeUIState(data []byte) (UIState, error) {
 }
 
 func (a *App) SaveUIState(state UIState) error {
+	a.chatCleanupMu.Lock()
+	defer a.chatCleanupMu.Unlock()
+	return a.saveUIStateForCleanup(state)
+}
+
+// saveUIStateForCleanup requires chatCleanupMu, also held by final deletion.
+// Copy the map before filtering because the page may retry its stale snapshot.
+func (a *App) saveUIStateForCleanup(state UIState) error {
 	if err := validateUIState(state); err != nil {
 		return err
 	}
+
+	values := make(map[string]json.RawMessage, len(state.Values))
+	for key, value := range state.Values {
+		values[key] = value
+	}
+	state.Values = values
+	a.mu.Lock()
+	for id, removal := range a.settings.RemovedChats {
+		if removal.Stage == "removed" || removal.Stage == "deleted" || removal.Stage == "finalizing" || removal.Stage == "erasing" {
+			delete(state.Values, "dinah-draft:chat:"+id)
+		}
+	}
+	a.mu.Unlock()
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err

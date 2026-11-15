@@ -51,7 +51,7 @@ type TeamMember struct {
 // LeadOf is the chat that leads a member, and whether the member is retired, or "" for a
 // chat that has no lead.
 func (b *Bus) LeadOf(ctx context.Context, member string) (lead string, retired bool, err error) {
-	err = b.db.QueryRowContext(ctx, `SELECT lead, retired FROM team_members WHERE member = ?`, member).Scan(&lead, &retired)
+	err = b.db.QueryRowContext(ctx, `SELECT lead, retired FROM team_members WHERE member = ? AND EXISTS (SELECT 1 FROM sessions WHERE id=member AND removed_at IS NULL) AND EXISTS (SELECT 1 FROM sessions WHERE id=lead AND removed_at IS NULL)`, member).Scan(&lead, &retired)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
@@ -60,7 +60,7 @@ func (b *Bus) LeadOf(ctx context.Context, member string) (lead string, retired b
 
 // TeamMembers are the chats a lead leads, in the order they joined, retired ones too.
 func (b *Bus) TeamMembers(ctx context.Context, lead string) ([]TeamMember, error) {
-	rows, err := b.db.QueryContext(ctx, `SELECT member, lead, since, retired FROM team_members WHERE lead = ? ORDER BY rowid`, lead)
+	rows, err := b.db.QueryContext(ctx, `SELECT member, lead, since, retired FROM team_members WHERE lead = ? AND EXISTS (SELECT 1 FROM sessions WHERE id=member AND removed_at IS NULL) AND EXISTS (SELECT 1 FROM sessions WHERE id=lead AND removed_at IS NULL) ORDER BY rowid`, lead)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (b *Bus) TeamMembers(ctx context.Context, lead string) ([]TeamMember, error
 // IsLead says a chat leads at least one member.
 func (b *Bus) IsLead(ctx context.Context, session string) (bool, error) {
 	var n int
-	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM team_members WHERE lead = ?`, session).Scan(&n)
+	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM team_members WHERE lead = ? AND EXISTS (SELECT 1 FROM sessions WHERE id=member AND removed_at IS NULL) AND EXISTS (SELECT 1 FROM sessions WHERE id=lead AND removed_at IS NULL)`, session).Scan(&n)
 	return n > 0, err
 }
 

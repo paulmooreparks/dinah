@@ -41,7 +41,7 @@ var pageMethods = func() map[string]pageMethodClass {
 	}
 	list(pageQuery, `
  OllamaMemory
- ListSetAsidePrograms
+ ListSetAsidePrograms ListChatCleanup
  Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
@@ -68,6 +68,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `
+ RemoveChats RestoreRemovedChat DeleteRemovedChat EmptyChatRecycleBin
  RemoveSetAsidePrograms
  AnswerDecision DismissDecision ConfirmDecisionBroadcast
  AddFileAccessEntry RemoveFileAccessEntry SetFileAccessDefault AcknowledgeFileAccessLog

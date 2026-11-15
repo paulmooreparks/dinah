@@ -248,7 +248,7 @@ func groupResolved(t *sql.Tx, from Sender, address string) (resolved, error) {
 		return resolved{}, err
 	}
 	r := resolved{label: "#" + title, room: key, roomTitle: title, toKind: "room", toKey: key}
-	rows, err := t.Query(`SELECT member_kind, member FROM room_members WHERE room = ? ORDER BY rowid`, key)
+	rows, err := t.Query(`SELECT m.member_kind, m.member FROM room_members m LEFT JOIN sessions s ON m.member_kind='session' AND s.id=m.member WHERE m.room = ? AND (m.member_kind<>'session' OR s.removed_at IS NULL) ORDER BY m.rowid`, key)
 	if err != nil {
 		return resolved{}, err
 	}
@@ -286,7 +286,7 @@ func groupResolved(t *sql.Tx, from Sender, address string) (resolved, error) {
 // groupChats are a group's member chats, in the order they joined.
 func groupChats(t *sql.Tx, room string) ([]chat, error) {
 	return scanChats(t.Query(chatSelect+` JOIN room_members m ON m.member_kind = 'session' AND m.member = s.id
-		WHERE m.room = ? ORDER BY m.rowid`, room))
+		WHERE m.room = ? AND s.removed_at IS NULL ORDER BY m.rowid`, room))
 }
 
 // matchMember finds the member chat a mention is for: by its session ID,
@@ -365,6 +365,9 @@ func mentionList(t *sql.Tx, from Sender, r *resolved, mentions []string, person 
 		c, err := matchMember(members, m)
 		if errors.Is(err, errNoChat) {
 			if other, e := findKnownChat(t, m); e == nil {
+				if taken(t, `SELECT 1 FROM sessions WHERE id=? AND removed_at IS NOT NULL`, other.id) {
+					return fmt.Errorf("%s was removed, so the message was not sent", other.address())
+				}
 				return fmt.Errorf("%s is not in the group chat %q, so the message was not sent. Mention only the group's members (%s), or ask %s to add the chat to the group", other.address(), r.roomTitle, addressList(members), person)
 			}
 			return fmt.Errorf("no chat in the group chat %q is called %q, so the message was not sent. Its members are %s", r.roomTitle, m, addressList(members))
@@ -739,7 +742,7 @@ func (b *Bus) RoomMembers(ctx context.Context, room string) ([]RoomMember, error
 		COALESCE(w.label, ''), COALESCE(s.ended_at IS NULL, 0)
 		FROM room_members m LEFT JOIN sessions s ON m.member_kind = 'session' AND s.id = m.member
 		LEFT JOIN workspaces w ON w.key = s.workspace
-		WHERE m.room = ? AND (m.member_kind = 'human' OR s.id IS NOT NULL)
+		WHERE m.room = ? AND (m.member_kind = 'human' OR (s.id IS NOT NULL AND s.removed_at IS NULL))
 		ORDER BY m.member_kind = 'human', m.rowid`, room)
 	if err != nil {
 		return nil, err

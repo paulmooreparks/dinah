@@ -396,6 +396,7 @@
     "decisions-answer-stability",
     "transcript-row-stability",
     "carry-on-stability",
+    "chat-cleanup",
     "settings-set-aside-list",
     "settings-updates-set-aside",
     "settings-set-aside-remove",

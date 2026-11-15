@@ -243,13 +243,18 @@ func (a *App) revokeAppletSession(session string) {
 	b := a.appletBridge
 	a.bridgeMu.Unlock()
 	if b != nil {
+		workspaces := map[string]bool{}
 		b.mu.Lock()
 		for token, c := range b.channels {
 			if c.session == session {
 				delete(b.channels, token)
+				workspaces[c.workspace] = true
 			}
 		}
 		b.mu.Unlock()
+		for workspace := range workspaces {
+			a.cancelChatAppletWork(workspace, session)
+		}
 	}
 }
 func (a *App) closeAppletBridge() {

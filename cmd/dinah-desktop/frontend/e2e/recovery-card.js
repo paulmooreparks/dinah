@@ -46,19 +46,19 @@ const { launch, PAGE } = require('./lib/page');
     const a = p.locator('[data-notification-id="waiting_a"]'), b = p.locator('[data-notification-id="waiting_b"]');
     await a.waitFor(); await b.waitFor();
     ok('both cards offer Recover, Remove Chat and Dismiss, and Clear All is available',
-      await a.getByRole('button', { name: 'Remove Chat…', exact: true }).count() === 1 && await a.getByRole('button', { name: 'Dismiss', exact: true }).count() === 1 &&
+      await a.getByRole('button', { name: 'Delete Chat…', exact: true }).count() === 1 && await a.getByRole('button', { name: 'Dismiss', exact: true }).count() === 1 &&
       await a.getByRole('button', { name: 'Recover Original Chat', exact: true }).count() === 1 && await p.locator('#needs-clear').isEnabled());
     const windows = () => p.evaluate(() => pudlWindows.state().open.slice().sort());
     const before = await windows();
     // A removal that fails changes nothing and can be tried again.
-    await a.getByRole('button', { name: 'Remove Chat…', exact: true }).click();
+    await a.getByRole('button', { name: 'Delete Chat…', exact: true }).click();
     const dialog = p.locator('#remove');
     await dialog.waitFor();
-    ok('Remove asks first, saying the waiting messages are cancelled', /cancelled and never delivered/.test(await dialog.textContent()) && /Team Lead/.test(await dialog.textContent()));
-    await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
-    await dialog.getByText('The Chat Was Not Removed', { exact: true }).waitFor();
-    ok('a failed removal says so, changes nothing, and Remove can be pressed again', await a.count() === 1 && await dialog.getByRole('button', { name: 'Remove', exact: true }).isEnabled() && store.removed.length === 0);
-    await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
+    ok('Remove asks first, explaining the 30-day Recycle Bin', /restore it for 30 days/.test(await dialog.textContent()) && /Team Lead/.test(await dialog.textContent()));
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+    await dialog.getByText('The Chat Was Not Deleted', { exact: true }).waitFor();
+    ok('a failed removal says so, changes nothing, and Remove can be pressed again', await a.count() === 1 && await dialog.getByRole('button', { name: 'Delete', exact: true }).isEnabled() && store.removed.length === 0);
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
     await a.waitFor({ state: 'detached' });
     const after = await windows();
     ok('Remove removes exactly the card\'s chat, with no window opened in its place', JSON.stringify(store.removed) === '["codex:a"]' && store.deleted.length === 0 && JSON.stringify(after) === JSON.stringify(before), JSON.stringify({ store, before, after }));
@@ -75,11 +75,11 @@ const { launch, PAGE } = require('./lib/page');
     await p.locator('[data-win="' + key + '"] [data-view-id="prompt"]').waitFor();
     await p.evaluate(() => dinahCommands.run('remove-session'));
     await dialog.waitFor();
-    await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
     await p.locator('[data-win="' + key + '"]').waitFor({ state: 'detached' });
     await p.waitForTimeout(300);
     const afterOrdinary = await windows();
-    ok('ordinary Remove closes the chat\'s window and opens no New Chat or other window', JSON.stringify(afterOrdinary) === JSON.stringify(beforeOrdinary) && JSON.stringify(store.deleted) === '["codex:ordinary"]', JSON.stringify({ beforeOrdinary, afterOrdinary }));
+    ok('ordinary Remove closes the chat\'s window and opens no New Chat or other window', JSON.stringify(afterOrdinary) === JSON.stringify(beforeOrdinary) && JSON.stringify(store.removed) === '["codex:a","codex:ordinary"]' && store.deleted.length === 0, JSON.stringify({ beforeOrdinary, afterOrdinary }));
     await t.shot('recovery-card');
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

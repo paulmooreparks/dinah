@@ -295,8 +295,7 @@
     register({ id: 'refresh-workspace', menu: 'view', inline: true, label: 'Refresh Workspace', enabled: () => workspaceCommands('refresh-workspace'), run: () => { app().State().then(function (st) { drawWorkspaces(st); refreshSessions(); }).catch(fail); } });
     register({ id: 'settings', menu: 'dinah', inline: true, label: 'Settings…', run: () => { openSettings(); } });
     register({ id: 'rename-session', menu: 'view', inline: true, label: 'Rename Chat…', enabled: () => chatCommands('rename-session'), run: () => { startRename(chats.active(), 'head'); } });
-    register({ id: 'remove-session', menu: 'view', inline: true, label: 'Remove Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
-    register({ id: 'unhide-sessions', menu: 'view', inline: true, label: 'Show Hidden Chats Again', enabled: () => chatCommands('unhide-sessions'), run: () => { app().UnhideSessions().then(function () { chatBrowser.setHiddenCount(0); chats.current()?.menuStates(); refreshSessions(); toast('Hidden sessions are back in the list.'); }).catch(fail); } });
+    register({ id: 'remove-session', menu: 'view', inline: true, label: 'Delete Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
     register({ id: 'refresh-sessions', menu: 'view', inline: true, label: 'Refresh Chats', run: () => { refreshSessions(); } });
     register({ id: 'all-models', menu: 'view', inline: true, label: 'All Models…', enabled: () => chatCommands('all-models'), run: () => { chats.current()?.openModels(); } });
     register({ id: 'history', menu: 'view', inline: true, label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });

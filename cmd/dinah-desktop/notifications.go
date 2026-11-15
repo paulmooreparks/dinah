@@ -228,7 +228,8 @@ func (a *App) Notifications() ([]Notification, error) {
 	}
 	out := []Notification{}
 	for _, item := range pruned(store.Items) {
-		if !item.Dismissed {
+		item, visible := a.cleanupVisibleNotification(item)
+		if visible && !item.Dismissed {
 			out = append(out, item)
 		}
 	}

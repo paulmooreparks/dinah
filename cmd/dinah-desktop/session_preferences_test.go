@@ -127,6 +127,10 @@ func TestSessionOptionPersistenceFailureIsVisibleAndCopyOnWrite(t *testing.T) {
 
 func TestSessionRestoreBlocksEarlySendAndPreservesHiddenPreferences(t *testing.T) {
 	a, c := providerTestApp(t)
+	// Binning releases the last unused provider through its normal watcher.
+	p := a.runtime.ProviderLocked("codex")
+	go a.lifecycle().Watch("codex", p)
+	t.Cleanup(func() { c.Close(); p.Wait() })
 	info, err := a.NewSessionAt(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

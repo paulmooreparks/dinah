@@ -2,17 +2,19 @@ package main
 
 import (
 	"context"
-	"errors"
-	"slices"
 	"time"
 
 	"studio/internal/bus"
 )
 
 type chatRemoval struct {
-	Recipient string    `json:"recipient,omitempty"`
-	Stage     string    `json:"stage"`
-	Created   time.Time `json:"created"`
+	Group           string              `json:"group,omitempty"`
+	Expires         time.Time           `json:"expires,omitempty"`
+	Snapshot        *LogicalChatMembers `json:"snapshot,omitempty"`
+	UnknownAttempts []string            `json:"unknownAttempts,omitempty"`
+	Recipient       string              `json:"recipient,omitempty"`
+	Stage           string              `json:"stage"`
+	Created         time.Time           `json:"created"`
 }
 
 func (a *App) removedChat(id string) bool {
@@ -20,44 +22,6 @@ func (a *App) removedChat(id string) bool {
 	defer a.mu.Unlock()
 	_, ok := a.settings.RemovedChats[id]
 	return ok
-}
-
-// RemoveChat removes precisely the supplied chat from this application. The
-// native provider copy is unchanged; DeleteSession performs provider deletion.
-func (a *App) RemoveChat(id string) error {
-	if id == "" {
-		return errors.New("choose the chat to remove")
-	}
-	if _, running := a.transferRunning.Load(id); running {
-		return errors.New("wait for this chat's recovery operation to finish before removing it")
-	}
-	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(id); active {
-		return errors.New("wait for this chat's current opening to finish before removing it")
-	}
-	if err := a.updateSettings(func(s *Settings) error {
-		if _, ok := s.RemovedChats[id]; ok {
-			return nil
-		}
-		recipient := s.BusSessions[id]
-		if recipient != "" {
-			for other, owner := range s.BusSessions {
-				if other != id && owner == recipient {
-					return errors.New("this recipient has another chat owner; removal cannot discard a shared queue")
-				}
-			}
-		}
-		if s.RemovedChats == nil {
-			s.RemovedChats = map[string]chatRemoval{}
-		}
-		s.RemovedChats[id] = chatRemoval{Recipient: recipient, Stage: "removing", Created: time.Now().UTC()}
-		if !slices.Contains(s.Hidden, id) {
-			s.Hidden = append(s.Hidden, id)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return a.finishChatRemoval(id)
 }
 
 func (a *App) finishChatRemoval(id string) error {
@@ -92,17 +56,7 @@ func (a *App) finishChatRemoval(id string) error {
 }
 
 func (a *App) reconcileChatRemovals() error {
-	a.mu.Lock()
-	ids := []string{}
-	for id, r := range a.settings.RemovedChats {
-		if r.Stage != "removed" {
-			ids = append(ids, id)
-		}
-	}
-	a.mu.Unlock()
-	var result error
-	for _, id := range ids {
-		result = errors.Join(result, a.finishChatRemoval(id))
-	}
-	return result
+	a.chatCleanupMu.Lock()
+	defer a.chatCleanupMu.Unlock()
+	return a.sweepChatCleanup()
 }
