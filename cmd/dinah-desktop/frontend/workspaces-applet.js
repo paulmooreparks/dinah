@@ -8,6 +8,7 @@
     const $ = id => document.getElementById(id);
     let workspaceId = '', workspaceRecords = [], recentWorkspaces = [], openWorkspaces = [];
     let workspaceBrowser = null;
+    var workspaceChoice = null, switchingWorkspace = false, lastChoiceState = null;
 
     /* ---- Workspaces --------------------------------------------------------
        The folder button at the top of the sidebar opens the workspace menu:
@@ -140,8 +141,9 @@
       // The Workspace pane's chooser: one option a workspace, the current one
       // chosen, and a prompt while none is open.
       var chooser = $('ws-select');
+      var chosenPath = workspaceChoice ? workspaceChoice.path : adapter.workspace();
       chooser.replaceChildren();
-      if (!adapter.workspace()) {
+      if (!chosenPath) {
         var prompt = new Option('Choose a Workspace', '', true, true);
         prompt.disabled = true;
         chooser.add(prompt);
@@ -149,11 +151,12 @@
       recentWorkspaces.forEach(function (p) {
         var record = workspaceRecord(p);
         // Labelled as the status area labels it, which tells two of one name apart.
-        var option = new Option(workspaceLabel(p), p, false, p === adapter.workspace());
+        var option = new Option(workspaceLabel(p), p, false, workspaceIdentityPath(p) === workspaceIdentityPath(chosenPath));
         if (record) option.dataset.workspaceId = record.id;
         chooser.add(option);
       });
-      chooser.title = adapter.workspace() ? workspaceLabel(adapter.workspace()) : 'Choose a workspace';
+      if (chosenPath && !Array.from(chooser.options).some(function (option) { return workspaceIdentityPath(option.value) === workspaceIdentityPath(chosenPath); })) chooser.add(new Option(workspaceLabel(chosenPath), chosenPath, true, true));
+      chooser.title = chosenPath ? workspaceLabel(chosenPath) : 'Choose a workspace';
       var host = $('status-ws-recent');
       host.replaceChildren();
       recentWorkspaces.forEach(function (p) {
@@ -214,17 +217,39 @@
       refreshSessions();
     }
 
-    /* Opens a workspace, by its identity when it has one. When it cannot be
-       opened, the chooser goes back to the workspace that is still open. */
+    function sameChoice(a, b) {
+      return !!a && !!b && (a.id && b.id ? a.id === b.id : workspaceIdentityPath(a.path) === workspaceIdentityPath(b.path));
+    }
+    function selectNextWorkspace() {
+      if (switchingWorkspace || !workspaceChoice) return;
+      var requested = workspaceChoice;
+      switchingWorkspace = true;
+      Promise.resolve().then(function () {
+        var missing = requested.id && missingWorkspaces.indexOf(requested.id) >= 0 && workspaceRecords.find(function (r) { return r.id === requested.id; });
+        return missing ? offerMissingWorkspace(missing) : requested.id && app().SelectWorkspace ? app().SelectWorkspace(requested.id) : app().SetWorkspace(requested.path);
+      }).then(function (state) {
+        if (state) lastChoiceState = state;
+        if (!sameChoice(requested, workspaceChoice)) return;
+        workspaceChoice = null;
+        if (lastChoiceState) switchTo(lastChoiceState);
+      }).catch(function (error) {
+        if (sameChoice(requested, workspaceChoice)) workspaceChoice = null;
+        if (!workspaceChoice && lastChoiceState) switchTo(lastChoiceState);
+        fail(error);
+      }).finally(function () {
+        switchingWorkspace = false; ++catalogRefresh;
+        if (workspaceChoice) selectNextWorkspace();
+        else { lastChoiceState = null; drawWorkspaceLabels(); }
+      });
+    }
+    /* Keep the latest choice while the current host mutation completes.
+       A failed final choice returns to the last workspace actually opened. */
     function chooseWorkspace(p, id) {
-      if (p === adapter.workspace()) return;
-      var missing = id && missingWorkspaces.indexOf(id) >= 0 && workspaceRecords.find(function (r) { return r.id === id; });
-      if (missing) {
-        offerMissingWorkspace(missing).then(function (opened) { if (!opened) drawWorkspaceLabels(); }).catch(function (err) { drawWorkspaceLabels(); fail(err); });
-        return;
-      }
-      Promise.resolve().then(function () { return id && app().SelectWorkspace ? app().SelectWorkspace(id) : app().SetWorkspace(p); }).then(switchTo)
-        .catch(function (err) { drawWorkspaceLabels(); fail(err); });
+      var requested = { path: p, id: id || '' };
+      if (!switchingWorkspace && !workspaceChoice && sameChoice(requested, { path: adapter.workspace(), id: workspaceId })) return;
+      workspaceChoice = requested; ++catalogRefresh;
+      drawWorkspaceLabels();
+      selectNextWorkspace();
     }
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('[data-ws]');
@@ -364,7 +389,7 @@
         'The main folder ' + main.path + ' is not on this computer yet. ' + productName() + ' can create it, with the folders recorded inside it, or the workspace can wait until it appears. If OneDrive or another service is still bringing the folder, wait for it.',
         'Create the Folders', false).then(function (yes) {
         if (!yes) return false;
-        return Promise.resolve(app().CreateWorkspaceFolders(record.id, main.id)).then(function () { return app().SelectWorkspace(record.id); }).then(function (st) { switchTo(st); return true; });
+        return Promise.resolve(app().CreateWorkspaceFolders(record.id, main.id)).then(function () { return app().SelectWorkspace(record.id); });
       });
     }
     var renamingWorkspace = '', workspaceRenameBusy = false;
