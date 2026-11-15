@@ -399,6 +399,13 @@ func upgrade(db *sql.DB) error {
  BEGIN SELECT RAISE(ABORT, 'the recipient chat was removed'); END;`); err != nil {
 		return err
 	}
+	// A restored queue waits for an explicit open or a newly committed delivery.
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS recipient_recycle (recipient TEXT PRIMARY KEY, restored INTEGER NOT NULL DEFAULT 0);
+ CREATE TRIGGER IF NOT EXISTS wake_restored_recipient AFTER INSERT ON deliveries
+ WHEN NEW.recipient_kind='session'
+ BEGIN DELETE FROM recipient_recycle WHERE recipient=NEW.recipient AND restored=1; END;`); err != nil {
+		return err
+	}
 	if err := convertRooms(db); err != nil {
 		return err
 	}

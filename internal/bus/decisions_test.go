@@ -507,6 +507,14 @@ func TestDecisionUnavailableRequestsCanBeCleared(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if kind == "removed" {
+				for _, row := range page.Items {
+					if row.ID == d.ID {
+						t.Fatal("removed chat remained in Decisions")
+					}
+				}
+				return
+			}
 			var orphan Decision
 			for _, row := range page.Items {
 				if row.ID == d.ID {
