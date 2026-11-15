@@ -135,8 +135,8 @@
     function remaining(title, predicate) {
       var rows = view.chats.filter(function (c) { return wanted.has(c.chatId) && !claimed.has(c.chatId) && predicate(c); }).sort(function (a, b) { return a.chatId.localeCompare(b.chatId); });
       if (!rows.length) return;
-      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - margin * 2 - 32 - (cols - 1) * 16) / cols;
-      rows.forEach(function (c, index) { card(c.chatId, margin + 16 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
+      var start = y, cols = width >= 850 ? 4 : width >= 350 ? 2 : 1, w = (width - margin * 2 - 24 - (cols - 1) * 16) / cols;
+      rows.forEach(function (c, index) { card(c.chatId, margin + 12 + index % cols * (w + 16), start + 30 + Math.floor(index / cols) * 120, w); });
       y += 50 + Math.ceil(rows.length / cols) * 120;
       frames.push({ id: title, title: title, x: margin, y: start, width: width - margin * 2, height: y - start - 16 }); y += 24;
     }
