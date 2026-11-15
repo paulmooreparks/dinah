@@ -1,6 +1,6 @@
 # Bulk chat cleanup
 
-Paul decided on 15 November 2026 that removal is local and restorable for thirty days. Staging never deletes an agent program's own copy. Whether final deletion also removes a provider copy is pending Paul's decision; that step is behind a host-owned switch, currently off. This contract applies to the new cleanup page and the shared `RemoveChat` host operation. The architectural principles in `C:/Users/paul/OneDrive/Documents/Architectural Principles.md` apply.
+Paul decided on 15 November 2026 that removal is local and restorable for thirty days. Staging never deletes an agent program's own copy. Paul's later decision enables documented provider deletion at final deletion only. The host-owned switch is on. This contract applies to the new cleanup page and the shared `RemoveChat` host operation. The architectural principles in `C:/Users/paul/OneDrive/Documents/Architectural Principles.md` apply.
 
 ## Page calls
 
@@ -36,7 +36,9 @@ The JSON listing has `rows` and `removed` arrays, `retentionDays: 30`, and `gene
   "removedAt": "",
   "expiresAt": "",
   "restorable": false,
-  "restoreRefusal": ""
+  "restoreRefusal": "",
+  "providerDeletion": "unknown",
+  "finalDeleteConfirmation": "The program will be asked to delete its copy only if it offers documented deletion."
 }
 ```
 
@@ -64,10 +66,20 @@ Removal keeps the transcript, chat settings and bus place on disk for thirty day
 
 Restore reactivates the same bus identity and settings and returns the chat closed. It does not open the chat or start a provider. Expiry disposes of the application's retained files and queue while keeping a small permanent removal marker so old provider history cannot silently return to the list. With the provider-deletion switch off, final deletion never invokes a provider. If Paul enables it, only documented native deletion is used where supported; the immutable native identity is retained through interrupted finalization. The switch is host-owned and cannot be supplied by the page or an agent. Interrupted removal, restore and expiry must resume safely after restart, without duplicate queue ownership or reactivation of expired data.
 
-The staging confirmation says: "The selected chats will move to the Recycle Bin now. They will stop running and can be restored for 30 days. Their agent programs' own histories are untouched at this step." The product substitutes its display name where appropriate. While the switch is off, final confirmation says: "This permanently deletes the selected chats from this application, including their saved messages, settings and queued bus messages. This cannot be undone. Their agent programs' own histories are untouched." The host returns that text as `finalDeleteConfirmation`. Enabling provider deletion must update the authoritative text to identify supported native deletion and leave unsupported providers explicit. Only an ID tombstone survives final deletion; no title, workspace, options, pins or transcript remains.
+The staging confirmation says: "The selected chats will move to the Recycle Bin now. They will stop running and can be restored for 30 days. Their agent programs' own histories are untouched at this step." The product substitutes its display name where appropriate. The earlier switch-off text was: "This permanently deletes the selected chats from this application, including their saved messages, settings and queued bus messages. This cannot be undone. Their agent programs' own histories are untouched." The host returns that text as `finalDeleteConfirmation`. Enabling provider deletion must update the authoritative text to identify supported native deletion and leave unsupported providers explicit. Only an ID tombstone survives final deletion; no title, workspace, options, pins or transcript remains.
 
 ## Verification
 
 Host tests cover oldest-first listing across workspaces, closed transcript counts without opening, authoritative refusals, mixed batch outcomes, restore of content and settings, retained bus identity, interrupted operations and expiry. Runtime-cost tests require zero new provider starts for listing, removal of closed chats, startup with retained removals and restore. Direct, group and broadcast sends cannot enqueue or wake retained removals. Removed askers and recipients are excluded from Decisions. Tests use invented homes and bus data.
 
 The new bin behavior also applies to the compatibility host methods `HideSession` and `DeleteSession`, so an old page cannot bypass staging. Native deletion for finalization, if enabled, uses a separate internal operation. These compatibility methods are not a second deletion policy.
+
+## Final deletion policy decided by Paul
+
+The provider-deletion switch is enabled. Finalization first asks the provider to delete its copy through a documented interface, then erases the local retained copy. ACP deletion is used only when `sessionCapabilities.delete` is advertised. No implementation deletes files from an agent program's directories. A provider without documented deletion keeps its copy. Failure or lack of support never prevents completion of the application's local deletion.
+
+Each row adds `providerDeletion` with `supported`, `unsupported` or `unknown`, and its own authoritative `finalDeleteConfirmation`. Unknown means the capability will be checked at finalization without starting that provider merely to list the bin. Unsupported rows explicitly say that the agent program's copy will remain. The listing's aggregate confirmation says: "This permanently deletes the selected chats from this application. Each agent program will be asked to delete its own copy where documented deletion is available. Unsupported or failed provider deletions leave that program's copy intact. This cannot be undone."
+
+A deleted result additionally has `providerCopyRemains` and `providerDeletionReason`. A provider refusal produces `ok: true, status: deleted` once local deletion succeeds, with `providerCopyRemains: true` and the provider's reason. The frontend displays that reason beside the completed local deletion. A local-erasure failure instead returns `failed`, preserving the durable finalization state for retry. Provider deletion precedes local erasure even on retries; already-absent provider sessions count as deleted when its documented response establishes absence.
+
+Stand-in tests must cover advertised deletion, absent capability and failed deletion, and prove that all three cases erase the local copy while only the advertised successful case removes the provider copy. Expiry uses the same finalization path as Delete Now and Empty Recycle Bin.
