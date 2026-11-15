@@ -16,6 +16,7 @@ const { launch } = require('./lib/page');
       return {
         AgentProviders: async () => [{ id: 'devin', name: 'Devin', installed: true, available: true, status: 'detected' }, { id: 'codex', name: 'Codex', installed: true, available: true, status: 'detected' }],
         State: async () => state(), SetWorkspace: async ws => { workspace = ws; return state(); },
+        SavedChats: async () => ({ generation: 'workbench-fixture', chats: workspaces.flatMap(sessions) }),
         Sessions: async () => sessions(workspace), SessionsAt: async ws => sessions(ws),
         RecentDocuments: async () => [{ title: 'Beta Guide', ref: { workspaceId: 'C:/Beta', sourceId: 'local', path: 'guide.md' }, workspaceName: 'Beta', opened: '2026-10-01T09:00:00Z' }],
         DocumentRefAt: async (ws, file) => ({ workspaceId: ws, sourceId: 'local', path: file }),
@@ -50,7 +51,7 @@ const { launch } = require('./lib/page');
     ok('docked browsers have no taskbar entries or title bars', await p.locator('[data-win-dock] [data-win-tab="workspace"], [data-win-dock] [data-win-tab="chat-browser"]').count() === 0 && !await p.locator('[data-win="workspace"] > .win-head').isVisible());
     ok('Notifications has its own glyph', await p.locator('[data-win="needs-you"]').getAttribute('data-win-glyph') !== await p.locator('[data-win="chat-browser"]').getAttribute('data-win-glyph'));
     ok('browser commands appear in View instead of Window', await p.locator('[data-menubar-source] [data-menubar-id="view"] > ul > li > [data-cmd="chat-browser"]').count() === 1 && await p.locator('[data-menubar-source] [data-menubar-id="view"] > ul > li > [data-cmd="skills-browser"]').count() === 1 && await p.locator('#host-windows [data-cmd]').count() === 0);
-    ok('Tools launchers have one shared searchable catalog, with the Editor', await p.evaluate(() => dinahWorkbench.launchers().map(l => l.id).sort().join() === 'content-diagrams,content-docs,content-slides,editor,extensions,files,terminal,theme-editor' && !document.querySelector('[data-menubar-id="session"], [data-menubar-id="go"]')));
+    ok('Tools launchers have one shared searchable catalog, with the Editor', await p.evaluate(() => dinahWorkbench.launchers().map(l => l.id).sort().join() === 'chat-cleanup,content-diagrams,content-docs,content-slides,decisions,editor,extensions,files,org-chart,terminal,theme-editor' && !document.querySelector('[data-menubar-id="session"], [data-menubar-id="go"]')));
     // Tools › Editor starts an empty text document, "Untitled.txt", in the
     // Editor's own window; Docs's is "Untitled", in Docs's.
     await p.evaluate(() => {
