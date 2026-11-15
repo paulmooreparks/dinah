@@ -380,6 +380,7 @@
     "help-new-work",
     "decisions-attention-entry",
     "decisions-list",
+    "decisions-redesign",
     "decisions-answers",
     "decisions-drafts",
     "decisions-delivery",
@@ -407,6 +408,7 @@
     "thinking-control",
     "org-chart",
     "org-chart-stability",
-    "org-chart-actions"
+    "org-chart-actions",
+    "task-questions"
   ]
 }

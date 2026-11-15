@@ -1,0 +1,15 @@
+PASS approval is visible in its chat while Notifications is closed
+PASS the chat status explains the wait and typing focus is preserved
+PASS a short question fits without clipping its choices
+PASS long questions scroll within half the output space
+PASS long question choices remain reachable
+PASS narrow chats retain bounded questions and a usable output area
+PASS one shared answer route submits the correct request and disables both views
+PASS answer acknowledgement removes both copies
+PASS an empty question area occupies no space
+PASS cancellation removes inline and Notifications requests
+PASS a failed answer restores both sets of choices
+PASS another chat request does not appear here or steal focus
+PASS opening the owning chat shows its pending request
+PASS provider stop removes both copies
+PASS no page errors

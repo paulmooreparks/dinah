@@ -1,0 +1,24 @@
+PASS an empty list says so in one line
+PASS the badge is a neutral 0 with nothing waiting
+PASS the badge counts the questions and the errors
+PASS questions come first, newest first, then the reports newest first
+PASS the list and stable pane contain the same entries
+PASS each row has its type's colour
+PASS each type has a glyph of its own, so colour is not the only signal
+PASS a long description is clamped to two lines
+PASS the whole text is in the row's name and tooltip
+PASS a question's name says its type and its chat
+PASS opening the list puts focus on its first row
+PASS Down moves to the next row
+PASS Up moves back
+PASS a new entry appears while the list is open
+PASS the focused row keeps focus as the list changes
+PASS an answered question leaves the open list and the badge
+PASS Escape closes the list and focus returns to the item
+PASS a question opens its chat with the question in view
+PASS the popover closes when a row is chosen
+PASS a report opens the pane with focus in its card
+PASS Clear All is offered while there are reports
+PASS Clear All leaves only the question
+PASS Show All opens Notifications
+PASS no page errors

@@ -561,6 +561,19 @@
     }
     on('agent:permission', permissionAsked);
 
+    // Task questions never enter the chat cache or the chat permission snapshot.
+    var taskQuestions = window.dinahTaskQuestions;
+    taskQuestions.subscribe(function (key) {
+      var id = 'task-question-' + key, entry = taskQuestions.get(key);
+      if (!entry) { notices.remove(id); return; }
+      if (notices.get(id)) return;
+      var q = entry.question;
+      notices.add({ id: id, type: 'question', description: q.question, source: q.serviceName + ' · ' + q.taskTitle + ' · ' + q.workspaceName,
+        time: q.askedAt, className: 'question task-question',
+        render: function (card) { taskQuestions.render(card, key); } });
+    });
+    taskQuestions.connect({ app: app, on: on, fail: fail });
+
     // Tool failures have an optional summary in the run. An unsuccessful
     // turn still raises an error, since it can leave the conversation stuck.
     function headsUp(s, failures, error) {

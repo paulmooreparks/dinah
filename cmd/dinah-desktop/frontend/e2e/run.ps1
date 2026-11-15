@@ -61,6 +61,7 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   $psi.WorkingDirectory = $using:here
   $psi.Environment['DINAH_BROWSER_TEST_TICKET'] = $using:browserTicket
   $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
   # Node writes UTF-8; the console code page must not decode its output.

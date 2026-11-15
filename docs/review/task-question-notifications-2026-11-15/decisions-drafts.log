@@ -1,0 +1,6 @@
+PASS per-request text and recommendation drafts survive reload
+PASS another request retains its own draft
+PASS changed destination retains text and blocks sending pending review
+PASS reviewing the new request permits the preserved draft
+PASS storage failure is visible and prevents sending
+PASS no page errors
