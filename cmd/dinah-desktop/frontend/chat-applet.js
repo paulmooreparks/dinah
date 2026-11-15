@@ -2300,7 +2300,7 @@
       var live = !!(g && !g._complete);
       if (!s || s.loading || (!live && !noted)) { list.replaceChildren(); note.hidden = true; note.textContent = ''; dock.hidden = true; return; }
       if (!live) list.replaceChildren(); else if (list.firstElementChild !== g) list.replaceChildren(g);
-      note.textContent = s.effortNote || ''; note.title = s.effortNote || ''; note.hidden = !s.effortNote;
+      note.textContent = s.effortNote || ''; note.hidden = !s.effortNote;
       dock.hidden = false;
     }
     function workHeading(g) {

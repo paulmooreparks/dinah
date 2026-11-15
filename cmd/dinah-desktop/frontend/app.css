@@ -863,7 +863,7 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .live-work .tool-group-list { max-height: min(30vh, 18rem); overflow: auto; overscroll-behavior: contain; }
 .live-work .work-group { margin: 0; }
 /* What the agent program documents about an Effort change made while the turn runs. */
-.live-work-note { margin: 0; padding: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-work-note { margin: 0; padding: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
 .live-work-note[hidden] { display: none; }
 .live-work .activity-time { display: none; }
 .live-work .activity-row { grid-template-columns: minmax(0, 1fr); }
