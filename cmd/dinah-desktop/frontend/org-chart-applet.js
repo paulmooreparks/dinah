@@ -1,4 +1,4 @@
-/* Read-only projection of OrgChart(), specified in docs/design/org-chart-query.md. */
+/* OrgChart projects the saved relations; management uses the host's legal actions. */
 (function () {
   'use strict';
   var node = window.dinahHelpers.node, app = window.dinahHelpers.app;
@@ -15,8 +15,18 @@
     var legend = node('p', 'org-chart-legend text-muted', 'Solid lines show teams. Dotted lines show groups.');
     var scroll = node('div', 'org-chart-scroll'); scroll.tabIndex = 0; scroll.setAttribute('aria-label', 'Org Chart');
     var canvas = node('div', 'org-chart-canvas'); scroll.append(canvas); root.append(toolbar, status, legend, scroll);
-    function address() { var p = new URLSearchParams(); if (workspace) p.set('workspace', workspace); if (find) p.set('q', find); Array.from(folded).sort().forEach(function (id) { p.append('fold', id); }); return p.toString(); }
-    function readState(value) { var p = new URLSearchParams(value || ''); workspace = p.get('workspace') || ''; find = p.get('q') || ''; folded = new Set(p.getAll('fold')); search.value = find; scope.value = workspace; }
+    var actionRoot = node('section'); root.append(actionRoot);
+    var management = window.dinahOrgChartManagement.create(actionRoot, {
+      changed: function (p) { opts.changed(p.toString()); }, refresh: load, state: address,
+      mode: function (active) { [toolbar, status, legend, scroll].forEach(function (el) { el.hidden = active; }); },
+      navigate: function (p, push) { var key = root.closest('[data-win]').dataset.win, url = new URL(location.href); url.searchParams.set('view.' + key, p.toString()); if (push) history.pushState(history.state, '', url); window.dinahWorkbench.setState(key, p.toString()); }
+    });
+    var manage = node('button', 'btn btn-sm', 'Manage Chats…'); manage.type = 'button'; toolbar.append(manage);
+    manage.addEventListener('click', function () {
+      var r = manage.getBoundingClientRect(); management.menu('', manage, { add: function (rows) { window.pudlMenu.openAt(r.left, r.bottom, rows, { owner: manage, for: manage }); }, mark: function () {} });
+    });
+    function address() { var p = new URLSearchParams(); if (workspace) p.set('workspace', workspace); if (find) p.set('q', find); Array.from(folded).sort().forEach(function (id) { p.append('fold', id); }); management.write(p); return p.toString(); }
+    function readState(value) { var p = new URLSearchParams(value || ''); workspace = p.get('workspace') || ''; find = p.get('q') || ''; folded = new Set(p.getAll('fold')); search.value = find; scope.value = workspace; management.read(p); }
     function changed() { if (!readingState) opts.changed(address()); render(); }
     function options() { return { width: Math.max(160, scroll.clientWidth - 32), workspace: workspace, find: find.trim(), folded: Array.from(folded) }; }
     function place(el, p) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; el.style.width = p.width + 'px'; el.style.height = p.height + 'px'; }
@@ -53,7 +63,6 @@
       });
       var old = canvas.querySelector('.org-chart-lines'); if (old) old.replaceWith(svg); else canvas.prepend(svg);
     }
-    function menuRows() { return ['Assign to a Team…', 'Make Team Lead', 'Create a Team…', 'Create a Group…', 'Start Chat', 'Delete Chat…'].map(function (label) { return { label: label, disabled: true, detail: 'Coming next' }; }); }
     function makeChat(p) {
       var box = node('article', 'org-chart-chat'); box.dataset.orgChat = p.id; box.tabIndex = 0; place(box, p);
       var title = node('strong', 'org-chart-title'), meta = node('span', 'org-chart-meta text-muted'), state = node('span', 'org-chart-state');
@@ -61,7 +70,7 @@
       box.addEventListener('pudl:contextmenu', function (event) {
         var chat = snapshot.chats.find(function (c) { return c.chatId === p.id; });
         if (!chat || chat.resolution !== 'resolved') { event.preventDefault(); event.stopPropagation(); return; }
-        event.detail.add(menuRows()); event.detail.mark(box); event.stopPropagation();
+        management.menu(p.id, box, event.detail); event.stopPropagation();
       });
     }
     function updateText() {
@@ -134,7 +143,7 @@
     var resize = new ResizeObserver(render); resize.observe(scroll);
     var theme = new MutationObserver(function () { if (!disposed) drawLines(); }); theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-skin', 'style'] });
     readState(opts.state); load();
-    return { state: address, setState: function (value) { readingState = true; readState(value); render(); readingState = false; }, commands: function () { return [{ label: 'Retry Loading', disabled: !failed, reason: 'The chart updates automatically.', run: load }]; }, destroy: function () { disposed = true; stops.forEach(function (stop) { stop(); }); resize.disconnect(); theme.disconnect(); } };
+    return { state: address, setState: function (value) { readingState = true; readState(value); render(); readingState = false; }, commands: function () { return [{ label: 'Manage Chats…', run: function () { manage.click(); } }, { label: 'Retry Loading', disabled: !failed, reason: 'The chart updates automatically.', run: load }]; }, destroy: function () { disposed = true; management.destroy(); stops.forEach(function (stop) { stop(); }); resize.disconnect(); theme.disconnect(); } };
   }
   window.dinahWorkbench.register('org-chart', { applet: { id: 'dinah.org-chart', title: 'Org Chart', glyph: 'subagents', workspace: false }, singleton: true, title: 'Org Chart', glyph: 'subagents', mode: 'maximized', init: init });
   window.dinahCommands.register({ id: 'org-chart', menu: 'window', label: 'Org Chart', run: function () { return window.dinahWorkbench.open('org-chart'); } });

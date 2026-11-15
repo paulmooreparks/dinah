@@ -19,7 +19,7 @@
     });
     var xs = new Set([0, plan.width]), ys = new Set([0, plan.height]);
     obstacles.forEach(function (o) { xs.add(o.left); xs.add(o.right); ys.add(o.top); ys.add(o.bottom); });
-    plan.frames.forEach(function (f) { groupIds.forEach(function (_, i) { xs.add(Math.round(f.x - 8 - i * 8)); xs.add(Math.round(f.x + f.width + 8 + i * 8)); ys.add(Math.round(f.y - 8 - i * 8)); ys.add(Math.round(f.y + f.height + 8 + i * 8)); }); [f.x - 8, f.x + 8, f.x + f.width - 8, f.x + f.width + 8].forEach(function (x) { xs.add(Math.round(x)); }); [f.y - 8, f.y + 8, f.y + f.height - 8, f.y + f.height + 8].forEach(function (y) { ys.add(Math.round(y)); }); });
+    plan.frames.forEach(function (f) { groupIds.forEach(function (_, i) { xs.add(Math.round(f.x - 16 - i * 16)); xs.add(Math.round(f.x + f.width + 16 + i * 16)); ys.add(Math.round(f.y - 16 - i * 16)); ys.add(Math.round(f.y + f.height + 16 + i * 16)); }); [f.x - 8, f.x + 8, f.x + f.width - 8, f.x + f.width + 8].forEach(function (x) { xs.add(Math.round(x)); }); [f.y - 8, f.y + 8, f.y + f.height - 8, f.y + f.height + 8].forEach(function (y) { ys.add(Math.round(y)); }); });
     links.forEach(function (e) { xs.add(e.start[0]); xs.add(e.end[0]); ys.add(e.start[1]); ys.add(e.end[1]); });
     xs = Array.from(xs).filter(function (x) { return x >= 0 && x <= plan.width; }).sort(function (a, b) { return a - b; }); ys = Array.from(ys).filter(function (y) { return y >= 0 && y <= plan.height; }).sort(function (a, b) { return a - b; });
     var columns = xs.length, count = columns * ys.length, clear = new Map();
@@ -33,11 +33,11 @@
         if (!(f === ownFrame && horizontal && first[1] === edge.start[1] && (edge.fromSide === 'right' ? Math.min(first[0], last[0]) >= edge.start[0] : Math.max(first[0], last[0]) <= edge.start[0])) && (horizontal ? first[1] > f.y - 6 && first[1] < f.y + f.height + 6 && Math.max(first[0], last[0]) > f.x - 6 && Math.min(first[0], last[0]) < f.x + f.width + 6 : first[0] > f.x - 6 && first[0] < f.x + f.width + 6 && Math.max(first[1], last[1]) > f.y - 6 && Math.min(first[1], last[1]) < f.y + f.height + 6)) return true;
         // Perpendicular crossings leave a container at one point. Parallel
         // segments stay clear of its border, so they cannot look like it.
-        return horizontal ? (Math.abs(first[1] - f.y) < 8 || Math.abs(first[1] - f.y - f.height) < 8) && Math.max(first[0], last[0]) > f.x - 8 && Math.min(first[0], last[0]) < f.x + f.width + 8 : (Math.abs(first[0] - f.x) < 8 || Math.abs(first[0] - f.x - f.width) < 8) && Math.max(first[1], last[1]) > f.y - 8 && Math.min(first[1], last[1]) < f.y + f.height + 8;
+        return horizontal ? (Math.abs(first[1] - f.y) < 16 || Math.abs(first[1] - f.y - f.height) < 16) && Math.max(first[0], last[0]) > f.x - 8 && Math.min(first[0], last[0]) < f.x + f.width + 8 : (Math.abs(first[0] - f.x) < 16 || Math.abs(first[0] - f.x - f.width) < 16) && Math.max(first[1], last[1]) > f.y - 8 && Math.min(first[1], last[1]) < f.y + f.height + 8;
       });
       if (allowed && edge.dotted) allowed = !occupied.some(function (r) {
         if (r.group === edge.to.id || horizontal !== r.horizontal) return false;
-        return horizontal ? Math.abs(first[1] - r.a[1]) < 6 && Math.min(Math.max(first[0],last[0]),Math.max(r.a[0],r.b[0])) > Math.max(Math.min(first[0],last[0]),Math.min(r.a[0],r.b[0])) : Math.abs(first[0] - r.a[0]) < 6 && Math.min(Math.max(first[1],last[1]),Math.max(r.a[1],r.b[1])) > Math.max(Math.min(first[1],last[1]),Math.min(r.a[1],r.b[1]));
+        return horizontal ? Math.abs(first[1] - r.a[1]) < 16 && Math.min(Math.max(first[0],last[0]),Math.max(r.a[0],r.b[0])) > Math.max(Math.min(first[0],last[0]),Math.min(r.a[0],r.b[0])) : Math.abs(first[0] - r.a[0]) < 16 && Math.min(Math.max(first[1],last[1]),Math.max(r.a[1],r.b[1])) > Math.max(Math.min(first[1],last[1]),Math.min(r.a[1],r.b[1]));
       });
       clear.set(key, allowed); return allowed;
     }
@@ -108,7 +108,7 @@
       return y;
     }
     var roots = teams.filter(function (t) { return !parent.has(t.leadId) && visible(t.leadId); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
-    var columns = width >= 650 ? 2 : 1, margin = 16 + view.groups.length * 8, gutter = margin * 2, sectionW = (width - margin * 2 - gutter * (columns - 1)) / columns, y = margin;
+    var columns = width >= 650 ? 2 : 1, margin = 16 + view.groups.length * 16, gutter = margin * 2, sectionW = (width - margin * 2 - gutter * (columns - 1)) / columns, y = margin;
     var groups = view.groups.filter(function (g) { return g.resolution === 'repair' && !options.workspace && !options.find || g.memberIds.concat(g.ownerId || []).some(function (id) { return wanted.has(id); }); });
     var groupBoxes = new Map();
     function placeGroups(ready) {

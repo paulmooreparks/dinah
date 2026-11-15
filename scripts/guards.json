@@ -406,6 +406,7 @@
     "today-themes",
     "thinking-control",
     "org-chart",
-    "org-chart-stability"
+    "org-chart-stability",
+    "org-chart-actions"
   ]
 }

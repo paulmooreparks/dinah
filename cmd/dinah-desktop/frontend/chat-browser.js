@@ -180,6 +180,12 @@
     }
     window.dinahChats = {
       known: knownChats,
+      created: function (info) {
+        var session = S(info.sessionId); session.info = Object.assign({}, session.info, info); session.titleKnown = true;
+        var at = listed.findIndex(function (entry) { return entry.sessionId === info.sessionId; });
+        if (at < 0) listed.push(info); else listed[at] = info;
+        drawSessions(); return openSession(info.sessionId);
+      },
       restore: function (row) {
         var info = { sessionId: row.sessionId, title: row.title, cwd: row.workspace, provider: row.provider, updatedAt: row.lastActivity, open: false, working: false };
         var session = S(row.sessionId); session.info = Object.assign({}, session.info, info); session.working = false; session.titleKnown = true;

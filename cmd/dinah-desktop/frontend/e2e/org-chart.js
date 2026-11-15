@@ -11,7 +11,8 @@ const { start } = require('./lib/org-chart-fixture');
     await chart.locator('[data-org-chat="nina"]').hover();
     await chart.locator('[data-org-chat="nina"] [data-row-actions]').click();
     await p.locator('.context-menu:popover-open, .menu-panel:popover-open').last().waitFor();
-    ok('management actions are disabled and explain that they are coming next', await p.locator('.context-menu:popover-open, .menu-panel:popover-open').last().evaluate(el => el.textContent.includes('Coming next') && el.querySelectorAll('.menu-action').length === 6 && Array.from(el.querySelectorAll('.menu-action')).every(item => item.getAttribute('aria-disabled') === 'true')));
+    await p.locator('.context-menu:popover-open, .menu-panel:popover-open').last().getByText('Unavailable in this fixture.').first().waitFor();
+    ok('unavailable management actions use the host reason', await p.locator('.context-menu:popover-open, .menu-panel:popover-open').last().evaluate(el => el.querySelectorAll('.menu-action').length === 6 && Array.from(el.querySelectorAll('.menu-action')).every(item => item.getAttribute('aria-disabled') === 'true')));
     await p.keyboard.press('Escape');
     await chart.locator('[data-org-chat="nina"]').focus(); await p.keyboard.press('Shift+F10');
     ok('the chat context menu is available from the keyboard', await p.locator('.context-menu:popover-open, .menu-panel:popover-open').count() === 1); await p.keyboard.press('Escape');
@@ -60,7 +61,7 @@ const { start } = require('./lib/org-chart-fixture');
           }
           runs.forEach(r => {
             if (r.groupKey === groupKey || r.horizontal !== horizontal) return;
-            const parallel = horizontal ? Math.abs(a.y - r.a.y) < 4 : Math.abs(a.x - r.a.x) < 4;
+            const parallel = horizontal ? Math.abs(a.y - r.a.y) < 15.9 : Math.abs(a.x - r.a.x) < 15.9;
             const extent = horizontal ? Math.min(Math.max(a.x,b.x),Math.max(r.a.x,r.b.x))-Math.max(Math.min(a.x,b.x),Math.min(r.a.x,r.b.x)) : Math.min(Math.max(a.y,b.y),Math.max(r.a.y,r.b.y))-Math.max(Math.min(a.y,b.y),Math.min(r.a.y,r.b.y));
             if (parallel && extent > 2) shared.push([route,r.route]);
           });

@@ -64,6 +64,37 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
  await page.evaluate(()=>dinahWorkbench.open('org-chart'));
  await page.locator('.org-chart [data-org-chat="'+target.chatId+'"] strong').filter({hasText:changed}).waitFor();
  check('a page reload retains the real local chat title',true);check('the hidden page reports no errors',evidence.pageErrors.length===0);
+ if(profile==='actions'){
+  const panel=page.locator('.org-chart .org-action');
+  async function action(chatId,kind){
+   const offered=await call('OrgChartActions',chatId), descriptor=offered.actions.find(a=>a.kind===kind);
+   check(kind+' is offered by the real host',!!descriptor);
+   const state=new URL(descriptor.href,'http://localhost').searchParams.get('view.org-chart');
+   await page.evaluate(state=>dinahWorkbench.setState('org-chart',state),state);
+   await panel.getByRole('heading',{name:descriptor.label,exact:true}).waitFor();return descriptor;
+  }
+  async function submit(label){await panel.getByRole('button',{name:label,exact:true}).click();await panel.locator('.org-action-result[data-status]').waitFor();check(label+' succeeds in the real host',await panel.locator('.org-action-result').getAttribute('data-status')==='succeeded');}
+  const before=await call('OrgChart'), titleOf=id=>before.chats.find(c=>c.chatId===id).title;
+  await action('','create_group');await panel.getByLabel('Name',{exact:true}).fill('Hidden Circle');
+  for(const id of ['codex:chart-Oren','codex:chart-Uma'])await panel.getByRole('checkbox',{name:titleOf(id),exact:true}).check();
+  await submit('Create Group');let live=await call('OrgChart'), circle=live.groups.find(g=>g.title==='Hidden Circle');check('the real ordinary group has both selected canonical members',!!circle&&circle.memberIds.includes('codex:chart-Oren')&&circle.memberIds.includes('codex:chart-Uma'));
+  await action('codex:chart-Oren','make_lead');await panel.getByLabel('Ordinary Group',{exact:true}).selectOption(circle.id);await submit('Make Lead');
+  live=await call('OrgChart');check('Make Lead converts that existing group into a reporting line',live.teams.some(t=>t.leadId==='codex:chart-Oren'&&t.memberIds.includes('codex:chart-Uma')));
+  await action('','create_team');await panel.getByLabel('Name',{exact:true}).fill('Hidden Team');await panel.getByLabel('Lead',{exact:true}).selectOption('codex:chart-Bo');
+  await panel.getByRole('checkbox',{name:titleOf('codex:chart-Lena'),exact:true}).check();await submit('Create Team');
+  live=await call('OrgChart');check('Create Team applies the new nested reporting line',live.teams.some(t=>t.leadId==='codex:chart-Bo'&&t.memberIds.includes('codex:chart-Lena')));
+  await action('codex:chart-Cal','assign_team');await panel.getByLabel('Team Lead',{exact:true}).selectOption('codex:chart-Bo');await submit('Assign to a Team');
+  live=await call('OrgChart');check('assignment moves the chat to its chosen lead',live.teams.some(t=>t.leadId==='codex:chart-Bo'&&t.memberIds.includes('codex:chart-Cal'))&&!live.teams.some(t=>t.leadId==='codex:chart-Nina'&&t.memberIds.includes('codex:chart-Cal')));
+  await action('codex:chart-Cal','delete_chat');check('real deletion confirmation mentions retained local recovery', (await panel.locator('.org-action-confirmation').innerText()).includes('30 days'));await submit('Delete Chat');
+  live=await call('OrgChart');check('deletion excludes the chat and retains it in the real Recycle Bin',!live.chats.some(c=>c.chatId==='codex:chart-Cal')&&(await call('ListChatCleanup')).removed.some(c=>c.sessionId==='codex:chart-Cal'));
+  const refusalPath=path.join(out,'provider-refusals.jsonl'), priorAttempts=fs.existsSync(refusalPath)?fs.readFileSync(refusalPath,'utf8').trim().split('\n').length:0;
+  check('relation changes and binning attempted no native provider',priorAttempts===0);
+  const start=await action('','start_chat');await panel.getByLabel('Workspace',{exact:true}).selectOption(start.workspaces[0].id);await panel.getByLabel('Agent Program',{exact:true}).selectOption('codex');
+  await panel.getByRole('button',{name:'Start a Chat',exact:true}).click();await panel.locator('.org-action-result[data-status="failed"]').waitFor();
+  check('only explicit Start a Chat reaches the refusing stand-in',fs.existsSync(refusalPath)&&fs.readFileSync(refusalPath,'utf8').trim().length>0);
+  await page.screenshot({path:path.join(out,'org-chart-actions-host-result.png')});evidence.actionSnapshot=live;
+ }
+
  console.log('PASS real OrgChart query, canonical rendering, local refresh, fixed frames, reload and four viewports');
 }finally{
  const closing = browser ? browser.close() : Promise.resolve();
