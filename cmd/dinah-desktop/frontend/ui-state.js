@@ -99,6 +99,14 @@
     var saved = get('dinah-workbench-layout');
     if (!originalSearch && typeof saved === 'string') {
       try {
+        var query = new URLSearchParams(saved), opened = (query.get('open') || '').split(',');
+        var kept = opened.filter(function (key) { var item = window.dinahWorkbench && window.dinahWorkbench.item(key); return key !== 'chat' && (!item || item.kind !== 'chat'); });
+        if (kept.length !== opened.length) {
+          query.set('open', kept.filter(Boolean).join(',') || 'workspace');
+          if (opened.includes(query.get('top')) && !kept.includes(query.get('top'))) query.delete('top');
+          if (query.has('z.order')) query.set('z.order', query.get('z.order').split(',').filter(function (key) { return kept.includes(key); }).join(','));
+          saved = '?' + query.toString();
+        }
         history.replaceState(history.state, '', location.pathname + saved + location.hash);
         window.dispatchEvent(new PopStateEvent('popstate'));
       } catch (error) { report(error); }

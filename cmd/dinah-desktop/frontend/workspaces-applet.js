@@ -214,7 +214,7 @@
       setContext(null);
       adapter.setDraftWorkspace(adapter.workspace());
       show(null);
-      refreshSessions();
+      drawSessions();
     }
 
     function sameChoice(a, b) {

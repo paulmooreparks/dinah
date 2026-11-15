@@ -55,6 +55,7 @@
           });
           var hook = sectionHooks[settingsSection];
           if (hook && hook.shown) hook.shown(part);
+          document.dispatchEvent(new CustomEvent('dinah:settings-section', { detail: { section: settingsSection } }));
           if (record) opts.changed(state());
         }
         if (kind === 'settings') settingsChanged = function () { opts.changed(state()); };
@@ -126,7 +127,10 @@
           return commands;
         }
         return { state: state, setState: setState, commands: commands, destroy: function () {
-          if (kind === 'settings') content.removeEventListener('click', settingsClick);
+          if (kind === 'settings') {
+            content.removeEventListener('click', settingsClick);
+            document.dispatchEvent(new CustomEvent('dinah:settings-section', { detail: { section: '' } }));
+          }
           (fields || []).forEach(function (id) {
             var el = document.getElementById(id);
             el.removeEventListener(el.tagName === 'SELECT' ? 'change' : 'input', changed);

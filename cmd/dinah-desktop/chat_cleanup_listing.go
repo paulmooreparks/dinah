@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"path/filepath"
 	"sort"
 	"time"
@@ -15,6 +16,10 @@ const chatCleanupFinalConfirmation = "This permanently deletes the selected chat
 // ListChatCleanup reads local metadata and saved messages. It never discovers
 // provider history, opens a chat or acquires a provider connection.
 func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
+	inventory, err := a.SavedChats()
+	if err != nil {
+		return ChatCleanupListing{}, err
+	}
 	a.mu.Lock()
 	settings, err := a.settings.clone()
 	live := map[string]SessionInfo{}
@@ -262,6 +267,30 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 		return listing.Removed[i].SessionID < listing.Removed[j].SessionID
 	})
 
+	byHead := map[string]ChatCleanupRow{}
+	for _, row := range listing.Rows {
+		byHead[row.SessionID] = row
+	}
+	listing.Rows = []ChatCleanupRow{}
+	for _, chat := range inventory.Chats {
+		row, ok := byHead[chat.ID]
+		if !ok {
+			row = ChatCleanupRow{SessionID: chat.ID, SessionIDs: []string{chat.ID}, Refusal: "This chat needs ownership repair before cleanup."}
+		}
+		row.Title, row.Workspace, row.Provider = chat.Title, chat.Cwd, chat.Provider
+		if chat.Resolution != "resolved" {
+			row.Refusal = chat.Reason
+		}
+		row.Eligible = row.Refusal == ""
+		listing.Rows = append(listing.Rows, row)
+	}
+	current, err := a.SavedChats()
+	if err != nil {
+		return ChatCleanupListing{}, err
+	}
+	if current.Generation != inventory.Generation {
+		return ChatCleanupListing{}, errors.New("Chat inventory changed while cleanup was read. Refresh the list.")
+	}
 	return listing, nil
 }
 

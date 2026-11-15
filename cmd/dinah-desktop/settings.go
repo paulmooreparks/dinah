@@ -127,6 +127,7 @@ type Settings struct {
 	SessionOptions   map[string]map[string]json.RawMessage `json:"sessionOptions,omitempty"`
 	SessionProviders map[string]string                     `json:"sessionProviders,omitempty"`
 	ListedChats      map[string]listedChat                 `json:"listedChats,omitempty"`
+	ListingScopes    map[string]listingScope               `json:"listingScopes,omitempty"`
 	// OptionSubstitutions are the values the person chose, by provider, to
 	// reopen a chat with when its saved value of an option is not offered
 	// (option_substitutions.go).
@@ -236,6 +237,9 @@ func loadSettings() (Settings, error) {
 		// tools to the workspace folders; one that has settings and no
 		// choice keeps going anywhere (ollama_files.go).
 		s.OllamaFileScope = ollamaScopeWorkspace
+	}
+	if err := reconcileListedChatProjection(&s); err != nil {
+		return s, err
 	}
 	// The registry is in its own file. Where that file is not there yet, an
 	// older settings.json may still hold it; where both exist, the file is
@@ -376,6 +380,9 @@ func saveSettings(s Settings) error {
 		if err := saveRegistry(dir, grown); err != nil {
 			return err
 		}
+	}
+	if err := saveListedChatProjection(s); err != nil {
+		return err
 	}
 	if err := writeKeepingBeforeDecisions(filepath.Join(dir, "settings.json"), b, nil); err != nil {
 		if growing && existed {

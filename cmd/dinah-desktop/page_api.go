@@ -46,7 +46,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
- NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation
+ NativeWindowState NativeWindowAction State Sessions SessionsAt SavedChats DeclaredProviders RefreshProviderSessions History SavedConversation
  AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer
  AppletArtifactAt AppletAttention AppletCatalog AppletGrants AppletInvocationAt AppletInvocationsAt
  AppletRequests AppletResults BusOverview BusInboxPage BusInboxMessage BusGroup BusResolveGroup BusGroupMessages BusGroupMessagesFrom BusGroupMessageContext BusThread BusGroupReach BusGroupAttentionSettings

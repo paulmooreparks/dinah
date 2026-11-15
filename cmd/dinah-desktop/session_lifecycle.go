@@ -23,7 +23,8 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 		a.sessionsService = sessionhost.NewSessionLifecycle(&a.mu, &a.runtime, sessionhost.SessionLifecycleHost{
 			RecordedActivity:     a.recordedActivity,
 			RecordListedSessions: a.recordListedSessions,
-			BeforeOpen:           a.beforeNativeOpen, MissingSession: a.nativeSessionMissing,
+			BeginListing:         a.beginListing, FinishListing: a.finishListing,
+			BeforeOpen: a.beforeNativeOpen, MissingSession: a.nativeSessionMissing,
 			NormalizeProvider: normalizedProvider, PrepareApplets: prepareProviderApplets, Live: func(provider string) (agentConnection, acp.InitializeResult, error) {
 				return a.lifecycle().Live(provider)
 			},

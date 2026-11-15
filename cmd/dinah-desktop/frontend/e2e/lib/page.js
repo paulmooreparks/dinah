@@ -129,6 +129,11 @@ function stub({ state, app, init, args }) {
     UpdateState: async () => ({}), NativeWindowState: async () => ({}),
   };
   const own = app ? app(args) : {};
+  // Older suites describe inventory with Sessions and AgentProviders fixtures.
+  // Adapt that invented data to the passive query contracts. Suites that test
+  // discovery boundaries supply the two passive methods themselves.
+  if (!own.SavedChats) App.SavedChats = async () => ({ generation: 'fixture', chats: await (own.Sessions || App.Sessions)() });
+  if (!own.DeclaredProviders) App.DeclaredProviders = async () => (await (own.AgentProviders || App.AgentProviders)()).map(p => ({ id: p.id, name: p.name, default: p.default, facts: p.facts, status: 'unknown' }));
   Object.assign(App, own);
   // Every call is recorded with its arguments, whichever stub answers it.
   for (const name of Object.keys(App)) {

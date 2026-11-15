@@ -54,7 +54,7 @@
       if (!list.some(function (p) { return p.id === chosen; })) list = list.concat([{ id: chosen, installed: false, statusWords: 'Not Offered' }]);
       return list.map(function (p) {
         // The words that say what is wrong come from the engine's list, made from the provider's status code.
-        return { id: p.id, name: p.name || providerName(p.id), problem: p.installed ? '' : p.statusWords || 'Not Ready' };
+        return { id: p.id, name: p.name || providerName(p.id), problem: p.status === 'unknown' || p.installed ? '' : p.statusWords || 'Not Ready' };
       });
     }
     function providerOptions(select, chosen) {
@@ -67,6 +67,7 @@
       select.value = chosen;
     }
     function rememberCatalog(s) {
+      if (s.info.open) loadModelPrices(sessionProvider(s));
       // Replayed options can arrive before the session's provider metadata.
       if (!s.options.length || !s.info.provider) return;
       var id = sessionProvider(s);
@@ -163,8 +164,20 @@
     function backgroundWork(s) { return s ? (s.background || []).filter(function (t) { return t.type !== 'turn'; }) : []; }
     function chatWorking(s) { return !!s && (s.working || busyOnItsOwn(s)); }
 
+    var providerInventoryReads = new Map();
+    function refreshOpenedProvider(info) {
+      if (!info || !info.open || !app().RefreshProviderSessions) return;
+      var provider = info.provider || sessionProvider(sessions[info.sessionId]), ws = info.cwd || adapter.workspace();
+      var key = JSON.stringify([ws, provider]);
+      if (providerInventoryReads.has(key)) return;
+      var read = Promise.resolve().then(function () { return app().RefreshProviderSessions(ws, provider); }).then(function () {
+        return window.dinahChats && window.dinahChats.refreshInventory();
+      }).catch(fail).finally(function () { providerInventoryReads.delete(key); });
+      providerInventoryReads.set(key, read);
+    }
     const sessionLifecycle = window.dinahSessionLifecycle.create({
       store: sessionStore, app: app,
+      openedProvider: refreshOpenedProvider,
       workspace: function () { return adapter.workspace(); }, active: function () { return active; },
       chatKey: chatKey,
       isWindowOpen: function (key) { return window.pudlWindows.state().open.includes(key); },
@@ -659,7 +672,7 @@
     /* Devin's model prices, by the model's value, as its command line lists
        them (DESIGN.md, Devin Model Prices). They arrive in the background and
        may never arrive; a model with no price is drawn as it always was. */
-    var modelPrices = {}; // by provider, for each that has prices
+    var modelPrices = {}, priceReads = new Map(); // by provider, for each that has prices
     function modelPrice(provider, value) {
       var prices = modelPrices[provider];
       if (!prices || !Object.prototype.hasOwnProperty.call(prices, value)) return null;
@@ -694,12 +707,16 @@
       chatControllers.forEach(function (chat) { chat.pricesChanged(); });
       if ($('model-prefs').open) drawPrefs();
     }
-    // Prices are read for a provider whose facts say its models have them, or for each such provider when none is named.
+    // Only a provider used by an open chat needs prices.
     function loadModelPrices(provider) {
       if (!app().ModelPrices) return Promise.resolve();
-      var ids = provider ? [provider] : providers.map(function (p) { return p.id; });
+      var used = new Set(Object.keys(sessions).filter(function (id) { return sessions[id].info.open; }).map(function (id) { return sessionProvider(sessions[id]); }));
+      var ids = provider ? (used.has(provider) ? [provider] : []) : Array.from(used);
       return Promise.all(ids.filter(function (id) { return providerFact(id, 'prices'); }).map(function (id) {
-        return Promise.resolve().then(function () { return app().ModelPrices(id); }).then(function (prices) { setModelPrices(id, prices); }).catch(function () {});
+        if (priceReads.has(id)) return priceReads.get(id);
+        var read = Promise.resolve().then(function () { return app().ModelPrices(id); }).then(function (prices) { setModelPrices(id, prices); }).catch(function () {}).finally(function () { priceReads.delete(id); });
+        priceReads.set(id, read);
+        return read;
       }));
     }
     on('models:prices', function (m) { if (m && providerFact(m.provider, 'prices')) setModelPrices(m.provider, m.prices); });
@@ -3006,7 +3023,16 @@
        commands and the skills Devin imports from other tools, as Devin last
        offered them. The same list pops up over the prompt when a "/" starts a
        word there; "\/" or a slash inside a word stays plain text. */
-    var skills = [], selectedSkill = null, skillProblems = [], skillLoad = 0;
+    var skills = [], selectedSkill = null, skillProblems = [], skillLoad = 0, skillsRequested = false;
+    function requestSkills(force) {
+      if (skillsRequested && force !== true) return Promise.resolve();
+      skillsRequested = true; return loadSkills();
+    }
+    $('prompt').addEventListener('focus', function () {
+      if (!document.body.hasAttribute('aria-busy')) requestSkills();
+    });
+    $('prompt').addEventListener('pointerdown', function () { requestSkills(); });
+    $('prompt').addEventListener('input', function () { if ($('prompt').value.includes('/')) requestSkills(); });
     var GROUPS = [['mine', 'My Skills'], ['workspace', 'Workspace Skills'], ['personal', 'My Agent Skills'], ['', 'Agent Commands'], ['imported', 'From Other Tools']];
     /* The group of the commands an agent offers is the one of the provider whose facts say it has commands of its
        own, under that provider's name; the skills it lists have that provider's id as their source. */
@@ -3018,6 +3044,7 @@
     listeners.push(function () { skillGroupUpdates.delete(updateSkillGroups); });
     updateSkillGroups();
     function loadSkills() {
+      if (!(active && sessions[active] && sessions[active].info.open) && !skillsRequested) return Promise.resolve();
       var requestedProvider = chatProvider(), requestedWorkspace = workspace, request = ++skillLoad;
       return (app().SkillCatalog ? dinahSkills.forChat(workspace, requestedProvider) : app().SkillsForProviderAt ? app().SkillsForProviderAt(workspace, requestedProvider) : app().SkillsAt(workspace)).then(function (l) {
         if (request !== skillLoad || chatProvider() !== requestedProvider || workspace !== requestedWorkspace) return;
@@ -3062,7 +3089,7 @@
     function skillItems() {
       var out = [];
       if (skillProblems.length) out.push({ id: 'skills-error', label: 'Skills could not be fully loaded', disabled: true, reason: skillProblems.join('\n') });
-      out.push({ id: 'skills-refresh', label: 'Refresh Skills', run: loadSkills });
+      out.push({ id: 'skills-refresh', label: 'Refresh Skills', run: function () { return requestSkills(true); } });
       if (templates.length) out.push({ heading: 'My Templates' });
       templates.forEach(function (t) {
         out.push({ id: 'template-' + t.name, label: t.name, detail: t.text.split('\n')[0], run: function () { insertTemplate(t.name, null); } });
@@ -3383,6 +3410,11 @@
        Toggle events do not bubble, so the toolbar listens as they pass. */
     $('composer').querySelector('.composer-toolbar').addEventListener('beforetoggle', function (e) {
       if (e.newState === 'open' && e.target.classList.contains('menu-panel')) reconnectSaved();
+      if (e.newState !== 'open') return;
+      var menu = e.target.parentElement, group = e.target.closest('.toolbar-fold');
+      if ((menu && menu.querySelector(':scope > [data-command="skills"]')) ||
+          (group && group.parentElement.querySelector('[data-command="skills"]')) ||
+          (e.target.closest('.toolbar-more') && e.currentTarget.querySelector('[data-toolbar-stage="5"] [data-command="skills"]'))) requestSkills();
     }, true);
     /* The provider, the mode and the model each have a glyph, so that a
        narrowing toolbar first shows them as glyphs alone, as it does the
@@ -4084,7 +4116,7 @@
         optionSubstitutions: () => optionSubstitutions,
         setDefaults: value => { defaults = value; },
         setCatalog: value => { catalog = value; },
-        setProviders: value => { providers = value; refreshSkillGroups(); },
+        setProviders: value => { providers = value; refreshSkillGroups(); loadModelPrices(); },
         replaceProvider: result => { providers = providers.map(entry => entry.id === result.id ? result : entry); refreshSkillGroups(); },
         setProviderCatalog: (id, value) => { providerCatalogs[id] = value; },
         setProviderDefaults: (id, value) => { providerDefaults[id] = value; },

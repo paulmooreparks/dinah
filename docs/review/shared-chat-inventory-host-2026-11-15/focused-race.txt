@@ -1,0 +1,4 @@
+# studio/cmd/dinah-desktop.test
+C:/Users/paul/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/16.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: .rsrc merge failure: multiple non-default manifests
+ok  	studio/cmd/dinah-desktop	42.399s
+ok  	studio/internal/sessionhost	1.138s

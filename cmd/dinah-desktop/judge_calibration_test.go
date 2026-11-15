@@ -103,9 +103,7 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 func TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne(t *testing.T) {
 	a, cs := calibrationApp(t)
 	a.judging.noAuto = false
-	if _, err := a.judges(); err != nil {
-		t.Fatal(err)
-	}
+	a.judgeChatTitle("invented-first-judgement", "A title that genuinely needs judgement")
 	waitFor(t, "the calibration", func() bool {
 		s, _, _ := a.judgementSettings()
 		return s.Model != "" && a.calibrationState().State == "chosen"
@@ -140,12 +138,10 @@ func TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne(t *testing.T) {
 	second := NewApp()
 	second.sink = func(string, any) {}
 	t.Cleanup(second.closeJudges)
-	if _, err := second.judges(); err != nil {
-		t.Fatal(err)
-	}
+	second.judgeChatTitle("invented-second-judgement", "A title that genuinely needs judgement")
 	time.Sleep(300 * time.Millisecond)
-	if after := cs.count("big:cloud") + cs.count("loaded:7b"); after != before {
-		t.Fatalf("a second run for the same models made %d calls", after-before)
+	if after := cs.count("big:cloud") + cs.count("loaded:7b"); after != before+1 {
+		t.Fatalf("the new judgement should make one call without recalibrating, got %d", after-before)
 	}
 }
 

@@ -219,7 +219,7 @@
     });
     $('ollama-context-reset').addEventListener('click', function () { saveContextCap(0); });
     $('ollama-context-cap').addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); $('ollama-context-save').click(); } });
-    var memoryRequest = 0, memoryCap = null;
+    var memoryRequest = 0, memoryCap = null, sectionShown = false;
     function memoryBytes(n) { return n >= 0 ? (n / 1073741824).toFixed(2) + ' GiB' : 'unreported'; }
     function refreshMemory() {
       var request = ++memoryRequest;
@@ -254,7 +254,11 @@
         if (state.ollamaFileScope) setFileAccess(state.ollamaFileScope, state.ollamaFileFolders);
         if (state.ollamaRoundLimit) setRounds(state.ollamaRoundLimit);
         contextCap = state.ollamaContextCap || 32768; drawContextCap();
-        if (memoryCap !== contextCap) { memoryCap = contextCap; refreshMemory(); }
+        if (sectionShown && memoryCap !== contextCap) { memoryCap = contextCap; refreshMemory(); }
+      },
+      shown: function (visible) {
+        sectionShown = visible;
+        if (visible && memoryCap !== contextCap) { memoryCap = contextCap; refreshMemory(); }
       }
     };
   }

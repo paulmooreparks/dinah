@@ -105,8 +105,11 @@ func (a *App) SuggestDocumentName(draftID string) (DocumentNameSuggestion, error
 		return DocumentNameSuggestion{Name: d.Title, Used: judge.UsedRule}, nil
 	}
 	line := firstTextLine(d.Text)
-	set, err := a.judges()
-	if line == "" || err != nil {
+	if line == "" {
+		return DocumentNameSuggestion{Name: unnamedDocument, Used: judge.UsedRule}, nil
+	}
+	set, err := a.judgesForCall(documentNameKind.Name)
+	if err != nil {
 		return DocumentNameSuggestion{Name: unnamedDocument, Used: judge.UsedRule}, nil
 	}
 	r := judge.Call(a.bindingContext(), set, documentNameKind, documentNameIn{Line: line}, judge.Effect{Kind: "draft", ID: draftID})

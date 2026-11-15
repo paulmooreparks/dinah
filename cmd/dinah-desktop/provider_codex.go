@@ -223,12 +223,7 @@ var codexAdapter = &providerAdapter{
 	initWithin:  20 * time.Second,
 	initError:   "initialize Codex",
 	prepare: func(a *App) (providerStart, error) {
-		var executable string
-		for _, info := range a.AgentProviders() {
-			if info.ID == "codex" {
-				executable = info.Path
-			}
-		}
+		executable := a.providerInfoOf("codex").Path
 		if executable == "" {
 			return providerStart{}, errors.New("Codex was not found. Install the Codex CLI and scan again in Settings > Agents")
 		}

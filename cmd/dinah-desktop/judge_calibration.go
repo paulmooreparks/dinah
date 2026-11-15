@@ -159,7 +159,7 @@ func (a *App) beginCalibration() bool {
 	j := &a.judging
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	if j.calibrating || j.set == nil {
+	if j.calibrating || j.set == nil || j.closing {
 		return false
 	}
 	j.calibrating = true
