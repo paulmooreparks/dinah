@@ -23,3 +23,7 @@ observations() returns artifactDirectory, raw providerRequests and actionRequest
 ## Receiving status
 
 This freeze does not accept an implementation or authorize a merge, installation or UI build. Engine retains implementation and real-App binding responsibility. Any mapping that omits a declared boundary remains unverified. Assertion amendments require a recorded reason and retained original failure. Syntax validation is queued separately; no implementation tests have run at freeze.
+
+## Legacy fixture correction
+
+Engine identified that the frozen legacy case supplied typed option objects where the existing AskPerson operation accepts string choices. Quality checked task_host_operations.go on the pre-extension base a3826b6b: Choices is []string, and each option ID and label equal that choice string. The legacy fixture now supplies Beta, Alpha and Gamma strings and expects Beta as the result. The simultaneous choices-plus-answer refusal uses valid legacy strings as well, so it isolates the intended exclusivity rule. The typed declarations and all path-separation assertions remain unchanged. Original freeze 21b847b7 retains the mistaken fixture; no binding translation may manufacture its original b identity. No typed implementation was read for this correction.

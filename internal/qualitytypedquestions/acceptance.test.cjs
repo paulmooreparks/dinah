@@ -38,7 +38,7 @@ async function quiet(f) {
 test('invalid declarations refuse before a pending question or external work',async t => {
   const f=await fixture(t);
   const invalid=[
-    {title:'Q',choices:options,answer:text().answer},
+    {title:'Q',choices:['Beta','Alpha','Gamma'],answer:text().answer},
     {title:'Q',answer:{type:'text'}},text(0,0),text(0,16385),text(-1,4),text(5,4),text(0,1.5),
     {title:'Q',answer:{...text().answer,options}},
     {title:'Q',answer:{...text().answer,minSelections:0}},
@@ -112,11 +112,11 @@ test('multiple answers validate offered IDs and return offered order',async t =>
   await quiet(f);
 });
 test('legacy and typed submission paths remain disjoint',async t => {
-  const f=await fixture(t),legacy=await pending(f,{title:'Legacy',choices:options});
+  const f=await fixture(t),legacy=await pending(f,{title:'Legacy',choices:['Beta','Alpha','Gamma']});
   for(const field of ['answerType','minLength','maxLength','minSelections','maxSelections']) assert.equal(Object.hasOwn(legacy,field),false);
   await reject(f,legacy.key,'{"type":"multiple","optionIds":["b"]}');
-  assert.equal((await f.answerLegacy(legacy.key,'b')).ok,true);
-  assert.deepEqual(await f.result(legacy.key),{answer:'b'});
+  assert.equal((await f.answerLegacy(legacy.key,'Beta')).ok,true);
+  assert.deepEqual(await f.result(legacy.key),{answer:'Beta'});
   const typed=await pending(f,text());
   const before=await f.snapshot();
   assert.equal((await f.answerLegacy(typed.key,'b')).ok,false);
