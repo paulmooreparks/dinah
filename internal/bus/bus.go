@@ -91,6 +91,8 @@ type Attachment struct {
 // (ToPerson). Messages made in a test may leave them empty, and the headings
 // then show FromName and ToLabel.
 type Message struct {
+	ShownText          *string
+	References         []MessageReference
 	AnswerOrigin       *AnswerOrigin
 	ID                 int64
 	CreatedAt          string
@@ -488,6 +490,10 @@ func (b *Bus) send(ctx context.Context, from Sender, to, text string, atts []Att
 }
 
 func (b *Bus) sendRouted(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string, groupRouting bool) (Message, error) {
+	return b.sendPresented(ctx, from, to, text, atts, replyTo, mentions, groupRouting, nil)
+}
+
+func (b *Bus) sendPresented(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string, groupRouting bool, presentation *MessagePresentation) (Message, error) {
 	if strings.TrimSpace(text) == "" && len(atts) == 0 {
 		return Message{}, errors.New("the message is empty")
 	}
@@ -514,6 +520,9 @@ func (b *Bus) sendRouted(ctx context.Context, from Sender, to, text string, atts
 			return err
 		}
 		id, err = b.insertMessage(t, from, "text", r, replyTo, text, "", "", atts)
+		if err == nil && presentation != nil {
+			err = storeMessagePresentation(t, id, *presentation)
+		}
 		return err
 	})
 	if err != nil {
@@ -877,6 +886,9 @@ func (b *Bus) queryMessages(ctx context.Context, query string, args ...any) ([]M
 
 func (b *Bus) attach(ctx context.Context, ms []Message) error {
 	for i := range ms {
+		if err := b.messagePresentation(ctx, &ms[i]); err != nil {
+			return err
+		}
 		if ms[i].RelayLead != "" {
 			var title, workspace string
 			if b.db.QueryRowContext(ctx, `SELECT s.title, COALESCE(w.label, '') FROM sessions s LEFT JOIN workspaces w ON w.key = s.workspace WHERE s.id = ?`, ms[i].RelayLead).Scan(&title, &workspace) == nil {

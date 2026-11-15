@@ -78,7 +78,8 @@ type Transcript struct {
 const startedQueueIDsKept = 256
 
 type Attachment struct {
-	Kind string `json:"kind"` // "link", "file", "applet", "window", "chat" or "draft"
+	Token string `json:"token,omitempty"`
+	Kind  string `json:"kind"` // "link", "file", "applet", "window", "chat" or "draft"
 	// Window is the tool a window reference is to, by its launcher's ID
 	// (the Files applet is "files"); Provider is then the applet that
 	// gives the same tool's data, when it has one.
