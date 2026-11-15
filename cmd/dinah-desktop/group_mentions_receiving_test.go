@@ -100,11 +100,19 @@ func newGroupMentionsFixture(t *testing.T, artifact string) *groupMentionsFixtur
 	x.team = team
 	// One document open in the host's Editor, which a document reference
 	// points to; the page is given this same draft in its document list.
+	// It has a title and text, so the protected-state snapshot has real
+	// content to compare.
 	d, err := a.NewEmptyDraft("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	x.document = map[string]string{"draftId": d.ID, "title": "release-notes.md"}
+	if d, err = a.UpdateDraft(d.ID, d.Revision, "# Release notes\n\nThe group mentions fixture's document.\n"); err != nil {
+		t.Fatal(err)
+	}
+	if d, err = a.RetitleDraft(d.ID, d.Revision, "release-notes.md"); err != nil {
+		t.Fatal(err)
+	}
+	x.document = map[string]string{"draftId": d.ID, "title": d.Title, "text": d.Text}
 	return x
 }
 
@@ -368,7 +376,7 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 		// message, chat states) left out: each group's title, lead, budget
 		// and members (not its file limit, which the members' running
 		// programs set and a restart has not loaded yet); each chat's saved ID, title and folder; and each
-		// open document's ID, title and text.
+		// open document's ID, title, text and revision, the seeded one first.
 		ov, err := x.a.BusOverview()
 		if err != nil {
 			return result(nil, err)
@@ -398,15 +406,28 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 			}
 			chats = append(chats, row)
 		}
+		// The seeded document, read by its ID: it must be there with the
+		// title and text it was seeded with, or the snapshot fails, so an
+		// empty list can never stand for a preserved document. Any other
+		// draft the list shows is kept too.
+		seeded, err := x.a.GetDraft(x.document["draftId"])
+		if err != nil {
+			return result(nil, fmt.Errorf("the seeded document %s: %w", x.document["draftId"], err))
+		}
+		if seeded.Title != x.document["title"] || seeded.Text != x.document["text"] {
+			return result(nil, fmt.Errorf("the seeded document %s changed: title %q, text %q", seeded.ID, seeded.Title, seeded.Text))
+		}
+		docs := []map[string]string{{"id": seeded.ID, "title": seeded.Title, "text": seeded.Text, "revision": seeded.Revision, "seeded": "true"}}
 		views, err := x.a.ListDrafts()
 		if err != nil {
 			return result(nil, err)
 		}
-		docs := []map[string]string{}
 		for _, d := range views {
-			docs = append(docs, map[string]string{"id": d.ID, "title": d.Title, "text": d.Text})
+			if d.ID != seeded.ID {
+				docs = append(docs, map[string]string{"id": d.ID, "title": d.Title, "text": d.Text, "revision": d.Revision})
+			}
 		}
-		sort.Slice(docs, func(i, j int) bool { return docs[i]["id"] < docs[j]["id"] })
+		sort.Slice(docs[1:], func(i, j int) bool { return docs[1+i]["id"] < docs[1+j]["id"] })
 		return result(map[string]any{"rooms": rooms, "chats": chats, "documents": docs}, nil)
 	case "observations":
 		x.mu.Lock()
@@ -533,5 +554,24 @@ func TestGroupMentionsHostCountersObserveRealDispatch(t *testing.T) {
 	}
 	if n != 2 {
 		t.Fatalf("the member was prompted %d times over two sends, want 2", n)
+	}
+	// The snapshot holds the seeded document, and fails once it changes.
+	snap := x.call("protectedState", nil)
+	if snap["error"] != nil {
+		t.Fatal(snap["error"])
+	}
+	docs := snap["result"].(map[string]any)["documents"].([]map[string]string)
+	if len(docs) == 0 || docs[0]["id"] != x.document["draftId"] || docs[0]["text"] != x.document["text"] || docs[0]["title"] != "release-notes.md" {
+		t.Fatalf("the snapshot lacks the seeded document: %+v", docs)
+	}
+	d, err := x.a.GetDraft(x.document["draftId"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.a.UpdateDraft(d.ID, d.Revision, "changed"); err != nil {
+		t.Fatal(err)
+	}
+	if changed := x.call("protectedState", nil); changed["error"] == nil {
+		t.Fatal("the snapshot accepted a changed seeded document")
 	}
 }
