@@ -10,7 +10,7 @@
   function date(value) { return value ? new Date(value).toLocaleString() : 'Unknown'; }
   function init(root, opts) {
     root.classList.add('chat-cleanup');
-    var listing = null, busy = false, disposed = false, selected = new Set(), active = new Map(), removed = new Map(), authorityRead = null;
+    var listing = null, busy = false, disposed = false, selected = new Set(), active = new Map(), removed = new Map(), authorityRead = null, authorityAgain = false;
     var toolbar = node('div', 'cleanup-toolbar'), filters = node('div', 'cleanup-filters');
     function select(label, choices) {
       var wrap = node('label', 'form-label', label), input = node('select', 'form-select');
@@ -53,10 +53,10 @@
     function applyFilters() { active.forEach(function (entry) { entry.el.hidden = entry.absent || !shown(entry.data); }); controls(); }
     function controls() {
       active.forEach(function (entry) { entry.check.checked = selected.has(entry.data.sessionId); entry.check.disabled = busy || !entry.data.eligible || entry.done; });
-      removed.forEach(function (entry) { entry.restore.disabled = busy || entry.done || !entry.data.restorable; entry.erase.disabled = busy || entry.done; });
+      removed.forEach(function (entry) { entry.restore.disabled = busy || !!authorityRead || entry.done || !entry.data.restorable; entry.erase.disabled = busy || !!authorityRead || entry.done; });
       count.textContent = selected.size + ' selected'; erase.textContent = 'Delete ' + selected.size + (selected.size === 1 ? ' Chat…' : ' Chats…'); erase.disabled = busy || !selected.size;
       [all, clear, refresh, workspace, provider, age, closed].forEach(function (el) { el.disabled = busy; });
-      empty.disabled = busy || !listing || !Array.from(removed.values()).some(function (entry) { return !entry.done; });
+      empty.disabled = busy || !!authorityRead || !listing || !Array.from(removed.values()).some(function (entry) { return !entry.done; });
     }
     function row(data, isBin) {
       var el = node('li', 'cleanup-row' + (isBin ? ' cleanup-bin-row' : '')), main = node('div', 'cleanup-row-main'), check = node('input'); check.type = 'checkbox'; check.setAttribute('aria-label', 'Select ' + data.title);
@@ -98,8 +98,9 @@
       applyFilters();
       if (Array.from(inventory.keys()).some(function (id) { return !active.has(id); })) refreshAuthority();
     }
-    function refreshAuthority() {
-      if (disposed || !listing || authorityRead) return;
+    function refreshAuthority(invalidated) {
+      if (disposed || !listing) return;
+      if (authorityRead) { if (invalidated) authorityAgain = true; return; }
       authorityRead = Promise.resolve(app().ListChatCleanup()).then(function (value) {
         if (disposed) return;
         var inventory = new Map(window.dinahChats.inventory().map(function (chat) { return [chat.sessionId, chat]; }));
@@ -110,8 +111,17 @@
           if (!entry) add(data, false);
           else if (entry.absent || entry.done) { entry.data = data; entry.absent = false; entry.done = false; delete entry.el.dataset.outcome; entry.reason.textContent = data.refusal || (data.open ? 'Open' : 'Closed'); }
         });
+        var binIds = new Set(value.removed.map(function (data) { return data.sessionId; }));
+        removed.forEach(function (entry, id) {
+          if (!binIds.has(id) && !entry.done) { entry.el.remove(); removed.delete(id); }
+        });
         value.removed.forEach(function (data) { add(data, true); }); syncInventory();
-      }).catch(function (error) { status.textContent = window.dinahHelpers.message(error, 'sentence'); }).finally(function () { authorityRead = null; });
+      }).catch(function (error) { status.textContent = window.dinahHelpers.message(error, 'sentence'); }).finally(function () {
+        authorityRead = null;
+        if (authorityAgain) { authorityAgain = false; refreshAuthority(); }
+        if (!disposed) controls();
+      });
+      controls();
     }
     function load() {
       busy = true; controls(); status.textContent = 'Loading chats.';
@@ -160,7 +170,7 @@
       var ids = Array.from(selected); confirm('Delete ' + ids.length + (ids.length === 1 ? ' Chat?' : ' Chats?'), 'The selected chats will move to the Recycle Bin now and can be restored for 30 days. They will receive no further messages. A chat whose agent program cannot unload it may stay loaded until that program stops or the window restarts. The agent programs\' own histories are untouched at this step.', function () { return run(function () { return app().RemoveChats(ids); }); });
     }
     document.addEventListener('dinah:chats', syncInventory); document.addEventListener('dinah:execution-state', syncInventory);
-    var stops = ['chat:removed', 'chat:restored'].map(function (event) { return window.dinahHost.on(event, refreshAuthority); });
+    var stops = ['chat:removed', 'chat:restored'].map(function (event) { return window.dinahHost.on(event, function () { refreshAuthority(true); }); });
     read(opts.state); load();
     return { state: address, setState: function (state) { read(state); selected.clear(); applyFilters(); }, destroy: function () { disposed = true; stops.forEach(function (stop) { stop(); }); document.removeEventListener('dinah:chats', syncInventory); document.removeEventListener('dinah:execution-state', syncInventory); } };
   }

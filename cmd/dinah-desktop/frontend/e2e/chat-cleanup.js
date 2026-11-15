@@ -3,25 +3,41 @@ const { launch } = require('./lib/page');
   const t = await launch({ app: () => {
     const make = (id, extra) => Object.assign({ sessionId: id, title: 'Chat ' + id, workspace: 'C:/Fixture', workspaceName: 'Fixture', provider: 'codex', providerName: 'Codex', lastActivity: '2025-01-01T00:00:00Z', messageCount: 17, messageCountKnown: true, open: false, eligible: true, refusal: '', restorable: false }, extra);
     const rows = [make('old', { programCopies: [{ provider: 'claude', providerName: 'Claude' }] }), make('working', { eligible: false, refusal: 'The chat is working.', working: true, open: true }), make('pinned', { eligible: false, refusal: 'Unpin this chat first.', pinned: true }), make('other', { workspace: 'C:/Other', workspaceName: 'Other', provider: 'devin', providerName: 'Devin' }), make('unknown', { lastActivity: '', messageCountKnown: false })].sort((a, b) => a.lastActivity.localeCompare(b.lastActivity) || a.sessionId.localeCompare(b.sessionId));
-    const bin = ['bin', 'bin2'].map(id => make(id, { removedAt: '2026-11-01T00:00:00Z', expiresAt: '2026-12-01T00:00:00Z', restorable: true, runtimeNote: 'Still loaded by Codex until the program stops or the window restarts.', finalDeleteConfirmation: 'This chat will be permanently deleted. Codex keeps its own copy.' }));
+    const bin = ['bin', 'bin2', 'external'].map(id => make(id, { removedAt: '2026-11-01T00:00:00Z', expiresAt: '2026-12-01T00:00:00Z', restorable: true, runtimeNote: 'Still loaded by Codex until the program stops or the window restarts.', finalDeleteConfirmation: 'This chat will be permanently deleted. Codex keeps its own copy.' }));
+    window.__externalRestore = id => {
+      bin.splice(bin.findIndex(row => row.sessionId === id), 1);
+      const restored = make(id); rows.push(restored); dinahChats.restore(restored); __emit('chat:restored', { sessionId: id });
+    };
     window.__cleanupCalls = [];
     return {
       Sessions: async () => rows.map(r => ({ sessionId: r.sessionId, title: r.title, cwd: r.workspace, provider: r.provider, open: r.open })),
-      ListChatCleanup: async () => ({ rows, removed: bin, retentionDays: 30, finalDeleteConfirmation: 'The chats will be permanently deleted. Agent copies without a delete command remain.' }),
-      RemoveChats: ids => new Promise(resolve => { window.__cleanupCalls.push(ids); window.__finishCleanup = () => resolve(ids.map(id => id === 'old' ? { sessionId: id, ok: true, status: 'removed', row: make(id, { restorable: true, removedAt: '2026-11-15T00:00:00Z', expiresAt: '2026-12-15T00:00:00Z', finalDeleteConfirmation: 'This chat will be permanently deleted.' }) } : { sessionId: id, ok: false, status: 'refused', error: 'The chat started working.' })); }),
+      ListChatCleanup: async () => {
+        const snapshot = { rows: rows.slice(), removed: bin.slice(), retentionDays: 30, finalDeleteConfirmation: 'The chats will be permanently deleted. Agent copies without a delete command remain.' };
+        if (window.__holdCleanupRead) { window.__holdCleanupRead = false; return new Promise(resolve => { window.__releaseCleanupRead = () => resolve(snapshot); }); }
+        return snapshot;
+      },
+      RemoveChats: ids => new Promise(resolve => { window.__cleanupCalls.push(ids); window.__finishCleanup = () => resolve(ids.map(id => {
+        if (id !== 'old') return { sessionId: id, ok: false, status: 'refused', error: 'The chat started working.' };
+        const removed = make(id, { restorable: true, removedAt: '2026-11-15T00:00:00Z', expiresAt: '2026-12-15T00:00:00Z', finalDeleteConfirmation: 'This chat will be permanently deleted.' });
+        rows.splice(rows.findIndex(row => row.sessionId === id), 1); bin.push(removed);
+        return { sessionId: id, ok: true, status: 'removed', row: removed };
+      })); }),
       RestoreRemovedChat: async id => {
         if (id === 'old' && !window.__restoreRefused) { window.__restoreRefused = true; return { sessionId: id, ok: false, status: 'refused', error: 'This chat cannot be restored yet.' }; }
-        return { sessionId: id, ok: true, status: 'restored', row: make(id) };
+        bin.splice(bin.findIndex(row => row.sessionId === id), 1); const restored = make(id); rows.push(restored);
+        return { sessionId: id, ok: true, status: 'restored', row: restored };
       },
       DeleteRemovedChat: async id => {
         if (!window.__deleteRefused) { window.__deleteRefused = true; return { sessionId: id, ok: false, status: 'failed', error: 'The local copy could not be erased.' }; }
+        bin.splice(bin.findIndex(row => row.sessionId === id), 1);
         return { sessionId: id, ok: true, status: 'deleted', providerCopyRemains: true, providerDeletionReason: 'Codex does not offer deletion.' };
       },
-      EmptyChatRecycleBin: async () => [{ sessionId: 'bin2', ok: true, status: 'deleted' }]
+      EmptyChatRecycleBin: async () => { bin.splice(bin.findIndex(row => row.sessionId === 'bin2'), 1); return [{ sessionId: 'bin2', ok: true, status: 'deleted' }]; }
     };
   } });
   const p = t.page;
   try {
+    await p.evaluate(() => dinahWorkbench.open('chat-browser'));
     await p.locator('#chat-browser-view [data-cmd="clean-up-chats"]').waitFor();
     const key = await p.evaluate(() => dinahWorkbench.open('chat-cleanup'));
     const win = p.locator('[data-win="' + key + '"]'), rows = win.locator('.cleanup-section').first().locator('.cleanup-row');
@@ -84,6 +100,12 @@ const { launch } = require('./lib/page');
     t.ok('emptying the bin uses the aggregate confirmation verbatim', (await p.locator('dialog.cleanup-confirm').locator('p').innerText()) === 'The chats will be permanently deleted. Agent copies without a delete command remain.');
     await p.locator('dialog.cleanup-confirm').getByRole('button', { name: 'Delete', exact: true }).click();
     await binRows.locator('[data-chat-id="bin2"][data-outcome="deleted"]').waitFor();
+    await p.evaluate(() => { window.__holdCleanupRead = true; __emit('chat:removed', { sessionId: 'external' }); });
+    await p.waitForFunction(() => !!window.__releaseCleanupRead);
+    t.ok('bin actions are disabled while their authority is being refreshed', await binRows.locator('[data-chat-id="external"]').getByRole('button', { name: 'Restore', exact: true }).isDisabled());
+    await p.evaluate(() => { __externalRestore('external'); __releaseCleanupRead(); });
+    await p.waitForFunction(() => !document.querySelector('.cleanup-bin-row[data-chat-id="external"]'));
+    t.ok('an external restore during an older listing removes its stale actionable bin row', await chat('external').isVisible() && await binRows.locator('[data-chat-id="external"]').count() === 0);
     await win.getByLabel('Workspace', { exact: true }).selectOption('C:/Other');
     t.ok('filter state is addressable', (await p.url()).includes('workspace%3DC%253A%252FOther'));
     await t.shot('chat-cleanup-wide');
