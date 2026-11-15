@@ -102,7 +102,8 @@
       if (disposed || !snapshot || !scroll.clientWidth) return;
       var settings = options(), next = window.dinahOrgChartLayout.signature(snapshot, settings);
       if (next !== geometry) {
-        geometry = next; drawing = window.dinahOrgChartLayout.layout(snapshot, settings); elements.clear(); canvas.replaceChildren();
+        var planned = window.dinahOrgChartLayout.layout(snapshot, settings);
+        geometry = next; drawing = planned; elements.clear(); canvas.replaceChildren();
         canvas.style.width = drawing.width + 'px'; canvas.style.height = drawing.height + 'px';
         drawLines();
         drawing.positions.forEach(function (p) {

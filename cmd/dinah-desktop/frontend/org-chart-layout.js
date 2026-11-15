@@ -110,7 +110,7 @@
     var roots = teams.filter(function (t) { return !parent.has(t.leadId) && visible(t.leadId); }).sort(function (a, b) { return a.id.localeCompare(b.id); });
     var groups = view.groups.filter(function (g) { return g.resolution === 'repair' && !options.workspace && !options.find || g.memberIds.concat(g.ownerId || []).some(function (id) { return wanted.has(id); }); });
     // Both sides provide lanes. Reserve readable cards before adding more gutter.
-    var columns = width >= 650 ? 2 : 1, margin = Math.min(16 + Math.ceil(groups.length / 2) * 16, Math.max(16, Math.floor((width - 156 * columns) / (2 * columns))));
+    var columns = width >= 650 ? 2 : 1, margin = Math.min(16 + Math.ceil(groups.length / 2) * 16, Math.max(16, Math.floor((width - 144 * columns) / (2 * columns))));
     var gutter = margin * 2, sectionW = (width - margin * 2 - gutter * (columns - 1)) / columns, y = margin;
     var groupBoxes = new Map();
     function placeGroups(ready) {

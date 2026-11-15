@@ -100,7 +100,14 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
   const start=await action('','start_chat');await panel.getByLabel('Workspace',{exact:true}).selectOption(start.workspaces[0].id);await panel.getByLabel('Agent Program',{exact:true}).selectOption('codex');
   await panel.getByRole('button',{name:'Start a Chat',exact:true}).click();await panel.locator('.org-action-result[data-status="failed"]').waitFor();
   check('only explicit Start a Chat reaches the refusing stand-in',fs.existsSync(refusalPath)&&fs.readFileSync(refusalPath,'utf8').trim().length>0);
-  await page.screenshot({path:path.join(out,'org-chart-actions-host-result.png')});evidence.actionSnapshot=live;
+  await page.screenshot({path:path.join(out,'org-chart-actions-host-result.png')});
+  live=await call('OrgChart');await panel.getByRole('button',{name:'Back to Chart',exact:true}).click();
+  await page.waitForFunction(generation=>document.querySelector('.org-chart-canvas').dataset.generation===generation,live.generation);
+  evidence.returnedStructure={expected:live.chats.map(c=>c.chatId),visible:await chart.locator('[data-org-chat]').evaluateAll(rows=>rows.map(r=>r.dataset.orgChat)),status:await chart.locator('.org-chart-status').innerText()};
+  evidence.actionSnapshot=live;await page.screenshot({path:path.join(out,'org-chart-actions-host-structure.png')});
+  check('returning from management renders the changed real structure',await chart.locator('[data-org-chat]').count()===live.chats.length);
+  check('the management journey reports no page errors',evidence.pageErrors.length===0);
+  await page.screenshot({path:path.join(out,'org-chart-actions-host-structure.png')});evidence.actionSnapshot=live;
  }
 
  console.log('PASS real OrgChart query, canonical rendering, local refresh, fixed frames, reload and four viewports');
