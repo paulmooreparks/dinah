@@ -28,3 +28,15 @@ The command ran through scripts/with-test-lock.ps1:
 `go test -tags quality_chat_cleanup,chatcleanup_acceptance ./cmd/dinah-desktop -run '^(TestQualityCleanupDormancy|TestCleanupAcceptanceRestartCountsRealProviderEntry|TestQualityCleanupDraftsAndStaleSave|TestQualityCleanupExpiryBoundary)$|^TestQualityCleanupProviderDeletion/(supported|unsupported|failing)/(delete|empty)$' -count=1 -timeout 90s`
 
 Runtime working/pinned and loaded-without-unload cases, switched-chain ownership through Release's durable model, linked document/draft records, combined drawing authority and the expiry provider-result matrix remain unbound here. Front End's separate combined rendering evidence is d474c412; this run does not repeat it. Engine's newer integration 9ed1bc16 has not been tested by this binding. No real home, provider process, account, remote service, visible window or install was used. Quality retains the remaining independent checks for the integrated handover.
+
+## Integration gate decision
+
+Team Lead's message 8821 makes Engine's interim logicalChatMembers query the acceptance boundary for this cleanup release. It resolves bindings, transfers and history. Release's later durable model replaces that function internally and is not a prerequisite for cleanup. The earlier reference to waiting for Release's model is superseded.
+
+Quality will run the following gates when Engine supplies the immutable combined candidate and bindings:
+
+- A switched chat linked to a document and document draft must leave those records unchanged through binning, Restore and final deletion. Remote writes must remain zero, and the old drawing lease must be refused.
+- Working, pinned, allocation-in-progress and independently owned descendant cases must refuse the prohibited cleanup operation.
+- The interim member query must move, restore and delete the owned chain together while leaving a fork and a workspace move untouched.
+
+The frozen assertions remain unchanged. Additional binding requirements and any new assertions for allocation or descendant refusal will be recorded explicitly. No acceptance is inferred from the choice of interim implementation. Quality awaits Engine's bindings and retains these gates; no test was queued for this documentation change.
