@@ -58,6 +58,11 @@ const { launch } = require('./lib/page');
     await lead.locator('.chat-team').waitFor();
     // The lead's Members dropdown: its direct reports, each with its named state chip (f22f9b5).
     const openMembers = async () => {
+      // Programmatic activation does not perform a pointer's light dismissal.
+      if (await p.locator('.team-report:popover-open').count()) {
+        await p.keyboard.press('Escape');
+        await p.locator('.team-report:popover-open').waitFor({ state: 'detached' });
+      }
       await p.evaluate(key => pudlWindows.raise(key), leadKey);
       if (!(await lead.locator('.team-members:popover-open').count())) await lead.locator('.chat-team .team-toggle').click();
       await lead.locator('.team-members:popover-open').waitFor();

@@ -48,6 +48,7 @@ const { launch } = require('./lib/page');
       return {
         State: async () => ({ defaultProvider: 'devin', workspace: 'C:/Work/parser', workspaces: ['C:/Work/parser', 'C:/Work/docs'], recent: ['C:/Work/parser', 'C:/Work/docs'] }),
         AgentProviders: async () => [{ id: 'devin', name: 'Devin', installed: true, available: true, status: 'detected' }, { id: 'codex', name: 'Codex', installed: true, available: true, status: 'detected' }, { id: 'claude', name: 'Claude', installed: true, available: true, status: 'detected' }, { id: 'ollama', name: 'Ollama', installed: true, available: true, status: 'detected' }],
+        SavedChats: async () => ({ generation: 'bus-fixture', chats: Object.values(chats).flat() }),
         Sessions: async () => chats['C:/Work/parser'], SessionsAt: async ws => chats[ws] || [],
         OpenSessionAt: async (ws, id) => { __calls.push(['open', ws, id]); const c = Object.values(chats).flat().find(x => x.sessionId === id); return Object.assign({}, c, { open: true, working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, queued: [] }); },
         RenameSession: async (id, name) => { __calls.push(['rename', id, name]); titles[id] = name; return Object.assign({}, titles); },

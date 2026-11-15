@@ -27,6 +27,7 @@ const { launch } = require('./lib/page');
       Object.values(chats).flat().forEach(c => { c.chatState = { life: 'closed', window: false }; });
       let restoredTries = 0;
       return {
+        SavedChats: async () => ({ generation: 'bus-fixture', chats: Object.values(chats).flat() }),
         Sessions: async () => chats['C:/Work/parser'], SessionsAt: async ws => chats[ws] || [],
         ResolveSessionContinuation: async id => id,
         SessionContinuation: async () => ({ history: [] }),
