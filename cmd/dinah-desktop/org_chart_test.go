@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"studio/internal/bus"
 	"sync/atomic"
 	"testing"
-
-	"studio/internal/bus"
-	"studio/internal/logicalchats"
 )
 
 func orgChartForbidProviderStarts(t *testing.T) *atomic.Int32 {
@@ -31,49 +29,74 @@ func orgChartForbidProviderStarts(t *testing.T) *atomic.Int32 {
 	return &starts
 }
 
+// seedOrgChartFixture writes local records without opening a provider.
+func seedOrgChartFixture(t *testing.T, a *App, ws string) {
+	t.Helper()
+	ids := []string{"codex:old", "claude:head", "codex:fork", "codex:bin"}
+	record := newWorkspaceRecord(ws)
+	record.Name = "Invented Studio"
+	for _, id := range ids {
+		cleanupFixtureChat(t, a, id, "codex", ws, "window-"+id)
+	}
+	if err := a.updateSettings(func(s *Settings) error {
+		s.WorkspaceRecords = []WorkspaceRecord{record}
+		s.SessionTitles["claude:head"] = "Current title"
+		s.SessionProviders["claude:head"] = "claude"
+		s.ChatBindings = map[string]string{"codex:old": "claude:head"}
+		s.BusSessions["codex:old"] = s.BusSessions["claude:head"]
+		s.RemovedChats = map[string]chatRemoval{"codex:bin": {Stage: "future-reserved-stage"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		ctx := context.Background()
+		if _, err := b.SetLead(ctx, "window-codex:fork", "window-claude:head"); err != nil {
+			return err
+		}
+		lead, err := b.Session(ctx, "window-claude:head")
+		if err != nil {
+			return err
+		}
+		member, err := b.Session(ctx, "window-codex:fork")
+		if err != nil {
+			return err
+		}
+		if _, err := b.CreateGroup(ctx, bus.Sender{}, "Invented review group", []string{lead.Address(), member.Address()}); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if err := b.EndSession(ctx, "window-"+id); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOrgChartUsesCanonicalSnapshotWithoutProviderDiscovery(t *testing.T) {
 	starts := orgChartForbidProviderStarts(t)
 	a, connection := providerTestApp(t)
 	ws := t.TempDir()
-	model := logicalchats.Document{Version: logicalchats.Version, Revision: 1,
-		Chats: map[string]logicalchats.Chat{
-			"logical-chain": {ID: "logical-chain", Head: "claude:head", Title: "Current title", Workspace: ws,
-				Members: []logicalchats.Member{{SessionID: "codex:old", Provider: "codex", State: "committed_predecessor"}, {SessionID: "claude:head", Provider: "claude", State: "active_head"}}},
-			"logical-fork": {ID: "logical-fork", Head: "codex:fork", Title: "Separate fork", Workspace: ws,
-				Members: []logicalchats.Member{{SessionID: "codex:fork", Provider: "codex", State: "active_head"}}},
-			"logical-bin": {ID: "logical-bin", Head: "codex:bin", Title: "Binned", Workspace: ws,
-				Members: []logicalchats.Member{{SessionID: "codex:bin", Provider: "codex", State: "active_head"}}},
-		}, Aliases: map[string]string{"codex:old": "logical-chain", "claude:head": "logical-chain", "codex:fork": "logical-fork", "codex:bin": "logical-bin"}}
-	a.settings.logical = &model
-	a.settings.BusSessions = map[string]string{"codex:old": "window-old", "claude:head": "window-head", "codex:fork": "window-fork", "codex:bin": "window-bin"}
-	a.settings.RemovedChats = map[string]chatRemoval{"codex:bin": {Stage: "future-reserved-stage"}}
-	if err := a.busHost().With(func(b *bus.Bus) error {
-		for _, id := range []string{"window-old", "window-head", "window-fork", "window-bin"} {
-			if _, err := b.RegisterSession(context.Background(), id, ws, id); err != nil {
-				return err
-			}
-		}
-		_, err := b.SetLead(context.Background(), "window-fork", "window-old")
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
+	seedOrgChartFixture(t, a, ws)
 	before := len(connection.calls)
 	view, err := a.OrgChart()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(view.Chats) != 2 || len(view.Teams) != 1 || view.Teams[0].LeadID != "logical-chain" || len(view.Teams[0].MemberIDs) != 1 || view.Teams[0].MemberIDs[0] != "logical-fork" {
+	if len(view.Chats) != 2 || len(view.Teams) != 1 || view.Teams[0].LeadID != "codex:old" || len(view.Teams[0].MemberIDs) != 1 || view.Teams[0].MemberIDs[0] != "codex:fork" {
 		t.Fatalf("canonical inventory/edges changed: %+v", view)
 	}
-	if len(connection.calls) != before {
-		t.Fatal("chart queried a provider")
+	if len(view.Groups) == 0 {
+		t.Fatal("ordinary local group is missing")
 	}
-	if starts.Load() != 0 {
-		t.Fatal("chart tried to start a provider")
+	if len(connection.calls) != before || starts.Load() != 0 {
+		t.Fatal("chart queried or started a provider")
 	}
 	for _, chat := range view.Chats {
-		if chat.Resolution != "resolved" || chat.Workspace != ws {
+		if chat.Resolution != "resolved" || chat.Workspace != ws || chat.State.Life != lifeClosed {
 			t.Fatalf("bad local metadata: %+v", chat)
 		}
 	}
@@ -81,9 +104,9 @@ func TestOrgChartUsesCanonicalSnapshotWithoutProviderDiscovery(t *testing.T) {
 	if err != nil || again.Generation != view.Generation {
 		t.Fatalf("unchanged snapshot changed generation: %v", err)
 	}
-	changed := model.Chats["logical-chain"]
-	changed.Title = "Changed title"
-	model.Chats["logical-chain"] = changed
+	if err := a.updateSettings(func(s *Settings) error { s.SessionTitles["claude:head"] = "Changed title"; return nil }); err != nil {
+		t.Fatal(err)
+	}
 	again, err = a.OrgChart()
 	if err != nil || again.Generation == view.Generation {
 		t.Fatalf("changed snapshot kept generation: %v", err)
@@ -93,20 +116,22 @@ func TestOrgChartUsesCanonicalSnapshotWithoutProviderDiscovery(t *testing.T) {
 func TestOrgChartKeepsRepairOwnershipExplicit(t *testing.T) {
 	starts := orgChartForbidProviderStarts(t)
 	a, connection := providerTestApp(t)
-	a.settings.logical = &logicalchats.Document{Version: logicalchats.Version,
-		Chats:   map[string]logicalchats.Chat{"repair-chat": {ID: "repair-chat", Head: "codex:uncertain", Title: "Needs repair", RepairCodes: []string{"ambiguous_ownership"}, Members: []logicalchats.Member{{SessionID: "codex:uncertain", Provider: "codex", State: "active_head"}}}},
-		Aliases: map[string]string{"codex:uncertain": "repair-chat"}}
+	a.settings.SessionTitles = map[string]string{"root": "Needs repair"}
+	a.settings.ChatBindings = map[string]string{"root": "first"}
+	a.settings.ChatTransferHistory = []chatTransfer{{Source: "root", Target: "second", Stage: "committed"}}
 	view, err := a.OrgChart()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(view.Chats) != 1 || view.Chats[0].Resolution != "repair" || view.Chats[0].Reason == "" || view.Chats[0].Head != "" || len(view.Teams) != 0 {
-		t.Fatalf("repair ownership guessed: %+v", view)
+	if len(view.Chats) == 0 {
+		t.Fatal("ambiguous local ownership disappeared")
 	}
-	if len(connection.calls) != 0 {
-		t.Fatal("repair query contacted provider")
+	for _, chat := range view.Chats {
+		if chat.Resolution != "repair" || chat.Reason == "" || chat.Head != "" {
+			t.Fatalf("repair ownership guessed: %+v", chat)
+		}
 	}
-	if starts.Load() != 0 {
-		t.Fatal("repair query tried to start a provider")
+	if len(view.Teams) != 0 || len(connection.calls) != 0 || starts.Load() != 0 {
+		t.Fatal("repair query invented an edge or contacted a provider")
 	}
 }

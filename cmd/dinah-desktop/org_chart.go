@@ -71,14 +71,19 @@ func (a *App) OrgChart() (OrgChartView, error) {
 		return view, err
 	}
 	_, headers := sessionhost.ConversationLinks(configDir())
+	headerStamp := orgChartTranscriptStamp(headers)
+	saved.logicalEvidence = map[string]sessionhost.TranscriptHead{}
+	for id, header := range headers {
+		saved.logicalEvidence[id] = *header
+	}
 	aliases, excluded := map[string]string{}, map[string]bool{}
 	byChat := map[string]int{}
 	for _, reference := range logicalChatReferencesFromSettings(saved) {
 		members, resolveErr := logicalChatMembersFromSettings(saved, reference)
-		removed := false
-		if saved.logical != nil {
-			phase := saved.logical.Chats[members.ChatID].Lifecycle
-			removed = phase != "" && phase != "active"
+		metadata, metadataErr := logicalChatMetadataFromSettings(saved, reference)
+		removed := metadata.Lifecycle != "" && metadata.Lifecycle != "active"
+		if resolveErr == nil {
+			resolveErr = metadataErr
 		}
 		for _, member := range members.Members {
 			if _, reserved := saved.RemovedChats[member.SessionID]; reserved {
@@ -103,19 +108,11 @@ func (a *App) OrgChart() (OrgChartView, error) {
 		}
 		head := members.Head
 		chat := OrgChartChat{ChatID: id, Head: head, Title: saved.SessionTitles[head], Provider: saved.SessionProviders[head], State: ChatState{Life: lifeClosed}, Resolution: "resolved"}
+		chat.Title, chat.Workspace = metadata.Title, metadata.Workspace
 		if metadata := headers[head]; metadata != nil {
 			chat.Workspace = metadata.Workspace
 			if chat.Provider == "" {
 				chat.Provider = metadata.Provider
-			}
-		}
-		if saved.logical != nil {
-			metadata := saved.logical.Chats[id]
-			if metadata.Title != "" {
-				chat.Title = metadata.Title
-			}
-			if metadata.Workspace != "" {
-				chat.Workspace = metadata.Workspace
 			}
 		}
 		for _, member := range members.Members {
@@ -274,13 +271,23 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	if current != stamp {
 		return OrgChartView{}, errors.New("Chat ownership changed while the chart was read. Refresh the chart.")
 	}
-	data, err := json.Marshal([]any{stamp, view})
+	// Validate the captured headers without rebuilding any row from a later view.
+	_, currentHeaders := sessionhost.ConversationLinks(configDir())
+	if orgChartTranscriptStamp(currentHeaders) != headerStamp {
+		return OrgChartView{}, errors.New("Saved chat identities changed while the chart was read. Refresh the chart.")
+	}
+	data, err := json.Marshal([]any{stamp, headerStamp, view})
 	if err != nil {
 		return OrgChartView{}, err
 	}
 	view.Generation = fmt.Sprintf("%x", sha256.Sum256(data))
 	view.GeneratedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	return view, nil
+}
+
+func orgChartTranscriptStamp(headers map[string]*sessionhost.TranscriptHead) string {
+	data, _ := json.Marshal(headers)
+	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
 func orgChartOwnershipStamp(saved Settings) string {
