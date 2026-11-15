@@ -10,6 +10,8 @@ Paul answered three questions in this chat on 15 November 2026.
 2. A chat belongs to at most one team, as its lead or as a member, so reporting lines form a tree. A chat may belong to any number of groups. A team is a reporting line; a group is a loose association, such as a cross-functional group.
 3. Dinah Front End draws a static mockup first, for Paul to react to before anything is built.
 
+Paul also said on 15 November that the chart goes into the products built on Dinah as well. It is therefore built generically in Dinah, with no product's names or records in it, and reaches those products through their normal merge from Dinah.
+
 ## Shape
 
 The chart is a Dinah page with its own address, under the Architectural Principles. It is not a diagram document. It uses the drawing and layout code of the Diagrams applet, and it reads Dinah's own records of teams, leads, members, groups and chat state, so it adds no new record of its own.
