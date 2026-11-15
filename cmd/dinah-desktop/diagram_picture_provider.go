@@ -56,6 +56,19 @@ func (d *diagramChannel) revoke() {
 	}
 }
 
+func (d *diagramChannel) retain(revoke func()) bool {
+	d.mu.Lock()
+	closed := d.closed
+	if !closed {
+		d.revokes = append(d.revokes, revoke)
+	}
+	d.mu.Unlock()
+	if closed {
+		revoke()
+	}
+	return !closed
+}
+
 var diagramServerPrefix = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,39}$`)
 
 const diagramUnsupported = "New Canvas and Mermaid pictures are unavailable for this chat's provider. Use a supported chat inside this workspace in the window, or publish through the window. Existing D2 rendering and verified-picture reuse remain available."
@@ -67,7 +80,21 @@ func (a *App) withDiagramServers(channel *appletChannel, provider, workspace str
 		return nil, errors.New("the managed session channel is unavailable")
 	}
 	d := &diagramChannel{}
+	// Attach while the bridge owns the channel. Provider loss or window
+	// shutdown can race with configuration before session/new returns.
+	a.bridgeMu.Lock()
+	b := a.appletBridge
+	a.bridgeMu.Unlock()
+	if b == nil {
+		return nil, errors.New("the managed session channel stopped")
+	}
+	b.mu.Lock()
+	if b.channels[channel.token] != channel {
+		b.mu.Unlock()
+		return nil, errors.New("the managed session channel expired")
+	}
 	channel.drawing = d
+	b.mu.Unlock()
 	for _, server := range product.ToolServers {
 		if !server.DiagramPictures {
 			continue
@@ -93,7 +120,9 @@ func (a *App) withDiagramServers(channel *appletChannel, provider, workspace str
 			d.revoke()
 			return nil, err
 		}
-		d.revokes = append(d.revokes, revoke)
+		if !d.retain(revoke) {
+			return nil, errors.New("the managed session channel stopped during configuration")
+		}
 		// Register redaction before any protocol serialization or subprocess
 		// configuration. Only the managed server receives this environment.
 		if channel.conn != nil {

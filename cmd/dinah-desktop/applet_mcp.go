@@ -229,9 +229,10 @@ func (a *App) revokeAppletChannel(c *appletChannel) {
 	if b != nil {
 		b.mu.Lock()
 		delete(b.channels, c.token)
+		d := c.drawing
 		b.mu.Unlock()
+		d.revoke()
 	}
-	c.drawing.revoke()
 }
 func (a *App) revokeAppletChannels(conn agentConnection) {
 	a.bridgeMu.Lock()

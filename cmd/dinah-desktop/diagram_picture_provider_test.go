@@ -156,3 +156,22 @@ func containsSecret(list []string, value string) bool {
 	}
 	return false
 }
+
+func TestDiagramPendingRevocation(t *testing.T) {
+	for _, beforeIssue := range []bool{false, true} {
+		d := &diagramChannel{}
+		calls := 0
+		if beforeIssue {
+			d.revoke()
+		}
+		kept := d.retain(func() { calls++ })
+		if kept == beforeIssue {
+			t.Fatal("revoked pending channel retained new authority")
+		}
+		d.revoke()
+		d.revoke()
+		if calls != 1 {
+			t.Fatal("pending authority was leaked or revoked twice")
+		}
+	}
+}
