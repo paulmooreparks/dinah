@@ -1,0 +1,11 @@
+# Codex deletion with the interim member query
+
+The standalone patch is based on Engine cleanup commit 320d1dc09d54193d883738cc966b826308c4e698. It includes the adapter-only implementation previously reviewed at 65c5080e and wires its mandatory ownership callback through the existing logicalChatMembersFromSettings seam. It adds no journal, importer or allocation changes, and leaves cleanupDeleteProvider under Engine ownership.
+
+The adapter advertises session/delete and inventories active and archived native threads across all documented source kinds before calling thread/delete. It follows parentThreadId for spawned descendants, excludes fork provenance, and refuses incomplete or conflicting inventories. A missing callback refuses deletion. Local adapter identities are removed only after native success.
+
+The host callback captures Settings once and reads transcript identity metadata. It allows descendants within the root's interim member set. It refuses other descendants with a saved title, bus identity, transcript, removal record, binding, transfer or history reference. Distinct recipients remain outside the owned set. The guard reads no message bodies and starts no provider. Errors become the existing remaining-copy outcome through cleanup's adapter call.
+
+The callback seam is Conn.SetDeletionGuard(func(context.Context, string, []string) error). Codex provider startup installs App.codexDeletionGuard. Engine should take the complete standalone commit, including the startup hook, rather than advertise deletion without its callback. Quality can bind the same callback to a stand-in adapter and assert zero thread/delete requests for an independently owned descendant.
+
+Focused race validation is queued through the shared FIFO. The adapter stand-ins check that refusal sends zero destructive requests, while successful deletion sends one permanent native operation. Host fixtures cover title, bus and transcript evidence; transfer-only and history-only ownership; separate recipients; owned abandoned candidates; and damaged ownership. No real provider operation or real-state investigation was performed. This source handover does not establish combined cleanup acceptance.

@@ -144,11 +144,14 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 		r.AgentCapabilities.PromptCapabilities = acp.PromptCapabilities{Image: true, EmbeddedContext: true}
 		r.AgentCapabilities.SessionCapabilities.List = &struct{}{}
 		r.AgentCapabilities.SessionCapabilities.Close = &struct{}{}
+		r.AgentCapabilities.SessionCapabilities.Delete = &struct{}{}
 		return acp.Result(r, out)
 	case "session/new", "session/load":
 		return c.open(ctx, method, params, out)
 	case "session/close":
 		return c.closeSession(ctx, params)
+	case "session/delete":
+		return c.deleteSession(ctx, params)
 	case "session/list":
 		var p acp.ListSessionsParams
 		if err := acp.Decode(params, &p); err != nil {
