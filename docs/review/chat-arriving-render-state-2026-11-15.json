@@ -1,0 +1,191 @@
+{
+  "beforeRuns": [
+    {
+      "run": 1,
+      "source": "69f121d4",
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [
+        "decisions-drafts :"
+      ],
+      "receipt": "21 suites in 117 s, 1 at a time"
+    },
+    {
+      "run": 2,
+      "source": "69f121d4",
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [
+        "decisions-drafts :"
+      ],
+      "receipt": "21 suites in 99 s, 1 at a time"
+    },
+    {
+      "run": 3,
+      "source": "69f121d4",
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [
+        "decisions-drafts :"
+      ],
+      "receipt": "21 suites in 124 s, 1 at a time"
+    },
+    {
+      "run": 4,
+      "source": "69f121d4",
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [
+        "decisions-answer-layout :",
+        "decisions-drafts :"
+      ],
+      "receipt": "21 suites in 109 s, 1 at a time"
+    },
+    {
+      "run": 5,
+      "source": "649016a1",
+      "chatArrivingFailed": true,
+      "otherFailedSuites": [],
+      "receipt": "21 suites in 95 s, 1 at a time"
+    }
+  ],
+  "failedRenderedRead": {
+    "uiStateReady": "true",
+    "rows": [
+      {
+        "text": "WaitingArriving: message from Docs Pass, in the group Release ReviewPlease review the guide.",
+        "inner": "",
+        "rect": {
+          "x": 507,
+          "y": 301.015625,
+          "width": 323,
+          "height": 133,
+          "top": 301.015625,
+          "right": 830,
+          "bottom": 434.015625,
+          "left": 507
+        }
+      },
+      {
+        "text": "WaitingArriving: message from Docs Pass, in the group Release ReviewAnd the notes.",
+        "inner": "",
+        "rect": {
+          "x": 507,
+          "y": 434.015625,
+          "width": 323,
+          "height": 133,
+          "top": 434.015625,
+          "right": 830,
+          "bottom": 567.015625,
+          "left": 507
+        }
+      },
+      {
+        "text": "3 more messages are waiting.",
+        "inner": "",
+        "rect": {
+          "x": 507,
+          "y": 567.015625,
+          "width": 323,
+          "height": 133,
+          "top": 567.015625,
+          "right": 830,
+          "bottom": 700.015625,
+          "left": 507
+        }
+      }
+    ],
+    "contentVisibility": "auto"
+  },
+  "recoveryWithoutNewMessages": [
+    {
+      "frame": 0,
+      "rows": [
+        {
+          "inner": "",
+          "height": 133
+        },
+        {
+          "inner": "",
+          "height": 133
+        },
+        {
+          "inner": "",
+          "height": 133
+        }
+      ],
+      "firstCardVisible": false
+    },
+    {
+      "frame": 1,
+      "rows": [
+        {
+          "inner": "",
+          "height": 133
+        },
+        {
+          "inner": "",
+          "height": 133
+        },
+        {
+          "inner": "",
+          "height": 133
+        }
+      ],
+      "firstCardVisible": false
+    },
+    {
+      "frame": 2,
+      "rows": [
+        {
+          "inner": "Waiting\nArriving: message from Docs Pass, in the group Release Review\nPlease review the guide.",
+          "height": 167.390625
+        },
+        {
+          "inner": "Waiting\nArriving: message from Docs Pass, in the group Release Review\nAnd the notes.",
+          "height": 167.390625
+        },
+        {
+          "inner": "3 more messages are waiting.",
+          "height": 33.796875
+        }
+      ],
+      "firstCardVisible": true
+    },
+    {
+      "frame": 3,
+      "rows": [
+        {
+          "inner": "Waiting\nArriving: message from Docs Pass, in the group Release Review\nPlease review the guide.",
+          "height": 167.390625
+        },
+        {
+          "inner": "Waiting\nArriving: message from Docs Pass, in the group Release Review\nAnd the notes.",
+          "height": 167.390625
+        },
+        {
+          "inner": "3 more messages are waiting.",
+          "height": 33.796875
+        }
+      ],
+      "firstCardVisible": true
+    }
+  ],
+  "afterRuns": [
+    {
+      "run": 1,
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [
+        "decisions-answer-layout :"
+      ],
+      "receipt": "21 suites in 95 s, 1 at a time"
+    },
+    {
+      "run": 2,
+      "chatArrivingFailed": false,
+      "otherFailedSuites": [],
+      "receipt": "21 suites in 129 s, 1 at a time"
+    }
+  ],
+  "arrivalOnlyAfter": {
+    "runs": 20,
+    "failed": 0,
+    "seconds": 64.50466739999999
+  }
+}

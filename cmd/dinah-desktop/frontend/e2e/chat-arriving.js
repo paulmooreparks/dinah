@@ -41,6 +41,12 @@ const { launch, PAGE } = require('./lib/page');
 
     await page.evaluate(() => { window.__release(); window.__hold = false; });
     await page.waitForFunction(k => document.querySelector('[data-win="' + k + '"] [data-view-id="replay"]').hidden, key);
+    // The progress line can disappear before the browser renders these rows.
+    // Keep the rendered-text assertions below, and wait for their reading surface.
+    await page.waitForFunction(k => {
+      const rows = [...document.querySelector('[data-win="' + k + '"]').querySelectorAll('.arriving-card, .arriving-more')];
+      return rows.length > 0 && rows.every(row => row.innerText.trim().length > 0);
+    }, key);
     const cards = win.locator('.arriving-card');
     ok('when the transcript shows, the waiting messages are cards at its end', await cards.count() === 2);
     ok('a card says who sent the message and that it is waiting', /Waiting/.test(await cards.first().innerText()) && /Arriving: message from Docs Pass/.test(await cards.first().innerText()));

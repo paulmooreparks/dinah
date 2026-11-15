@@ -1,0 +1,25 @@
+# Chat arrival checks in the combined run
+
+This investigation follows the four rendered-text failures recorded in the Decisions answer-card review on 14 November. The original run used twenty-one suites and one browser job. The manual runner `scripts/check-chat-arriving-combined.ps1` repeats that suite set through the existing FIFO runner, with a separate evidence folder for each run. It stops on a chat-arriving failure or after twenty runs. Other suite failures remain in the output and do not count as a reproduction of the reported arrival failure.
+
+The first four completed runs used master `69f121d4`. The branch was then rebased onto `649016a1`, which corrects a stale wording assertion in decisions-drafts. No chat-arriving assertion or product source was changed. The next queued run was stopped before its Node process began so the rebase could occur between runs.
+
+Evidence is retained under `%TEMP%/chat-arriving-before-20261115`. Each completed run has its console output, suite logs and failure record. The earlier reproduction record is retained under `%TEMP%/decisions-answer-final-20261114/failures.txt`.
+
+The fifth combined run reproduced all four original chat-arriving failures. Every other suite passed in that run, which took 95 seconds. The repetition stopped there. The earlier four runs passed chat-arriving; all four encountered the stale drafts assertion, and the fourth also encountered a missing-element failure in decisions-answer-layout.
+
+The cause is a readiness error in the test harness. The chat-arriving suite waited for the replay progress line's `hidden` property and then immediately read `innerText`. The rows use `content-visibility:auto`. At the failing reads, their correct text was already present in the DOM, while their rendered text was empty and their children were still skipped. UI state restoration had completed. This was reproduced again with inspection at the failure, outside the combined run.
+
+The diagnostic check then observed the same rows for eight animation frames without sending another message or changing page state. The first two samples had empty rendered text and 133-pixel placeholder row heights. The third sample had the expected text, two 167.390625-pixel cards and a 33.796875-pixel count line. The children were then visible and remained so. The [render-state record](chat-arriving-render-state-2026-11-15.json) preserves these measurements and the combined-run receipts. Full diagnostic snapshots and a screenshot are in `%TEMP%/chat-arriving-dom-11`.
+
+The suite now waits until the arriving cards and count line have nonempty rendered text. All existing assertions remain unchanged, including the sender, message text, group and exact remaining-message count. An incorrect nonempty value still fails those assertions, and text that never renders still times out. The correction adds no sleep, longer timeout, retry of a failed suite or production change.
+
+The first diagnostic helper attempt failed to create its output directory before writing evidence. Its own hidden browser process tree was stopped. The corrected helper captured the failing state on diagnostic runs 9 and 11. The temporary helper was removed from the suite directory; it did not change product source.
+
+After the correction, chat-arriving passed both combined runs and twenty additional fresh-browser runs. The twenty arrival-only runs took 64.505 seconds in total. The first combined run took 95 seconds and retained the separate decisions-answer-layout failure at line 15, where a bounding-box result was null. The second combined run passed all twenty-one suites in 129 seconds. The earlier occurrence of the same layout failure is retained in before run 4. This investigation does not claim that separate failure is fixed.
+
+The after-run evidence is under `%TEMP%/chat-arriving-after-20261115` and `%TEMP%/chat-arriving-after-single-20261115`. A controller bug stopped receipt aggregation after the second combined run had completed; its complete console and per-suite logs remain intact. The final manual runner initializes the receipt collection as an array when resuming and clears the previous exit code before each invocation. A fresh arrival-only run followed by a resumed second run both passed with exit zero. Their logs and two-entry receipt collection are in `%TEMP%/chat-arriving-runner-check-20261115`. PowerShell parsing and diff whitespace checks passed.
+
+To repeat the original combined order, run `pwsh -NoProfile -File scripts/check-chat-arriving-combined.ps1 -Runs 20 -Out <new-output-folder>` with the repository's frontend Node dependencies available. The runner releases the shared FIFO between combined runs. The `-ArrivingOnly` switch runs the targeted suite instead. Use `-StartRun` to resume at a numbered run and preserve the earlier output folders.
+
+Only the test's readiness wait, the manual runner and these evidence files have changed. Production files and existing assertions are unchanged. No Go suite was needed for this test-only correction. No native window, desktop input, real home, credentials, remote service, push, merge or installation was used.
