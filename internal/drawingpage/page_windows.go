@@ -49,10 +49,18 @@ type message struct {
 // small bindings supply callbacks and Controller.Close absent from edge's API.
 //
 //go:uintptrescapes
-func call(object unsafe.Pointer, slot int, args ...uintptr) (uintptr, error) {
-	table := *(*unsafe.Pointer)(object)
-	method := *(*uintptr)(unsafe.Add(table, uintptr(slot)*unsafe.Sizeof(uintptr(0))))
-	result, _, _ := syscall.SyscallN(method, append([]uintptr{uintptr(object)}, args...)...)
+func call(object uintptr, slot int, args ...uintptr) (uintptr, error) {
+	// Native interface addresses remain uintptr. ReadProcessMemory copies the
+	// vtable addresses into Go values without a uintptr-to-Pointer conversion.
+	// https://learn.microsoft.com/windows/win32/api/memoryapi/nf-memoryapi-readprocessmemory
+	var table, method uintptr
+	if err := windows.ReadProcessMemory(windows.CurrentProcess(), object, (*byte)(unsafe.Pointer(&table)), unsafe.Sizeof(table), nil); err != nil {
+		return 0, err
+	}
+	if err := windows.ReadProcessMemory(windows.CurrentProcess(), table+uintptr(slot)*unsafe.Sizeof(method), (*byte)(unsafe.Pointer(&method)), unsafe.Sizeof(method), nil); err != nil {
+		return 0, err
+	}
+	result, _, _ := syscall.SyscallN(method, append([]uintptr{object}, args...)...)
 	if int32(result) < 0 {
 		return result, fmt.Errorf("WebView2 HRESULT 0x%08x", uint32(result))
 	}
@@ -421,7 +429,7 @@ func native(ctx context.Context, assets fs.FS, options Options, script string, m
 			return 0
 		}
 		// HWND_MESSAGE is explicitly supported for invisible WebViews.
-		if _, err := call(unsafe.Pointer(env), 3, ^uintptr(2), controllerCallback.Ref()); err != nil {
+		if _, err := call(uintptr(unsafe.Pointer(env)), 3, ^uintptr(2), controllerCallback.Ref()); err != nil {
 			finishCreation()
 			finish(err)
 		}
@@ -453,11 +461,11 @@ func native(ctx context.Context, assets fs.FS, options Options, script string, m
 				break
 			}
 			var token int64
-			if _, err = call(unsafe.Pointer(webview), 34, webMessage.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
+			if _, err = call(uintptr(unsafe.Pointer(webview)), 34, webMessage.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
 				finish(err)
 				break
 			}
-			if _, err = call(unsafe.Pointer(webview), 55, resources.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
+			if _, err = call(uintptr(unsafe.Pointer(webview)), 55, resources.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
 				finish(err)
 				break
 			}
@@ -497,7 +505,7 @@ func native(ctx context.Context, assets fs.FS, options Options, script string, m
 		webview.Release()
 	}
 	if environment != nil {
-		call(unsafe.Pointer(environment), 2)
+		call(uintptr(unsafe.Pointer(environment)), 2)
 	}
 	runtime.KeepAlive(envHandler)
 	if failure != nil {

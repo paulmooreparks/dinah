@@ -39,6 +39,13 @@ func runChild(mode string) {
 		f.Close()
 	}
 	switch mode {
+	case "drawing-environment":
+		values := map[string]string{}
+		for _, key := range []string{"DIAGRAM_PICTURE_LEASE", "DIAGRAM_PICTURE_ENDPOINT", "DIAGRAM_PICTURE_WORKSPACE", "DIAGRAM_PICTURE_ROOT"} {
+			values[key] = os.Getenv(key)
+		}
+		json.NewEncoder(os.Stdout).Encode(values)
+		return
 	case "exit":
 		os.Exit(3)
 	case "silent":
@@ -434,4 +441,28 @@ func TestAppletCloseWithGrandchild(t *testing.T) {
 		t.Fatalf("close took longer than its phases (%v)", limit)
 	}
 	exited(t, p)
+}
+
+func TestDiagramSessionEnvironmentDelivery(t *testing.T) {
+	want := map[string]string{"DIAGRAM_PICTURE_LEASE": "invented-ollama-lease", "DIAGRAM_PICTURE_ENDPOINT": "http://127.0.0.1:12345/diagram-pictures", "DIAGRAM_PICTURE_WORKSPACE": "fixture-workspace", "DIAGRAM_PICTURE_ROOT": t.TempDir()}
+	values := []map[string]string{{"name": "DINAH_OLLAMA_CHILD", "value": "1"}}
+	for key, value := range want {
+		values = append(values, map[string]string{"name": key, "value": value})
+	}
+	list, err := serversOf([]any{map[string]any{"name": "fixture-drawing-random", "command": os.Args[0], "args": []string{"drawing-environment"}, "env": values}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := startAppletProcess(list[0], closePhases)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.close()
+	var got map[string]string
+	if err = json.NewDecoder(p.stdout).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatal("Ollama managed subprocess environment changed")
+	}
 }

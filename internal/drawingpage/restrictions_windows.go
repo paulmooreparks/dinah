@@ -50,7 +50,7 @@ func init() {
 }
 
 // Same-package tests can inject a failed Close result without a product route.
-var closeNativeController = func(controller unsafe.Pointer) error { _, err := call(controller, 24); return err }
+var closeNativeController = func(controller unsafe.Pointer) error { _, err := call(uintptr(controller), 24); return err }
 
 // Same-package tests can delay handler delivery while retaining its COM state.
 var delayStartupCompletion func() <-chan struct{}
@@ -59,7 +59,7 @@ func restrictPage(webview *edge.ICoreWebView2, emit func(string), finish func(er
 	first := true
 	nav := combridge.New[navigationHandler](&navigationCallback{f: func(sender, args unsafe.Pointer) uintptr {
 		var address *uint16
-		_, err := call(args, 3, uintptr(unsafe.Pointer(&address)))
+		_, err := call(uintptr(args), 3, uintptr(unsafe.Pointer(&address)))
 		uri := ""
 		if address != nil {
 			uri = windows.UTF16PtrToString(address)
@@ -69,21 +69,21 @@ func restrictPage(webview *edge.ICoreWebView2, emit func(string), finish func(er
 			first = false
 			return 0
 		}
-		if _, e := call(args, 8, 1); e != nil {
+		if _, e := call(uintptr(args), 8, 1); e != nil {
 			finish(e)
 		}
 		emit("navigation-refused")
 		return 0
 	}})
 	popup := combridge.New[popupHandler](&popupCallback{f: func(sender, args unsafe.Pointer) uintptr {
-		if _, err := call(args, 6, 1); err != nil {
+		if _, err := call(uintptr(args), 6, 1); err != nil {
 			finish(err)
 		}
 		emit("popup-refused")
 		return 0
 	}})
 	download := combridge.New[downloadHandler](&downloadCallback{f: func(sender, args unsafe.Pointer) uintptr {
-		if _, err := call(args, 5, 1); err != nil {
+		if _, err := call(uintptr(args), 5, 1); err != nil {
 			finish(err)
 		}
 		emit("download-refused")
@@ -95,17 +95,17 @@ func restrictPage(webview *edge.ICoreWebView2, emit func(string), finish func(er
 		slot int
 		ref  uintptr
 	}{{7, nav.Ref()}, {17, nav.Ref()}, {44, popup.Ref()}} {
-		if _, err := call(unsafe.Pointer(webview), binding.slot, binding.ref, uintptr(unsafe.Pointer(&token))); err != nil {
+		if _, err := call(uintptr(unsafe.Pointer(webview)), binding.slot, binding.ref, uintptr(unsafe.Pointer(&token))); err != nil {
 			return clean, err
 		}
 	}
 	iid := windows.GUID{Data1: 0x20d02d59, Data2: 0x6df2, Data3: 0x42dc, Data4: [8]byte{0xbd, 0x06, 0xf9, 0x8a, 0x69, 0x4b, 0x13, 0x02}}
 	var newer unsafe.Pointer
-	if _, err := call(unsafe.Pointer(webview), 0, uintptr(unsafe.Pointer(&iid)), uintptr(unsafe.Pointer(&newer))); err != nil || newer == nil {
+	if _, err := call(uintptr(unsafe.Pointer(webview)), 0, uintptr(unsafe.Pointer(&iid)), uintptr(unsafe.Pointer(&newer))); err != nil || newer == nil {
 		return clean, errors.New("download refusal requires WebView2 interface 4")
 	}
-	defer call(newer, 2)
-	if _, err := call(newer, 75, download.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
+	defer call(uintptr(newer), 2)
+	if _, err := call(uintptr(newer), 75, download.Ref(), uintptr(unsafe.Pointer(&token))); err != nil {
 		return clean, err
 	}
 	return clean, nil

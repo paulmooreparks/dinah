@@ -27,6 +27,7 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 			var order []string
 			failure := errors.New("failed")
 			var published *Conversation
+			configured := false
 			ch := &lifecycleTestChannel{bind: func(string) error {
 				order = append(order, "bind")
 				if mode == "bind" {
@@ -44,8 +45,20 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 				Live:       func(string) (Connection, acp.InitializeResult, error) { return conn, acp.InitializeResult{}, nil },
 				Defaults:   func(string) map[string]json.RawMessage { return nil },
 				NewChannel: func(Connection, string) (ChannelCapability, []any, error) { return ch, nil, nil }, ManagedServers: func() ([]any, error) { return nil, nil },
-				BusSessionID: func(string) string { return "bus" }, WithBusServer: func(string, string, string, []any) []any { return nil },
-				EndBusSession: func(string) { order = append(order, "bus-end") }, SessionParams: func(string, string, string, []any) any { return nil },
+				BusSessionID: func(string) string { return "bus" }, WithBusServer: func(_ string, _ string, _ string, servers []any) []any { return servers },
+				ConfigureServers: func(cap ChannelCapability, provider, workspace string, servers []any) ([]any, error) {
+					if cap != ch || provider != "codex" || workspace == "" {
+						t.Fatal("wrong shell launch scope")
+					}
+					configured = true
+					return []any{"restricted-fixture"}, nil
+				},
+				EndBusSession: func(string) { order = append(order, "bus-end") }, SessionParams: func(provider, id, workspace string, servers []any) any {
+					if !configured || !reflect.DeepEqual(servers, []any{"restricted-fixture"}) {
+						t.Fatal("managed addition was dropped before session parameters")
+					}
+					return nil
+				},
 				Call: func(_ Connection, method string, _ any, out any) error {
 					if method != "session/new" {
 						t.Fatal(method)

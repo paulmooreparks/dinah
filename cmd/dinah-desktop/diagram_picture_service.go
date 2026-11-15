@@ -17,6 +17,16 @@ import (
 // Its server name must be an explicitly permitted profile registration.
 // No App, applet or bus method exposes lease issuance.
 func (a *App) issueDiagramLease(chatID, serverName string) (map[string]string, func(), error) {
+	chat := a.session(chatID)
+	if chat == nil || !chat.Open() {
+		return nil, nil, errors.New("a managed chat is required")
+	}
+	return a.issueDiagramWorkspaceLease(serverName, chat.Cwd(), func() *Session { return chat })
+}
+
+// A pending channel may receive configuration before session/new has allocated
+// an identity. Its reader refuses all paths until Bind establishes that identity.
+func (a *App) issueDiagramWorkspaceLease(serverName, workspace string, currentChat func() *Session) (map[string]string, func(), error) {
 	permitted, program := false, ""
 	for _, server := range product.ToolServers {
 		if server.Name == serverName && server.DiagramPictures {
@@ -28,12 +38,8 @@ func (a *App) issueDiagramLease(chatID, serverName string) (map[string]string, f
 	if !permitted {
 		return nil, nil, errors.New("this managed tools registration cannot draw pictures")
 	}
-	chat := a.session(chatID)
-	if chat == nil || !chat.Open() {
-		return nil, nil, errors.New("a managed chat is required")
-	}
 	a.mu.Lock()
-	index := workspaces.IndexAt(a.settings.WorkspaceRecords, chat.Cwd())
+	index := workspaces.IndexAt(a.settings.WorkspaceRecords, workspace)
 	if index < 0 {
 		a.mu.Unlock()
 		return nil, nil, errors.New("the chat workspace is not registered")
@@ -47,7 +53,8 @@ func (a *App) issueDiagramLease(chatID, serverName string) (map[string]string, f
 		return nil, nil, errors.New("the window drawing service is unavailable")
 	}
 	read := func(ctx context.Context, name string, limit int) ([]byte, error) {
-		if !chat.Open() || !layout.SamePath(chat.Cwd(), record.ExecutionPath) {
+		chat := currentChat()
+		if chat == nil || !chat.Open() || !layout.SamePath(chat.Cwd(), record.ExecutionPath) {
 			return nil, errors.New("the drawing chat is no longer available in this workspace")
 		}
 		a.mu.Lock()

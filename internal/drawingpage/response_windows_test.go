@@ -43,7 +43,7 @@ func TestNativeResponseBody(t *testing.T) {
 		}
 		defer bad.Release()
 		var missing *edge.IStream
-		if _, err = call(unsafe.Pointer(bad), 3, uintptr(unsafe.Pointer(&missing))); err != nil {
+		if _, err = call(uintptr(unsafe.Pointer(bad)), 3, uintptr(unsafe.Pointer(&missing))); err != nil {
 			t.Error(err)
 			return 0
 		}
@@ -58,7 +58,7 @@ func TestNativeResponseBody(t *testing.T) {
 		}
 		defer good.Release()
 		var content *edge.IStream
-		if _, err = call(unsafe.Pointer(good), 3, uintptr(unsafe.Pointer(&content))); err != nil || content == nil {
+		if _, err = call(uintptr(unsafe.Pointer(good)), 3, uintptr(unsafe.Pointer(&content))); err != nil || content == nil {
 			t.Errorf("local binding has no body: %v", err)
 			return 0
 		}

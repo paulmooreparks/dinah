@@ -145,6 +145,11 @@ type ToolServer struct {
 	// DiagramPictures permits a workspace-bound lease for this managed
 	// program. It adds no publication or general file-reading authority.
 	DiagramPictures bool
+	// DiagramPicturePrefix names the restricted session server, followed by a
+	// random suffix. DiagramPictureArgs must select only publication operations
+	// which need drawing. Neither field changes the ordinary registration.
+	DiagramPicturePrefix string
+	DiagramPictureArgs   []string
 	// EarlierFolders are the folders, in the person's home folder, where an
 	// earlier installation of the product put the program. An entry that
 	// runs the program from one of them was written by that installation

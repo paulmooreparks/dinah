@@ -22,12 +22,12 @@ func responseFor(environment *edge.ICoreWebView2Environment, body []byte, status
 		if stream == 0 {
 			return nil, errors.New("create drawing asset stream")
 		}
-		defer call(unsafe.Pointer(stream), 2)
+		defer call(stream, 2)
 	}
 	reason, _ := windows.UTF16PtrFromString("Drawing resource")
 	header, _ := windows.UTF16PtrFromString(headers)
 	var result *edge.ICoreWebView2WebResourceResponse
-	_, err := call(unsafe.Pointer(environment), 4, stream, uintptr(status), uintptr(unsafe.Pointer(reason)), uintptr(unsafe.Pointer(header)), uintptr(unsafe.Pointer(&result)))
+	_, err := call(uintptr(unsafe.Pointer(environment)), 4, stream, uintptr(status), uintptr(unsafe.Pointer(reason)), uintptr(unsafe.Pointer(header)), uintptr(unsafe.Pointer(&result)))
 	runtime.KeepAlive(body)
 	return result, err
 }
