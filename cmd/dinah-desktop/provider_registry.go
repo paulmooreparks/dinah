@@ -27,6 +27,9 @@ type ProviderFacts struct {
 	Executable       string `json:"executable"`
 	ChooseExecutable bool   `json:"chooseExecutable"`
 	SignIn           bool   `json:"signIn"`
+	// EffortChange is what the program documents about an effort change during
+	// a running turn (providers.Row.EffortChange); empty when it says nothing.
+	EffortChange string `json:"effortChange,omitempty"`
 	// NewChatOptions are the settings a new chat is given when the person has
 	// saved no default for them, for Settings to say so.
 	NewChatOptions map[string]string `json:"newChatOptions,omitempty"`
@@ -47,7 +50,7 @@ func (a *App) providerFacts(id string) ProviderFacts {
 		}
 	}
 	return ProviderFacts{ImageInput: row.ImageInput, Removal: removal, Prices: row.Prices, Usage: row.Usage, OwnCommands: row.OwnCommands,
-		TakesSkills: row.TakesSkills, Executable: row.Executable, ChooseExecutable: row.ChooseExecutable, SignIn: row.SignIn, NewChatOptions: row.NewChatOptions}
+		TakesSkills: row.TakesSkills, Executable: row.Executable, ChooseExecutable: row.ChooseExecutable, SignIn: row.SignIn, NewChatOptions: row.NewChatOptions, EffortChange: row.EffortChange}
 }
 
 // providerFactsNow is the facts of every provider the product offers, with

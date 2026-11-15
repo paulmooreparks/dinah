@@ -2296,8 +2296,11 @@
     function showLiveWork(s) {
       var dock = $('live-work'), list = dock.querySelector('ol');
       var g = s && s.workGroup;
-      if (!g || g._complete || s.loading) { list.replaceChildren(); dock.hidden = true; return; }
-      if (list.firstElementChild !== g) list.replaceChildren(g);
+      var note = $('effort-note'), noted = !!(s && s.working && s.effortNote);
+      var live = !!(g && !g._complete);
+      if (!s || s.loading || (!live && !noted)) { list.replaceChildren(); note.hidden = true; note.textContent = ''; dock.hidden = true; return; }
+      if (!live) list.replaceChildren(); else if (list.firstElementChild !== g) list.replaceChildren(g);
+      note.textContent = s.effortNote || ''; note.title = s.effortNote || ''; note.hidden = !s.effortNote;
       dock.hidden = false;
     }
     function workHeading(g) {
@@ -2312,7 +2315,8 @@
     }
     function finishWork(s, seconds) {
       var g = s.workGroup;
-      if (!g) return;
+      s.turnEffort = null; s.effortNote = null;
+      if (!g) { if (s.id === active) showLiveWork(s); return; }
       g._complete = true;
       if (Number.isFinite(seconds)) g._seconds = seconds;
       workHeading(g); g.querySelector('.tool-group-now').textContent = ''; untrackWork(g);
@@ -3467,20 +3471,110 @@
         current: current, detail: current || undefined, items: items };
     }
 
-    function thinkingCommand() {
-      var offered = barOptions().filter(function (option) { return option.category === 'thought_level' && option.type === 'select'; });
-      var items = [], current = [];
-      offered.forEach(function (option, index) {
-        current.push(valueName(option, option.currentValue));
-        if (offered.length > 1) items.push({ heading: option.name });
-        optValues(option).forEach(function (value, item) {
-          items.push({ id: 'thinking-' + index + '-' + item, label: value.name, detail: value.description || undefined,
-            choice: 'chat-thinking-' + option.id, value: value.value, checked: value.value === option.currentValue,
-            run: function () { return setSessionOption(option.id, value.value); } });
+    /* Effort (docs/design/effort-control.md): the agent's thought-level
+       options. The button always says "Effort" and shows the level as a mark
+       of one fixed width, one cell for each level the chat offers, filled up
+       to the level in effect, so a change of level never resizes it. It
+       opens a panel holding only the word "Effort" and the levels as a PUDL
+       segmented control, in the order and with the names the agent reports;
+       one press chooses and closes it. A chat whose agent offers no thought
+       level shows no button. */
+    function effortOptions() {
+      return barOptions().filter(function (option) { return option.category === 'thought_level' && option.type === 'select'; });
+    }
+    function effortLevel(option) {
+      var values = optValues(option), at = values.findIndex(function (v) { return v.value === option.currentValue; });
+      return { values: values, at: at, name: valueName(option, option.currentValue) };
+    }
+    /* The mark follows the first thought-level option; an agent that offers
+       more than one gets one segmented control for each in the panel. */
+    function drawEffortMark() {
+      var btn = $('composer').querySelector('[data-command="effort"]'), mark = btn && btn.querySelector('.effort-mark');
+      if (!mark) return;
+      var first = effortOptions()[0], lv = first ? effortLevel(first) : { values: [], at: -1 };
+      var sig = lv.values.length + ':' + lv.at;
+      if (mark.dataset.sig === sig) return;
+      mark.dataset.sig = sig;
+      mark.replaceChildren.apply(mark, lv.values.map(function (v, i) { var cell = document.createElement('i'); if (i <= lv.at) cell.setAttribute('data-on', ''); return cell; }));
+    }
+    function effortPanel(container) {
+      var offered = effortOptions();
+      var panel = document.createElement('div');
+      panel.className = 'effort-panel';
+      if (offered.length === 1) panel.setAttribute('data-single', '');
+      offered.forEach(function (option) {
+        var label = document.createElement('div');
+        label.className = 'md-section-label';
+        label.textContent = offered.length > 1 ? option.name : 'Effort';
+        var seg = document.createElement('div');
+        seg.className = 'seg sm effort-seg';
+        seg.setAttribute('role', 'group');
+        seg.setAttribute('aria-label', offered.length > 1 ? option.name : 'Effort');
+        optValues(option).forEach(function (v) {
+          var b = document.createElement('button');
+          b.type = 'button'; b.textContent = v.name; b.title = v.name;
+          b.dataset.level = v.value;
+          b.setAttribute('aria-pressed', String(v.value === option.currentValue));
+          seg.appendChild(b);
         });
+        seg.addEventListener('keydown', function (e) {
+          var all = Array.prototype.slice.call(seg.children), i = all.indexOf(document.activeElement), to = -1;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = Math.min(all.length - 1, i + 1);
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = Math.max(0, i - 1);
+          else if (e.key === 'Home') to = 0; else if (e.key === 'End') to = all.length - 1;
+          if (to < 0) return;
+          e.preventDefault(); e.stopPropagation(); all[to].focus();
+        });
+        seg.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-level]'); if (!b) return;
+          var pop = container.closest('[popover]');
+          if (pop && pop.matches(':popover-open')) pop.hidePopover();
+          focusEffort();
+          chooseEffort(option, b.dataset.level);
+        });
+        panel.append(label, seg);
       });
-      return { id: 'thinking', label: 'Thinking', glyph: 'gear', hidden: !offered.length,
-        current: current.join(', '), detail: current.join(', ') || undefined, items: items };
+      container.appendChild(panel);
+      /* Opened from the button, the panel opens with focus on the level in
+         effect, after the menu script has placed its own focus. */
+      if (container.hasAttribute('popover')) container.addEventListener('toggle', function (e) {
+        if (e.newState !== 'open') return;
+        setTimeout(function () { var p = panel.querySelector('[aria-pressed="true"]'); if (p && container.matches(':popover-open')) p.focus(); }, 0);
+      }, { once: true });
+    }
+    function focusEffort() {
+      var bar = $('composer').querySelector('.composer-toolbar'), btn = bar && bar.querySelector('[data-command="effort"]');
+      if (btn && btn.getClientRects().length) { btn.focus(); return; }
+      var fold = bar && Array.prototype.find.call(bar.querySelectorAll('.menu-btn'), function (b) { return b.getClientRects().length && b.getAttribute('aria-label') === 'Agent'; });
+      if (fold) fold.focus();
+    }
+    /* A change while a turn runs: the working line says what the agent
+       program documents about it, and no more (providers.Row.EffortChange). */
+    function chooseEffort(option, value) {
+      if (value === option.currentValue) return;
+      var s = active && sessions[active], before = option.currentValue;
+      return Promise.resolve(setSessionOption(option.id, value)).then(function () {
+        if (!s || !s.working) return;
+        if (s.turnEffort == null) s.turnEffort = before;
+        s.effortNote = effortChangeWords(option, s.turnEffort, value);
+        if (s.id === active) showLiveWork(s);
+      });
+    }
+    function effortChangeWords(option, started, now) {
+      var timing = providerFact(chatProvider(), 'effortChange') || '', who = providerName(chatProvider());
+      var was = valueName(option, started), to = valueName(option, now);
+      if (timing === 'next-turn') return 'The turn already running keeps ' + was + '; ' + to + ' applies from the next turn.';
+      if (timing === 'next-request') return who + ' uses ' + to + ' from its next request to the model, which may come before this turn ends.';
+      return who + ' doesn’t say whether ' + to + ' applies to the turn already running.';
+    }
+    function effortCommand() {
+      var offered = effortOptions(), first = offered[0], lv = first ? effortLevel(first) : null;
+      drawEffortMark();
+      /* The button's words never change, so what a screen reader hears of
+         the level is its badge, which own content keeps off the screen. */
+      return { id: 'effort', label: 'Effort', glyph: 'gear', hidden: !offered.length, panel: effortPanel,
+        detail: offered.map(function (o) { return valueName(o, o.currentValue); }).join(', ') || undefined,
+        badge: lv && lv.at >= 0 ? lv.name + ', level ' + (lv.at + 1) + ' of ' + lv.values.length : undefined };
     }
 
     /* Menu entries that can do nothing at the moment are greyed out. */
@@ -3723,7 +3817,7 @@
             reason: 'The chat starts with its first message.', items: function () { return active && window.dinahBus ? window.dinahBus.addItems(active) : []; } },
           { id: 'remove-chat', actions: true, label: 'Delete Chat…', run: function () { if (active) openRemove(active); }, disabled: !active, danger: true },
           { id: 'clean-up-chats', actions: true, label: 'Clean Up Chats', run: function () { return window.dinahChatCleanup.open(); } },
-          Object.assign(providerCommand(), { actions: true }), Object.assign(modeCommand(), { actions: true }), modelCommand(), thinkingCommand(),
+          Object.assign(providerCommand(), { actions: true }), Object.assign(modeCommand(), { actions: true }), modelCommand(), effortCommand(),
           { id: 'choose-model', actions: true, label: 'Choose the Model…', run: openModels, disabled: !byCat(barOptions(), 'model') },
           { id: 'add', label: 'Add', glyph: 'clip', items: addItems },
           { id: 'skills', label: 'Skills', glyph: 'slash', items: skillItems },

@@ -79,9 +79,9 @@ function stub({ state, app, init, args }) {
      window.__provider(id, changes) and changes what its case needs. */
   const providerFacts = {
     devin: { imageInput: 'none', removal: 'deletes', prices: true, usage: 'link', ownCommands: true, takesSkills: true, executable: 'Devin', chooseExecutable: true, signIn: true },
-    codex: { imageInput: 'initialize', removal: 'hides', prices: false, usage: 'read', ownCommands: false, takesSkills: true, executable: 'Codex', chooseExecutable: true, signIn: true },
+    codex: { imageInput: 'initialize', removal: 'hides', prices: false, usage: 'read', ownCommands: false, takesSkills: true, executable: 'Codex', chooseExecutable: true, signIn: true, effortChange: 'next-turn' },
     claude: { imageInput: 'initialize', removal: 'deletes', prices: false, usage: 'none', ownCommands: false, takesSkills: false, executable: 'Node.js', chooseExecutable: true, signIn: false },
-    ollama: { imageInput: 'adapter', removal: 'deletes', prices: false, usage: 'none', ownCommands: false, takesSkills: false, executable: '', chooseExecutable: false, signIn: false }
+    ollama: { imageInput: 'adapter', removal: 'deletes', prices: false, usage: 'none', ownCommands: false, takesSkills: false, executable: '', chooseExecutable: false, signIn: false, effortChange: 'next-request' }
   };
   const providerNames = { devin: 'Devin', codex: 'Codex', claude: 'Claude', ollama: 'Ollama' };
   window.__provider = (id, changes) => Object.assign({ id, name: providerNames[id] || id, installed: true, available: true, status: 'detected', statusWords: '', default: false, facts: providerFacts[id] || {} }, changes);
