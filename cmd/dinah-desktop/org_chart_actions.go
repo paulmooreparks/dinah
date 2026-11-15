@@ -191,7 +191,7 @@ func (a *App) OrgChartActions(chatID string) (OrgChartActionView, error) {
 
 func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChartActionView, error) {
 	out := OrgChartActionView{ChatID: chatID, Actions: []OrgChartAction{}, Unavailable: []OrgChartUnavailable{}}
-	kinds := []string{"assign_team", "make_lead", "create_team", "create_group", "start_chat", "delete_chat"}
+	kinds := []string{"assign_team", "replace_team_lead", "make_lead", "create_team", "create_group", "start_chat", "delete_chat"}
 	if chatID != "" {
 		chat, ok := x.chats[chatID]
 		if !ok {
@@ -219,14 +219,31 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 		return &out.Actions[len(out.Actions)-1]
 	}
 	if chatID != "" {
-		var leads, groups []OrgChartChoice
+		var leads, groups, replacements []OrgChartChoice
+		assignReason := "No eligible team is available."
+		replaceReason := "Choose a current, non-retired member of a team."
 		err := a.busHost().With(func(b *bus.Bus) error {
 			for _, team := range x.view.Teams {
+				if team.LeadID == chatID && len(team.MemberIDs) > 0 {
+					assignReason = bus.TeamLeadAssignmentReason(team.Title)
+				}
 				if chat, ok := x.chats[team.LeadID]; ok && team.Resolution == "resolved" && b.CheckTeamLead(x.busIDs[chatID], x.busIDs[chat.ChatID]) == nil {
 					leads = append(leads, orgChartChoice(chat))
 				}
 			}
 			for _, group := range x.view.Groups {
+				if group.OwnerID == chatID && assignReason != "No eligible team is available." {
+					assignReason = bus.TeamLeadAssignmentReason(group.Title)
+				}
+				if group.OwnerID != "" && group.Resolution == "resolved" && slices.Contains(group.MemberIDs, chatID) {
+					if _, ok := x.chats[group.OwnerID]; ok {
+						if err := b.CheckReplaceTeamLead(group.ID, x.busIDs[group.OwnerID], x.busIDs[chatID]); err == nil {
+							replacements = append(replacements, OrgChartChoice{ID: group.ID, Title: group.Title})
+						} else {
+							replaceReason = err.Error()
+						}
+					}
+				}
 				if group.OwnerID == "" && group.Resolution == "resolved" && b.CheckGroupTeam(group.ID, x.busIDs[chatID]) == nil {
 					groups = append(groups, OrgChartChoice{ID: group.ID, Title: group.Title})
 				}
@@ -239,7 +256,14 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 		if len(leads) > 0 {
 			add("assign_team", "Assign to a Team").Chats = leads
 		} else {
-			out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"assign_team", "No eligible team is available."})
+			out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"assign_team", assignReason})
+		}
+		if len(replacements) > 0 {
+			v := add("replace_team_lead", "Make Team Lead…")
+			v.Groups = replacements
+			v.Explanation = "Lead this team in place of its current lead, who becomes a member. The team chat stays the same."
+		} else {
+			out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"replace_team_lead", replaceReason})
 		}
 		if len(groups) > 0 {
 			v := add("make_lead", "Make Lead")
@@ -253,7 +277,7 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 	for _, chat := range groupChoices {
 		leads := false
 		for _, team := range x.view.Teams {
-			if team.LeadID == chat.ID {
+			if team.LeadID == chat.ID || slices.Contains(team.MemberIDs, chat.ID) {
 				leads = true
 			}
 		}
@@ -269,7 +293,7 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 	}
 	if len(groupChoices) > 1 && len(teamChoices) > 0 && (chatID == "" || slices.ContainsFunc(teamChoices, func(c OrgChartChoice) bool { return c.ID == chatID })) {
 		v := add("create_team", "Create Team")
-		v.Chats = groupChoices
+		v.Chats = teamChoices
 		v.Leads = teamChoices
 	} else {
 		out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"create_team", "Choose a lead without a team channel and at least one other chat."})

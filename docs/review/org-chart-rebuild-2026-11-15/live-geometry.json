@@ -1,0 +1,538 @@
+[
+  {
+    "beforeState": "Idle",
+    "afterRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 445.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 465.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 465.5,
+        "y": 613.375,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 465.5,
+        "y": 812.375,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 485.5,
+        "y": 927.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 751.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 771.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 397,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 625,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-free-b": {
+        "x": 397,
+        "y": 1387.8125,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 445.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 465.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 465.5,
+        "y": 613.375,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 465.5,
+        "y": 812.375,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 485.5,
+        "y": 927.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 751.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 771.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 397,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 625,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-free-b": {
+        "x": 397,
+        "y": 1387.8125,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeTitle": "Invented free-a",
+    "theme": "light",
+    "afterTitle": "An invented updated title long enough to wrap without moving another chat",
+    "width": 1440,
+    "afterState": "Background",
+    "beforeUpdated": "2026-11-15T00:00:00Z",
+    "afterUpdated": "2026-11-15T18:16:31.9939828Z"
+  },
+  {
+    "beforeState": "Idle",
+    "afterRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 61,
+        "y": 424.171875,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 81,
+        "y": 561.171875,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 81,
+        "y": 676.171875,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 81,
+        "y": 875.171875,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 101,
+        "y": 990.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 61,
+        "y": 1179.171875,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 81,
+        "y": 1316.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 61,
+        "y": 1592.796875,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 61,
+        "y": 1729.796875,
+        "width": 216,
+        "height": 107
+      },
+      "devin:org-fixture-free-b": {
+        "x": 61,
+        "y": 1910.796875,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 61,
+        "y": 424.171875,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 81,
+        "y": 561.171875,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 81,
+        "y": 676.171875,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 81,
+        "y": 875.171875,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 101,
+        "y": 990.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 61,
+        "y": 1179.171875,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 81,
+        "y": 1316.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 61,
+        "y": 1592.796875,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 61,
+        "y": 1729.796875,
+        "width": 216,
+        "height": 107
+      },
+      "devin:org-fixture-free-b": {
+        "x": 61,
+        "y": 1910.796875,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeTitle": "Invented free-a",
+    "theme": "light",
+    "afterTitle": "An invented updated title long enough to wrap without moving another chat",
+    "width": 390,
+    "afterState": "Background",
+    "beforeUpdated": "2026-11-15T00:00:00Z",
+    "afterUpdated": "2026-11-15T18:17:05.97832Z"
+  },
+  {
+    "beforeState": "Idle",
+    "afterRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 445.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 465.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 465.5,
+        "y": 613.375,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 465.5,
+        "y": 812.375,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 485.5,
+        "y": 927.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 751.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 771.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 397,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 625,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-free-b": {
+        "x": 397,
+        "y": 1387.8125,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 445.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 465.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 465.5,
+        "y": 613.375,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 465.5,
+        "y": 812.375,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 485.5,
+        "y": 927.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 751.5,
+        "y": 361.375,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 771.5,
+        "y": 498.375,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 397,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 625,
+        "y": 1184.8125,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-free-b": {
+        "x": 397,
+        "y": 1387.8125,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeTitle": "Invented free-a",
+    "theme": "dark",
+    "afterTitle": "An invented updated title long enough to wrap without moving another chat",
+    "width": 1440,
+    "afterState": "Background",
+    "beforeUpdated": "2026-11-15T00:00:00Z",
+    "afterUpdated": "2026-11-15T18:17:44.1326553Z"
+  },
+  {
+    "beforeState": "Idle",
+    "afterRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 61,
+        "y": 424.171875,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 81,
+        "y": 561.171875,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 81,
+        "y": 676.171875,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 81,
+        "y": 875.171875,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 101,
+        "y": 990.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 61,
+        "y": 1179.171875,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 81,
+        "y": 1316.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 61,
+        "y": 1592.796875,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 61,
+        "y": 1729.796875,
+        "width": 216,
+        "height": 107
+      },
+      "devin:org-fixture-free-b": {
+        "x": 61,
+        "y": 1910.796875,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeRects": {
+      "devin:org-fixture-lead-a": {
+        "x": 61,
+        "y": 424.171875,
+        "width": 216,
+        "height": 129
+      },
+      "claude:org-fixture-member-b": {
+        "x": 81,
+        "y": 561.171875,
+        "width": 216,
+        "height": 107
+      },
+      "codex:org-fixture-member-a": {
+        "x": 81,
+        "y": 676.171875,
+        "width": 216,
+        "height": 155
+      },
+      "codex:org-fixture-nested-lead": {
+        "x": 81,
+        "y": 875.171875,
+        "width": 216,
+        "height": 107
+      },
+      "claude:org-fixture-nested-member": {
+        "x": 101,
+        "y": 990.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-lead-b": {
+        "x": 61,
+        "y": 1179.171875,
+        "width": 216,
+        "height": 129
+      },
+      "devin:org-fixture-member-c": {
+        "x": 81,
+        "y": 1316.171875,
+        "width": 216,
+        "height": 107
+      },
+      "ollama:org-fixture-free-a": {
+        "x": 61,
+        "y": 1592.796875,
+        "width": 216,
+        "height": 129
+      },
+      "codex:org-fixture-closed": {
+        "x": 61,
+        "y": 1729.796875,
+        "width": 216,
+        "height": 107
+      },
+      "devin:org-fixture-free-b": {
+        "x": 61,
+        "y": 1910.796875,
+        "width": 216,
+        "height": 129
+      }
+    },
+    "beforeTitle": "Invented free-a",
+    "theme": "dark",
+    "afterTitle": "An invented updated title long enough to wrap without moving another chat",
+    "width": 390,
+    "afterState": "Background",
+    "beforeUpdated": "2026-11-15T00:00:00Z",
+    "afterUpdated": "2026-11-15T18:18:15.1619147Z"
+  }
+]

@@ -4012,7 +4012,7 @@
       if (document.documentElement.dataset.uiStateReady === 'true') movePinnedChatsSoon();
       else document.addEventListener('dinah:ui-state-restored', movePinnedChatsSoon, { once: true });
       document.addEventListener('pudl:windows-change', function () {
-        var key = window.pudlWindows.state().top, item = window.dinahWorkbench.item(key);
+        var key = window.pudlWindows.state().top, item = key ? window.dinahWorkbench.item(key) : null;
         if (key === 'chat') selectChat(null);
         else if (item && item.kind === 'chat-session') selectChat(item.path);
         else drawAgentState();

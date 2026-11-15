@@ -8,15 +8,31 @@ import (
 // BinRecipient withdraws an address without consuming or cancelling its queue.
 // The existing removed-recipient trigger refuses every new direct delivery.
 func (b *Bus) BinRecipient(ctx context.Context, id string) error {
-	if id == "" {
-		return nil
-	}
+	return b.BinRecipients(ctx, []string{id})
+}
+
+// BinRecipients validates every address before withdrawing any of them.
+func (b *Bus) BinRecipients(ctx context.Context, ids []string) error {
 	return b.tx(ctx, func(t *sql.Tx) error {
-		if _, err := t.Exec(`INSERT INTO recipient_recycle(recipient,restored) VALUES (?,0) ON CONFLICT(recipient) DO UPDATE SET restored=0`, id); err != nil {
-			return err
+		for _, id := range ids {
+			if id != "" {
+				if err := checkRecipientRemoval(t, id); err != nil {
+					return err
+				}
+			}
 		}
-		_, err := t.Exec(`UPDATE sessions SET removed_at=COALESCE(removed_at,?),ended_at=COALESCE(ended_at,?) WHERE id=?`, b.stamp(), b.stamp(), id)
-		return err
+		for _, id := range ids {
+			if id == "" {
+				continue
+			}
+			if _, err := t.Exec(`INSERT INTO recipient_recycle(recipient,restored) VALUES (?,0) ON CONFLICT(recipient) DO UPDATE SET restored=0`, id); err != nil {
+				return err
+			}
+			if _, err := t.Exec(`UPDATE sessions SET removed_at=COALESCE(removed_at,?),ended_at=COALESCE(ended_at,?) WHERE id=?`, b.stamp(), b.stamp(), id); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

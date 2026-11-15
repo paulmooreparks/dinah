@@ -12,6 +12,9 @@ func (b *Bus) RemoveRecipient(ctx context.Context, recipient string) error {
 		return nil
 	}
 	return b.tx(ctx, func(t *sql.Tx) error {
+		if err := checkRecipientRemoval(t, recipient); err != nil {
+			return err
+		}
 		now := b.stamp()
 		if _, err := t.Exec(`UPDATE sessions SET removed_at=COALESCE(removed_at,?),ended_at=COALESCE(ended_at,?) WHERE id=?`, now, now, recipient); err != nil {
 			return err

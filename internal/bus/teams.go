@@ -9,11 +9,11 @@ import (
 )
 
 // Teams (docs/plans/teams.md). A team member is a chat that has a lead: the bus records
-// each member's lead, a lead is any chat that leads at least one member, and a member can
-// lead a team of its own, so teams nest. A team's channel is a group chat its lead runs,
-// marked with the lead's session on the group's row. A member's mention of the person is
-// rerouted to its lead when the message is stored, which is all the nesting there is to do,
-// since a lead's own message that mentions the person may itself be a member's.
+// each member's lead, and a lead is any chat that leads at least one member.
+// New writes keep a chat in one team, as lead or member. Historical nested
+// records remain readable. A team's channel is a group chat its lead runs,
+// marked with the lead's session on the group's row. A member's mention of
+// the person is rerouted to its lead when the message is stored.
 //
 // Every fact is in this database, which every program on the machine shares.
 
@@ -192,6 +192,20 @@ func checkTeamLead(t querier, member, lead string) error {
 	if member == lead {
 		return errors.New("a chat cannot lead itself")
 	}
+	if yes, err := leadsTeam(t, member); err != nil {
+		return err
+	} else if yes {
+		reason, err := currentTeamLeadReason(t, member)
+		if err != nil {
+			return err
+		}
+		return &TeamLeadRefusal{Reason: reason}
+	}
+	if parent, _, err := teamLeadOf(t, lead); err != nil {
+		return err
+	} else if parent != "" {
+		return errors.New("the chosen lead already belongs to a team; take it out of that team before making it a lead")
+	}
 	memberTitle, err := knownSession(t, member)
 	if err != nil {
 		return err
@@ -199,6 +213,15 @@ func checkTeamLead(t querier, member, lead string) error {
 	leadTitle, err := knownSession(t, lead)
 	if err != nil {
 		return err
+	}
+	for _, id := range []string{member, lead} {
+		var active int
+		if err := t.QueryRow(`SELECT COUNT(*) FROM sessions WHERE id = ? AND removed_at IS NULL`, id).Scan(&active); err != nil {
+			return err
+		}
+		if active != 1 {
+			return errors.New("both chats must be available before changing teams")
+		}
 	}
 	// The lead's own chain must not reach the member.
 	chain, err := chainOf(t, lead)
@@ -222,6 +245,9 @@ func checkTeamLead(t querier, member, lead string) error {
 }
 
 func (b *Bus) assignLead(t *sql.Tx, member, lead string) (string, error) {
+	if err := clearEmptyTeam(t, member); err != nil {
+		return "", err
+	}
 	previous, _, err := teamLeadOf(t, member)
 	if err != nil {
 		return "", err
@@ -234,6 +260,9 @@ func (b *Bus) assignLead(t *sql.Tx, member, lead string) (string, error) {
 			return "", err
 		}
 		if _, err := t.Exec(`DELETE FROM team_members WHERE member = ?`, member); err != nil {
+			return "", err
+		}
+		if err := clearEmptyTeam(t, previous); err != nil {
 			return "", err
 		}
 	}
@@ -268,8 +297,10 @@ func (b *Bus) ClearLead(ctx context.Context, member string) error {
 		if err := b.leaveTeamGroup(t, member, lead); err != nil {
 			return err
 		}
-		_, err = t.Exec(`DELETE FROM team_members WHERE member = ?`, member)
-		return err
+		if _, err = t.Exec(`DELETE FROM team_members WHERE member = ?`, member); err != nil {
+			return err
+		}
+		return clearEmptyTeam(t, lead)
 	})
 }
 
@@ -327,6 +358,16 @@ func (b *Bus) MakeGroupTeam(ctx context.Context, group, lead string) (made []str
 		}
 		for _, m := range members {
 			title, _ := knownSession(t, m)
+			if yes, err := leadsTeam(t, m); err != nil {
+				return err
+			} else if yes {
+				reason, err := currentTeamLeadReason(t, m)
+				if err != nil {
+					return err
+				}
+				left = append(left, LeftOut{Session: m, Title: title, Why: reason})
+				continue
+			}
 			prior, _, err := teamLeadOf(t, m)
 			if err != nil {
 				return err
@@ -374,6 +415,11 @@ func (b *Bus) CheckGroupTeam(group, lead string) error {
 }
 
 func checkGroupTeam(t querier, group, lead string) (string, error) {
+	if parent, _, err := teamLeadOf(t, lead); err != nil {
+		return "", err
+	} else if parent != "" {
+		return "", errors.New("the chosen lead already belongs to a team; take it out of that team before making it a lead")
+	}
 	key, _, err := findGroup(t, group)
 	if err != nil {
 		return "", err
@@ -401,6 +447,16 @@ func checkGroupTeam(t querier, group, lead string) (string, error) {
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
+	}
+	var eligible int
+	if err := t.QueryRow(`SELECT COUNT(*) FROM room_members rm JOIN sessions s ON s.id = rm.member AND s.removed_at IS NULL
+		WHERE rm.room = ? AND rm.member_kind = 'session' AND rm.member <> ?
+		AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.member = rm.member AND tm.lead <> ?)
+		AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.lead = rm.member)`, key, lead, lead).Scan(&eligible); err != nil {
+		return "", err
+	}
+	if eligible == 0 {
+		return "", errors.New("choose at least one member that is in no other team")
 	}
 	return key, nil
 }

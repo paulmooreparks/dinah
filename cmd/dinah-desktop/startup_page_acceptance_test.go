@@ -27,6 +27,8 @@ var startupCounts = struct {
 	Trace  []startupPageContact
 }{Values: map[string]int{}}
 
+var startupPageFixtureSetup func(*testing.T, *App)
+
 type startupPageContact struct {
 	Provider string    `json:"provider"`
 	Kind     string    `json:"kind"`
@@ -183,22 +185,26 @@ func TestStartupPageCostHost(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: invented-skill\ndescription: An invented receiving skill.\n---\nUse only the invented receiving fixture.\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	controlID, controlProvider := os.Getenv("DINAH_STARTUP_CONTROL_ID"), os.Getenv("DINAH_STARTUP_CONTROL_PROVIDER")
-	if controlID == "" {
-		controlID, controlProvider = "fixture-open", "devin"
-	}
-	if controlProvider == "ollama" {
-		dir := filepath.Join(configDir(), "ollama", "sessions")
-		if err := os.MkdirAll(dir, 0700); err != nil {
+	if startupPageFixtureSetup != nil {
+		startupPageFixtureSetup(t, a)
+	} else {
+		controlID, controlProvider := os.Getenv("DINAH_STARTUP_CONTROL_ID"), os.Getenv("DINAH_STARTUP_CONTROL_PROVIDER")
+		if controlID == "" {
+			controlID, controlProvider = "fixture-open", "devin"
+		}
+		if controlProvider == "ollama" {
+			dir := filepath.Join(configDir(), "ollama", "sessions")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			data, _ := json.Marshal(map[string]any{"id": controlID, "cwd": a.settings.Workspace, "title": "Positive control", "model": "fixture:4b", "contextRev": 4, "messages": []any{}})
+			if err := os.WriteFile(filepath.Join(dir, controlID[len("ollama:"):]+".json"), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := sessionhost.WriteTranscript(configDir(), &sessionhost.Transcript{SessionID: controlID, Provider: controlProvider, Workspace: a.settings.Workspace, Complete: true}); err != nil {
 			t.Fatal(err)
 		}
-		data, _ := json.Marshal(map[string]any{"id": controlID, "cwd": a.settings.Workspace, "title": "Positive control", "model": "fixture:4b", "contextRev": 4, "messages": []any{}})
-		if err := os.WriteFile(filepath.Join(dir, controlID[len("ollama:"):]+".json"), data, 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := sessionhost.WriteTranscript(configDir(), &sessionhost.Transcript{SessionID: controlID, Provider: controlProvider, Workspace: a.settings.Workspace, Complete: true}); err != nil {
-		t.Fatal(err)
 	}
 	frontend, err := fs.Sub(assets, "frontend")
 	if err != nil {

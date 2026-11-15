@@ -105,20 +105,20 @@ func TestOrgChartActionsAssignmentMovesAndRejectsCycles(t *testing.T) {
 			t.Fatal("self edge offered")
 		}
 	}
-	if _, err := a.SetTeamLead("codex:c", "codex:a"); err != nil {
-		t.Fatal(err)
+	if _, err := a.SetTeamLead("codex:c", "codex:a"); err == nil {
+		t.Fatal("current lead was assigned to another team")
 	}
 	view, err = a.OrgChartActions("codex:a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, v := range view.Actions {
-		if v.Kind == "assign_team" && slices.ContainsFunc(v.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:c" }) {
-			t.Fatal("descendant cycle offered")
+		if v.Kind == "assign_team" && slices.ContainsFunc(v.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:a" }) {
+			t.Fatal("self assignment offered")
 		}
 	}
-	if _, err := a.SetTeamLead("codex:a", "codex:c"); err == nil {
-		t.Fatal("execution accepted cycle")
+	if _, err := a.SetTeamLead("codex:a", "codex:c"); err != nil {
+		t.Fatal("former lead was not assignable after its final member moved", err)
 	}
 }
 
@@ -164,7 +164,8 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 	if _, err := a.SetTeamLead("codex:b", "codex:c"); err != nil {
 		t.Fatal(err)
 	}
-	v := applyOrg(t, a, OrgChartActionRequest{Kind: "create_team", LeadID: "codex:a", Title: "Invented partial team", MemberIDs: []string{"codex:b", "codex:d"}})
+	ordinary := applyOrg(t, a, OrgChartActionRequest{Kind: "create_group", Title: "Invented partial team", MemberIDs: []string{"codex:a", "codex:b", "codex:d"}})
+	v := applyOrg(t, a, OrgChartActionRequest{Kind: "make_lead", ChatID: "codex:a", GroupID: ordinary.GroupID})
 	if v.Status != "partial" || len(v.Members) != 2 || !slices.ContainsFunc(v.Members, func(m OrgChartMemberOutcome) bool {
 		return m.ChatID == "codex:b" && m.Status == "left_out" && m.Reason != ""
 	}) {
@@ -182,17 +183,18 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 	}
 	// Interleave another legal team creation after a group commit, before conversion.
 	cleanupFixtureChat(t, a, "codex:e", "codex", ws, "window-codex:e")
-	r := OrgChartActionRequest{Kind: "create_team", LeadID: "codex:e", Title: "Invented retained group", MemberIDs: []string{"codex:d"}}
+	cleanupFixtureChat(t, a, "codex:f", "codex", ws, "window-codex:f")
+	r := OrgChartActionRequest{Kind: "create_team", LeadID: "codex:e", Title: "Invented retained group", MemberIDs: []string{"codex:f"}}
 	r.Token = orgAction(t, a, "", "create_team").Token
 	partial, err := a.applyOrgChartAction(r, func(string) {
-		if _, err := a.SetTeamLead("codex:d", "codex:e"); err != nil {
+		if _, err := a.SetTeamLead("codex:f", "codex:e"); err != nil {
 			t.Fatal(err)
 		}
 	})
 	if err != nil || partial.Status != "partial" || partial.GroupID == "" || !strings.Contains(partial.Message, "retained") {
 		t.Fatal(partial, err)
 	}
-	if len(partial.Members) != 1 || partial.Members[0].ChatID != "codex:d" || partial.Members[0].Status != "left_out" || partial.Members[0].Reason == "" {
+	if len(partial.Members) != 1 || partial.Members[0].ChatID != "codex:f" || partial.Members[0].Status != "left_out" || partial.Members[0].Reason == "" {
 		t.Fatal("conversion failure lost member outcomes", partial)
 	}
 	room, err := a.BusGroup(partial.GroupID)
@@ -200,10 +202,10 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 		t.Fatal("retained ordinary group missing", room, err)
 	}
 	// Recovery can choose a different eligible member of that same retained group.
-	if err := a.ClearTeamLead("codex:d"); err != nil {
+	if err := a.ClearTeamLead("codex:f"); err != nil {
 		t.Fatal(err)
 	}
-	recovered := applyOrg(t, a, OrgChartActionRequest{Kind: "make_lead", ChatID: "codex:d", GroupID: partial.GroupID})
+	recovered := applyOrg(t, a, OrgChartActionRequest{Kind: "make_lead", ChatID: "codex:f", GroupID: partial.GroupID})
 	if recovered.Status != "succeeded" || recovered.GroupID != partial.GroupID {
 		t.Fatal(recovered)
 	}
