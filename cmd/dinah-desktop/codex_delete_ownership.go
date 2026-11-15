@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+
+	"studio/internal/sessionhost"
 )
 
 func (a *App) codexDeletionGuard(ctx context.Context, root string, descendants []string) error {
@@ -15,10 +18,9 @@ func (a *App) codexDeletionGuard(ctx context.Context, root string, descendants [
 	if err != nil {
 		return err
 	}
-	_, records := conversationLinks()
-	known := map[string]bool{}
-	for id := range records {
-		known[id] = true
+	known, err := codexDeletionTranscriptIDs(configDir(), descendants)
+	if err != nil {
+		return err
 	}
 	return codexDeletionOwnership(snapshot, known, root, descendants)
 }
@@ -66,4 +68,18 @@ func codexDeletionRecordedReference(s Settings, id string) bool {
 		}
 	}
 	return false
+}
+
+// A transcript path is local identity evidence even when its contents are damaged.
+func codexDeletionTranscriptIDs(stateDir string, descendants []string) (map[string]bool, error) {
+	known := map[string]bool{}
+	for _, id := range descendants {
+		_, err := os.Lstat(sessionhost.TranscriptPath(stateDir, id))
+		if err == nil {
+			known[id] = true
+		} else if !os.IsNotExist(err) {
+			return nil, errors.New("Codex deletion cannot verify local transcript ownership")
+		}
+	}
+	return known, nil
 }
