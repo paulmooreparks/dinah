@@ -45,6 +45,9 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	// chatCleanupMu serializes recycle finalization with full UI-state saves.
+	chatCleanupMu sync.Mutex
+
 	// refused is the request each provider last refused for want of a
 	// sign-in (auth.go).
 	refused                    refusedCalls

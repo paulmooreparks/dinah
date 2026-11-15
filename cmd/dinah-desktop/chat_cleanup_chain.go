@@ -34,9 +34,8 @@ func cleanupChains(settings Settings, heads map[string]*sessionhost.TranscriptHe
 			root(id)
 		}
 	}
-	for id, h := range heads {
+	for id := range heads {
 		root(id)
-		link(id, h.ParentSessionID)
 	}
 	for source, target := range settings.ChatBindings {
 		link(source, target)
@@ -79,9 +78,7 @@ func cleanupChains(settings Settings, heads map[string]*sessionhost.TranscriptHe
 	for _, tr := range transfers {
 		add(tr.Source, tr.Target)
 	}
-	for id, h := range heads {
-		add(h.ParentSessionID, id)
-	}
+
 	less := func(a, b string) bool {
 		if !dates[a].Equal(dates[b]) {
 			return dates[a].Before(dates[b])

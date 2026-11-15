@@ -37,3 +37,16 @@ func TestCleanupChainRetainsCyclesAndAmbiguousSuccessors(t *testing.T) {
 		t.Fatal("unstable cycle order")
 	}
 }
+
+func TestCleanupChainDoesNotOwnTranscriptOnlyDescendants(t *testing.T) {
+	s := Settings{ChatBindings: map[string]string{"old": "head"}}
+	heads := map[string]*sessionhost.TranscriptHead{
+		"old": {}, "head": {ParentSessionID: "old"},
+		"fork": {ParentSessionID: "head"}, "workspace-move": {ParentSessionID: "head"},
+	}
+	groups := cleanupChains(s, heads, nil)
+	want := [][]string{{"fork"}, {"old", "head"}, {"workspace-move"}}
+	if !reflect.DeepEqual(groups, want) {
+		t.Fatalf("transcript ancestry claimed separate chats: %#v", groups)
+	}
+}
