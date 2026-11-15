@@ -1,6 +1,6 @@
 # Independent chat cleanup acceptance checks
 
-The checks are frozen from docs/design/chat-cleanup.md at 47cbcb68e920b667d1075e3b6669ac2ef65651c1 and the trusted assignment in bus message 8489. No implementation was read to write them. The chain and loaded-without-unload requirements come from that assignment; their contract amendment was still pending at freeze time.
+The checks are frozen from docs/design/chat-cleanup.md at 47cbcb68e920b667d1075e3b6669ac2ef65651c1 and the trusted assignment in bus message 8489. No implementation was read to write them. The first freeze was 2e0f554f. Before handover, contract amendment d5a140a10f259a0a9f103e030361defea31a65d3 arrived and was read without inspecting implementation. This second freeze adds a history-only allocated target, mixed deletion support within the chain and protection by a working or pinned history member.
 
 ## Coverage
 
@@ -26,4 +26,10 @@ The combined handover must also demonstrate that removal closes an open idle cha
 
 ## Verification status
 
-The source was formatted with gofmt. The FIFO compile-only command `go test -tags quality_chat_cleanup ./cmd/dinah-desktop -run '^$'` passed with no tests selected (0.204 seconds). This verifies compilation only. No product acceptance case has run, and no provider or personal home has been accessed. The implementation handover must supply the clock, provider stand-ins and durable observations before these checks can be bound.
+The source was formatted with gofmt. The FIFO compile-only command `go test -tags quality_chat_cleanup ./cmd/dinah-desktop -run '^$'` passed with no tests selected (0.204 seconds at the first freeze, then 0.211 seconds after the amendment). This verifies compilation only. No product acceptance case has run, and no provider or personal home has been accessed. The implementation handover must supply the clock, provider stand-ins and durable observations before these checks can be bound.
+
+## Amended binding contract
+
+The candidate supplies chatCleanupAcceptanceInstall, chatCleanupAcceptanceSweep and chatCleanupAcceptanceObserve under chatcleanup_acceptance. The adapter will use its Now, DeleteProvider and UnloadProvider hooks, plus independent counters and direct isolated-store inspection. HistoryOnly seeds an allocated switch target recorded only in transfer history. It must remain part of cleanup while not becoming the displayed current session. The test tag quality_chat_cleanup is combined with chatcleanup_acceptance at handover.
+
+The native deletion event sequence must follow the oldest-first chain order before any local chain erasure. Per-member programCopies must describe every native result and the aggregate providerCopyRemains must be true when any member remains. These observations are additional receiving assertions to bind with the amended result shape; the factory must preserve their actual values.

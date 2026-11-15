@@ -24,6 +24,7 @@ type qualityCleanupFixture interface {
 type qualityCleanupSeed struct {
 	ID                      string
 	Chain                   []string
+	HistoryOnly             bool
 	Working, Pinned, Loaded bool
 	CanUnload               bool
 	ProviderDelete          string // supported, unsupported, or failing
@@ -172,9 +173,13 @@ func TestQualityCleanupProviderDeletion(t *testing.T) {
 }
 func TestQualityCleanupSwitchedChain(t *testing.T) {
 	f := qualityCleanupNew(t)
-	ids := []string{"codex:old", "claude:middle", "ollama:current"}
-	for _, id := range ids {
-		f.Seed(qualityCleanupSeed{ID: id, Chain: ids, CanUnload: true, ProviderDelete: "supported", Queued: 1})
+	ids := []string{"codex:old", "claude:middle", "ollama:current", "claude:history-target"}
+	for i, id := range ids {
+		mode := "supported"
+		if i == 1 {
+			mode = "unsupported"
+		}
+		f.Seed(qualityCleanupSeed{ID: id, Chain: ids, HistoryOnly: i == 3, CanUnload: true, ProviderDelete: mode, Queued: 1})
 	}
 	qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
 	for _, id := range ids {
@@ -195,7 +200,7 @@ func TestQualityCleanupSwitchedChain(t *testing.T) {
 	qualityCleanupResultFor(t, f.Act("delete", ids[0]), ids[0], "deleted")
 	for _, id := range ids {
 		s := f.Observe(id)
-		if s.LocalCopy || s.ProviderCopy || !s.Tombstone {
+		if s.LocalCopy || s.ProviderCopy != (id == ids[1]) || !s.Tombstone {
 			t.Fatal("chain finalization left a member")
 		}
 	}
@@ -292,4 +297,24 @@ func TestQualityCleanupMixedBatch(t *testing.T) {
 		t.Fatal("repeat removal reset retention")
 	}
 	qualityNoStarts(t, before, after)
+}
+
+func TestQualityCleanupProtectedChain(t *testing.T) {
+	for _, reason := range []string{"working", "pinned"} {
+		t.Run(reason, func(t *testing.T) {
+			f := qualityCleanupNew(t)
+			ids := []string{"codex:chain-head", "claude:chain-history"}
+			f.Seed(qualityCleanupSeed{ID: ids[0], Chain: ids})
+			f.Seed(qualityCleanupSeed{ID: ids[1], Chain: ids, HistoryOnly: true, Working: reason == "working", Pinned: reason == "pinned"})
+			rs := f.Act("remove", ids[0])
+			if len(rs) != 1 || rs[0].OK || rs[0].Status != "refused" || rs[0].Error == "" {
+				t.Fatal("protected history member did not refuse the chain")
+			}
+			for _, id := range ids {
+				if s := f.Observe(id); s.Removed || !s.Active {
+					t.Fatal("refusal split the chain")
+				}
+			}
+		})
+	}
 }
