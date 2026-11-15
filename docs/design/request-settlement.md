@@ -1,0 +1,53 @@
+# Request dismissal and withdrawal
+
+## Authority and scope
+
+Paul's answers recorded in Desktop Team message 9835 authorize dismissal of every open Decisions entry, including an answerable request, and withdrawal by the chat that posted its own request. This contract extends the existing request stores and the typed task-question host. It does not implement the redesigned page. The architectural source of truth remains C:\Users\paul\OneDrive\Documents\Architectural Principles.md.
+
+Dismiss is a person action. It closes the open request as dismissed without supplying an answer. Withdraw is an owner action. It closes the owner's open request as withdrawn without supplying an answer. Neither means approval, rejection, successful completion of the underlying work, or permission to repeat an operation with an unknown outcome.
+
+The contract applies to explicit person requests, person mentions represented as Decisions entries, local request/attention reports and task questions, including legacy single choice, text and multiple selection. A report without an asking chat can be dismissed but cannot offer owner withdrawal. Requests asked between chats use their existing separate lifecycle and are outside this contract.
+
+## Representation and commands
+
+Each request has one authoritative identity and revision. The representation exposes settlement as open, answered, dismissed or withdrawn, together with the settlement time and actor kind. Existing source identities remain stable. Closed records retain the original request, source linkage, prior answers and settlement record. Dismissal of a partly answered request closes its remaining questions without erasing earlier answers or inventing answers for the rest.
+
+The command descriptor is {name,enabled,reason}. Dismiss, Withdraw and the source's answer commands have descriptors even when unavailable. A disabled descriptor has a nonempty reason. Only enabled commands contain callable authority. The redesigned surface may show the same controls on every item while the host independently validates every invocation. An owner-only descriptor does not grant a person or another chat that owner's authority.
+
+The person window uses DismissRequest({operationId,id,revision}). The existing DismissDecision and DismissNotification entry points become adapters to the same source settlement, preserving their public input forms. Existing request IDs can be used directly; task questions use their actual opaque question key. Any adapter must settle the source request before updating its notification projection. Hiding a notification alone cannot leave its question awaiting an answer.
+
+An authenticated asking chat uses WithdrawRequest({operationId,id,revision}). Its identity is resolved from the invoking chat's trusted context. There is no caller-supplied asker, owner, person flag or target chat credential. Matching a group membership, a provider name, a title or a shared workspace does not establish ownership. A different chat in the asking group cannot withdraw the request. A removed or unresolvable owner cannot obtain new withdrawal authority; the person can still dismiss the request.
+
+A registered task consumer uses a host-bound WithdrawQuestion(scope,key,operationId) port to withdraw its own pending question. The binding supplies the registered service identity, checks the current workspace/task/generation against the actual pending owner and refuses a foreign question even when its key is known. A chat-origin invocation must additionally match the asking chat captured at admission. This narrow withdrawal port grants no ability to answer or dismiss. No flows.Answer or equivalent service answering method is added.
+
+The common settlement receipt contains {operationId,id,revision,state,outcome,settledAt}. State is committed or refused. A committed outcome is dismissed or withdrawn. A refusal contains a stable code and text and may identify the already recorded outcome. Source-specific adapters may retain existing receipt fields in addition to these values. Operation IDs are bounded nonempty strings of at most 128 Unicode scalar values and are scoped to the authenticated actor and command. Reusing an operation ID with changed input is refused. The existing decision operation receipt lookup remains supported; task settlement provides an equivalent scoped lookup.
+
+## Once-only settlement
+
+Answer, Dismiss, Withdraw, cancellation and generation invalidation compete at the source's single settlement boundary. The winner is persisted before success is returned. A later competing operation cannot replace that outcome, deliver an answer or enqueue another completion. Repeating the same committed operation returns its original receipt. A different operation against an already closed revision returns request_closed with the recorded outcome. A stale open revision returns revision_changed and changes nothing.
+
+The settlement record and the completion notice obligation are committed together. Dispatch may happen afterwards, but losing the response or restarting cannot repeat settlement or create a second logical notice. If the source stores differ, a durable obligation in the authoritative source drives projection repair; an in-memory callback alone is insufficient. A failure before the authoritative commit leaves the request open. A failure whose commit result cannot be established is reported as unknown and is reconciled through the operation receipt, without another settlement attempt under a new ID.
+
+Task questions must persist the terminal disposition against their reviewed operation identity before releasing the waiter. AskPerson ends with a distinct dismissed or withdrawn disposition and no answer payload. It must not turn either into an empty text answer, an empty selection, a recommended choice, approval or a generic retryable failure. The durable operation receipt retains that disposition across Rebind and restart, so repeating the original operation cannot ask again. Existing cancellation and unknown-outcome rules retain their own meanings.
+
+Question key, scope and generation checks remain mandatory. Dismissing an actually open question does not require its asking chat to be online. A stale-generation question has already lost authority and cannot be revived by either command. An action arriving during shutdown cannot resurrect a request or manufacture an answer. Existing answered results and typed representations remain unchanged.
+
+## Views and asking-chat completion
+
+A committed settlement removes the request from every open-request view and decrements its open count. Notifications, Decisions and any task run window reread the same source record. Their event payloads carry identity and revision; events are emitted after commit. A missed event is repaired by reread or restart. Closed history remains addressable and says either that the person dismissed the request or that its chat withdrew it. Cancellation and expired authority are not labelled as owner withdrawal.
+
+A dismiss completion tells the asking chat that the person dismissed the request without answering. A withdrawal completion records that the asking chat withdrew its own request. The person sees that disposition without needing a message from the chat. If the asking chat is unavailable, the completion obligation and original source identity remain durable; no completion is redirected to another chat or arbitrary team member. A source without an asking chat records the disposition locally without inventing a recipient.
+
+Dismissing a Cannot be delivered report acknowledges that report. It does not erase retained message bytes, retry delivery, clear an unresolved allocation or change the underlying task result. A new incident receives a new revision or incident identity so an old dismissal cannot conceal a later occurrence. Neither settlement touches provider history, linked documents, drafts, unrelated requests or group membership.
+
+## Independent receiving boundary
+
+Quality should freeze checks against real App dismissal and authenticated chat/consumer withdrawal paths before implementation is handed over. The fixture must retain raw requests, receipts, durable source rows, completion obligations and all three view snapshots. It must exercise answerable requests, mentions, unavailable askers, reports without owners, partly answered requests and each task-question type.
+
+The checks must prove person-only dismissal, owner-only withdrawal, forged owner rejection, service inability to answer, unchanged typed bounds and the legacy answer path. Concurrent Answer/Dismiss/Withdraw must produce one terminal record and one logical completion. Same-ID retries, changed-input reuse, stale revisions, stale generations, removal, cancellation, shutdown and restart must preserve the winning outcome without replay. Controls must lose responses before and after commit, interrupt notice dispatch and verify subsequent reconciliation.
+
+The fixture must prove that dismissal of a live task question releases its actual waiter without an answer, and that Rebind and the original reviewed operation cannot reask. A positive notice control establishes that the completion counter observes real dispatch. Positive provider/action/document controls establish that unrelated-write counters would detect an accidental effect. Source history, retained unknown outcomes, protected stores and unrelated request bytes are compared before and after. Rendered context menus, keyboard access, disabled reasons, oldest-first selection and the folding right pane require separate page receiving from the revised mockup.
+
+## Handover state
+
+This branch contains a contract only, based on the typed-question handover 8ce3a00b on shipped master b265e8a7. No settlement implementation, schema migration, callable registration or product acceptance is claimed. Quality is asked to freeze independent checks from this contract. Lead is asked to resolve any authority or disposition objection before implementation begins.
