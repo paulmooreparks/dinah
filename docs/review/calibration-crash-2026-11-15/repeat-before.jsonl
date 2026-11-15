@@ -1,0 +1,5 @@
+{"ImportPath":"studio/cmd/dinah-desktop.test","Action":"build-output","Output":"# studio/cmd/dinah-desktop.test\nC:/Users/paul/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/16.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: .rsrc merge failure: multiple non-default manifests\r\n"}
+{"Time":"2026-11-15T21:45:39.7924281+08:00","Action":"start","Package":"studio/cmd/dinah-desktop"}
+{"Time":"2026-11-15T21:45:40.0684846+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"ThreadSanitizer: ERROR: expected '=' in GORACE\n"}
+{"Time":"2026-11-15T21:45:40.0699862+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"FAIL\tstudio/cmd/dinah-desktop\t0.278s\n"}
+{"Time":"2026-11-15T21:45:40.0699862+08:00","Action":"fail","Package":"studio/cmd/dinah-desktop","Elapsed":0.278}

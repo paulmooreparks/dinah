@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -29,7 +31,7 @@ var windowTestKind = judge.Declare(judge.Kind[windowTestIn, string]{
 
 // judgementApp is an App whose Ollama server is a stand-in that answers every
 // judgement with the reply it is given, or fails when failing is set.
-func judgementApp(t *testing.T) (a *App, events *[]map[string]any, failing *atomic.Bool) {
+func judgementApp(t *testing.T) (a *App, events func() []map[string]any, failing *atomic.Bool) {
 	t.Helper()
 	a, _ = providerTestApp(t)
 	failing = &atomic.Bool{}
@@ -50,7 +52,13 @@ func judgementApp(t *testing.T) (a *App, events *[]map[string]any, failing *atom
 	}))
 	t.Cleanup(srv.Close)
 	t.Setenv("OLLAMA_HOST", srv.URL)
-	events = &[]map[string]any{}
+	var eventMu sync.Mutex
+	var recorded []map[string]any
+	events = func() []map[string]any {
+		eventMu.Lock()
+		defer eventMu.Unlock()
+		return slices.Clone(recorded)
+	}
 	a.sink = func(name string, data any) {
 		if name != "judgements:changed" {
 			return
@@ -58,7 +66,9 @@ func judgementApp(t *testing.T) (a *App, events *[]map[string]any, failing *atom
 		raw, _ := json.Marshal(data)
 		var m map[string]any
 		if json.Unmarshal(raw, &m) == nil {
-			*events = append(*events, m)
+			eventMu.Lock()
+			recorded = append(recorded, m)
+			eventMu.Unlock()
 		}
 	}
 	return a, events, failing
@@ -76,6 +86,40 @@ func choose(t *testing.T, a *App, edit func(*JudgementSettings)) JudgementSettin
 		t.Fatalf("saving %+v: conflict %v, %v", snap.Settings, saved.Conflict, err)
 	}
 	return saved
+}
+
+func TestJudgementEventCollectorRetainsConcurrentEvents(t *testing.T) {
+	a, events, _ := judgementApp(t)
+	const writers, perWriter = 8, 100
+	start := make(chan struct{})
+	var workers sync.WaitGroup
+	for writer := range writers {
+		workers.Go(func() {
+			<-start
+			for i := range perWriter {
+				a.emit("judgements:changed", map[string]any{"eventID": writer*perWriter + i})
+			}
+		})
+	}
+	workers.Go(func() {
+		<-start
+		for range writers * perWriter {
+			_ = events()
+		}
+	})
+	close(start)
+	workers.Wait()
+	seen := make(map[int]bool)
+	for _, event := range events() {
+		id := int(event["eventID"].(float64))
+		if seen[id] {
+			t.Fatalf("duplicate event %d", id)
+		}
+		seen[id] = true
+	}
+	if len(seen) != writers*perWriter {
+		t.Fatalf("retained %d of %d events", len(seen), writers*perWriter)
+	}
 }
 
 // Before anything is chosen or judged the settings are the defaults, the widget
@@ -167,12 +211,12 @@ func TestAChosenModelJudgesAndEveryChangeIsAnEvent(t *testing.T) {
 	}
 	// One event for the save and one for the call, each numbered after the last,
 	// and the read after them is numbered after both.
-	if len(*events) != 2 {
-		t.Fatalf("%d events: %v", len(*events), *events)
+	if len(events()) != 2 {
+		t.Fatalf("%d events: %v", len(events()), events())
 	}
-	v1, v2 := (*events)[0]["stateVer"].(float64), (*events)[1]["stateVer"].(float64)
-	if (*events)[0]["stateGen"] == "" || (*events)[0]["stateGen"] != (*events)[1]["stateGen"] || v2 <= v1 || float64(st.StateVer) <= v2 || (*events)[1]["calls"] != float64(1) {
-		t.Fatalf("events %v, read %d", *events, st.StateVer)
+	v1, v2 := events()[0]["stateVer"].(float64), events()[1]["stateVer"].(float64)
+	if events()[0]["stateGen"] == "" || events()[0]["stateGen"] != events()[1]["stateGen"] || v2 <= v1 || float64(st.StateVer) <= v2 || events()[1]["calls"] != float64(1) {
+		t.Fatalf("events %v, read %d", events(), st.StateVer)
 	}
 }
 
@@ -198,13 +242,13 @@ func TestARunOfFallbacksIsAWarningAtThePersonsThreshold(t *testing.T) {
 	if st, _ := a.JudgementState(); st.State != "warning" || st.Streak != 3 || st.Unseen != 3 || len(st.Warnings) != 3 || st.Paused == nil || st.Why != "Paused: "+st.Paused.Reason || st.Paused.Reason != "ollama: the model crashed" {
 		t.Fatalf("after three failures %+v", st)
 	}
-	before := len(*events)
+	before := len(events())
 	// Dismissing every warning clears the count and keeps it cleared, and the state line stays while the judge is paused.
 	if err := a.DismissJudgementWarnings(); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := a.JudgementState(); st.Unseen != 0 || len(st.Warnings) != 0 || st.Paused == nil || st.State != "warning" || len(*events) != before+1 || (*events)[before]["unseen"] != float64(0) {
-		t.Fatalf("after dismissing all %+v (%d events)", st, len(*events))
+	if st, _ := a.JudgementState(); st.Unseen != 0 || len(st.Warnings) != 0 || st.Paused == nil || st.State != "warning" || len(events()) != before+1 || events()[before]["unseen"] != float64(0) {
+		t.Fatalf("after dismissing all %+v (%d events)", st, len(events()))
 	}
 	choose(t, a, func(s *JudgementSettings) { s.WarnStreak = 5 })
 	choose(t, a, func(s *JudgementSettings) { s.Enabled = false })
@@ -285,10 +329,10 @@ func TestACorrectionIsKeptAndTellsThePage(t *testing.T) {
 	a, events, _ := judgementApp(t)
 	set, _ := a.judges()
 	r := judge.Call(context.Background(), set, windowTestKind, windowTestIn{Line: "Rule line"}, judge.Effect{Kind: "chat", ID: "c1"})
-	before := len(*events)
+	before := len(events())
 	rec, err := a.CorrectJudgement(r.ID, `"My line"`)
-	if err != nil || rec.Correction != `"My line"` || rec.CorrectedAt == nil || len(*events) != before+1 {
-		t.Fatalf("%+v %v (%d events)", rec, err, len(*events))
+	if err != nil || rec.Correction != `"My line"` || rec.CorrectedAt == nil || len(events()) != before+1 {
+		t.Fatalf("%+v %v (%d events)", rec, err, len(events()))
 	}
 	if _, err := a.CorrectJudgement(9999, "x"); err == nil {
 		t.Fatal("a decision that does not exist was corrected")

@@ -1,0 +1,15 @@
+{"ImportPath":"studio/cmd/dinah-desktop.test","Action":"build-output","Output":"# studio/cmd/dinah-desktop.test\nC:/Users/paul/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/16.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: .rsrc merge failure: multiple non-default manifests\r\n"}
+{"Time":"2026-11-15T21:51:46.5751984+08:00","Action":"start","Package":"studio/cmd/dinah-desktop"}
+{"Time":"2026-11-15T21:51:46.7986836+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T21:51:46.7986836+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T21:51:47.4834214+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (0.68s)\n"}
+{"Time":"2026-11-15T21:51:47.4839214+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":0.68}
+{"Time":"2026-11-15T21:51:47.4839214+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T21:51:47.4839214+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T21:51:47.9899231+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.51s)\n"}
+{"Time":"2026-11-15T21:51:47.9899231+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.51}
+{"Time":"2026-11-15T21:51:47.9899231+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T21:51:47.9899231+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T21:53:31.5908126+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"*** Test killed: ran too long (1m45s).\n"}
+{"Time":"2026-11-15T21:53:31.5908126+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"FAIL\tstudio/cmd/dinah-desktop\t105.016s\n"}
+{"Time":"2026-11-15T21:53:31.5908126+08:00","Action":"fail","Package":"studio/cmd/dinah-desktop","Elapsed":105.016}

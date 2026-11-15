@@ -1,0 +1,100 @@
+
+runtime stack:
+runtime.throw({0x142c56c94?, 0x0?})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1229 +0x4d fp=0x4885f8a8 sp=0x4885f878 pc=0x14008fced
+runtime.panicCheck1(0x1400578ab?, {0x142c56c94, 0x1e})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:59 +0x94 fp=0x4885f8c8 sp=0x4885f8a8 pc=0x140052f74
+runtime.panicunsafeslicelen1(0xc000454808?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:101 +0x1f fp=0x4885f8f0 sp=0x4885f8c8 pc=0x14008925f
+runtime.panicunsafeslicelen()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:96 +0x18 fp=0x4885f908 sp=0x4885f8f0 pc=0x140089218
+runtime.hexdumpWords(0xc000dc2000, 0xffffff4047a9dfb0, 0x4885f9d0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/hexdump.go:34 +0x10f fp=0x4885f988 sp=0x4885f908 pc=0x1400202af
+runtime.tracebackHexdump({0x142c23201?, 0x4885fca0?}, 0x4885fa18, 0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:1388 +0x18d fp=0x4885f9f8 sp=0x4885f988 pc=0x14008064d
+runtime.(*unwinder).initAt(0x4885fbd8, 0x0?, 0x1005f00?, 0xfffff0000000000?, 0xc0004ab860, 0x5)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:205 +0x2b4 fp=0x4885fae8 sp=0x4885f9f8 pc=0x14007cdf4
+runtime.traceback1.func1(0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:908 +0x47 fp=0x4885fbb0 sp=0x4885fae8 pc=0x14007e847
+runtime.traceback1(0x1?, 0xc0004490e0?, 0x4885fde8?, 0xc0004ab860, 0x8?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:932 +0x211 fp=0x4885fdc0 sp=0x4885fbb0 pc=0x14007e6d1
+runtime.tracebacktrap(0x142c0b5e5?, 0x28000e5888c?, 0x28000e58888?, 0x1402ad373?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:826 +0x48 fp=0x4885fdf8 sp=0x4885fdc0 pc=0x14007e488
+runtime.winthrow(0x4885fc70, 0x4885f780, 0xc0004ab860)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:364 +0x225 fp=0x4885fe60 sp=0x4885fdf8 pc=0x14006f105
+runtime.lastcontinuehandler(0x3?, 0x0?, 0xc00096b368?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:326 +0x27 fp=0x4885fe88 sp=0x4885fe60 pc=0x14006eec7
+runtime.sigtrampgo.func1()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:165 +0x33 fp=0x4885feb8 sp=0x4885fe88 pc=0x14006ea73
+runtime.systemstack(0xc0004490e0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/asm_amd64.s:562 +0x49 fp=0x4885fec8 sp=0x4885feb8 pc=0x1400960c9
+
+goroutine 210 gp=0xc0004ab860 m=11 mp=0xc000454808 [running]:
+runtime.systemstack_switch()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/asm_amd64.s:516 +0x8 fp=0x4885ee28 sp=0x4885ee18 pc=0x140096068
+runtime: g 210: unexpected return pc for runtime.systemstack_switch called from 0x4885f0f0
+stack: frame={sp:0x4885ee18, fp:0x4885ee28} stack=[0xc000dc2000,0xc000dca000)
+fatal error: unsafe.Slice: len out of range
+panic during panic
+
+runtime stack:
+runtime.throw({0x142c56c94?, 0x3c0?})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1229 +0x4d fp=0x4885f010 sp=0x4885efe0 pc=0x14008fced
+runtime.panicCheck1(0x1400578ab?, {0x142c56c94, 0x1e})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:59 +0x94 fp=0x4885f030 sp=0x4885f010 pc=0x140052f74
+runtime.panicunsafeslicelen1(0x0?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:101 +0x1f fp=0x4885f058 sp=0x4885f030 pc=0x14008925f
+runtime.panicunsafeslicelen()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:96 +0x18 fp=0x4885f070 sp=0x4885f058 pc=0x140089218
+runtime.hexdumpWords(0xc000dc2000, 0xffffff4047a9cf28, 0x4885f138)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/hexdump.go:34 +0x10f fp=0x4885f0f0 sp=0x4885f070 pc=0x1400202af
+runtime.tracebackHexdump({0x142c2320e?, 0x0?}, 0x4885f528, 0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:1388 +0x18d fp=0x4885f160 sp=0x4885f0f0 pc=0x14008064d
+runtime.(*unwinder).next(0x4885f528)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:472 +0x20a fp=0x4885f1d8 sp=0x4885f160 pc=0x14007d38a
+runtime.traceback2(0x4885f528, 0x0, 0x0, 0x31)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:973 +0x10b fp=0x4885f438 sp=0x4885f1d8 pc=0x14007eacb
+runtime.traceback1.func1(0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:909 +0x65 fp=0x4885f500 sp=0x4885f438 pc=0x14007e865
+runtime.traceback1(0xc0004ab860?, 0x10?, 0x10?, 0xc0004ab860, 0xf0?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:932 +0x211 fp=0x4885f710 sp=0x4885f500 pc=0x14007e6d1
+runtime.traceback(...)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:809
+runtime.tracebacksomeothers(0xc0004490e0, 0x14759b930)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:1307 +0x96 fp=0x4885f780 sp=0x4885f710 pc=0x1400802f6
+runtime.tracebackothers(...)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:1296
+runtime.dopanic_m(0xc0004490e0, 0x14008fced, 0x4885f878, 0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1593 +0x296 fp=0x4885f7f0 sp=0x4885f780 pc=0x140055436
+runtime.fatalthrow.func1()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1438 +0x45 fp=0x4885f838 sp=0x4885f7f0 pc=0x140054e85
+runtime.fatalthrow(0x4885f880?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1431 +0x58 fp=0x4885f878 sp=0x4885f838 pc=0x140054e18
+runtime.throw({0x142c56c94?, 0x0?})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:1229 +0x4d fp=0x4885f8a8 sp=0x4885f878 pc=0x14008fced
+runtime.panicCheck1(0x1400578ab?, {0x142c56c94, 0x1e})
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:59 +0x94 fp=0x4885f8c8 sp=0x4885f8a8 pc=0x140052f74
+runtime.panicunsafeslicelen1(0xc000454808?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:101 +0x1f fp=0x4885f8f0 sp=0x4885f8c8 pc=0x14008925f
+runtime.panicunsafeslicelen()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/unsafe.go:96 +0x18 fp=0x4885f908 sp=0x4885f8f0 pc=0x140089218
+runtime.hexdumpWords(0xc000dc2000, 0xffffff4047a9dfb0, 0x4885f9d0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/hexdump.go:34 +0x10f fp=0x4885f988 sp=0x4885f908 pc=0x1400202af
+runtime.tracebackHexdump({0x142c23201?, 0x4885fca0?}, 0x4885fa18, 0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:1388 +0x18d fp=0x4885f9f8 sp=0x4885f988 pc=0x14008064d
+runtime.(*unwinder).initAt(0x4885fbd8, 0x0?, 0x1005f00?, 0xfffff0000000000?, 0xc0004ab860, 0x5)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:205 +0x2b4 fp=0x4885fae8 sp=0x4885f9f8 pc=0x14007cdf4
+runtime.traceback1.func1(0x0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:908 +0x47 fp=0x4885fbb0 sp=0x4885fae8 pc=0x14007e847
+runtime.traceback1(0x1?, 0xc0004490e0?, 0x4885fde8?, 0xc0004ab860, 0x8?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:932 +0x211 fp=0x4885fdc0 sp=0x4885fbb0 pc=0x14007e6d1
+runtime.tracebacktrap(0x142c0b5e5?, 0x28000e5888c?, 0x28000e58888?, 0x1402ad373?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/traceback.go:826 +0x48 fp=0x4885fdf8 sp=0x4885fdc0 pc=0x14007e488
+runtime.winthrow(0x4885fc70, 0x4885f780, 0xc0004ab860)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:364 +0x225 fp=0x4885fe60 sp=0x4885fdf8 pc=0x14006f105
+runtime.lastcontinuehandler(0x3?, 0x0?, 0xc00096b368?)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:326 +0x27 fp=0x4885fe88 sp=0x4885fe60 pc=0x14006eec7
+runtime.sigtrampgo.func1()
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/signal_windows.go:165 +0x33 fp=0x4885feb8 sp=0x4885fe88 pc=0x14006ea73
+runtime.systemstack(0xc0004490e0)
+	C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/asm_amd64.s:562 +0x49 fp=0x4885fec8 sp=0x4885feb8 pc=0x1400960c9

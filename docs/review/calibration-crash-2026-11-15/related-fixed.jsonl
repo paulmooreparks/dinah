@@ -1,0 +1,385 @@
+{"ImportPath":"studio/cmd/dinah-desktop.test","Action":"build-output","Output":"# studio/cmd/dinah-desktop.test\nC:/Users/paul/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/16.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: .rsrc merge failure: multiple non-default manifests\r\n"}
+{"Time":"2026-11-15T21:59:57.0550277+08:00","Action":"start","Package":"studio/cmd/dinah-desktop"}
+{"Time":"2026-11-15T21:59:57.8305722+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T21:59:57.8305722+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T21:59:59.0158446+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (1.19s)\n"}
+{"Time":"2026-11-15T21:59:59.0158446+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":1.19}
+{"Time":"2026-11-15T21:59:59.0158446+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T21:59:59.0158446+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T21:59:59.851178+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.83s)\n"}
+{"Time":"2026-11-15T21:59:59.851178+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.83}
+{"Time":"2026-11-15T21:59:59.851178+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T21:59:59.851178+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T22:00:00.879013+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (1.03s)\n"}
+{"Time":"2026-11-15T22:00:00.879013+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":1.03}
+{"Time":"2026-11-15T22:00:00.8795126+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase"}
+{"Time":"2026-11-15T22:00:00.8795126+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"=== RUN   TestEveryDeclaredKindHasACalibrationCase\n"}
+{"Time":"2026-11-15T22:00:00.8795126+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"--- PASS: TestEveryDeclaredKindHasACalibrationCase (0.00s)\n"}
+{"Time":"2026-11-15T22:00:00.8795126+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Elapsed":0}
+{"Time":"2026-11-15T22:00:00.8800125+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn"}
+{"Time":"2026-11-15T22:00:00.8800125+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"=== RUN   TestTheFirstLineOfAPromptIsThePersonsOwn\n"}
+{"Time":"2026-11-15T22:00:00.8805128+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"--- PASS: TestTheFirstLineOfAPromptIsThePersonsOwn (0.00s)\n"}
+{"Time":"2026-11-15T22:00:00.8805128+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Elapsed":0}
+{"Time":"2026-11-15T22:00:00.8805128+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge"}
+{"Time":"2026-11-15T22:00:00.8805128+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"=== RUN   TestTheFirstMessageOfAChatIsTitledByTheJudge\n"}
+{"Time":"2026-11-15T22:00:03.0860027+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"--- PASS: TestTheFirstMessageOfAChatIsTitledByTheJudge (2.21s)\n"}
+{"Time":"2026-11-15T22:00:03.0860027+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Elapsed":2.21}
+{"Time":"2026-11-15T22:00:03.0860027+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule"}
+{"Time":"2026-11-15T22:00:03.0860027+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"=== RUN   TestWithoutAUsableJudgeTheTitleIsTheRule\n"}
+{"Time":"2026-11-15T22:00:04.9824791+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"--- PASS: TestWithoutAUsableJudgeTheTitleIsTheRule (1.90s)\n"}
+{"Time":"2026-11-15T22:00:04.9824791+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Elapsed":1.9}
+{"Time":"2026-11-15T22:00:04.9829792+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged"}
+{"Time":"2026-11-15T22:00:04.9829792+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"=== RUN   TestANamedChatAndAChatOfFilesAreNotJudged\n"}
+{"Time":"2026-11-15T22:00:09.624753+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"--- PASS: TestANamedChatAndAChatOfFilesAreNotJudged (4.64s)\n"}
+{"Time":"2026-11-15T22:00:09.624753+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Elapsed":4.64}
+{"Time":"2026-11-15T22:00:09.624753+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat"}
+{"Time":"2026-11-15T22:00:09.624753+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"=== RUN   TestCorrectingAJudgedTitleRenamesTheChat\n"}
+{"Time":"2026-11-15T22:00:15.1237114+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"--- PASS: TestCorrectingAJudgedTitleRenamesTheChat (5.50s)\n"}
+{"Time":"2026-11-15T22:00:15.1237114+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Elapsed":5.5}
+{"Time":"2026-11-15T22:00:15.1237114+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults"}
+{"Time":"2026-11-15T22:00:15.1237114+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"=== RUN   TestTheBudgetAndPoolStartAsDefaults\n"}
+{"Time":"2026-11-15T22:00:16.0850118+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"--- PASS: TestTheBudgetAndPoolStartAsDefaults (0.96s)\n"}
+{"Time":"2026-11-15T22:00:16.0850118+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Elapsed":0.96}
+{"Time":"2026-11-15T22:00:16.0850118+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied"}
+{"Time":"2026-11-15T22:00:16.0855993+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"=== RUN   TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied\n"}
+{"Time":"2026-11-15T22:00:17.6588533+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"--- PASS: TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied (1.57s)\n"}
+{"Time":"2026-11-15T22:00:17.6588533+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Elapsed":1.57}
+{"Time":"2026-11-15T22:00:17.6593555+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning"}
+{"Time":"2026-11-15T22:00:17.6593555+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"=== RUN   TestACallRefusedForTheBudgetIsAWarning\n"}
+{"Time":"2026-11-15T22:00:19.1097518+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"--- PASS: TestACallRefusedForTheBudgetIsAWarning (1.45s)\n"}
+{"Time":"2026-11-15T22:00:19.1102528+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Elapsed":1.45}
+{"Time":"2026-11-15T22:00:19.1102528+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents"}
+{"Time":"2026-11-15T22:00:19.1102528+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"=== RUN   TestJudgementEventCollectorRetainsConcurrentEvents\n"}
+{"Time":"2026-11-15T22:00:19.3878698+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"--- PASS: TestJudgementEventCollectorRetainsConcurrentEvents (0.28s)\n"}
+{"Time":"2026-11-15T22:00:19.3878698+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Elapsed":0.28}
+{"Time":"2026-11-15T22:00:19.3878698+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel"}
+{"Time":"2026-11-15T22:00:19.3878698+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"=== RUN   TestTheJudgementsStartOffForWantOfAModel\n"}
+{"Time":"2026-11-15T22:00:19.8559589+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"--- PASS: TestTheJudgementsStartOffForWantOfAModel (0.47s)\n"}
+{"Time":"2026-11-15T22:00:19.8559589+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Elapsed":0.47}
+{"Time":"2026-11-15T22:00:19.8559589+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays"}
+{"Time":"2026-11-15T22:00:19.8559589+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"=== RUN   TestThePickerGetsThePricesAProviderSays\n"}
+{"Time":"2026-11-15T22:00:20.1954901+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"--- PASS: TestThePickerGetsThePricesAProviderSays (0.34s)\n"}
+{"Time":"2026-11-15T22:00:20.1959917+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Elapsed":0.34}
+{"Time":"2026-11-15T22:00:20.1959917+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent"}
+{"Time":"2026-11-15T22:00:20.1959917+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"=== RUN   TestAChosenModelJudgesAndEveryChangeIsAnEvent\n"}
+{"Time":"2026-11-15T22:00:20.9534408+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"--- PASS: TestAChosenModelJudgesAndEveryChangeIsAnEvent (0.76s)\n"}
+{"Time":"2026-11-15T22:00:20.9534408+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Elapsed":0.76}
+{"Time":"2026-11-15T22:00:20.9534408+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold"}
+{"Time":"2026-11-15T22:00:20.9534408+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"=== RUN   TestARunOfFallbacksIsAWarningAtThePersonsThreshold\n"}
+{"Time":"2026-11-15T22:00:22.2235198+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"--- PASS: TestARunOfFallbacksIsAWarningAtThePersonsThreshold (1.27s)\n"}
+{"Time":"2026-11-15T22:00:22.2235198+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Elapsed":1.27}
+{"Time":"2026-11-15T22:00:22.2240203+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision"}
+{"Time":"2026-11-15T22:00:22.2240203+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"=== RUN   TestJudgementSettingsAreSavedAgainstARevision\n"}
+{"Time":"2026-11-15T22:00:22.3768373+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"--- PASS: TestJudgementSettingsAreSavedAgainstARevision (0.15s)\n"}
+{"Time":"2026-11-15T22:00:22.3768373+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Elapsed":0.15}
+{"Time":"2026-11-15T22:00:22.3773382+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage"}
+{"Time":"2026-11-15T22:00:22.3773382+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"=== RUN   TestACorrectionIsKeptAndTellsThePage\n"}
+{"Time":"2026-11-15T22:00:22.4934507+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"--- PASS: TestACorrectionIsKeptAndTellsThePage (0.12s)\n"}
+{"Time":"2026-11-15T22:00:22.4934507+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Elapsed":0.12}
+{"Time":"2026-11-15T22:00:22.5064524+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T22:00:22.5069518+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T22:00:23.2107274+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (0.70s)\n"}
+{"Time":"2026-11-15T22:00:23.2107274+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":0.7}
+{"Time":"2026-11-15T22:00:23.2107274+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T22:00:23.2107274+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T22:00:23.7883001+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.58s)\n"}
+{"Time":"2026-11-15T22:00:23.7883001+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.58}
+{"Time":"2026-11-15T22:00:23.7883001+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T22:00:23.7888012+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T22:00:24.3977227+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (0.61s)\n"}
+{"Time":"2026-11-15T22:00:24.3977227+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":0.61}
+{"Time":"2026-11-15T22:00:24.398224+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase"}
+{"Time":"2026-11-15T22:00:24.398224+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"=== RUN   TestEveryDeclaredKindHasACalibrationCase\n"}
+{"Time":"2026-11-15T22:00:24.398224+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"--- PASS: TestEveryDeclaredKindHasACalibrationCase (0.00s)\n"}
+{"Time":"2026-11-15T22:00:24.398724+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Elapsed":0}
+{"Time":"2026-11-15T22:00:24.3992203+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn"}
+{"Time":"2026-11-15T22:00:24.3992203+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"=== RUN   TestTheFirstLineOfAPromptIsThePersonsOwn\n"}
+{"Time":"2026-11-15T22:00:24.4002245+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"--- PASS: TestTheFirstLineOfAPromptIsThePersonsOwn (0.00s)\n"}
+{"Time":"2026-11-15T22:00:24.4002245+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Elapsed":0}
+{"Time":"2026-11-15T22:00:24.4002245+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge"}
+{"Time":"2026-11-15T22:00:24.4002245+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"=== RUN   TestTheFirstMessageOfAChatIsTitledByTheJudge\n"}
+{"Time":"2026-11-15T22:00:25.8223186+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"--- PASS: TestTheFirstMessageOfAChatIsTitledByTheJudge (1.42s)\n"}
+{"Time":"2026-11-15T22:00:25.8223186+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Elapsed":1.42}
+{"Time":"2026-11-15T22:00:25.8223186+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule"}
+{"Time":"2026-11-15T22:00:25.8223186+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"=== RUN   TestWithoutAUsableJudgeTheTitleIsTheRule\n"}
+{"Time":"2026-11-15T22:00:26.7448897+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"--- PASS: TestWithoutAUsableJudgeTheTitleIsTheRule (0.92s)\n"}
+{"Time":"2026-11-15T22:00:26.7448897+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Elapsed":0.92}
+{"Time":"2026-11-15T22:00:26.7448897+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged"}
+{"Time":"2026-11-15T22:00:26.7448897+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"=== RUN   TestANamedChatAndAChatOfFilesAreNotJudged\n"}
+{"Time":"2026-11-15T22:00:28.1460472+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"--- PASS: TestANamedChatAndAChatOfFilesAreNotJudged (1.40s)\n"}
+{"Time":"2026-11-15T22:00:28.1460472+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Elapsed":1.4}
+{"Time":"2026-11-15T22:00:28.1460472+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat"}
+{"Time":"2026-11-15T22:00:28.1460472+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"=== RUN   TestCorrectingAJudgedTitleRenamesTheChat\n"}
+{"Time":"2026-11-15T22:00:29.2104325+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"--- PASS: TestCorrectingAJudgedTitleRenamesTheChat (1.06s)\n"}
+{"Time":"2026-11-15T22:00:29.2104325+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Elapsed":1.06}
+{"Time":"2026-11-15T22:00:29.2104325+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults"}
+{"Time":"2026-11-15T22:00:29.2104325+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"=== RUN   TestTheBudgetAndPoolStartAsDefaults\n"}
+{"Time":"2026-11-15T22:00:29.2949323+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"--- PASS: TestTheBudgetAndPoolStartAsDefaults (0.08s)\n"}
+{"Time":"2026-11-15T22:00:29.2949323+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Elapsed":0.08}
+{"Time":"2026-11-15T22:00:29.2954319+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied"}
+{"Time":"2026-11-15T22:00:29.2954319+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"=== RUN   TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied\n"}
+{"Time":"2026-11-15T22:00:29.4416002+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"--- PASS: TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied (0.15s)\n"}
+{"Time":"2026-11-15T22:00:29.4416002+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Elapsed":0.15}
+{"Time":"2026-11-15T22:00:29.4416002+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning"}
+{"Time":"2026-11-15T22:00:29.4416002+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"=== RUN   TestACallRefusedForTheBudgetIsAWarning\n"}
+{"Time":"2026-11-15T22:00:29.5944878+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"--- PASS: TestACallRefusedForTheBudgetIsAWarning (0.15s)\n"}
+{"Time":"2026-11-15T22:00:29.5949918+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Elapsed":0.15}
+{"Time":"2026-11-15T22:00:29.5949918+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents"}
+{"Time":"2026-11-15T22:00:29.5949918+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"=== RUN   TestJudgementEventCollectorRetainsConcurrentEvents\n"}
+{"Time":"2026-11-15T22:00:29.6203434+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"--- PASS: TestJudgementEventCollectorRetainsConcurrentEvents (0.03s)\n"}
+{"Time":"2026-11-15T22:00:29.6203434+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Elapsed":0.03}
+{"Time":"2026-11-15T22:00:29.6203434+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel"}
+{"Time":"2026-11-15T22:00:29.6203434+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"=== RUN   TestTheJudgementsStartOffForWantOfAModel\n"}
+{"Time":"2026-11-15T22:00:29.7185914+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"--- PASS: TestTheJudgementsStartOffForWantOfAModel (0.10s)\n"}
+{"Time":"2026-11-15T22:00:29.7185914+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Elapsed":0.1}
+{"Time":"2026-11-15T22:00:29.7185914+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays"}
+{"Time":"2026-11-15T22:00:29.7185914+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"=== RUN   TestThePickerGetsThePricesAProviderSays\n"}
+{"Time":"2026-11-15T22:00:29.8017189+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"--- PASS: TestThePickerGetsThePricesAProviderSays (0.08s)\n"}
+{"Time":"2026-11-15T22:00:29.8017189+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Elapsed":0.08}
+{"Time":"2026-11-15T22:00:29.8017189+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent"}
+{"Time":"2026-11-15T22:00:29.8017189+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"=== RUN   TestAChosenModelJudgesAndEveryChangeIsAnEvent\n"}
+{"Time":"2026-11-15T22:00:29.9074208+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"--- PASS: TestAChosenModelJudgesAndEveryChangeIsAnEvent (0.11s)\n"}
+{"Time":"2026-11-15T22:00:29.9086093+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Elapsed":0.11}
+{"Time":"2026-11-15T22:00:29.9086093+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold"}
+{"Time":"2026-11-15T22:00:29.9086093+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"=== RUN   TestARunOfFallbacksIsAWarningAtThePersonsThreshold\n"}
+{"Time":"2026-11-15T22:00:30.1528442+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"--- PASS: TestARunOfFallbacksIsAWarningAtThePersonsThreshold (0.24s)\n"}
+{"Time":"2026-11-15T22:00:30.1528442+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Elapsed":0.24}
+{"Time":"2026-11-15T22:00:30.1528442+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision"}
+{"Time":"2026-11-15T22:00:30.1528442+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"=== RUN   TestJudgementSettingsAreSavedAgainstARevision\n"}
+{"Time":"2026-11-15T22:00:30.2755843+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"--- PASS: TestJudgementSettingsAreSavedAgainstARevision (0.12s)\n"}
+{"Time":"2026-11-15T22:00:30.2755843+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Elapsed":0.12}
+{"Time":"2026-11-15T22:00:30.2755843+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage"}
+{"Time":"2026-11-15T22:00:30.2755843+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"=== RUN   TestACorrectionIsKeptAndTellsThePage\n"}
+{"Time":"2026-11-15T22:00:30.3828182+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"--- PASS: TestACorrectionIsKeptAndTellsThePage (0.11s)\n"}
+{"Time":"2026-11-15T22:00:30.3828182+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Elapsed":0.11}
+{"Time":"2026-11-15T22:00:30.3968181+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T22:00:30.3968181+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T22:00:31.1249736+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (0.73s)\n"}
+{"Time":"2026-11-15T22:00:31.1249736+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":0.73}
+{"Time":"2026-11-15T22:00:31.1249736+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T22:00:31.1249736+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T22:00:31.7726281+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.65s)\n"}
+{"Time":"2026-11-15T22:00:31.7726281+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.65}
+{"Time":"2026-11-15T22:00:31.7726281+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T22:00:31.7726281+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (0.75s)\n"}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":0.75}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase"}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"=== RUN   TestEveryDeclaredKindHasACalibrationCase\n"}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"--- PASS: TestEveryDeclaredKindHasACalibrationCase (0.00s)\n"}
+{"Time":"2026-11-15T22:00:32.5191082+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Elapsed":0}
+{"Time":"2026-11-15T22:00:32.5206069+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn"}
+{"Time":"2026-11-15T22:00:32.5206069+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"=== RUN   TestTheFirstLineOfAPromptIsThePersonsOwn\n"}
+{"Time":"2026-11-15T22:00:32.5206069+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"--- PASS: TestTheFirstLineOfAPromptIsThePersonsOwn (0.00s)\n"}
+{"Time":"2026-11-15T22:00:32.5206069+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Elapsed":0}
+{"Time":"2026-11-15T22:00:32.521607+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge"}
+{"Time":"2026-11-15T22:00:32.521607+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"=== RUN   TestTheFirstMessageOfAChatIsTitledByTheJudge\n"}
+{"Time":"2026-11-15T22:00:33.6295208+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"--- PASS: TestTheFirstMessageOfAChatIsTitledByTheJudge (1.11s)\n"}
+{"Time":"2026-11-15T22:00:33.6295208+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Elapsed":1.11}
+{"Time":"2026-11-15T22:00:33.6295208+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule"}
+{"Time":"2026-11-15T22:00:33.6295208+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"=== RUN   TestWithoutAUsableJudgeTheTitleIsTheRule\n"}
+{"Time":"2026-11-15T22:00:34.5975219+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"--- PASS: TestWithoutAUsableJudgeTheTitleIsTheRule (0.97s)\n"}
+{"Time":"2026-11-15T22:00:34.5975219+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Elapsed":0.97}
+{"Time":"2026-11-15T22:00:34.5975219+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged"}
+{"Time":"2026-11-15T22:00:34.5975219+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"=== RUN   TestANamedChatAndAChatOfFilesAreNotJudged\n"}
+{"Time":"2026-11-15T22:00:36.0389528+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"--- PASS: TestANamedChatAndAChatOfFilesAreNotJudged (1.44s)\n"}
+{"Time":"2026-11-15T22:00:36.0389528+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Elapsed":1.44}
+{"Time":"2026-11-15T22:00:36.0389528+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat"}
+{"Time":"2026-11-15T22:00:36.0389528+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"=== RUN   TestCorrectingAJudgedTitleRenamesTheChat\n"}
+{"Time":"2026-11-15T22:00:37.1644707+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"--- PASS: TestCorrectingAJudgedTitleRenamesTheChat (1.13s)\n"}
+{"Time":"2026-11-15T22:00:37.165489+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Elapsed":1.13}
+{"Time":"2026-11-15T22:00:37.165489+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults"}
+{"Time":"2026-11-15T22:00:37.165489+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"=== RUN   TestTheBudgetAndPoolStartAsDefaults\n"}
+{"Time":"2026-11-15T22:00:37.2592549+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"--- PASS: TestTheBudgetAndPoolStartAsDefaults (0.09s)\n"}
+{"Time":"2026-11-15T22:00:37.2592549+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Elapsed":0.09}
+{"Time":"2026-11-15T22:00:37.2592549+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied"}
+{"Time":"2026-11-15T22:00:37.2592549+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"=== RUN   TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied\n"}
+{"Time":"2026-11-15T22:00:37.4668001+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"--- PASS: TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied (0.21s)\n"}
+{"Time":"2026-11-15T22:00:37.4668001+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Elapsed":0.21}
+{"Time":"2026-11-15T22:00:37.4668001+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning"}
+{"Time":"2026-11-15T22:00:37.4668001+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"=== RUN   TestACallRefusedForTheBudgetIsAWarning\n"}
+{"Time":"2026-11-15T22:00:37.6557363+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"--- PASS: TestACallRefusedForTheBudgetIsAWarning (0.19s)\n"}
+{"Time":"2026-11-15T22:00:37.6557363+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Elapsed":0.19}
+{"Time":"2026-11-15T22:00:37.6557363+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents"}
+{"Time":"2026-11-15T22:00:37.6557363+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"=== RUN   TestJudgementEventCollectorRetainsConcurrentEvents\n"}
+{"Time":"2026-11-15T22:00:37.6818548+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"--- PASS: TestJudgementEventCollectorRetainsConcurrentEvents (0.03s)\n"}
+{"Time":"2026-11-15T22:00:37.6818548+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Elapsed":0.03}
+{"Time":"2026-11-15T22:00:37.6818548+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel"}
+{"Time":"2026-11-15T22:00:37.6818548+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"=== RUN   TestTheJudgementsStartOffForWantOfAModel\n"}
+{"Time":"2026-11-15T22:00:37.7744971+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"--- PASS: TestTheJudgementsStartOffForWantOfAModel (0.09s)\n"}
+{"Time":"2026-11-15T22:00:37.7744971+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Elapsed":0.09}
+{"Time":"2026-11-15T22:00:37.7744971+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays"}
+{"Time":"2026-11-15T22:00:37.7744971+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"=== RUN   TestThePickerGetsThePricesAProviderSays\n"}
+{"Time":"2026-11-15T22:00:37.849312+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"--- PASS: TestThePickerGetsThePricesAProviderSays (0.07s)\n"}
+{"Time":"2026-11-15T22:00:37.849312+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Elapsed":0.07}
+{"Time":"2026-11-15T22:00:37.849312+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent"}
+{"Time":"2026-11-15T22:00:37.849312+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"=== RUN   TestAChosenModelJudgesAndEveryChangeIsAnEvent\n"}
+{"Time":"2026-11-15T22:00:37.9516743+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"--- PASS: TestAChosenModelJudgesAndEveryChangeIsAnEvent (0.10s)\n"}
+{"Time":"2026-11-15T22:00:37.9516743+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Elapsed":0.1}
+{"Time":"2026-11-15T22:00:37.9516743+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold"}
+{"Time":"2026-11-15T22:00:37.9516743+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"=== RUN   TestARunOfFallbacksIsAWarningAtThePersonsThreshold\n"}
+{"Time":"2026-11-15T22:00:38.1757989+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"--- PASS: TestARunOfFallbacksIsAWarningAtThePersonsThreshold (0.22s)\n"}
+{"Time":"2026-11-15T22:00:38.1757989+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Elapsed":0.22}
+{"Time":"2026-11-15T22:00:38.1757989+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision"}
+{"Time":"2026-11-15T22:00:38.1757989+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"=== RUN   TestJudgementSettingsAreSavedAgainstARevision\n"}
+{"Time":"2026-11-15T22:00:38.2888136+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"--- PASS: TestJudgementSettingsAreSavedAgainstARevision (0.11s)\n"}
+{"Time":"2026-11-15T22:00:38.2888136+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Elapsed":0.11}
+{"Time":"2026-11-15T22:00:38.2888136+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage"}
+{"Time":"2026-11-15T22:00:38.2888136+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"=== RUN   TestACorrectionIsKeptAndTellsThePage\n"}
+{"Time":"2026-11-15T22:00:38.3880051+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"--- PASS: TestACorrectionIsKeptAndTellsThePage (0.10s)\n"}
+{"Time":"2026-11-15T22:00:38.3880051+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Elapsed":0.1}
+{"Time":"2026-11-15T22:00:38.400512+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T22:00:38.400512+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T22:00:39.0987877+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (0.70s)\n"}
+{"Time":"2026-11-15T22:00:39.0987877+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":0.7}
+{"Time":"2026-11-15T22:00:39.0987877+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T22:00:39.0987877+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T22:00:39.5887021+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.49s)\n"}
+{"Time":"2026-11-15T22:00:39.5887021+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.49}
+{"Time":"2026-11-15T22:00:39.5887021+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T22:00:39.5887021+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (0.54s)\n"}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":0.54}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase"}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"=== RUN   TestEveryDeclaredKindHasACalibrationCase\n"}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"--- PASS: TestEveryDeclaredKindHasACalibrationCase (0.00s)\n"}
+{"Time":"2026-11-15T22:00:40.1328991+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Elapsed":0}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn"}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"=== RUN   TestTheFirstLineOfAPromptIsThePersonsOwn\n"}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"--- PASS: TestTheFirstLineOfAPromptIsThePersonsOwn (0.00s)\n"}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Elapsed":0}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge"}
+{"Time":"2026-11-15T22:00:40.1339252+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"=== RUN   TestTheFirstMessageOfAChatIsTitledByTheJudge\n"}
+{"Time":"2026-11-15T22:00:41.2167968+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"--- PASS: TestTheFirstMessageOfAChatIsTitledByTheJudge (1.08s)\n"}
+{"Time":"2026-11-15T22:00:41.2167968+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Elapsed":1.08}
+{"Time":"2026-11-15T22:00:41.2167968+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule"}
+{"Time":"2026-11-15T22:00:41.2167968+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"=== RUN   TestWithoutAUsableJudgeTheTitleIsTheRule\n"}
+{"Time":"2026-11-15T22:00:42.2304565+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"--- PASS: TestWithoutAUsableJudgeTheTitleIsTheRule (1.01s)\n"}
+{"Time":"2026-11-15T22:00:42.2304565+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Elapsed":1.01}
+{"Time":"2026-11-15T22:00:42.2304565+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged"}
+{"Time":"2026-11-15T22:00:42.2304565+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"=== RUN   TestANamedChatAndAChatOfFilesAreNotJudged\n"}
+{"Time":"2026-11-15T22:00:43.5279365+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"--- PASS: TestANamedChatAndAChatOfFilesAreNotJudged (1.30s)\n"}
+{"Time":"2026-11-15T22:00:43.5279365+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Elapsed":1.3}
+{"Time":"2026-11-15T22:00:43.5279365+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat"}
+{"Time":"2026-11-15T22:00:43.5279365+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"=== RUN   TestCorrectingAJudgedTitleRenamesTheChat\n"}
+{"Time":"2026-11-15T22:00:44.6787256+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"--- PASS: TestCorrectingAJudgedTitleRenamesTheChat (1.15s)\n"}
+{"Time":"2026-11-15T22:00:44.6787256+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Elapsed":1.15}
+{"Time":"2026-11-15T22:00:44.6787256+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults"}
+{"Time":"2026-11-15T22:00:44.6787256+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"=== RUN   TestTheBudgetAndPoolStartAsDefaults\n"}
+{"Time":"2026-11-15T22:00:44.7988901+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"--- PASS: TestTheBudgetAndPoolStartAsDefaults (0.12s)\n"}
+{"Time":"2026-11-15T22:00:44.7988901+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Elapsed":0.12}
+{"Time":"2026-11-15T22:00:44.7988901+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied"}
+{"Time":"2026-11-15T22:00:44.7988901+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"=== RUN   TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied\n"}
+{"Time":"2026-11-15T22:00:44.9674961+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"--- PASS: TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied (0.17s)\n"}
+{"Time":"2026-11-15T22:00:44.9680021+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Elapsed":0.17}
+{"Time":"2026-11-15T22:00:44.9680021+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning"}
+{"Time":"2026-11-15T22:00:44.9680021+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"=== RUN   TestACallRefusedForTheBudgetIsAWarning\n"}
+{"Time":"2026-11-15T22:00:45.1328407+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"--- PASS: TestACallRefusedForTheBudgetIsAWarning (0.16s)\n"}
+{"Time":"2026-11-15T22:00:45.1328407+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Elapsed":0.16}
+{"Time":"2026-11-15T22:00:45.1328407+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents"}
+{"Time":"2026-11-15T22:00:45.1328407+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"=== RUN   TestJudgementEventCollectorRetainsConcurrentEvents\n"}
+{"Time":"2026-11-15T22:00:45.1629937+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"--- PASS: TestJudgementEventCollectorRetainsConcurrentEvents (0.03s)\n"}
+{"Time":"2026-11-15T22:00:45.1629937+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Elapsed":0.03}
+{"Time":"2026-11-15T22:00:45.1629937+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel"}
+{"Time":"2026-11-15T22:00:45.1629937+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"=== RUN   TestTheJudgementsStartOffForWantOfAModel\n"}
+{"Time":"2026-11-15T22:00:45.2626858+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"--- PASS: TestTheJudgementsStartOffForWantOfAModel (0.10s)\n"}
+{"Time":"2026-11-15T22:00:45.2626858+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Elapsed":0.1}
+{"Time":"2026-11-15T22:00:45.2637126+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays"}
+{"Time":"2026-11-15T22:00:45.2637126+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"=== RUN   TestThePickerGetsThePricesAProviderSays\n"}
+{"Time":"2026-11-15T22:00:45.3425685+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"--- PASS: TestThePickerGetsThePricesAProviderSays (0.08s)\n"}
+{"Time":"2026-11-15T22:00:45.3425685+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Elapsed":0.08}
+{"Time":"2026-11-15T22:00:45.3430695+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent"}
+{"Time":"2026-11-15T22:00:45.3430695+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"=== RUN   TestAChosenModelJudgesAndEveryChangeIsAnEvent\n"}
+{"Time":"2026-11-15T22:00:45.4609898+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"--- PASS: TestAChosenModelJudgesAndEveryChangeIsAnEvent (0.12s)\n"}
+{"Time":"2026-11-15T22:00:45.4609898+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Elapsed":0.12}
+{"Time":"2026-11-15T22:00:45.4609898+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold"}
+{"Time":"2026-11-15T22:00:45.4609898+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"=== RUN   TestARunOfFallbacksIsAWarningAtThePersonsThreshold\n"}
+{"Time":"2026-11-15T22:00:45.7053836+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"--- PASS: TestARunOfFallbacksIsAWarningAtThePersonsThreshold (0.24s)\n"}
+{"Time":"2026-11-15T22:00:45.7053836+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Elapsed":0.24}
+{"Time":"2026-11-15T22:00:45.7053836+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision"}
+{"Time":"2026-11-15T22:00:45.7053836+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"=== RUN   TestJudgementSettingsAreSavedAgainstARevision\n"}
+{"Time":"2026-11-15T22:00:45.8426553+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"--- PASS: TestJudgementSettingsAreSavedAgainstARevision (0.14s)\n"}
+{"Time":"2026-11-15T22:00:45.8426553+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Elapsed":0.14}
+{"Time":"2026-11-15T22:00:45.8426553+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage"}
+{"Time":"2026-11-15T22:00:45.8426553+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"=== RUN   TestACorrectionIsKeptAndTellsThePage\n"}
+{"Time":"2026-11-15T22:00:45.9764115+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"--- PASS: TestACorrectionIsKeptAndTellsThePage (0.13s)\n"}
+{"Time":"2026-11-15T22:00:45.9764115+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Elapsed":0.13}
+{"Time":"2026-11-15T22:00:45.9914115+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne"}
+{"Time":"2026-11-15T22:00:45.9914115+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"=== RUN   TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne\n"}
+{"Time":"2026-11-15T22:00:46.6864025+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Output":"--- PASS: TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne (0.69s)\n"}
+{"Time":"2026-11-15T22:00:46.6864025+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne","Elapsed":0.69}
+{"Time":"2026-11-15T22:00:46.6864025+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel"}
+{"Time":"2026-11-15T22:00:46.6864025+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"=== RUN   TestThePersonsModelStandsAndAManualRunMayTryEveryModel\n"}
+{"Time":"2026-11-15T22:00:47.2139716+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Output":"--- PASS: TestThePersonsModelStandsAndAManualRunMayTryEveryModel (0.53s)\n"}
+{"Time":"2026-11-15T22:00:47.2139716+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePersonsModelStandsAndAManualRunMayTryEveryModel","Elapsed":0.53}
+{"Time":"2026-11-15T22:00:47.2144712+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T22:00:47.2144712+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (0.55s)\n"}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":0.55}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase"}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"=== RUN   TestEveryDeclaredKindHasACalibrationCase\n"}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Output":"--- PASS: TestEveryDeclaredKindHasACalibrationCase (0.00s)\n"}
+{"Time":"2026-11-15T22:00:47.7674289+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestEveryDeclaredKindHasACalibrationCase","Elapsed":0}
+{"Time":"2026-11-15T22:00:47.7679278+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn"}
+{"Time":"2026-11-15T22:00:47.7679278+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"=== RUN   TestTheFirstLineOfAPromptIsThePersonsOwn\n"}
+{"Time":"2026-11-15T22:00:47.7679278+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Output":"--- PASS: TestTheFirstLineOfAPromptIsThePersonsOwn (0.00s)\n"}
+{"Time":"2026-11-15T22:00:47.7679278+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstLineOfAPromptIsThePersonsOwn","Elapsed":0}
+{"Time":"2026-11-15T22:00:47.7684274+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge"}
+{"Time":"2026-11-15T22:00:47.7684274+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"=== RUN   TestTheFirstMessageOfAChatIsTitledByTheJudge\n"}
+{"Time":"2026-11-15T22:00:48.8679984+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Output":"--- PASS: TestTheFirstMessageOfAChatIsTitledByTheJudge (1.10s)\n"}
+{"Time":"2026-11-15T22:00:48.8679984+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheFirstMessageOfAChatIsTitledByTheJudge","Elapsed":1.1}
+{"Time":"2026-11-15T22:00:48.8679984+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule"}
+{"Time":"2026-11-15T22:00:48.8679984+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"=== RUN   TestWithoutAUsableJudgeTheTitleIsTheRule\n"}
+{"Time":"2026-11-15T22:00:49.8317332+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Output":"--- PASS: TestWithoutAUsableJudgeTheTitleIsTheRule (0.96s)\n"}
+{"Time":"2026-11-15T22:00:49.8317332+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestWithoutAUsableJudgeTheTitleIsTheRule","Elapsed":0.96}
+{"Time":"2026-11-15T22:00:49.832233+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged"}
+{"Time":"2026-11-15T22:00:49.832233+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"=== RUN   TestANamedChatAndAChatOfFilesAreNotJudged\n"}
+{"Time":"2026-11-15T22:00:51.1666052+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Output":"--- PASS: TestANamedChatAndAChatOfFilesAreNotJudged (1.33s)\n"}
+{"Time":"2026-11-15T22:00:51.1666052+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestANamedChatAndAChatOfFilesAreNotJudged","Elapsed":1.33}
+{"Time":"2026-11-15T22:00:51.1666052+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat"}
+{"Time":"2026-11-15T22:00:51.1670991+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"=== RUN   TestCorrectingAJudgedTitleRenamesTheChat\n"}
+{"Time":"2026-11-15T22:00:52.2734274+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Output":"--- PASS: TestCorrectingAJudgedTitleRenamesTheChat (1.11s)\n"}
+{"Time":"2026-11-15T22:00:52.2734274+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestCorrectingAJudgedTitleRenamesTheChat","Elapsed":1.11}
+{"Time":"2026-11-15T22:00:52.2734274+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults"}
+{"Time":"2026-11-15T22:00:52.2734274+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"=== RUN   TestTheBudgetAndPoolStartAsDefaults\n"}
+{"Time":"2026-11-15T22:00:52.3540617+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Output":"--- PASS: TestTheBudgetAndPoolStartAsDefaults (0.08s)\n"}
+{"Time":"2026-11-15T22:00:52.3540617+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetAndPoolStartAsDefaults","Elapsed":0.08}
+{"Time":"2026-11-15T22:00:52.3540617+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied"}
+{"Time":"2026-11-15T22:00:52.3540617+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"=== RUN   TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied\n"}
+{"Time":"2026-11-15T22:00:52.4976253+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Output":"--- PASS: TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied (0.14s)\n"}
+{"Time":"2026-11-15T22:00:52.4981308+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied","Elapsed":0.14}
+{"Time":"2026-11-15T22:00:52.4981308+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning"}
+{"Time":"2026-11-15T22:00:52.4981308+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"=== RUN   TestACallRefusedForTheBudgetIsAWarning\n"}
+{"Time":"2026-11-15T22:00:52.6557215+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Output":"--- PASS: TestACallRefusedForTheBudgetIsAWarning (0.16s)\n"}
+{"Time":"2026-11-15T22:00:52.6557215+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACallRefusedForTheBudgetIsAWarning","Elapsed":0.16}
+{"Time":"2026-11-15T22:00:52.6557215+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents"}
+{"Time":"2026-11-15T22:00:52.6557215+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"=== RUN   TestJudgementEventCollectorRetainsConcurrentEvents\n"}
+{"Time":"2026-11-15T22:00:52.6797228+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Output":"--- PASS: TestJudgementEventCollectorRetainsConcurrentEvents (0.02s)\n"}
+{"Time":"2026-11-15T22:00:52.6797228+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementEventCollectorRetainsConcurrentEvents","Elapsed":0.02}
+{"Time":"2026-11-15T22:00:52.6797228+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel"}
+{"Time":"2026-11-15T22:00:52.6797228+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"=== RUN   TestTheJudgementsStartOffForWantOfAModel\n"}
+{"Time":"2026-11-15T22:00:52.7672214+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Output":"--- PASS: TestTheJudgementsStartOffForWantOfAModel (0.09s)\n"}
+{"Time":"2026-11-15T22:00:52.7672214+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestTheJudgementsStartOffForWantOfAModel","Elapsed":0.09}
+{"Time":"2026-11-15T22:00:52.7672214+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays"}
+{"Time":"2026-11-15T22:00:52.7672214+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"=== RUN   TestThePickerGetsThePricesAProviderSays\n"}
+{"Time":"2026-11-15T22:00:52.8412213+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Output":"--- PASS: TestThePickerGetsThePricesAProviderSays (0.07s)\n"}
+{"Time":"2026-11-15T22:00:52.8412213+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestThePickerGetsThePricesAProviderSays","Elapsed":0.07}
+{"Time":"2026-11-15T22:00:52.8412213+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent"}
+{"Time":"2026-11-15T22:00:52.8417216+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"=== RUN   TestAChosenModelJudgesAndEveryChangeIsAnEvent\n"}
+{"Time":"2026-11-15T22:00:52.9555822+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Output":"--- PASS: TestAChosenModelJudgesAndEveryChangeIsAnEvent (0.11s)\n"}
+{"Time":"2026-11-15T22:00:52.9555822+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAChosenModelJudgesAndEveryChangeIsAnEvent","Elapsed":0.11}
+{"Time":"2026-11-15T22:00:52.9560816+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold"}
+{"Time":"2026-11-15T22:00:52.9560816+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"=== RUN   TestARunOfFallbacksIsAWarningAtThePersonsThreshold\n"}
+{"Time":"2026-11-15T22:00:53.2540563+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Output":"--- PASS: TestARunOfFallbacksIsAWarningAtThePersonsThreshold (0.30s)\n"}
+{"Time":"2026-11-15T22:00:53.2545563+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestARunOfFallbacksIsAWarningAtThePersonsThreshold","Elapsed":0.3}
+{"Time":"2026-11-15T22:00:53.2545563+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision"}
+{"Time":"2026-11-15T22:00:53.2545563+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"=== RUN   TestJudgementSettingsAreSavedAgainstARevision\n"}
+{"Time":"2026-11-15T22:00:53.3685409+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Output":"--- PASS: TestJudgementSettingsAreSavedAgainstARevision (0.11s)\n"}
+{"Time":"2026-11-15T22:00:53.3685409+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestJudgementSettingsAreSavedAgainstARevision","Elapsed":0.11}
+{"Time":"2026-11-15T22:00:53.3685409+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage"}
+{"Time":"2026-11-15T22:00:53.3690393+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"=== RUN   TestACorrectionIsKeptAndTellsThePage\n"}
+{"Time":"2026-11-15T22:00:53.4581859+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Output":"--- PASS: TestACorrectionIsKeptAndTellsThePage (0.09s)\n"}
+{"Time":"2026-11-15T22:00:53.4581859+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestACorrectionIsKeptAndTellsThePage","Elapsed":0.09}
+{"Time":"2026-11-15T22:00:53.4632771+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"PASS\n"}
+{"Time":"2026-11-15T22:00:54.4818292+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"ok  \tstudio/cmd/dinah-desktop\t57.427s\n"}
+{"Time":"2026-11-15T22:00:54.4818292+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Elapsed":57.427}

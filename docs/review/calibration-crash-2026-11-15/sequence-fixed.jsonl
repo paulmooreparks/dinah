@@ -1,0 +1,16 @@
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"# studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgement_budget_test.go:52:15: invalid operation: cannot indirect events (variable of type func() []map[string]any)\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:214:5: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:215:29: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:245:12: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:250:122: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:251:56: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:329:5: declared and not used: events\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:332:12: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:334:78: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:335:44: undefined: lenevents\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-output","Output":"cmd\\dinah-desktop\\judgements_test.go:329:5: too many errors\n"}
+{"ImportPath":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]","Action":"build-fail"}
+{"Time":"2026-11-15T21:55:52.3242909+08:00","Action":"start","Package":"studio/cmd/dinah-desktop"}
+{"Time":"2026-11-15T21:55:52.3242909+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"FAIL\tstudio/cmd/dinah-desktop [build failed]\n"}
+{"Time":"2026-11-15T21:55:52.3242909+08:00","Action":"fail","Package":"studio/cmd/dinah-desktop","Elapsed":0,"FailedBuild":"studio/cmd/dinah-desktop [studio/cmd/dinah-desktop.test]"}

@@ -1,0 +1,9 @@
+{"ImportPath":"studio/cmd/dinah-desktop.test","Action":"build-output","Output":"# studio/cmd/dinah-desktop.test\nC:/Users/paul/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/16.2.0/../../../../x86_64-w64-mingw32/bin/ld.exe: .rsrc merge failure: multiple non-default manifests\r\n"}
+{"Time":"2026-11-15T21:45:04.3238456+08:00","Action":"start","Package":"studio/cmd/dinah-desktop"}
+{"Time":"2026-11-15T21:45:04.5313804+08:00","Action":"run","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt"}
+{"Time":"2026-11-15T21:45:04.5313804+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"=== RUN   TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt\n"}
+{"Time":"2026-11-15T21:45:05.0364563+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Output":"--- PASS: TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt (0.50s)\n"}
+{"Time":"2026-11-15T21:45:05.0364563+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Test":"TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt","Elapsed":0.5}
+{"Time":"2026-11-15T21:45:05.0364563+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"PASS\n"}
+{"Time":"2026-11-15T21:45:06.0518108+08:00","Action":"output","Package":"studio/cmd/dinah-desktop","Output":"ok  \tstudio/cmd/dinah-desktop\t1.728s\n"}
+{"Time":"2026-11-15T21:45:06.0518108+08:00","Action":"pass","Package":"studio/cmd/dinah-desktop","Elapsed":1.728}

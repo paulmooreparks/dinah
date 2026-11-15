@@ -1,0 +1,176 @@
+==================
+WARNING: DATA RACE
+Read at 0x00c0007acdb0 by goroutine 166:
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x126
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).SetJudgementSettings()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:787 +0xd64
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:209 +0x514
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+
+Previous write at 0x00c0007acdb0 by goroutine 170:
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x1f8
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).runCalibration.func1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:207 +0x64
+  runtime.deferreturn()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:668 +0x5d
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration.gowrap1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x30
+
+Goroutine 166 (running) created at:
+  testing.(*T).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0xb2a
+  testing.runTests.func1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2585 +0x84
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.runTests()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2583 +0x9f7
+  testing.(*M).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2443 +0xf4b
+  studio/cmd/dinah-desktop.TestMain()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/main_test.go:42 +0x387
+  main.main()
+      _testmain.go:1488 +0x171
+
+Goroutine 170 (finished) created at:
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x48a
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:198 +0x4b
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Read at 0x00c0003f47f8 by goroutine 166:
+  runtime.growslice()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/slice.go:178 +0x0
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x15b
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).SetJudgementSettings()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:787 +0xd64
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:209 +0x514
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+
+Previous write at 0x00c0003f47f8 by goroutine 170:
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x19a
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).runCalibration.func1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:207 +0x64
+  runtime.deferreturn()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:668 +0x5d
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration.gowrap1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x30
+
+Goroutine 166 (running) created at:
+  testing.(*T).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0xb2a
+  testing.runTests.func1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2585 +0x84
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.runTests()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2583 +0x9f7
+  testing.(*M).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2443 +0xf4b
+  studio/cmd/dinah-desktop.TestMain()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/main_test.go:42 +0x387
+  main.main()
+      _testmain.go:1488 +0x171
+
+Goroutine 170 (finished) created at:
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x48a
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:198 +0x4b
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Read at 0x00c000484258 by goroutine 1109:
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x126
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).SetJudgementSettings()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:787 +0xd64
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:219 +0x839
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+
+Previous write at 0x00c000484258 by goroutine 1113:
+  studio/cmd/dinah-desktop.judgementApp.func2()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements_test.go:61 +0x1f8
+  studio/cmd/dinah-desktop.(*App).emit()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/app.go:567 +0x2db
+  studio/cmd/dinah-desktop.(*App).emitJudgementsChanged()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judgements.go:582 +0x9d2
+  studio/cmd/dinah-desktop.(*App).runCalibration.func1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:207 +0x64
+  runtime.deferreturn()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/runtime/panic.go:668 +0x5d
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration.gowrap1()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x30
+
+Goroutine 1109 (running) created at:
+  testing.(*T).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0xb2a
+  testing.runTests.func1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2585 +0x84
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.runTests()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2583 +0x9f7
+  testing.(*M).Run()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2443 +0xf4b
+  studio/cmd/dinah-desktop.TestMain()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/main_test.go:42 +0x387
+  main.main()
+      _testmain.go:1488 +0x171
+
+Goroutine 1113 (finished) created at:
+  studio/cmd/dinah-desktop.(*App).RunJudgementCalibration()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration.go:154 +0x48a
+  studio/cmd/dinah-desktop.TestAManualRunChoosesAModelAndTheSourceFollowsWhoChoseIt()
+      C:/Users/paul/source/repos/studio/.worktrees/engine-calibration-crash/cmd/dinah-desktop/judge_calibration_test.go:198 +0x4b
+  testing.tRunner()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2036 +0x1ca
+  testing.(*T).Run.gowrap1()
+      C:/Users/paul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.windows-amd64/src/testing/testing.go:2101 +0x38
+==================
