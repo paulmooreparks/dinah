@@ -33,7 +33,7 @@ const { start } = require('./lib/org-chart-fixture');
     for (const width of [1440, 390]) for (const theme of ['light', 'dark']) {
       await p.setViewportSize({ width, height: 1000 }); await p.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
       await p.waitForFunction(() => { const el = document.querySelector('.org-chart-scroll'); return el && el.scrollWidth <= el.clientWidth + 1; });
-      ok(theme + ' chart at ' + width + ' fits its reading surface', await chart.evaluate(el => el.scrollWidth <= el.clientWidth + 1) && await chart.locator('.org-chart-chat').evaluateAll(rows => rows.every(el => el.clientHeight === 100 && el.scrollWidth <= el.clientWidth + 1)));
+      ok(theme + ' chart at ' + width + ' fits its reading surface', await chart.evaluate(el => el.scrollWidth <= el.clientWidth + 1) && await chart.locator('.org-chart-chat').evaluateAll(rows => rows.every(el => el.clientHeight === 100 && el.clientWidth >= 120 && el.scrollWidth <= el.clientWidth + 1)));
       const crossings = await chart.evaluate(root => {
         const boxes = Array.from(root.querySelectorAll('.org-chart-chat,.org-chart-group,.org-chart-fold')).map(el => ({ id: el.dataset.orgChat || el.dataset.orgGroup || el.dataset.orgFold, r: el.getBoundingClientRect() })), hits = [];
         root.querySelectorAll('svg [data-edge] path').forEach(path => {

@@ -19,7 +19,7 @@ const env={SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,COMSPEC:p
  APPDATA:path.join(out,'appdata'),LOCALAPPDATA:path.join(out,'local'),TEMP:path.join(out,'tmp'),TMP:path.join(out,'tmp'),
  CODEX_HOME:path.join(out,'profile','.codex'),CLAUDE_CONFIG_DIR:path.join(out,'profile','.claude'),OLLAMA_HOST:'http://127.0.0.1:1',DINAH_CHART_PROVIDER_REFUSAL:path.join(out,'provider-refusals.jsonl'),DINAH_HOME:home,DINAH_SHELL_ENTRY_FILE:entry};
 const log=fs.openSync(path.join(out,'desktop.log'),'w'), child=spawn(exe,[],{env,cwd:out,windowsHide:true,stdio:['ignore',log,log]});
-const evidence={programSha256:require('node:crypto').createHash('sha256').update(fs.readFileSync(exe)).digest('hex'),checks:[],snapshots:[],pageErrors:[]};let browser,page;
+const evidence={programSha256:require('node:crypto').createHash('sha256').update(fs.readFileSync(exe)).digest('hex'),checks:[],snapshots:[],pageErrors:[],failedResources:[]};let browser,page;
 function check(name,condition){assert.ok(condition,name);evidence.checks.push(name);}
 async function until(fn,label){const end=Date.now()+60000;while(Date.now()<end){const value=await fn();if(value)return value;await new Promise(r=>setTimeout(r,100));}throw Error('Timed out: '+label);}
 const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...args),{name,args});
@@ -27,8 +27,15 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
  const url=await until(()=>fs.existsSync(entry)&&fs.readFileSync(entry,'utf8').trim(),'hidden entry');
  browser=await chromium.launch({headless:true,channel:'msedge'});page=await browser.newPage({viewport:{width:1440,height:1000}});
  page.on('pageerror',error=>evidence.pageErrors.push(error.message));
+ page.on('response',response=>{if(response.status()>=400)evidence.failedResources.push({path:new URL(response.url()).pathname,status:response.status()});});
  await page.route('**/*',route=>['127.0.0.1','localhost','[::1]'].includes(new URL(route.request().url()).hostname)?route.continue():route.abort());
  await page.goto(url);await page.waitForFunction(()=>window.dinahUIState&&window.dinahWorkbench);await page.evaluate(()=>dinahUIState.ready);
+ evidence.scripts=await page.evaluate(()=>Array.from(document.scripts).map(s=>s.src?new URL(s.src).pathname:'inline'));
+ evidence.managementLoaded=await page.evaluate(()=>!!window.dinahOrgChartManagement);
+ evidence.documentState=await page.evaluate(()=>document.readyState);
+ evidence.resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(r=>new URL(r.name).pathname));
+ await page.waitForFunction(()=>window.dinahOrgChartManagement&&window.dinahCommands.rows('window').some(row=>row.label==='Org Chart'),null,{timeout:10000});
+ evidence.managementReady=await page.evaluate(()=>!!window.dinahOrgChartManagement);
  const initial=await call('OrgChart');evidence.snapshots.push(initial);
  if(profile==='engine') {
   check('the switched chain and separate fork have exactly two canonical nodes',JSON.stringify(initial.chats.map(c=>c.chatId).sort())===JSON.stringify(['codex:fork','codex:old']));
@@ -58,6 +65,7 @@ const call=(name,...args)=>page.evaluate(({name,args})=>go.main.App[name](...arg
   await page.setViewportSize({width,height:1000});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
   await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   check(theme+' chart fits the real reading surface at '+width,await chart.evaluate(root=>root.scrollWidth<=root.clientWidth+1&&root.querySelector('.org-chart-scroll').scrollWidth<=root.querySelector('.org-chart-scroll').clientWidth+1));
+  check(theme+' chat boxes keep readable width and complete status badges at '+width,await chart.locator('[data-org-chat]').evaluateAll(rows=>rows.every(row=>{const r=row.getBoundingClientRect(),badge=row.querySelector('.badge');return r.width>=120&&(!badge||badge.getBoundingClientRect().right<=r.right-2);} )));
   await page.screenshot({path:path.join(out,'org-chart-host-'+theme+'-'+width+'.png')});
  }
  await page.reload();await page.waitForFunction(()=>window.dinahWorkbench&&window.dinahUIState);await page.evaluate(()=>dinahUIState.ready);
