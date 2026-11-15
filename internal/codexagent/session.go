@@ -277,6 +277,16 @@ func (c *Conn) SetApprovals(mode string) {
 }
 
 func (c *Conn) open(ctx context.Context, method string, params, out any) error {
+	return c.openWithReceipt(ctx, method, params, out, nil)
+}
+
+// NewSessionWithReceipt reports thread/start success before any later local or
+// native preparation can fail. The host persists that receipt synchronously.
+func (c *Conn) NewSessionWithReceipt(ctx context.Context, params any, out *acp.NewSessionResult, received func(string) error) error {
+	return c.openWithReceipt(ctx, "session/new", params, out, received)
+}
+
+func (c *Conn) openWithReceipt(ctx context.Context, method string, params, out any, received func(string) error) (resultErr error) {
 	var p SessionParams
 	if err := acp.Decode(params, &p); err != nil {
 		return err
@@ -377,10 +387,20 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 	published := false
 	if method == "session/new" {
 		defer func() {
+			if resultErr != nil {
+				resultErr = &acp.SessionAllocationError{SessionID: id, Err: resultErr}
+			}
+		}()
+		defer func() {
 			if !published {
 				c.releaseUnpublishedThread(r.Thread.ID)
 			}
 		}()
+		if received != nil {
+			if err := received(id); err != nil {
+				return err
+			}
+		}
 		// The documented inject_items operation persists history without a turn.
 		// An empty thread/start alone can leave only an in-memory identity.
 		text := fmt.Sprintf("This conversation is hosted by %s in workspace %q. This application context record is not a user request.", profile.Current().Name, p.Cwd)
@@ -518,6 +538,14 @@ func (c *Conn) configure(params, out any) error {
 }
 
 func (c *Conn) prompt(ctx context.Context, params, out any) error {
+	return c.promptWithDispatch(ctx, params, out, nil)
+}
+
+func (c *Conn) PromptWithDispatch(ctx context.Context, params acp.PromptParams, out any, dispatched func()) error {
+	return c.promptWithDispatch(ctx, params, out, dispatched)
+}
+
+func (c *Conn) promptWithDispatch(ctx context.Context, params, out any, dispatched func()) error {
 	var p acp.PromptParams
 	if err := acp.Decode(params, &p); err != nil {
 		return err
@@ -576,7 +604,7 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 	var r struct {
 		Turn turn `json:"turn"`
 	}
-	if err = c.Conn.Call(ctx, "turn/start", q, &r); err != nil {
+	if err = c.Conn.CallWithDispatch(ctx, "turn/start", q, &r, dispatched); err != nil {
 		// A cancelled start may already have reached the server. Its eventual
 		// turn/started notification must interrupt the work, or the process ends.
 		if ctx.Err() != nil {

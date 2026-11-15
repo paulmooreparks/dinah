@@ -49,13 +49,15 @@ func NewActivity(t *Turns, d *Details, initial InitialActivity) *Activity {
 	return &Activity{turns: t, details: d, open: initial.Open, working: initial.Working, switching: initial.Switching}
 }
 func (a *Activity) ReadyLocked() bool {
-	return a.open && !a.switching && !a.superseded && !a.details.RestoringLocked() && !a.details.ReplayingLocked()
+	return a.open && !a.switching && !a.superseded && !a.details.RestoringLocked() && !a.details.ReplayingLocked() && !a.details.configuring
 }
 func (a *Activity) ReceivingLocked() bool {
 	return a.open && !a.parked && !a.superseded && (a.details.RestoringLocked() || a.details.ReplayingLocked())
 }
-func (a *Activity) OpenLocked() bool           { return a.open }
-func (a *Activity) WorkingLocked() bool        { return a.working || a.turns.promptActive }
+func (a *Activity) OpenLocked() bool { return a.open }
+func (a *Activity) WorkingLocked() bool {
+	return a.working || a.turns.promptActive || a.details.configuring
+}
 func (a *Activity) SwitchingLocked() bool      { return a.switching }
 func (a *Activity) SupersededLocked() bool     { return a.superseded }
 func (a *Activity) BackgroundLocked() bool     { return a.inBackground }
@@ -289,7 +291,7 @@ func (e *SessionEnd) Wait() {
 func (e *SessionEnd) Complete()               { close(e.done) }
 func (a *Activity) EndingLocked() *SessionEnd { return a.ending }
 func (a *Activity) BeginEndLocked() *SessionEnd {
-	if !a.open || a.WorkingLocked() || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 {
+	if !a.open || a.WorkingLocked() || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 || a.details.configuring || a.details.runtimeInterests > 0 {
 		return nil
 	}
 	e := &SessionEnd{done: make(chan struct{})}
@@ -393,7 +395,7 @@ func (a *Activity) TakeWaitingLocked() *Prompt {
 }
 
 func (a *Activity) AdmitLabelledLocked() bool {
-	if a.WorkingLocked() || !a.open {
+	if a.WorkingLocked() || !a.ReadyLocked() {
 		return false
 	}
 	a.working = true
@@ -434,10 +436,10 @@ func (a *Activity) ClaimDeliveryLocked() (ready, working bool) {
 }
 
 func (a *Activity) AskableLocked() bool {
-	return a.open && !a.parked && a.busID != "" && !a.switching && !a.superseded && !a.details.RestoringLocked() && !a.details.ReplayingLocked()
+	return a.open && !a.parked && a.busID != "" && !a.switching && !a.superseded && !a.details.RestoringLocked() && !a.details.ReplayingLocked() && !a.details.configuring
 }
 func (a *Activity) ContinuationBusyLocked(allowSwitching bool) bool {
-	return !a.open || a.WorkingLocked() || a.details.ReplayingLocked() || len(a.queued) > 0 || a.steer != nil || a.turns.CapturingLocked() || (a.switching && !allowSwitching)
+	return !a.open || a.WorkingLocked() || a.details.ReplayingLocked() || a.details.configuring || len(a.queued) > 0 || a.steer != nil || a.turns.CapturingLocked() || (a.switching && !allowSwitching)
 }
 func (a *Activity) BeginContinuationLocked() bool {
 	if a.ContinuationBusyLocked(false) {

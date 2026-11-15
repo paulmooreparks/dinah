@@ -1,8 +1,10 @@
 package sessionhost
 
 import (
+	"crypto/rand"
 	_ "embed"
 	"encoding/json"
+	"reflect"
 	"slices"
 
 	"studio/internal/acp"
@@ -40,6 +42,9 @@ func copyOptions(in []acp.ConfigOption) []acp.ConfigOption {
 }
 func (s *Details) OptionsLocked() []acp.ConfigOption { return copyOptions(s.options) }
 func (s *Details) UpdateOptionsLocked(opts []acp.ConfigOption) (bool, map[string]json.RawMessage) {
+	if !reflect.DeepEqual(s.options, opts) {
+		s.optionRevision = rand.Text()
+	}
 	s.options = copyOptions(opts)
 	kept := map[string]json.RawMessage{}
 	for _, option := range opts {

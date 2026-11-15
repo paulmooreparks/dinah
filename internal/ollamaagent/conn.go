@@ -836,6 +836,14 @@ func system(cwd string, tools bool, approvals string) string {
 }
 
 func (c *Conn) prompt(ctx context.Context, params, out any) error {
+	return c.promptWithDispatch(ctx, params, out, nil)
+}
+
+func (c *Conn) PromptWithDispatch(ctx context.Context, params acp.PromptParams, out any, dispatched func()) error {
+	return c.promptWithDispatch(ctx, params, out, dispatched)
+}
+
+func (c *Conn) promptWithDispatch(ctx context.Context, params, out any, dispatched func()) error {
 	var p acp.PromptParams
 	if err := acp.Decode(params, &p); err != nil {
 		return err
@@ -868,6 +876,9 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 		s.busy, s.cancel, s.steers, s.steeringOpen = false, nil, nil, false
 		c.mu.Unlock()
 	}()
+	if dispatched != nil {
+		dispatched()
+	}
 	if rec.Model == "" {
 		return errors.New("no Ollama model is installed; pull one with ollama pull")
 	}

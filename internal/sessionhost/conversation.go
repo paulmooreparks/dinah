@@ -19,12 +19,13 @@ type Identity struct{ ID, Provider, Cwd, Title, UpdatedAt string }
 // Conversation owns one stable mutex and all live conversation state. It must
 // never be copied. History operations require the host transcript mutex.
 type Conversation struct {
-	mu       sync.Mutex
-	identity Identity
-	turns    *Turns
-	details  *Details
-	activity *Activity
-	history  History
+	mu            sync.Mutex
+	configuration sync.Mutex
+	identity      Identity
+	turns         *Turns
+	details       *Details
+	activity      *Activity
+	history       History
 	// resumed is set once for a chat reopened with session/resume.
 	resumed bool
 	// replayToPage says the page draws this chat's replay as it arrives,

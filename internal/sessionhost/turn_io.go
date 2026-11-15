@@ -518,7 +518,12 @@ func (t *TurnIO) Run(s *Conversation, next *Prompt) {
 					}
 				}
 				if err == nil {
-					err = t.host.Call(conn, "session/prompt", acp.PromptParams{SessionID: s.ID(), Prompt: blocks}, &res)
+					params := acp.PromptParams{SessionID: s.ID(), Prompt: blocks}
+					if next.ownedCall != nil {
+						err = next.ownedCall(conn, params, &res)
+					} else {
+						err = t.host.Call(conn, "session/prompt", params, &res)
+					}
 					if t.host.AfterNativePrompt != nil {
 						err = errors.Join(err, t.host.AfterNativePrompt(s, err))
 					}

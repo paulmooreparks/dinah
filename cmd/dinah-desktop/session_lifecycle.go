@@ -21,6 +21,7 @@ func (c *lifecycleChannel) Revoke()              { c.app.revokeAppletChannel(c.c
 func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 	a.sessionsOnce.Do(func() {
 		a.sessionsService = sessionhost.NewSessionLifecycle(&a.mu, &a.runtime, sessionhost.SessionLifecycleHost{
+			Allocate:             a.allocateNativeSession,
 			RecordedActivity:     a.recordedActivity,
 			RecordListedSessions: a.recordListedSessions,
 			BeginListing:         a.beginListing, FinishListing: a.finishListing,

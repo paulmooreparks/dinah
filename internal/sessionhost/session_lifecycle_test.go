@@ -125,7 +125,7 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 				t.Fatalf("order %v", order)
 			}
 			var notCreated *AllocationNotCreatedError
-			if got, want := errors.As(err, &notCreated), mode == "prepare" || mode == "refused"; got != want {
+			if got, want := errors.As(err, &notCreated), mode == "prepare"; got != want {
 				t.Fatalf("definite allocation failure = %v, want %v: %v", got, want, err)
 			}
 			if mode == "success" {

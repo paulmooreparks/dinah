@@ -1,6 +1,7 @@
 package sessionhost
 
 import (
+	"crypto/rand"
 	_ "embed"
 	"encoding/json"
 	"sync"
@@ -15,13 +16,16 @@ var DetailsSource []byte
 // conversation mutex, preserving transactions with admission and turn state.
 // No method calls the host. NewDetails must run before session publication.
 type Details struct {
-	mu             *sync.Mutex
-	background     map[string]*BackgroundTask
-	backgroundSeq  uint64
-	subagents      map[string]*subagent
-	subagentSerial int64
-	options        []acp.ConfigOption
-	substituted    map[string]OptionOverride
+	mu               *sync.Mutex
+	background       map[string]*BackgroundTask
+	backgroundSeq    uint64
+	subagents        map[string]*subagent
+	subagentSerial   int64
+	options          []acp.ConfigOption
+	optionRevision   string
+	configuring      bool
+	runtimeInterests int
+	substituted      map[string]OptionOverride
 	// Replay updates do not enter the live journal. Restoring also blocks
 	// admission while provider options are being restored.
 	restoringOptions, replaying bool
@@ -35,4 +39,4 @@ type Details struct {
 	replayHeldStart int
 }
 
-func NewDetails(mu *sync.Mutex) *Details { return &Details{mu: mu} }
+func NewDetails(mu *sync.Mutex) *Details { return &Details{mu: mu, optionRevision: rand.Text()} }
