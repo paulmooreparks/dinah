@@ -72,8 +72,12 @@ func (a *App) chatCleanupAcceptanceObserve(id string) (chatCleanupAcceptanceStat
 	a.chatCleanupMu.Lock()
 	defer a.chatCleanupMu.Unlock()
 	out := chatCleanupAcceptanceState{SessionIDs: []string{id}}
-	saved, err := loadSettings()
+	data, err := readStateFile(filepath.Join(configDir(), "settings.json"))
 	if err != nil {
+		return out, err
+	}
+	var saved Settings
+	if err := json.Unmarshal(data, &saved); err != nil {
 		return out, err
 	}
 	record, removed := saved.RemovedChats[id]

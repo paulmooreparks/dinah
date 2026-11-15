@@ -31,3 +31,13 @@ Focused lifecycle and observer checks passed before the later recovery and ordin
 The expanded focused run passed the desktop cleanup cases in 13.809 seconds and retained-recipient cases in 0.879 seconds. It includes every durable recovery phase, loaded-session disclosure, notification retention, rollback-copy redaction and observer consistency. A full desktop run with JSON test events and a five-minute bound is in progress. Its evidence is in the temporary file engine-cleanup-desktop-events.jsonl. The final tree still requires vet and the complete desktop gate.
 
 The org-chart query contract is docs/design/org-chart-query.md at 77559d93. Front End agreed the DTO in message 8647, and Release agreed captured-generation handling in message 8650. Its App implementation follows the cleanup host step. No provider history query is part of that call.
+
+
+## Named-chat fixture stall
+
+The JSON run failed at 300.198 seconds with TestCreateNamedChatWithAModelTheProviderLacksRemovesTheChat still running. A separate thirty-second reproduction captured the timeout stack in %TEMP%/engine-cleanup-stall-7b263efc9fb9409591253ee0aa8837c7. It shows Provider.Wait inside ProviderLifecycle.Stop, called by releaseUnusedCleanupProviders during the failed named-chat rollback. The fixture installed a provider generation without its lifecycle watcher, so no owner could finish that generation after Close. Production starts that watcher with the provider.
+
+The fixture now starts the real lifecycle watcher and joins it during cleanup. Its refusal and half-configured-chat assertions are unchanged. Release confirmed ownership of this fixture correction while retaining named_chat.go and the receipt-based creation changes. The bounded reproduction, the two full failures and their durations remain part of the record. Focused verification and the final full rerun remain pending.
+
+
+The corrected named-chat fixture and focused cleanup suite passed in 5.829 seconds. The session-preferences fixture had the same missing watcher and now supplies one as well, preserving its existing saved-preference assertions. In the next full diagnostic run both fixtures passed (0.320 and 0.420 seconds respectively). That run continued to TestAFileReadForADocumentIsWatched near the end of the package and reached the investigator-imposed five-minute cap at 300.222 seconds. It did not stall again at either provider fixture. The next run uses the package's normal ten-minute budget with crash capture and ordinary package output. No test assertion deadline or expected result was relaxed. Vet passed for the desktop, bus, broker and host packages before these final fixture-only and bounded-report changes; a final-source repeat is required.

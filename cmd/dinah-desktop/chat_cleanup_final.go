@@ -218,10 +218,14 @@ func (a *App) finishErasingChat(group string) error {
 			reasons = append(reasons, providerName(allocation.Provider)+": an allocation outcome is unknown and no native identity is available for deletion.")
 		}
 		if len(reasons) != 0 {
+			body := []rune("The chat was permanently deleted from this application. " + strings.Join(reasons, " "))
+			if len(body) > 12000 {
+				body = append(body[:12000], []rune(" Details were shortened to fit this report.")...)
+			}
 			_, err := a.SaveNotification(Notification{
 				ID:   fmt.Sprintf("chat-copy-remains-%x", sha256.Sum256([]byte(group))),
 				Kind: "app", Severity: "warning", Title: "An agent program kept chat history",
-				Body: "The chat was permanently deleted from this application. " + strings.Join(reasons, " "),
+				Body: string(body),
 			})
 			if err != nil {
 				return err

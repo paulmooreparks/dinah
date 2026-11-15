@@ -39,6 +39,11 @@ func TestCreateNamedChatWithoutATitleMakesNothing(t *testing.T) {
 
 func TestCreateNamedChatWithAModelTheProviderLacksRemovesTheChat(t *testing.T) {
 	a, c := providerTestApp(t)
+	// Cleanup stops the final unused provider. Match production ownership so
+	// Stop can join the watcher's completion instead of waiting on an orphan.
+	p := a.runtime.ProviderLocked("codex")
+	go a.lifecycle().Watch("codex", p)
+	t.Cleanup(func() { c.Close(); p.Wait() })
 	c.newIDs = []string{"codex:named"}
 	_, err := a.CreateNamedChat(t.TempDir(), "codex", "no-such-model", "Fix the Parser")
 	if err == nil || !strings.Contains(err.Error(), "does not offer the model") {
