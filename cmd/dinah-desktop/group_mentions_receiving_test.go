@@ -10,14 +10,17 @@ package main
 // the App's own methods. Production routing, authorization, dispatch and
 // persistence are not replaced: the host only observes them. For each send it
 // records the preview the page asked for separately from the committed
-// recipients (the deliveries the bus stored for each chat) and the actual
-// dispatch attempts (the prompts the provider received after the watcher
-// rang), so a reference that woke anyone would show.
+// recipients (the reach the bus stored with the message), the message's own
+// delivery rows with their states, and the actual dispatch attempts (every
+// prompt the provider received, counted with repeats, once the watcher's work
+// has settled), so a reference that woke anyone, or a member prompted twice,
+// would show.
 //
 //   go test -c -tags "desktop,production,quality_group_mentions" -o <dir>/group-mentions-host.exe ./cmd/dinah-desktop
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +34,6 @@ import (
 	"time"
 
 	"studio/internal/acp"
-	"studio/internal/bus"
 )
 
 type groupMentionsChat struct {
@@ -106,24 +108,64 @@ func newGroupMentionsFixture(t *testing.T, artifact string) *groupMentionsFixtur
 	return x
 }
 
-// pending is each chat's stored, undelivered bus messages, by chat ID.
-func (x *groupMentionsFixture) pending() map[string]int {
-	out := map[string]int{}
-	_ = x.a.busHost().With(func(b *bus.Bus) error {
-		for _, c := range x.chats {
-			n, err := b.PendingSessionDeliveries(context.Background(), c.BusID)
-			if err == nil {
-				out[c.ChatID] = n
-			}
-		}
-		return nil
-	})
-	return out
+// deliveryRow is one stored delivery of a message, read from the bus's
+// deliveries table through an independent read-only connection.
+type deliveryRow struct {
+	RecipientKind    string `json:"recipientKind"`
+	Recipient        string `json:"recipient"`
+	ChatID           string `json:"chatId"`
+	DeliveredSession string `json:"deliveredSession"`
+	DeliveredAt      string `json:"deliveredAt"`
+	State            string `json:"state"`
 }
 
-// prompts is how many prompts the provider has received for each chat.
-func (x *groupMentionsFixture) prompts() map[string]int {
-	out := map[string]int{}
+// deliveries is every delivery row the bus stored for one message, with its
+// state: waiting, delivered to a session, or settled without one.
+func (x *groupMentionsFixture) deliveries(message int64) ([]deliveryRow, error) {
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(filepath.Join(configDir(), "bus.db"))+"?mode=ro&_pragma=busy_timeout(10000)")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.QueryContext(context.Background(), `SELECT recipient_kind, recipient, delivered_session, COALESCE(delivered_at, '') FROM deliveries WHERE message_id = ? ORDER BY id`, message)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []deliveryRow{}
+	for rows.Next() {
+		var r deliveryRow
+		if err := rows.Scan(&r.RecipientKind, &r.Recipient, &r.DeliveredSession, &r.DeliveredAt); err != nil {
+			return nil, err
+		}
+		for _, c := range x.chats {
+			if c.BusID == r.Recipient {
+				r.ChatID = c.ChatID
+			}
+		}
+		switch {
+		case r.DeliveredAt == "":
+			r.State = "waiting"
+		case r.DeliveredSession != "":
+			r.State = "delivered"
+		default:
+			r.State = "settled-without-session"
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// promptCall is one session/prompt the provider received, with the session
+// it was for, whether or not that session is one of the fixture's chats.
+type promptCall struct {
+	SessionID string `json:"sessionId"`
+	Known     bool   `json:"known"`
+}
+
+// prompts is every prompt the provider has received, in order.
+func (x *groupMentionsFixture) prompts() []promptCall {
+	out := []promptCall{}
 	for _, call := range x.c.calls.Snapshot() {
 		if call.method != "session/prompt" {
 			continue
@@ -135,22 +177,46 @@ func (x *groupMentionsFixture) prompts() map[string]int {
 		case *acp.PromptParams:
 			id = p.SessionID
 		}
-		if id != "" {
-			out[id]++
+		known := false
+		for _, c := range x.chats {
+			known = known || c.ChatID == id
 		}
+		out = append(out, promptCall{SessionID: id, Known: known})
 	}
 	return out
 }
 
-func grew(before, after map[string]int) []string {
-	var ids []string
-	for id, n := range after {
-		if n > before[id] {
-			ids = append(ids, id)
+// settle is the completion barrier: it rings the watcher, waits until no
+// chat has a turn in progress, and rings again, until a ring starts nothing
+// new and every chat is idle. It fails if the work has not settled in time.
+func (x *groupMentionsFixture) settle() error {
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		before := len(x.prompts())
+		ring(x.t, x.a)
+		for x.anyWorking() {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("the chats' turns did not end within 15 seconds")
+			}
+			time.Sleep(25 * time.Millisecond)
+		}
+		if len(x.prompts()) == before {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the watcher kept starting turns for 15 seconds")
 		}
 	}
-	sort.Strings(ids)
-	return ids
+}
+
+// anyWorking says whether any of the fixture's chats has a turn in progress.
+func (x *groupMentionsFixture) anyWorking() bool {
+	for _, c := range x.chats {
+		if s := x.a.session(c.ChatID); s != nil && s.Working() {
+			return true
+		}
+	}
+	return false
 }
 
 func decodeArg[T any](raw []json.RawMessage, i int) (T, error) {
@@ -211,14 +277,33 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 		text, _ := decodeArg[string](args, 1)
 		mentions, _ := decodeArg[[]string](args, 2)
 		files, _ := decodeArg[[]Attachment](args, 3)
-		pendingBefore, promptsBefore := x.pending(), x.prompts()
+		// Anything still in flight from earlier calls settles first, so every
+		// prompt counted below belongs to this send.
+		if err := x.settle(); err != nil {
+			return result(nil, fmt.Errorf("observation before the send: %w", err))
+		}
+		promptsBefore := len(x.prompts())
 		m, sendErr := x.a.BusSendToGroup(key, text, mentions, files)
-		// Every member stores a group message to read; the committed recipients
-		// are the ones the bus recorded the message as reaching, which it asks
-		// to answer, by chat.
-		stored := grew(pendingBefore, x.pending())
-		var committed []string
-		if sendErr == nil && m.Reach != nil {
+		event := map[string]any{"kind": "send", "group": key, "text": text, "mentions": mentions, "files": files}
+		record := func() {
+			x.mu.Lock()
+			x.events = append(x.events, event)
+			x.mu.Unlock()
+		}
+		if sendErr != nil {
+			event["error"] = sendErr.Error()
+			// A refused send must still wake no one, so its prompts are kept too.
+			if err := x.settle(); err != nil {
+				event["observationError"] = err.Error()
+			}
+			event["dispatchCalls"] = x.prompts()[promptsBefore:]
+			record()
+			return result(nil, sendErr)
+		}
+		// The committed recipients are the ones the bus recorded the message
+		// as reaching, which it asks to answer, by chat.
+		committed := []string{}
+		if m.Reach != nil {
 			for _, r := range m.Reach.Reach {
 				for _, c := range x.chats {
 					if c.BusID == r.ID {
@@ -228,32 +313,40 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 			}
 			sort.Strings(committed)
 		}
-		// The watcher rings every open chat, as the window's does, and the
-		// prompts the provider receives are the actual dispatch attempts.
-		ring(x.t, x.a)
-		deadline := time.Now().Add(2 * time.Second)
-		var dispatched []string
-		for {
-			dispatched = grew(promptsBefore, x.prompts())
-			if len(dispatched) >= len(committed) || time.Now().After(deadline) {
-				break
+		// The watcher rings every open chat, as the window's does, until its
+		// work settles; every prompt since the send is a dispatch attempt,
+		// counted with repeats and kept whether or not its session is known.
+		settleErr := x.settle()
+		calls := x.prompts()[promptsBefore:]
+		dispatched := []string{}
+		counts := map[string]int{}
+		for _, c := range calls {
+			dispatched = append(dispatched, c.SessionID)
+			counts[c.SessionID]++
+		}
+		rows, rowsErr := x.deliveries(m.ID)
+		stored := []string{}
+		for _, r := range rows {
+			id := r.ChatID
+			if id == "" {
+				id = r.Recipient
 			}
-			time.Sleep(50 * time.Millisecond)
+			stored = append(stored, id)
 		}
-		event := map[string]any{"kind": "send", "group": key, "text": text, "mentions": mentions, "files": files, "committedRecipients": committed, "storedDeliveries": stored, "dispatchAttempts": dispatched}
-		if sendErr != nil {
-			event["error"] = sendErr.Error()
-		} else {
-			event["messageId"] = m.ID
-			event["reach"] = m.Reach
+		event["messageId"] = m.ID
+		event["reach"] = m.Reach
+		event["committedRecipients"] = committed
+		event["deliveryRows"] = rows
+		event["dispatchCalls"] = calls
+		event["dispatchCounts"] = counts
+		record()
+		if settleErr != nil {
+			return result(nil, fmt.Errorf("observation after the send (message %d was sent): %w", m.ID, settleErr))
 		}
-		x.mu.Lock()
-		x.events = append(x.events, event)
-		x.mu.Unlock()
-		if sendErr != nil {
-			return result(nil, sendErr)
+		if rowsErr != nil {
+			return result(nil, fmt.Errorf("reading the deliveries of message %d: %w", m.ID, rowsErr))
 		}
-		return map[string]any{"result": m, "committedRecipients": committed, "storedDeliveries": stored, "dispatchAttempts": dispatched}
+		return map[string]any{"result": m, "committedRecipients": committed, "storedDeliveries": stored, "deliveryRows": rows, "dispatchAttempts": dispatched, "dispatchCounts": counts, "dispatchCalls": calls}
 	case "restart":
 		// A new App over the same state reopens the committed data, as a
 		// window restart does.
@@ -269,7 +362,7 @@ func (x *groupMentionsFixture) call(method string, args []json.RawMessage) map[s
 	case "observations":
 		x.mu.Lock()
 		defer x.mu.Unlock()
-		return result(map[string]any{"events": x.events, "pending": x.pending(), "prompts": x.prompts()}, nil)
+		return result(map[string]any{"events": x.events, "prompts": x.prompts()}, nil)
 	case "close":
 		return result(true, nil)
 	}
@@ -368,5 +461,28 @@ func TestGroupMentionsHostCountersObserveRealDispatch(t *testing.T) {
 	}
 	if len(dispatched) != 1 || dispatched[0] != member {
 		t.Fatalf("dispatched %v, want only the member %s", dispatched, member)
+	}
+	// The message's own delivery rows: the member's was taken by its session.
+	rows, _ := out["deliveryRows"].([]deliveryRow)
+	delivered := false
+	for _, r := range rows {
+		delivered = delivered || (r.ChatID == member && r.State == "delivered")
+	}
+	if !delivered {
+		t.Fatalf("no delivered row for the member in %+v", rows)
+	}
+	// The raw counter keeps repeats: a second send to the member is a second
+	// prompt for it, counted from the observations as a whole.
+	if again := x.call("BusSendToGroup", []json.RawMessage{raw(x.group), raw("Second control"), raw([]string{memberBus}), raw([]Attachment{})}); again["error"] != nil {
+		t.Fatal(again["error"])
+	}
+	n := 0
+	for _, c := range x.prompts() {
+		if c.SessionID == member {
+			n++
+		}
+	}
+	if n != 2 {
+		t.Fatalf("the member was prompted %d times over two sends, want 2", n)
 	}
 }

@@ -53,11 +53,22 @@ async function startHost(artifact) {
     if (!r.ok) throw new Error(method + ': ' + r.status + ' ' + await r.text());
     return r.json();
   }
+  /* Teardown fails when the host does not close cleanly: a refused close, a
+     nonzero exit, or the watchdog. A host the watchdog kills is awaited until
+     it has exited, so nothing outlives the case. */
   async function stop() {
-    try { await call('close'); } catch (e) {}
-    let timer;
-    const result = await Promise.race([exited, new Promise(resolve => { timer = setTimeout(() => { child.kill(); resolve({ code: null, signal: 'watchdog' }); }, 15000); })]);
+    let closeError = null;
+    try { await call('close'); } catch (e) { closeError = e; }
+    let timer, watchdog = false;
+    const result = await Promise.race([exited, new Promise(resolve => { timer = setTimeout(() => { watchdog = true; resolve(null); }, 15000); })]);
     clearTimeout(timer);
+    if (watchdog) {
+      child.kill();
+      const killed = await exited;
+      throw new Error('the host did not exit within 15 seconds and was killed (' + JSON.stringify(killed) + '); evidence ' + artifact);
+    }
+    if (result.code !== 0) throw new Error('the host exited ' + JSON.stringify(result) + '; evidence ' + artifact);
+    if (closeError) throw new Error('the host refused close: ' + closeError.message + '; evidence ' + artifact);
     return result;
   }
   return { call, stop, binaryHash: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex') };
@@ -131,7 +142,12 @@ async function open({ scenario, theme, width }) {
     await room.locator('[data-view-id="send"], button[type="submit"]').first().click();
     for (let i = 0; i < 100 && sends.length <= before; i++) await new Promise(r => setTimeout(r, 100));
     await frame();
-    return sends[sends.length - 1];
+    const s = sends[sends.length - 1];
+    if (!s || sends.length <= before) throw new Error('the page did not send to the host; evidence ' + artifact);
+    /* A refused send or a failed observation fails the case, never an
+       observation with entries missing. */
+    if (s.response.error) throw new Error('the host: ' + s.response.error + '; evidence ' + artifact);
+    return s;
   }
   async function reach(room) { return room.locator('.group-reach').textContent(); }
   async function popupInside(room) {
@@ -141,7 +157,7 @@ async function open({ scenario, theme, width }) {
   async function overflow() { return p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1); }
   function route(s, expected, preview) {
     const r = s.response || {};
-    return { actualRecipients: (r.committedRecipients || []).slice(), expectedRecipients: expected.slice(), previewRecipients: preview.slice(), dispatchAttempts: r.dispatchAttempts || [], storedDeliveries: r.storedDeliveries || [],
+    return { actualRecipients: (r.committedRecipients || []).slice(), expectedRecipients: expected.slice(), previewRecipients: preview.slice(), dispatchAttempts: r.dispatchAttempts || [], dispatchCounts: r.dispatchCounts || {}, dispatchCalls: r.dispatchCalls || [], storedDeliveries: r.storedDeliveries || [], deliveryRows: r.deliveryRows || [],
       referenceWakeAttempts: (r.dispatchAttempts || []).filter(id => !expected.includes(id)), membershipChanged: false, rawRequestPath: path.join(artifact, 'requests.jsonl'), rawReceiptPath: path.join(artifact, 'requests.jsonl') };
   }
   /* What the page last asked the host for this group's reach: the preview,
@@ -279,7 +295,8 @@ async function open({ scenario, theme, width }) {
       await new Promise(r => setTimeout(r, 600));
       const s = await send(room);
       o.actualHostRoutingObserved = true;
-      o.repeatedMemberDispatchCount = (s.response.dispatchAttempts || []).filter(id => id === member.chatId).length;
+      // The host's raw count of prompts to the member for this send, repeats included.
+      o.repeatedMemberDispatchCount = (s.response.dispatchCounts || {})[member.chatId] || 0;
       const sentRefs = (s.args[3] || []).filter(f => f.kind === 'chat');
       o.sameTitleDifferentIdentityPreserved = !!twinRow && sentRefs.some(f => f.sessionId === twin.chatId) && !(s.response.committedRecipients || []).includes(twin.chatId) && (s.response.committedRecipients || []).includes(member.chatId);
     }
@@ -362,6 +379,11 @@ async function open({ scenario, theme, width }) {
     fs.writeFileSync(path.join(artifact, 'observations.json'), JSON.stringify(Object.assign({}, o, { sends, previews }), null, 2));
     return o;
   }
-  return { run, async close() { try { await t.close(); } finally { await host.stop(); } } };
+  return { run, async close() {
+    let pageError = null;
+    try { await t.close(); } catch (e) { pageError = e; }
+    await host.stop();
+    if (pageError) throw pageError;
+  } };
 }
 module.exports = { open };
