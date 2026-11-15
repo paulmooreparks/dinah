@@ -1,0 +1,19 @@
+body { margin:0; background:var(--bg); color:var(--text); }
+.mock-tools, .mock-open { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 12px; background:var(--surface); border-bottom:1px solid var(--border); }
+.mock-controls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-inline-start:auto; }
+.mock-controls label { display:flex; align-items:center; gap:6px; font-size:var(--text-sm); }
+.preview { width:390px; max-width:100%; height:660px; margin:12px auto 0; border:1px solid var(--border); background:var(--surface-alt); }
+.preview .win-layer { inset:0; }
+.mock-body { padding:16px; overflow:auto; }
+.mock-body h3 { margin-block:0 12px; font-size:var(--text-base); }
+.mock-body p { line-height:1.5; overflow-wrap:anywhere; }
+.mock-body label, .mock-body textarea { display:block; width:100%; }
+.mock-body textarea { margin-block:8px 12px; max-width:100%; }
+.mock-body li { margin-block:12px; }
+.mock-state { display:flex; gap:8px; color:var(--text); font-weight:600; }
+.mock-send { float:inline-end; }
+[data-win="strip"] .win-body { padding:4px 8px; display:flex; align-items:flex-start; align-content:flex-start; flex-wrap:wrap; gap:8px; }
+.mock-taskbar { min-height:38px; width:1440px; max-width:100%; margin:auto; }
+.mock-foot { width:1440px; max-width:100%; margin:auto; padding:8px 12px 20px; font-size:var(--text-sm); }
+.mock-foot p { margin-block:8px; }
+@media(max-width:640px) { .mock-tools { align-items:flex-start; } .mock-controls { margin:0; } .preview { margin-top:0; border-inline:0; height:calc(100dvh - 220px); min-height:400px; } }
