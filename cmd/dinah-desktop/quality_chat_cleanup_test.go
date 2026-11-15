@@ -27,6 +27,7 @@ type qualityCleanupSeed struct {
 	ID                      string
 	Chain                   []string
 	HistoryOnly             bool
+	Parent, Relation        string // transcript ancestry; fork or workspace-move is separate ownership
 	Working, Pinned, Loaded bool
 	CanUnload               bool
 	ProviderDelete          string // supported, unsupported, or failing
@@ -470,4 +471,39 @@ func TestQualityCleanupOwnershipAndLeases(t *testing.T) {
 	checkRevoked()
 	f.Restart()
 	checkRecords()
+}
+
+func TestQualityCleanupSeparateRecipients(t *testing.T) {
+	for _, relation := range []string{"fork", "workspace-move"} {
+		t.Run(relation, func(t *testing.T) {
+			f := qualityCleanupNew(t)
+			ids := []string{"codex:owned-old", "claude:owned-current"}
+			for _, id := range ids {
+				f.Seed(qualityCleanupSeed{ID: id, Chain: ids, CanUnload: true, ProviderDelete: "supported"})
+			}
+			separate := "codex:separate"
+			f.Seed(qualityCleanupSeed{ID: separate, Parent: ids[0], Relation: relation, CanUnload: true, ProviderDelete: "supported", Queued: 1})
+			before := f.Observe(separate)
+			check := func() {
+				t.Helper()
+				after := f.Observe(separate)
+				if !after.Active || after.Removed || after.Tombstone || after.LocalCopy != before.LocalCopy || after.ProviderCopy != before.ProviderCopy || after.Content != before.Content || after.Settings != before.Settings || after.BusIdentity != before.BusIdentity || after.Queued != before.Queued {
+					t.Fatal("cleanup included a separate recipient through ancestry")
+				}
+				qualityNoStarts(t, before, after)
+			}
+			qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
+			check()
+			qualityCleanupResultFor(t, f.Act("restore", ids[0]), ids[0], "restored")
+			check()
+			qualityCleanupResultFor(t, f.Act("remove", ids[1]), ids[1], "removed")
+			qualityCleanupResultFor(t, f.Act("delete", ids[0]), ids[0], "deleted")
+			check()
+			for _, e := range f.Events() {
+				if e.ID == separate && (e.Kind == "provider-delete" || e.Kind == "local-delete") {
+					t.Fatal("separate recipient received deletion")
+				}
+			}
+		})
+	}
 }
