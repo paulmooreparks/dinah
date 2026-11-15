@@ -179,6 +179,7 @@ func (a *App) finalizeChatCleanup(group string) (ChatCleanupResult, error) {
 func cleanupEraseSettings(s *Settings, ids []string) {
 	for _, id := range ids {
 		delete(s.SessionProviders, id)
+		delete(s.ListedChats, id)
 		delete(s.SessionOptions, id)
 		delete(s.SessionTitles, id)
 		delete(s.JudgedTitles, id)

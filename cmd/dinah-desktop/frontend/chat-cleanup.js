@@ -10,7 +10,7 @@
   function date(value) { return value ? new Date(value).toLocaleString() : 'Unknown'; }
   function init(root, opts) {
     root.classList.add('chat-cleanup');
-    var listing = null, busy = false, disposed = false, selected = new Set(), active = new Map(), removed = new Map();
+    var listing = null, busy = false, disposed = false, selected = new Set(), active = new Map(), removed = new Map(), authorityRead = null;
     var toolbar = node('div', 'cleanup-toolbar'), filters = node('div', 'cleanup-filters');
     function select(label, choices) {
       var wrap = node('label', 'form-label', label), input = node('select', 'form-select');
@@ -45,11 +45,12 @@
       }); age.value = p.get('age') || ''; closed.checked = p.get('closed') === '1';
     }
     function shown(row) {
-      return (!workspace.value || row.workspace === workspace.value) && (!provider.value || row.provider === provider.value || (row.programCopies || []).some(function (copy) { return copy.provider === provider.value; })) && (!closed.checked || !row.open) &&
+      var normalized = function (value) { return (value || '').toLowerCase().replace(/[\\/]+$/, ''); };
+      return (!workspace.value || !row.workspace || normalized(row.workspace) === normalized(workspace.value)) && (!provider.value || row.provider === provider.value || (row.programCopies || []).some(function (copy) { return copy.provider === provider.value; })) && (!closed.checked || !row.open) &&
         (!age.value || !!row.lastActivity && Date.parse(row.lastActivity) < Date.now() - Number(age.value) * 86400000);
     }
     function changed() { opts.changed(address()); selected.clear(); applyFilters(); }
-    function applyFilters() { active.forEach(function (entry) { entry.el.hidden = !shown(entry.data); }); controls(); }
+    function applyFilters() { active.forEach(function (entry) { entry.el.hidden = entry.absent || !shown(entry.data); }); controls(); }
     function controls() {
       active.forEach(function (entry) { entry.check.checked = selected.has(entry.data.sessionId); entry.check.disabled = busy || !entry.data.eligible || entry.done; });
       removed.forEach(function (entry) { entry.restore.disabled = busy || entry.done || !entry.data.restorable; entry.erase.disabled = busy || entry.done; });
@@ -64,7 +65,7 @@
       var programs = Array.from(new Set([data.providerName || data.provider].concat((data.programCopies || []).map(function (copy) { return copy.providerName || copy.provider; })))).join(', ');
       [data.workspaceName || data.workspace || 'No Workspace', programs, 'Last activity: ' + date(data.lastActivity), 'Messages: ' + (data.messageCountKnown ? data.messageCount : 'Unknown')].forEach(function (text) { meta.append(node('span', '', text)); });
       var reason = node('p', 'cleanup-reason'), actions = node('div', 'cleanup-row-actions'); reason.setAttribute('role', 'status');
-      var entry = { data: data, el: el, check: check, reason: reason, done: false };
+      var entry = { data: data, el: el, check: check, reason: reason, title: title, meta: meta, done: false };
       if (data.refusal || data.runtimeNote || data.restoreRefusal) reason.dataset.status = 'warning';
       if (isBin) {
         entry.restore = button('Restore', function () { return run(function () { return app().RestoreRemovedChat(data.sessionId); }, true); });
@@ -83,15 +84,48 @@
       var value = input.value, values = new Map(); rows.forEach(function (r) { if (r[key]) values.set(r[key], r[label] || r[key]); });
       values.forEach(function (name, id) { if (!Array.from(input.options).some(function (o) { return o.value === id; })) { var o = node('option', '', name); o.value = id; input.append(o); } }); input.value = value;
     }
+    function syncInventory() {
+      if (disposed || !listing) return;
+      var inventory = new Map(window.dinahChats.inventory().map(function (chat) { return [chat.sessionId, chat]; }));
+      active.forEach(function (entry, id) {
+        var chat = inventory.get(id); entry.absent = !chat && !entry.done;
+        if (!chat) { selected.delete(id); return; }
+        entry.data.title = chat.title; entry.title.textContent = chat.title;
+        entry.check.setAttribute('aria-label', 'Select ' + chat.title);
+        if (entry.state) entry.state.remove();
+        entry.state = window.dinahChatState.badge(chat.state); entry.state.classList.add('cleanup-state'); entry.meta.append(entry.state);
+      });
+      applyFilters();
+      if (Array.from(inventory.keys()).some(function (id) { return !active.has(id); })) refreshAuthority();
+    }
+    function refreshAuthority() {
+      if (disposed || !listing || authorityRead) return;
+      authorityRead = Promise.resolve(app().ListChatCleanup()).then(function (value) {
+        if (disposed) return;
+        var inventory = new Map(window.dinahChats.inventory().map(function (chat) { return [chat.sessionId, chat]; }));
+        value.rows.forEach(function (data) {
+          if (!inventory.has(data.sessionId)) return;
+          data = Object.assign({}, data, { title: inventory.get(data.sessionId).title });
+          var entry = active.get(data.sessionId);
+          if (!entry) add(data, false);
+          else if (entry.absent || entry.done) { entry.data = data; entry.absent = false; entry.done = false; delete entry.el.dataset.outcome; entry.reason.textContent = data.refusal || (data.open ? 'Open' : 'Closed'); }
+        });
+        value.removed.forEach(function (data) { add(data, true); }); syncInventory();
+      }).catch(function (error) { status.textContent = window.dinahHelpers.message(error, 'sentence'); }).finally(function () { authorityRead = null; });
+    }
     function load() {
       busy = true; controls(); status.textContent = 'Loading chats.';
-      return Promise.resolve().then(function () { return app().ListChatCleanup(); }).then(function (value) {
+      return Promise.resolve().then(function () { return window.dinahChats.refreshInventory(); }).then(function () { return app().ListChatCleanup(); }).then(function (value) {
         if (disposed) return;
         if (!value || !Array.isArray(value.rows) || !Array.isArray(value.removed) || value.retentionDays !== 30) throw new Error('The chat list could not be read.');
+        var inventory = new Map(window.dinahChats.inventory().map(function (chat) { return [chat.sessionId, chat]; }));
+        value.rows = value.rows.filter(function (row) { return inventory.has(row.sessionId); }).map(function (row) { return Object.assign({}, row, { title: inventory.get(row.sessionId).title }); });
+        var authoritative = new Set(value.rows.map(function (row) { return row.sessionId; }));
+        if (Array.from(inventory.keys()).some(function (id) { return !authoritative.has(id); })) throw new Error('Some chats have no authoritative cleanup record. Refresh before deleting them.');
         listing = value; active.clear(); removed.clear(); chats.rows.replaceChildren(); bin.rows.replaceChildren(); selected.clear();
         choices(workspace, value.rows, 'workspace', 'workspaceName');
         var programs = value.rows.flatMap(function (r) { return [r].concat(r.programCopies || []); }); choices(provider, programs, 'provider', 'providerName');
-        value.rows.forEach(function (r) { add(r, false); }); value.removed.forEach(function (r) { add(r, true); }); applyFilters(); status.textContent = value.rows.length + ' chats. Deleted chats stay in the Recycle Bin for 30 days.';
+        value.rows.forEach(function (r) { add(r, false); }); value.removed.forEach(function (r) { add(r, true); }); syncInventory(); status.textContent = value.rows.length + ' chats. Deleted chats stay in the Recycle Bin for 30 days.';
       }).catch(function (error) { status.textContent = window.dinahHelpers.message(error, 'sentence'); }).finally(function () { busy = false; if (!disposed) controls(); });
     }
     function apply(result, isBin) {
@@ -99,7 +133,7 @@
       if (!entry) return;
       entry.el.dataset.outcome = result.status;
       if (result.ok) {
-        if (result.status === 'restored' && result.row) window.dinahChats.restore(result.row);
+        if (result.status === 'restored' && result.row) { window.dinahChats.restore(result.row); var current = active.get(result.row.sessionId); if (current) { current.data = result.row; current.done = false; current.absent = false; delete current.el.dataset.outcome; current.reason.textContent = result.row.refusal || 'Closed'; } else add(result.row, false); }
         if (result.status === 'deleted') (entry.data.sessionIds || [result.sessionId]).forEach(function (id) { window.dinahComposer.forget('chat:' + id); });
         entry.done = true; selected.delete(result.sessionId);
         entry.reason.dataset.status = result.providerCopyRemains ? 'warning' : 'positive';
@@ -125,8 +159,10 @@
     function confirmRemoval() {
       var ids = Array.from(selected); confirm('Delete ' + ids.length + (ids.length === 1 ? ' Chat?' : ' Chats?'), 'The selected chats will move to the Recycle Bin now and can be restored for 30 days. They will receive no further messages. A chat whose agent program cannot unload it may stay loaded until that program stops or the window restarts. The agent programs\' own histories are untouched at this step.', function () { return run(function () { return app().RemoveChats(ids); }); });
     }
+    document.addEventListener('dinah:chats', syncInventory); document.addEventListener('dinah:execution-state', syncInventory);
+    var stops = ['chat:removed', 'chat:restored'].map(function (event) { return window.dinahHost.on(event, refreshAuthority); });
     read(opts.state); load();
-    return { state: address, setState: function (state) { read(state); selected.clear(); applyFilters(); }, destroy: function () { disposed = true; } };
+    return { state: address, setState: function (state) { read(state); selected.clear(); applyFilters(); }, destroy: function () { disposed = true; stops.forEach(function (stop) { stop(); }); document.removeEventListener('dinah:chats', syncInventory); document.removeEventListener('dinah:execution-state', syncInventory); } };
   }
   function open() { return window.dinahWorkbench.open('chat-cleanup'); }
   window.dinahWorkbench.register('chat-cleanup', { singleton: true, title: 'Clean Up Chats', glyph: 'comments', mode: 'maximized', init: init });

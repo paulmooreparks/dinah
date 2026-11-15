@@ -27,6 +27,9 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 	}
 	_, heads := sessionhost.ConversationLinks(configDir())
 	known := []string{}
+	for id := range settings.ListedChats {
+		known = append(known, id)
+	}
 	for id := range settings.SessionProviders {
 		known = append(known, id)
 	}
@@ -93,12 +96,22 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 		} // Retained rows come from their durable metadata below.
 		id := membership.Head
 		row := ChatCleanupRow{SessionID: id, SessionIDs: ids, Title: settings.SessionTitles[id], MessageCountKnown: true, Eligible: true, ProviderDeletion: "unknown", ProgramCopies: []ChatProgramCopy{}, FinalDeleteConfirmation: chatCleanupFinalConfirmation}
+		if recorded, ok := settings.ListedChats[id]; ok {
+			row.Workspace = recorded.Workspace
+			row.LastActivity = recorded.UpdatedAt
+			if row.Title == "" {
+				row.Title = a.sessionTitle(id, recorded.Title)
+			}
+		}
 		members := map[string]bool{}
 		for _, member := range ids {
 			members[member] = true
 		}
 		for _, member := range ids {
 			provider := settings.SessionProviders[member]
+			if provider == "" {
+				provider = settings.ListedChats[member].Provider
+			}
 			if h := heads[member]; h != nil {
 				if provider == "" {
 					provider = h.Provider

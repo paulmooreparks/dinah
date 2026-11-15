@@ -181,9 +181,13 @@ func (a *App) hidden(id string) bool {
 // bus takes the new title at once, so the chat is known by it everywhere.
 func (a *App) RenameSession(id, title string) (map[string]string, error) {
 	titles, err := a.renameSession(id, title)
+	if err != nil {
+		return titles, err
+	}
+	a.emit("agent:titles", titles)
 	if s := a.session(id); s != nil {
 		a.busCoordinator().PublishBusTitle(s)
-	} else if t := strings.TrimSpace(title); t != "" && err == nil {
+	} else if t := strings.TrimSpace(title); t != "" {
 		// A closed chat the bus knows, such as one in a group chat, is
 		// known by its new title at once too. A cleared name goes back to
 		// the agent's title, which only the open chat has, so the bus keeps

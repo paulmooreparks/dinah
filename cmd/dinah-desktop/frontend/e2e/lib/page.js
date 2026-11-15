@@ -108,6 +108,8 @@ function stub({ state, app, init, args }) {
   const App = {
     State: async () => window.__state,
     Sessions: none, SessionsAt: none, History: none, SessionTimes: none,
+    OrgChart: async () => ({ generation: 'empty', chats: [], teams: [], groups: [] }),
+    ListChatCleanup: async () => ({ rows: [], removed: [], retentionDays: 30 }),
     SkillsAt: none, SkillsForProviderAt: none, Skills: none, Templates: none,
     AgentProviders: async () => [{ id: 'codex', name: 'Codex', installed: true, available: true }],
     ProviderAccounts: none, ProviderModelPreferences: async () => ({}),

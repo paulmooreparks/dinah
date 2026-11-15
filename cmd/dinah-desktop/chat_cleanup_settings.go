@@ -8,6 +8,7 @@ import (
 
 // chatCleanupSettings cannot serialize unrelated application or workspace state.
 type chatCleanupSettings struct {
+	ListedChats            map[string]listedChat                 `json:"listedChats,omitempty"`
 	SessionProviders       map[string]string                     `json:"sessionProviders,omitempty"`
 	SessionTitles          map[string]string                     `json:"sessionTitles,omitempty"`
 	SessionOptions         map[string]map[string]json.RawMessage `json:"sessionOptions,omitempty"`
@@ -27,6 +28,7 @@ type chatCleanupSettings struct {
 func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 	out := chatCleanupSettings{
 		SessionProviders: map[string]string{}, SessionTitles: map[string]string{},
+		ListedChats:    map[string]listedChat{},
 		SessionOptions: map[string]map[string]json.RawMessage{},
 		JudgedTitles:   map[string]JudgedTitle{}, NativeSessions: map[string]nativeSessionRecord{},
 		NativeRecoveryAttempts: map[string]string{}, BusSessions: map[string]string{},
@@ -37,6 +39,9 @@ func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 		members[id] = true
 	}
 	for _, id := range ids {
+		if v, ok := s.ListedChats[id]; ok {
+			out.ListedChats[id] = v
+		}
 		if v, ok := s.SessionProviders[id]; ok {
 			out.SessionProviders[id] = v
 		}
@@ -86,6 +91,7 @@ func cleanupMergeMap[K comparable, V any](dst *map[K]V, source map[K]V) {
 }
 
 func cleanupRestoreSettings(s *Settings, saved chatCleanupSettings) {
+	cleanupMergeMap(&s.ListedChats, saved.ListedChats)
 	cleanupMergeMap(&s.SessionProviders, saved.SessionProviders)
 	cleanupMergeMap(&s.SessionTitles, saved.SessionTitles)
 	cleanupMergeMap(&s.SessionOptions, saved.SessionOptions)
