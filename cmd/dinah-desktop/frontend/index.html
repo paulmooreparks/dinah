@@ -166,6 +166,7 @@
   <script src="decisions-context.js" defer></script>
   <script src="decision-record.js" defer></script>
   <script src="decisions-applet.js" defer></script>
+  <script src="chat-cleanup.js" defer></script>
   <script src="decisions-entry.js" defer></script>
   <script src="help-content.js" defer></script>
   <script src="update.js" defer></script>
@@ -431,6 +432,7 @@
       </nav>
       <section class="browser-applet" id="chat-browser-view">
         <div class="browser-toolbar">
+          <button type="button" class="btn btn-sm" data-cmd="clean-up-chats">Clean Up Chats</button>
           <input class="form-input browser-search" id="chat-filter" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
           <div class="browser-toolbar-row">
             <span class="form-select-wrap browser-scope"><select class="form-select" id="chat-scope" aria-label="Chat Scope"><option value="current">This Workspace</option><option value="all">All Open Workspaces</option></select></span>
@@ -522,6 +524,8 @@
       <h2>Working with Chats</h2>
       <h3>Decisions</h3>
       <p>Open Decisions from the View menu or its count in the status bar to find questions that need your answer. Each question shows the asking chat, the destination of your reply and the chat's recommendation. Write an answer or choose As Recommended, then press Send Answers; choosing a recommendation alone sends nothing. Your draft stays with the request when you close the window or reload, and you can answer some questions while leaving the others open.</p>
+      <h3>Clean Up Chats</h3>
+      <p>Choose Clean Up Chats above the Chats list or in the chat's Actions menu to review chats across workspaces. Filter the list, select the chats you no longer need and choose Delete Chats. Deleted chats receive no further messages and stay in the Recycle Bin for 30 days, where you can restore them as closed chats or delete them permanently. The Recycle Bin explains whether an agent program still has a loaded chat and what will happen to its own history at final deletion.</p>
       <h3>Broadcast</h3>
       <p>Choose Broadcast to Active or Broadcast to All in the View menu to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
       <h3>Pause Chats and Restart</h3>
@@ -552,12 +556,11 @@
   </dialog>
 
   <dialog class="dialog" id="remove" aria-labelledby="remove-title" aria-describedby="remove-body">
-    <h2 class="dialog-title" id="remove-title">Remove Chat?</h2>
+    <h2 class="dialog-title" id="remove-title">Delete Chat?</h2>
     <p class="dialog-body" id="remove-body"></p>
     <div class="dialog-actions">
       <form method="dialog"><button class="btn">Cancel</button></form>
-      <button type="button" class="btn" id="remove-hide" hidden>Hide It Here</button>
-      <button type="button" class="btn btn-danger" id="remove-go">Remove</button>
+      <button type="button" class="btn btn-danger" id="remove-go">Delete</button>
     </div>
   </dialog>
 
