@@ -219,8 +219,8 @@ func combineAllocationCallbacks(first, second AllocationCallbacks) AllocationCal
 	}
 }
 
-// AllocationNotCreatedError marks a failure before dispatch or an explicit
-// rejection of session/new. Transport loss and post-allocation errors do not
+// AllocationNotCreatedError marks a failure before dispatch or method-not-found
+// for session/new without a native receipt. Transport loss and post-allocation errors do not
 // carry this marker, even when a later operation returns a JSON-RPC error.
 type AllocationNotCreatedError struct{ Err error }
 
@@ -341,6 +341,10 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 		var known *acp.SessionAllocationError
 		if errors.As(err, &known) && receipt == "" {
 			receipt = known.SessionID
+		}
+		var rejection *acp.Error
+		if receipt == "" && errors.As(err, &rejection) && rejection.Code == acp.CodeMethodNotFound {
+			allocationMayExist = false
 		}
 		return Info{}, err
 	}

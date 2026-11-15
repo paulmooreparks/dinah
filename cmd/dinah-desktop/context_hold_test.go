@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"slices"
@@ -352,7 +353,7 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 	}
 	queued := old.Info().Queued
 	// A definite protocol rejection permits a later attempt; transport loss does not.
-	c.newErr = &acp.Error{Code: acp.CodeInternal, Message: "the agent refused"}
+	c.newErr = &acp.Error{Code: acp.CodeMethodNotFound, Message: "the allocation method is unavailable"}
 	events.Reset()
 	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "could not be continued") {
 		t.Fatalf("a failed compaction: %v", err)
@@ -385,8 +386,71 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 }
 
 func TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart(t *testing.T) {
+	for name, failure := range map[string]error{"transport loss": errors.New("allocation response lost"), "internal protocol error": &acp.Error{Code: acp.CodeInternal, Message: "invented allocation error"}} {
+		t.Run(name, func(t *testing.T) {
+			a, c := providerTestApp(t)
+			withContextModule(t, "codex")
+			info, err := a.NewSessionAt(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			old := a.session(info.ID)
+			a.transcriptCapture().RecordMessage(old, "you", "Keep the question", false, false)
+			a.transcriptCapture().RecordMessage(old, "agent", "Keep the answer", false, false)
+			a.transcriptCapture().FinishTurn(old, nil, "end_turn")
+			c.window = fullWindow
+			if err := a.Send(info.ID, "Keep this queued", nil, nil); err != nil {
+				t.Fatal(err)
+			}
+			waitHeldQueue(t, old, 1)
+			queued := old.Info().Queued
+			c.newErr = failure
+			if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil {
+				t.Fatal("uncertain allocation succeeded")
+			}
+			saved, err := loadSettings()
+			if err != nil {
+				t.Fatal(err)
+			}
+			restarted := &App{settings: saved}
+			if saved.ChatTransfers[info.ID].Stage != "allocating" || !restarted.transferHeld(info.ID, saved.BusSessions[info.ID]) {
+				t.Fatal("restart lost the uncertain allocation hold")
+			}
+			notices := restarted.transferNotifications()
+			if len(notices) != 1 || !strings.Contains(notices[0].Title, "result is not known") || !strings.Contains(notices[0].Body, "will not be repeated automatically") || strings.Contains(notices[0].Body, "allocated candidate") || !strings.Contains(restarted.transferWarning(info.ID), "result of an earlier allocation is not known") {
+				t.Fatal("restart presented an unknown allocation as a settled failure", notices)
+			}
+			if hold := old.Hold(); hold == nil || len(hold.Actions) != 0 || !strings.Contains(hold.Reason, "result of starting the new chat is not known") {
+				t.Fatal("unknown allocation looked retryable", hold)
+			}
+			before := countCalls(c, "session/new")
+			c.newErr = nil
+			if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "result of starting the new chat is not known") {
+				t.Fatalf("blind retry was not blocked: %v", err)
+			}
+			if countCalls(c, "session/new") != before || !slices.Equal(old.Info().Queued, queued) || old.Hold() == nil {
+				t.Fatal("blind retry allocated or changed the held queue")
+			}
+		})
+	}
+}
+
+type compactionReceiptThenError struct{ *testProviderConnection }
+
+func (c compactionReceiptThenError) NewSessionWithReceipt(ctx context.Context, params any, result *acp.NewSessionResult, received func(string) error) error {
+	if err := c.Call(ctx, "session/new", params, result); err != nil {
+		return err
+	}
+	if err := received(result.SessionID); err != nil {
+		return err
+	}
+	return &acp.Error{Code: acp.CodeMethodNotFound, Message: "invented error after the allocation receipt"}
+}
+
+func TestCompactionRetainsReceivedDestinationDespiteLaterRefusal(t *testing.T) {
 	a, c := providerTestApp(t)
 	withContextModule(t, "codex")
+	c.newIDs = []string{"codex:receipt-source", "codex:receipt-destination"}
 	info, err := a.NewSessionAt(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -401,25 +465,24 @@ func TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart(t *testing.T
 	}
 	waitHeldQueue(t, old, 1)
 	queued := old.Info().Queued
-	c.newErr = errors.New("allocation response lost")
-	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil {
-		t.Fatal("uncertain allocation succeeded")
+	setTestConnection(a, "codex", compactionReceiptThenError{c})
+	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "new chat was created") {
+		t.Fatalf("receipt was classified as noncreation: %v", err)
 	}
 	saved, err := loadSettings()
 	if err != nil {
 		t.Fatal(err)
 	}
-	restarted := &App{settings: saved}
-	if saved.ChatTransfers[info.ID].Stage != "allocating" || !restarted.transferHeld(info.ID, saved.BusSessions[info.ID]) {
-		t.Fatal("restart lost the uncertain allocation hold")
+	transfer := saved.ChatTransfers[info.ID]
+	if transfer.Stage != "allocated" || transfer.Target != "codex:receipt-destination" || !(&App{settings: saved}).transferHeld(info.ID, saved.BusSessions[info.ID]) {
+		t.Fatalf("received destination was not retained across restart: %+v", transfer)
 	}
 	before := countCalls(c, "session/new")
-	c.newErr = nil
-	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "unconfirmed outcome") {
-		t.Fatalf("blind retry was not blocked: %v", err)
+	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "new chat was created") {
+		t.Fatalf("incomplete continuation was not held: %v", err)
 	}
-	if countCalls(c, "session/new") != before || !slices.Equal(old.Info().Queued, queued) || old.Hold() == nil {
-		t.Fatal("blind retry allocated or changed the held queue")
+	if countCalls(c, "session/new") != before || !slices.Equal(old.Info().Queued, queued) || old.Hold() == nil || len(old.Hold().Actions) != 0 {
+		t.Fatal("retry changed the allocation or its held queue")
 	}
 }
 

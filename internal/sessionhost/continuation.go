@@ -595,12 +595,24 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	info, err := c.host.NewSession(cwd, provider, busID)
 	if err != nil {
 		var notCreated *AllocationNotCreatedError
-		if c.host.Transfer != nil && errors.As(err, &notCreated) {
-			if settleErr := c.host.Transfer(id, "", provider, busID, revision, "rejected", o.recovery); settleErr != nil {
-				return SessionContinuationResult{}, fmt.Errorf("%w; could not settle the rejected allocation: %v", err, settleErr)
+		if errors.As(err, &notCreated) {
+			if c.host.Transfer != nil {
+				if settleErr := c.host.Transfer(id, "", provider, busID, revision, "rejected", o.recovery); settleErr != nil {
+					return SessionContinuationResult{}, fmt.Errorf("%w; could not settle the rejected allocation: %v", err, settleErr)
+				}
 			}
+			return SessionContinuationResult{}, err
 		}
-		return SessionContinuationResult{}, err
+		var received *acp.SessionAllocationError
+		if errors.As(err, &received) && received.SessionID != "" {
+			if c.host.Transfer != nil {
+				if recordErr := c.host.Transfer(id, received.SessionID, provider, busID, revision, "allocated", o.recovery); recordErr != nil {
+					err = errors.Join(err, recordErr)
+				}
+			}
+			return SessionContinuationResult{}, fmt.Errorf("the new chat was created, but continuing it did not finish; review saved-history recovery before trying again: %w", err)
+		}
+		return SessionContinuationResult{}, fmt.Errorf("the result of starting the new chat is not known; review saved-history recovery before trying again: %w", err)
 	}
 	next := c.host.Session(info.ID)
 	if next == nil {

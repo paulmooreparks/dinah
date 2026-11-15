@@ -44,6 +44,9 @@ Rebind's recovery authority permits receipt inspection and reconciliation only. 
 
 Native retry is allowed only when the documented native operation is idempotent with the preserved identity, or a documented status/receipt establishes that it did not execute. A lost prompt response does not authorize resending the prompt. An unknown allocation or room post remains unknown until resolved by supported evidence or a person. Titles, timestamps and guessed native IDs are insufficient evidence.
 
+On 16 November 2026, Team Lead approved a correction to the allocation rule in 9647. After dispatch, only a session/new method-not-found response (-32601), with no received native identity, establishes noncreation. ACP defines that response as an absent or unavailable method. An internal error (-32603), another protocol error or transport loss without a receipt remains unknown and cannot be replayed. A received native identity takes precedence over a later error and remains durably recorded. Before dispatch, a local admission failure still establishes noncreation. Unknown outcomes must be described as unknown, with unsafe retry actions absent. This corrects master's earlier undocumented assumption that any acp.Error without an ID proved noncreation. The source contracts are the [ACP v1 error schema](https://raw.githubusercontent.com/agentclientprotocol/agent-client-protocol/main/schema/v1/schema.json), [session setup](https://agentclientprotocol.com/protocol/v1/session-setup) and [JSON-RPC error semantics](https://www.jsonrpc.org/specification#error_object).
+
+
 ## Chat port
 
 | Operation | Contract |

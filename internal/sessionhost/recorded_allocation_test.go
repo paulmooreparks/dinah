@@ -13,7 +13,7 @@ import (
 )
 
 func TestRecordedAllocationPersistsBeforeSetupAndRetainsEveryOutcome(t *testing.T) {
-	for _, mode := range []string{"success", "prepare", "dispatch", "unknown", "canceled", "shutdown after receipt", "bind", "stale", "restore", "finish", "receipt", "finish record", "global receipt"} {
+	for _, mode := range []string{"success", "prepare", "dispatch", "rejected", "rejected after receipt", "internal error", "unknown", "canceled", "shutdown after receipt", "bind", "stale", "restore", "finish", "receipt", "finish record", "global receipt"} {
 		t.Run(mode, func(t *testing.T) {
 			var mu sync.Mutex
 			var runtime Runtime
@@ -94,6 +94,12 @@ func TestRecordedAllocationPersistsBeforeSetupAndRetainsEveryOutcome(t *testing.
 					if mode == "canceled" {
 						return context.Canceled
 					}
+					if mode == "rejected" {
+						return &acp.Error{Code: acp.CodeMethodNotFound, Message: "invented allocation method unavailable"}
+					}
+					if mode == "internal error" {
+						return &acp.Error{Code: acp.CodeInternal, Message: "invented unknown allocation result"}
+					}
 					if mode == "unknown" {
 						return failure
 					}
@@ -121,6 +127,18 @@ func TestRecordedAllocationPersistsBeforeSetupAndRetainsEveryOutcome(t *testing.
 				},
 				JoinBus: func(*Conversation, string) {}, Emit: func(string, any) {},
 			}
+			if mode == "rejected after receipt" {
+				host.Allocate = func(conn Connection, params any, received func(string) error) (acp.NewSessionResult, error) {
+					var result acp.NewSessionResult
+					if err := host.Call(conn, "session/new", params, &result); err != nil {
+						return result, err
+					}
+					if err := received(result.SessionID); err != nil {
+						return result, err
+					}
+					return result, &acp.Error{Code: acp.CodeInternal, Message: "invented error after receipt"}
+				}
+			}
 			if mode == "global receipt" {
 				host.BeginAllocation = func(intent AllocationIntent) (AllocationCallbacks, error) {
 					if intent.Source != "task:operation" || intent.Kind != "task_binding" {
@@ -143,7 +161,14 @@ func TestRecordedAllocationPersistsBeforeSetupAndRetainsEveryOutcome(t *testing.
 			if calls != 1 {
 				t.Fatal("allocation replayed", calls)
 			}
-			if mode == "unknown" || mode == "canceled" {
+			if mode == "rejected" {
+				var notCreated *AllocationNotCreatedError
+				if received != 0 || info.ID != "" || finalID != "" || !errors.As(err, &notCreated) || !errors.As(finalOutcome, &notCreated) {
+					t.Fatal("definite rejection lost noncreation result", info, finalID, finalOutcome, err)
+				}
+				return
+			}
+			if mode == "unknown" || mode == "canceled" || mode == "internal error" {
 				var notCreated *AllocationNotCreatedError
 				if err == nil || info.ID != "" || received != 0 || errors.As(err, &notCreated) || finalID != "" || finalOutcome == nil {
 					t.Fatal("unknown outcome was fabricated or replayed", info, err)

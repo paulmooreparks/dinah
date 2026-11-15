@@ -1564,7 +1564,7 @@
       var hold = s && s.info.hold && s.info.hold.kind === 'context' ? s.info.hold : null;
       $('context-hold').hidden = !hold;
       if (!hold) { $('context-hold-status').textContent = ''; return; }
-      $('context-hold-body').textContent = num(hold.used) + ' of ' + num(hold.size) + ' tokens are in use. Your next message waits until you choose. The choice is remembered for this chat, and Ask Me Again About a Full Context, in the chat\'s Actions menu, changes it.';
+      $('context-hold-body').textContent = hold.reason || (num(hold.used) + ' of ' + num(hold.size) + ' tokens are in use. Your next message waits until you choose. The choice is remembered for this chat, and Ask Me Again About a Full Context, in the chat\'s Actions menu, changes it.');
       $('hold-set-aside').hidden = (hold.actions || []).indexOf('set-aside') < 0;
       $('hold-compact').hidden = (hold.actions || []).indexOf('compact') < 0;
     }

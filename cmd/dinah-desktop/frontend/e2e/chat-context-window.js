@@ -89,6 +89,12 @@ const { launch } = require('./lib/page');
     await session({ choice: 'set-aside' }, 5);
     await page.waitForTimeout(200);
     ok('with a choice remembered it does, and choosing it asks the engine to forget the choice', await menu() === 1 && await page.evaluate(() => __calls.some(c => c[0] === 'forget' && c[1] === 'ollama:ctx')));
+    const uncertain = 'The result of starting the new chat is not known. Review saved-history recovery before trying again.';
+    await session({ hold: { kind: 'context', used: 240000, size: 262144, actions: [], reason: uncertain }, choice: '' }, 6);
+    await card.waitFor();
+    await card.locator('[data-view-id="context-hold-body"]', { hasText: uncertain }).waitFor();
+    ok('an unknown allocation says its result is not known and offers no context retry',
+      await card.locator('[data-view-id="hold-compact"]').isHidden() && await card.locator('[data-view-id="hold-set-aside"]').isHidden());
   } finally {
     await t.close();
   }

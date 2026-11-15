@@ -127,6 +127,12 @@ func (a *App) compactHeld(s *Session, restore *sessionhost.ContextHold) (Session
 	result, err := a.continuations().Compact(s)
 	if err != nil {
 		s.RestoreQueued(held)
+		if a.transferHeld(s.ID(), a.knownBusID(s.ID())) {
+			blocked := *restore
+			blocked.Actions = nil
+			blocked.Reason = err.Error()
+			restore = &blocked
+		}
 		s.SetHold(restore)
 		a.emitHeld(s)
 		logf("chat", "warning", "chat %s could not be compacted, so its %d queued messages wait again: %v", s.ID(), len(held), err)
@@ -161,6 +167,9 @@ func (a *App) ResolveHold(id, action string) (SessionInfo, error) {
 	hold := s.Hold()
 	if hold == nil {
 		return SessionInfo{}, errors.New("no send is held in this chat")
+	}
+	if hold.Reason != "" {
+		return SessionInfo{}, errors.New(hold.Reason)
 	}
 	if !slices.Contains(hold.Actions, action) {
 		return SessionInfo{}, errors.New("that is not a course for this chat")
