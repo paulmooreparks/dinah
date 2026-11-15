@@ -1,0 +1,293 @@
+{
+  "programSha256": "c9d6e08f7e9a89bf0598677d0ecdc54e6d6f8b6f601aede8f73adf16f3191d1e",
+  "checks": [
+    "the switched chain and separate fork have exactly two canonical nodes",
+    "the predecessor retains its current head and the reserved chat stays excluded",
+    "the real closed-state query includes the team and group",
+    "query identities are canonical and unique",
+    "the live page renders the actual query chat identities once",
+    "the live page labels every actual group",
+    "a real local title change preserves every observed chat box and the drawing",
+    "the real query generation changes with local chat metadata",
+    "light chart fits the real reading surface at 1440",
+    "dark chart fits the real reading surface at 1440",
+    "light chart fits the real reading surface at 390",
+    "dark chart fits the real reading surface at 390",
+    "a page reload retains the real local chat title",
+    "the hidden page reports no errors"
+  ],
+  "snapshots": [
+    {
+      "generation": "eef2b06cd25bf1c37e32eaf7171222a06d7c5be8b07263fa7d09d0b43919c1fc",
+      "generatedAt": "2026-11-15T08:40:05.3266537Z",
+      "chats": [
+        {
+          "chatId": "codex:fork",
+          "head": "codex:fork",
+          "title": "Invented codex:fork",
+          "workspace": "C:\\Users\\paul\\AppData\\Local\\Temp\\engine-org-chart-seed-940a879e4234477398823dac661d453d\\workspace",
+          "workspaceName": "Invented Studio",
+          "provider": "codex",
+          "providerName": "Codex",
+          "state": {
+            "life": "closed",
+            "window": false
+          },
+          "resolution": "resolved",
+          "reason": ""
+        },
+        {
+          "chatId": "codex:old",
+          "head": "claude:head",
+          "title": "Current title",
+          "workspace": "C:\\Users\\paul\\AppData\\Local\\Temp\\engine-org-chart-seed-940a879e4234477398823dac661d453d\\workspace",
+          "workspaceName": "Invented Studio",
+          "provider": "claude",
+          "providerName": "Claude",
+          "state": {
+            "life": "closed",
+            "window": false
+          },
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ],
+      "teams": [
+        {
+          "id": "team:codex:old",
+          "title": "Current title's team",
+          "leadId": "codex:old",
+          "memberIds": [
+            "codex:fork"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ],
+      "groups": [
+        {
+          "id": "invented-claude-head-s-team",
+          "title": "Invented claude:head's team",
+          "ownerId": "codex:old",
+          "memberIds": [
+            "codex:fork",
+            "codex:old"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        },
+        {
+          "id": "invented-review-group",
+          "title": "Invented review group",
+          "ownerId": "",
+          "memberIds": [
+            "codex:fork",
+            "codex:old"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "generation": "a10020d4dc8ef2e5fdf056139a5cd8f5bacaeb09bb9bb2e23842d3a44fa0d454",
+      "generatedAt": "2026-11-15T08:40:06.8545067Z",
+      "chats": [
+        {
+          "chatId": "codex:fork",
+          "head": "codex:fork",
+          "title": "Invented codex:fork Revised",
+          "workspace": "C:\\Users\\paul\\AppData\\Local\\Temp\\engine-org-chart-seed-940a879e4234477398823dac661d453d\\workspace",
+          "workspaceName": "Invented Studio",
+          "provider": "codex",
+          "providerName": "Codex",
+          "state": {
+            "life": "closed",
+            "window": false
+          },
+          "resolution": "resolved",
+          "reason": ""
+        },
+        {
+          "chatId": "codex:old",
+          "head": "claude:head",
+          "title": "Current title",
+          "workspace": "C:\\Users\\paul\\AppData\\Local\\Temp\\engine-org-chart-seed-940a879e4234477398823dac661d453d\\workspace",
+          "workspaceName": "Invented Studio",
+          "provider": "claude",
+          "providerName": "Claude",
+          "state": {
+            "life": "closed",
+            "window": false
+          },
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ],
+      "teams": [
+        {
+          "id": "team:codex:old",
+          "title": "Current title's team",
+          "leadId": "codex:old",
+          "memberIds": [
+            "codex:fork"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ],
+      "groups": [
+        {
+          "id": "invented-claude-head-s-team",
+          "title": "Invented claude:head's team",
+          "ownerId": "codex:old",
+          "memberIds": [
+            "codex:fork",
+            "codex:old"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        },
+        {
+          "id": "invented-review-group",
+          "title": "Invented review group",
+          "ownerId": "",
+          "memberIds": [
+            "codex:fork",
+            "codex:old"
+          ],
+          "resolution": "resolved",
+          "reason": ""
+        }
+      ]
+    }
+  ],
+  "pageErrors": [],
+  "frames": {
+    "baseline": [
+      439.25,
+      314.1875,
+      210,
+      100,
+      439.25,
+      446.1875,
+      210,
+      100
+    ],
+    "samples": [
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ],
+      [
+        439.25,
+        314.1875,
+        210,
+        100,
+        439.25,
+        446.1875,
+        210,
+        100
+      ]
+    ],
+    "updated": true,
+    "sameSVG": true,
+    "sameCards": true
+  }
+}
