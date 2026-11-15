@@ -15,25 +15,36 @@ import (
 )
 
 type qualityHostCleanup struct {
-	t      *testing.T
-	a      *App
-	ws     string
-	now    time.Time
-	seeds  map[string]qualityCleanupSeed
-	copies map[string]bool
-	events []qualityCleanupEvent
+	t         *testing.T
+	a         *App
+	ws        string
+	now       time.Time
+	seeds     map[string]qualityCleanupSeed
+	copies    map[string]bool
+	events    []qualityCleanupEvent
+	providers *chatCleanupAcceptanceProviders
+	connects  *connectRequests
+	wakes     int
+	addresses map[string]string
+	groups    map[string]string
 }
 
 func init() {
 	qualityCleanupFactory = func(t *testing.T) qualityCleanupFixture {
-		if !strings.HasPrefix(t.Name(), "TestQualityCleanupDraftsAndStaleSave") && !strings.HasPrefix(t.Name(), "TestQualityCleanupExpiryBoundary") && !strings.HasPrefix(t.Name(), "TestQualityCleanupProviderDeletion") {
+		if !strings.HasPrefix(t.Name(), "TestQualityCleanupDraftsAndStaleSave") && !strings.HasPrefix(t.Name(), "TestQualityCleanupExpiryBoundary") && !strings.HasPrefix(t.Name(), "TestQualityCleanupProviderDeletion") && !strings.HasPrefix(t.Name(), "TestQualityCleanupDormancy") {
 			t.Fatal("this host binding does not yet implement the runtime, bus-routing and ownership observations required by this case")
 		}
 		if strings.Contains(t.Name(), "TestQualityCleanupProviderDeletion") && strings.HasSuffix(t.Name(), "/expire") {
 			t.Fatal("expiry outcome projection is pending; no result is synthesized from expected state")
 		}
-		a, _ := providerTestApp(t)
+		providers := chatCleanupAcceptanceCountProviders(t)
+		a := newFileAccessFixtureApp(t)
+		providers.Bind(t, a)
 		f := &qualityHostCleanup{t: t, a: a, ws: t.TempDir(), now: time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC), seeds: map[string]qualityCleanupSeed{}, copies: map[string]bool{}}
+		f.providers = providers
+		f.connects = watchConnects(a)
+		f.addresses = map[string]string{}
+		f.groups = map[string]string{}
 		f.install()
 		return f
 	}
@@ -81,6 +92,12 @@ func (f *qualityHostCleanup) Seed(s qualityCleanupSeed) {
 			if e != nil {
 				return e
 			}
+			f.addresses[s.ID] = session.Address()
+			room, err := b.CreateGroup(context.Background(), bus.Sender{}, "Quality group "+s.ID, []string{session.Address()})
+			if err != nil {
+				return err
+			}
+			f.groups[s.ID] = "#" + room.Name
 			for i := 0; i < s.Queued; i++ {
 				if _, e = b.Send(context.Background(), bus.Sender{}, session.Address(), "invented retained input", nil, 0); e != nil {
 					return e
@@ -135,6 +152,9 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 		rs = f.a.RemoveChats(ids)
 	case "restore":
 		rs = []ChatCleanupResult{f.a.RestoreRemovedChat(ids[0])}
+		if e := f.a.chatCleanupAcceptanceDiscoveryRound(); e != nil {
+			f.t.Fatal(e)
+		}
 	case "delete":
 		rs = []ChatCleanupResult{f.a.DeleteRemovedChat(ids[0])}
 	case "empty":
@@ -166,19 +186,37 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 	}
 	return out
 }
-func (f *qualityHostCleanup) Send(string, string) error {
-	f.t.Fatal("bus delivery binding pending")
-	return nil
+func (f *qualityHostCleanup) Send(route, id string) error {
+	err := f.a.busHost().With(func(b *bus.Bus) error {
+		var e error
+		switch route {
+		case "direct":
+			_, e = b.Send(context.Background(), bus.Sender{}, f.addresses[id], "must not wake", nil, 0)
+		case "group":
+			_, e = b.SendActionRecipients(context.Background(), bus.Sender{}, f.groups[id], "must not wake", nil, 0, []string{f.addresses[id]})
+		case "broadcast":
+			_, e = b.SendActionRecipients(context.Background(), bus.Sender{}, f.groups[id], "must not wake", nil, 0, []string{bus.Everyone})
+		default:
+			f.t.Fatal("unknown route", route)
+		}
+		return e
+	})
+	if e := f.a.chatCleanupAcceptanceDiscoveryRound(); e != nil {
+		f.t.Fatal(e)
+	}
+	return err
 }
 func (f *qualityHostCleanup) Restart() {
 	f.a.busHost().CloseHandle()
 	f.a.queueStore.Close()
 	f.a.closeAppletBridge()
 	f.a = NewApp()
+	f.providers.Bind(f.t, f.a)
+	f.connects = watchConnects(f.a)
 	a := f.a
 	f.t.Cleanup(func() { a.busHost().CloseHandle(); a.queueStore.Close(); a.closeAppletBridge() })
 	f.install()
-	if e := f.a.chatCleanupAcceptanceSweep(); e != nil {
+	if e := f.a.chatCleanupAcceptanceRestartChats(); e != nil {
 		f.t.Fatal(e)
 	}
 }
@@ -193,6 +231,27 @@ func (f *qualityHostCleanup) Observe(id string) qualityCleanupState {
 	}
 	r, removed := f.a.cleanupRecord(id)
 	out := qualityCleanupState{Active: !removed, Removed: obs.Binned, Tombstone: obs.Tombstoned, LocalCopy: obs.TranscriptPresent, ProviderCopy: f.copies[id], RemovedAt: obs.RemovedAt, ExpiresAt: obs.ExpiresAt}
+	out.Open = obs.RuntimeLoaded
+	out.Loaded = obs.ProviderLoaded
+	for p := range providerModules {
+		out.Starts += f.providers.Count(p, "")
+		out.Loads += f.providers.Count(p, "session/load") + f.providers.Count(p, "session/resume")
+		out.Wakes += f.providers.Count(p, "session/prompt")
+	}
+	f.wakes += len(f.connects.take())
+	out.Wakes += f.wakes
+	// The saved listing and bus inventory are queried without provider discovery.
+	rows, err := f.a.ListChatCleanup()
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	for _, row := range rows.Rows {
+		for _, member := range row.SessionIDs {
+			if member == id {
+				out.OrdinaryList = true
+			}
+		}
+	}
 	settings := f.a.settings
 	recipient := settings.BusSessions[id]
 	if r.Group != "" {
@@ -203,10 +262,27 @@ func (f *qualityHostCleanup) Observe(id string) qualityCleanupState {
 		recipient = ar.Settings.BusSessions[id]
 	}
 	out.BusIdentity = recipient
+	page, err := f.a.Decisions(0)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	for _, decision := range page.Items {
+		if recipient != "" && decision.AskerSession == recipient {
+			out.Decisions = true
+		}
+	}
 	if recipient != "" {
 		if err := f.a.busHost().With(func(b *bus.Bus) error {
 			var err error
 			out.Queued, err = b.StoredSessionDeliveries(context.Background(), recipient)
+			if err != nil {
+				return err
+			}
+			active, e := b.RecipientAvailable(context.Background(), recipient)
+			if e != nil {
+				return e
+			}
+			out.Broadcast = active
 			return err
 		}); err != nil {
 			f.t.Fatal(err)
