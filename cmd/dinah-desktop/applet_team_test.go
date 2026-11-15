@@ -44,7 +44,7 @@ func TestALeadStartsAssignsAndRetiresItsOwnMembers(t *testing.T) {
 	if _, err := a.SetSessionOption(lead.ID(), "model", json.RawMessage(`"changed"`)); err != nil {
 		t.Fatal(err)
 	}
-	before := len(c.calls)
+	before := len(c.calls.Snapshot())
 	out, err := call(t, a.teamStartHandler, ctx, map[string]any{"title": "Fix the Parser", "brief": "Fix the parser.\nSee the notes."})
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestALeadStartsAssignsAndRetiresItsOwnMembers(t *testing.T) {
 			t.Fatalf("the member's model is %s, not its lead's", o.CurrentValue)
 		}
 	}
-	for _, call := range c.calls[before:] {
+	for _, call := range c.calls.Snapshot()[before:] {
 		if p, ok := call.params.(acp.SetConfigOptionParams); ok && p.ConfigID != "model" {
 			t.Fatalf("a setting other than the model was given to the new member: %+v", p)
 		}

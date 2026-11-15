@@ -160,11 +160,11 @@ func TestTheStripIsSentAsANumberedEventWhenItChanges(t *testing.T) {
 // message says which group it was posted in; and the strip gives a member's own usage and the group an assignment was posted in.
 func TestAMembersInformationSaysWhichTeamItIsInAndAssignmentsSayWhere(t *testing.T) {
 	a, lead, member, leadBus, memberBus, _ := teamAppConfigured(t, manualTeamInformationEvents)
-	var infos []SessionInfo
+	var infos testCollector[SessionInfo]
 	a.sink = func(name string, data any) {
 		if name == "agent:session" {
 			if info, ok := data.(SessionInfo); ok && info.ID == member.ID() {
-				infos = append(infos, info)
+				infos.Add(info)
 			}
 		}
 	}
@@ -174,12 +174,12 @@ func TestAMembersInformationSaysWhichTeamItIsInAndAssignmentsSayWhere(t *testing
 	if info.Lead == nil || info.Lead.Bus != leadBus || info.Lead.Group != view.Group || info.Lead.Chat != lead.ID() || info.Lead.Title == "" {
 		t.Fatalf("the member's information: %+v", info.Lead)
 	}
-	if len(infos) != 1 {
-		t.Fatalf("the information was sent %d times", len(infos))
+	if len(infos.Snapshot()) != 1 {
+		t.Fatalf("the information was sent %d times", len(infos.Snapshot()))
 	}
 	a.refreshChatLeads()
-	if len(infos) != 1 {
-		t.Fatalf("an unchanged lead sent the information again: %d", len(infos))
+	if len(infos.Snapshot()) != 1 {
+		t.Fatalf("an unchanged lead sent the information again: %d", len(infos.Snapshot()))
 	}
 	if lead.Info().Lead != nil {
 		t.Fatalf("the lead has a lead: %+v", lead.Info().Lead)
@@ -188,8 +188,8 @@ func TestAMembersInformationSaysWhichTeamItIsInAndAssignmentsSayWhere(t *testing
 		t.Fatal(err)
 	}
 	a.refreshChatLeads()
-	if member.Info().Lead != nil || len(infos) != 2 {
-		t.Fatalf("after the member was turned back: %+v, %d sends", member.Info().Lead, len(infos))
+	if member.Info().Lead != nil || len(infos.Snapshot()) != 2 {
+		t.Fatalf("after the member was turned back: %+v, %d sends", member.Info().Lead, len(infos.Snapshot()))
 	}
 	// A delivered message says its group.
 	entries := sessionhost.DeliveredEntries([]bus.Message{{ID: 9, Kind: "text", FromName: "x", Text: "hello", Room: "team-room", RoomTitle: "The Team"}})
@@ -229,10 +229,10 @@ func manualTeamInformationEvents(a *App) {
 
 func TestMemberInformationPublishesLeadAndChatStateChangesSeparately(t *testing.T) {
 	a, _, member, _, _, _ := teamAppConfigured(t, manualTeamInformationEvents)
-	var infos []SessionInfo
+	var infos testCollector[SessionInfo]
 	a.sink = func(name string, data any) {
 		if info, ok := data.(SessionInfo); name == "agent:session" && ok && info.ID == member.ID() {
-			infos = append(infos, info)
+			infos.Add(info)
 		}
 	}
 	a.refreshChatLeads()
@@ -245,16 +245,16 @@ func TestMemberInformationPublishesLeadAndChatStateChangesSeparately(t *testing.
 		}
 	}
 	publishStates()
-	if len(infos) != 2 || infos[0].Lead == nil || infos[0].State != nil || infos[1].State == nil {
-		t.Fatalf("expected separate lead and initial chat state changes: %+v", infos)
+	if len(infos.Snapshot()) != 2 || infos.Snapshot()[0].Lead == nil || infos.Snapshot()[0].State != nil || infos.Snapshot()[1].State == nil {
+		t.Fatalf("expected separate lead and initial chat state changes: %+v", infos.Snapshot())
 	}
-	if *infos[0].Lead != *infos[1].Lead || infos[1].StateVer <= infos[0].StateVer {
-		t.Fatalf("the state change must preserve the lead and advance its version: %+v", infos)
+	if *infos.Snapshot()[0].Lead != *infos.Snapshot()[1].Lead || infos.Snapshot()[1].StateVer <= infos.Snapshot()[0].StateVer {
+		t.Fatalf("the state change must preserve the lead and advance its version: %+v", infos.Snapshot())
 	}
 	a.refreshChatLeads()
 	publishStates()
-	if len(infos) != 2 {
-		t.Fatalf("unchanged publishers sent information again: %d", len(infos))
+	if len(infos.Snapshot()) != 2 {
+		t.Fatalf("unchanged publishers sent information again: %d", len(infos.Snapshot()))
 	}
 }
 
@@ -350,11 +350,11 @@ func TestAnExplicitZeroAllowanceDiffersFromNoAllowance(t *testing.T) {
 func TestATeamChatsSendsAreMarkedInItsHistoryInOrder(t *testing.T) {
 	a, lead, member, leadBus, memberBus, _ := teamApp(t)
 	ctx := context.Background()
-	var events []map[string]any
+	var events testCollector[map[string]any]
 	a.sink = func(name string, data any) {
 		if name == sessionhost.EventTeamSent {
 			if m, ok := data.(map[string]any); ok {
-				events = append(events, m)
+				events.Add(m)
 			}
 		}
 	}
@@ -428,8 +428,8 @@ func TestATeamChatsSendsAreMarkedInItsHistoryInOrder(t *testing.T) {
 	if len(sentOnly) != 2 || sentOnly[0] != want[0] || sentOnly[1] != want[3] {
 		t.Fatalf("the lead's marked sends: %v", order)
 	}
-	if len(events) != 3 || events[0]["message"] == nil || events[0]["text"] != "Do the first thing." {
-		t.Fatalf("%d events", len(events))
+	if len(events.Snapshot()) != 3 || events.Snapshot()[0]["message"] == nil || events.Snapshot()[0]["text"] != "Do the first thing." {
+		t.Fatalf("%d events", len(events.Snapshot()))
 	}
 	// The member's own send is marked in the member's history.
 	if mt, err := readTranscript(member.ID()); err != nil || len(mt.Messages) == 0 || mt.Messages[len(mt.Messages)-1].Role != "sent" || mt.Messages[len(mt.Messages)-1].Delivered.ID != incoming {

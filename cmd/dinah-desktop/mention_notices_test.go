@@ -11,14 +11,14 @@ import (
 
 type fakeHostNotifier struct {
 	mu      sync.Mutex
-	shown   []string
+	shown   testCollector[string]
 	focused bool
 }
 
 func (f *fakeHostNotifier) Notify(title, body string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.shown = append(f.shown, title+" | "+body)
+	f.shown.Add(title + " | " + body)
 	return nil
 }
 func (f *fakeHostNotifier) Attention() error { return nil }
@@ -31,7 +31,7 @@ func (f *fakeHostNotifier) Close() error { return nil }
 func (f *fakeHostNotifier) count() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return len(f.shown)
+	return len(f.shown.Snapshot())
 }
 
 // pass runs the watcher's look for mentions once.
@@ -59,7 +59,7 @@ func mentionCards(t *testing.T, a *App) []Notification {
 
 // mentionRig is a window with a titled chat and a group of it and a closed
 // chat, with the events the window emits and the host notifier recorded.
-func mentionRig(t *testing.T) (*App, *Session, bus.Session, string, *fakeHostNotifier, *[]string) {
+func mentionRig(t *testing.T) (*App, *Session, bus.Session, string, *fakeHostNotifier, *testCollector[string]) {
 	t.Helper()
 	a, _, s, me, _ := busChat(t)
 	if _, err := a.RenameSession(s.ID(), "Lead"); err != nil {
@@ -69,14 +69,11 @@ func mentionRig(t *testing.T) (*App, *Session, bus.Session, string, *fakeHostNot
 	if err != nil {
 		t.Fatal(err)
 	}
-	var mu sync.Mutex
-	var events []string
+	var events testCollector[string]
 	inner := a.sink
 	a.sink = func(name string, data any) {
 		if strings.HasPrefix(name, "notifications:") {
-			mu.Lock()
-			events = append(events, name)
-			mu.Unlock()
+			events.Add(name)
 		}
 		if inner != nil {
 			inner(name, data)
@@ -132,11 +129,11 @@ func TestAMentionMakesOneCardAndTheHostIsTold(t *testing.T) {
 	if c.Kind != "mention" || c.Severity != "info" || c.Title != "Lead mentioned you in Work" || c.Body != "I need a decision on the budget" || c.GroupTitle != "Work" || c.Group == "" || c.Message == 0 || c.SessionTitle != "Lead" || c.SessionID == "" {
 		t.Fatalf("the card: %+v", c)
 	}
-	if got := strings.Count(strings.Join(*events, ","), "notifications:added"); got != 1 {
-		t.Fatalf("%d added events: %v", got, *events)
+	if got := strings.Count(strings.Join(events.Snapshot(), ","), "notifications:added"); got != 1 {
+		t.Fatalf("%d added events: %v", got, events.Snapshot())
 	}
-	if notifier.count() != 1 || !strings.Contains(notifier.shown[0], "Lead mentioned you in Work") {
-		t.Fatalf("the host was told %v", notifier.shown)
+	if notifier.count() != 1 || !strings.Contains(notifier.shown.Snapshot()[0], "Lead mentioned you in Work") {
+		t.Fatalf("the host was told %v", notifier.shown.Snapshot())
 	}
 
 	// A chat that mentions only the other chat, or nobody, makes no card.
@@ -158,7 +155,7 @@ func TestAMentionMakesOneCardAndTheHostIsTold(t *testing.T) {
 		t.Fatalf("%d cards after three mentions", len(mentionCards(t, a)))
 	}
 	if notifier.count() != 1 {
-		t.Fatalf("the host was told %d times: %v", notifier.count(), notifier.shown)
+		t.Fatalf("the host was told %d times: %v", notifier.count(), notifier.shown.Snapshot())
 	}
 }
 
@@ -205,8 +202,8 @@ func TestReadingAMentionKeepsItsCardUntilAnAnswerOrDismissal(t *testing.T) {
 	if left := mentionCards(t, a); len(left) != 0 {
 		t.Fatalf("an answered request kept its card: %+v", left)
 	}
-	if !strings.Contains(strings.Join(*events, ","), "notifications:dismissed") {
-		t.Fatalf("the page was not told: %v", *events)
+	if !strings.Contains(strings.Join(events.Snapshot(), ","), "notifications:dismissed") {
+		t.Fatalf("the page was not told: %v", events.Snapshot())
 	}
 }
 

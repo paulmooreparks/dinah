@@ -238,7 +238,7 @@ func TestCompactingSendsTheHeldMessagesAttachmentsToTheNewChat(t *testing.T) {
 	}
 	waitTurn(t, r.turns)
 	var sent []acp.ContentBlock
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if p, ok := call.params.(acp.PromptParams); ok && call.method == "session/prompt" && p.SessionID == "codex:second" {
 			sent = p.Prompt
 		}
@@ -332,8 +332,8 @@ func waitForPrompts(t *testing.T, c *testProviderConnection, n int) {
 func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 	a, c := providerTestApp(t)
 	withContextModule(t, "codex")
-	var events []string
-	a.sink = func(name string, _ any) { events = append(events, name) }
+	var events testCollector[string]
+	a.sink = func(name string, _ any) { events.Add(name) }
 	c.newIDs = []string{"codex:first", "codex:second"}
 	info, err := a.NewSessionAt(t.TempDir())
 	if err != nil {
@@ -353,7 +353,7 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 	queued := old.Info().Queued
 	// A definite protocol rejection permits a later attempt; transport loss does not.
 	c.newErr = &acp.Error{Code: acp.CodeInternal, Message: "the agent refused"}
-	events = nil
+	events.Reset()
 	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "could not be continued") {
 		t.Fatalf("a failed compaction: %v", err)
 	}
@@ -361,8 +361,8 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 	if hold == nil || len(hold.Actions) != 2 || !slices.Equal(old.Info().Queued, queued) {
 		t.Fatalf("after the failure: hold %+v, queue %v, want %v", hold, old.Info().Queued, queued)
 	}
-	if !slices.Contains(events, "agent:queue") || !slices.Contains(events, "agent:session") {
-		t.Fatalf("the page was not told: %v", events)
+	if !slices.Contains(events.Snapshot(), "agent:queue") || !slices.Contains(events.Snapshot(), "agent:session") {
+		t.Fatalf("the page was not told: %v", events.Snapshot())
 	}
 	if sw := old.Info().Switch; sw == nil || sw.Failed == "" {
 		t.Fatalf("the failure is not shown: %+v", old.Info().Switch)

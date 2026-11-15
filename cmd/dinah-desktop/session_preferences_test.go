@@ -88,7 +88,7 @@ func TestUnavailableSavedModelDoesNotFallBackOrReplacePreferences(t *testing.T) 
 	if got := string(NewApp().settings.SessionOptions[id]["model"]); got != `"removed-model"` {
 		t.Fatalf("failed restoration overwrote saved choice: %s", got)
 	}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			t.Fatal("restoration sent a prompt")
 		}

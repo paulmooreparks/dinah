@@ -147,24 +147,24 @@ func TestTheOllamaAdapterAgreesWithItsRow(t *testing.T) {
 // reports may replace the declared one, and when the default changes.
 func TestProviderFactsAreSentAgainWhenReadyAndWhenTheDefaultChanges(t *testing.T) {
 	a, _ := providerTestApp(t)
-	var sent [][]map[string]any
+	var sent testCollector[[]map[string]any]
 	a.sink = func(name string, data any) {
 		if name == "providers:facts" {
-			sent = append(sent, data.([]map[string]any))
+			sent.Add(data.([]map[string]any))
 		}
 	}
 	a.emitProviderEvent(sessionhost.EventState, map[string]any{"provider": "codex", "state": "starting"})
-	if len(sent) != 0 {
+	if len(sent.Snapshot()) != 0 {
 		t.Fatal("the facts were sent for a provider that is not ready")
 	}
 	a.emitProviderEvent(sessionhost.EventState, map[string]any{"provider": "codex", "state": "ready"})
-	if len(sent) != 1 || len(sent[0]) != len(product.Providers) {
-		t.Fatalf("a provider becoming ready sent %d lists", len(sent))
+	if len(sent.Snapshot()) != 1 || len(sent.Snapshot()[0]) != len(product.Providers) {
+		t.Fatalf("a provider becoming ready sent %d lists", len(sent.Snapshot()))
 	}
 	if err := a.SetDefaultProvider("claude"); err != nil {
 		t.Fatal(err)
 	}
-	last := sent[len(sent)-1]
+	last := sent.Snapshot()[len(sent.Snapshot())-1]
 	for _, entry := range last {
 		if entry["default"] != (entry["id"] == "claude") {
 			t.Errorf("after choosing Claude: %+v", entry)

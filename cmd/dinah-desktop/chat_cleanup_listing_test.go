@@ -21,12 +21,12 @@ func TestCleanupListingReadsClosedChainsWithoutProviderCalls(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	before := len(c.calls)
+	before := len(c.calls.Snapshot())
 	listing, err := a.ListChatCleanup()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.calls) != before {
+	if len(c.calls.Snapshot()) != before {
 		t.Fatal("listing contacted the provider")
 	}
 	if len(listing.Rows) != 2 {

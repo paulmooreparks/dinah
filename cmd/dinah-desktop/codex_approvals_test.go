@@ -30,7 +30,7 @@ func TestCodexAppletApprovalsPersistIndependently(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := c.calls[0].params.(codexagent.SessionParams).AppletApprovals; got != "ask" {
+	if got := c.calls.Snapshot()[0].params.(codexagent.SessionParams).AppletApprovals; got != "ask" {
 		t.Fatalf("default approval %q", got)
 	}
 	if err := a.SetCodexAppletApprovals("allow"); err != nil {
@@ -39,11 +39,11 @@ func TestCodexAppletApprovalsPersistIndependently(t *testing.T) {
 	if closeBusWhenDone(t, NewApp()).State().CodexAppletApprovals != "allow" || a.settings.Approvals != ApprovalsAll {
 		t.Fatal("independent preference did not persist")
 	}
-	count := len(c.calls)
+	count := len(c.calls.Snapshot())
 	if _, err := a.OpenSessionAt(ws, info.ID); err != nil {
 		t.Fatal(err)
 	}
-	if len(c.calls) != count {
+	if len(c.calls.Snapshot()) != count {
 		t.Fatal("changing preference reconfigured an existing thread")
 	}
 	a.runtime.RemoveConversationLocked(info.ID)
@@ -51,7 +51,7 @@ func TestCodexAppletApprovalsPersistIndependently(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	for _, call := range c.calls[count:] {
+	for _, call := range c.calls.Snapshot()[count:] {
 		if call.method == "session/load" {
 			found = call.params.(codexagent.SessionParams).AppletApprovals == "allow"
 		}

@@ -19,11 +19,11 @@ import (
 
 type drawingTestConnection struct {
 	*testProviderConnection
-	secrets []string
+	secrets testCollector[string]
 }
 
 func (c *drawingTestConnection) RegisterTraceSecret(secret string) {
-	c.secrets = append(c.secrets, secret)
+	c.secrets.Add(secret)
 }
 
 func TestDiagramManagedRegistration(t *testing.T) {
@@ -93,7 +93,7 @@ func TestDiagramManagedRegistration(t *testing.T) {
 			if len(env) != 4 || env["DIAGRAM_PICTURE_ROOT"] != record.ExecutionPath || env["DIAGRAM_PICTURE_WORKSPACE"] != record.ID || env["DIAGRAM_PICTURE_ENDPOINT"] == "" || env["DIAGRAM_PICTURE_LEASE"] == "" {
 				t.Fatal("incomplete managed environment")
 			}
-			if !containsSecret(conn.secrets, env["DIAGRAM_PICTURE_LEASE"]) || strings.Contains(channel.diagramNotice(), env["DIAGRAM_PICTURE_LEASE"]) {
+			if !containsSecret(conn.secrets.Snapshot(), env["DIAGRAM_PICTURE_LEASE"]) || strings.Contains(channel.diagramNotice(), env["DIAGRAM_PICTURE_LEASE"]) {
 				t.Fatal("lease not redacted before registration, or exposed in context")
 			}
 			client, err := diagrampicture.New(env["DIAGRAM_PICTURE_ENDPOINT"], env["DIAGRAM_PICTURE_LEASE"], record.ID)

@@ -44,7 +44,7 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 	if result.Session.ID == tr.SessionID || result.ParentSessionID != tr.SessionID {
 		t.Fatalf("recovery reused the failed thread: %+v", result)
 	}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/load" || call.method == "session/resume" {
 			t.Fatal("recovery contacted the failed thread")
 		}

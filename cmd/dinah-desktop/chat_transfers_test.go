@@ -70,7 +70,7 @@ func TestRecoveryConflictKeepsLogicalRecipientAndDeliversOnlyItsQueue(t *testing
 			if route, err := a.waitingRoute(source, result.Session.Cwd); err != nil || route.Recipient != owner || route.Target != result.Session.ID || route.TargetRecipient != owner {
 				t.Fatal("historical source lost its committed recipient", route, err)
 			}
-			for _, call := range c.calls {
+			for _, call := range c.calls.Snapshot() {
 				if call.method == "session/load" || call.method == "session/resume" {
 					t.Fatal("recovery contacted a missing native session")
 				}
@@ -180,7 +180,7 @@ func TestRecoveryModelChoiceIsConfirmedBeforeRecipientCommit(t *testing.T) {
 		}
 	}
 	selectedBeforePrompt := false
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/set_config_option" && call.params.(acp.SetConfigOptionParams).ConfigID == "model" {
 			selectedBeforePrompt = true
 		}

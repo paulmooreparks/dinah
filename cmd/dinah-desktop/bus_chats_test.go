@@ -86,7 +86,7 @@ func waitTurn(t *testing.T, turns chan map[string]any) {
 // prompts returns the text of each prompt the agent was given.
 func prompts(c *testProviderConnection) []string {
 	var out []string
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method != "session/prompt" {
 			continue
 		}
@@ -228,12 +228,12 @@ func TestThePickerStartsAGroupOfOpenAndClosedChats(t *testing.T) {
 	if g.Title != "Lead and Timesheet Applet" || len(g.Members) != 3 || !strings.HasPrefix(closedBus, bus.WindowSessionPrefix) {
 		t.Fatalf("the group is %+v; the closed chat is %s on the bus", g, closedBus)
 	}
-	states := []string{}
+	var states testCollector[string]
 	for _, m := range g.Members {
-		states = append(states, m.Title+"="+m.State+"@"+m.Chat)
+		states.Add(m.Title + "=" + m.State + "@" + m.Chat)
 	}
-	if strings.Join(states, ",") != "Lead=open@"+s.ID()+",Timesheet Applet=closed@closed-chat,"+speakerName(bus.Human)+"=person@" {
-		t.Fatalf("the members are %v", states)
+	if strings.Join(states.Snapshot(), ",") != "Lead=open@"+s.ID()+",Timesheet Applet=closed@closed-chat,"+speakerName(bus.Human)+"=person@" {
+		t.Fatalf("the members are %v", states.Snapshot())
 	}
 	sent, err := a.BusSendToGroup(g.Name, "Does the grid render?", []string{closedBus}, nil)
 	if err != nil {
@@ -388,11 +388,11 @@ func TestAnUnchangedSelectionIsLeftOut(t *testing.T) {
 // and steered as before.
 func TestSteeringAClaudeChatKeepsItsTurn(t *testing.T) {
 	a, c, s, me, _ := busChat(t)
-	var states []string
+	var states testCollector[string]
 	sink := a.sink
 	a.sink = func(name string, data any) {
 		if name == "agent:steer" {
-			states = append(states, data.(map[string]any)["state"].(string))
+			states.Add(data.(map[string]any)["state"].(string))
 		}
 		sink(name, data)
 	}
@@ -403,7 +403,7 @@ func TestSteeringAClaudeChatKeepsItsTurn(t *testing.T) {
 	a.runtime.PutProviderLocked("claude", a.runtime.ProviderLocked("codex"))
 	cancels := func() int {
 		n := 0
-		for _, call := range c.calls {
+		for _, call := range c.calls.Snapshot() {
 			if call.method == "session/cancel" {
 				n++
 			}
@@ -438,8 +438,8 @@ func TestSteeringAClaudeChatKeepsItsTurn(t *testing.T) {
 	if len(late) != 1 || !late[0].Late() || !strings.Contains(promptText(&late[0]), "And skip the docs.") {
 		t.Fatalf("the steer no hook took was not sent next: %+v", late)
 	}
-	if strings.Join(states, ",") != "pending,delivered,pending,queued" {
-		t.Fatalf("the page was told %v", states)
+	if strings.Join(states.Snapshot(), ",") != "pending,delivered,pending,queued" {
+		t.Fatalf("the page was told %v", states.Snapshot())
 	}
 	if err := a.StopAndSteer(s.ID(), "Drop it.", nil, nil); err != nil {
 		t.Fatal(err)
@@ -509,7 +509,7 @@ func TestBusyBusDeliveryUsesSteeringCapability(t *testing.T) {
 			} else if len(late) != 0 {
 				t.Fatal("delivered or uncertain message was replayed")
 			}
-			for _, call := range base.calls {
+			for _, call := range base.calls.Snapshot() {
 				if call.method == "session/cancel" || call.method == "session/prompt" {
 					t.Fatal("busy delivery started or cancelled a turn")
 				}

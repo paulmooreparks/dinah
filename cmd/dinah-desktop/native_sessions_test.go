@@ -24,7 +24,7 @@ func TestNativeUnsentHandoffAllocatesAndPromptsWithoutResume(t *testing.T) {
 	}
 	a.turnIO().Close(3 * time.Second)
 	n, p := 0, 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		switch call.method {
 		case "session/new":
 			n++
@@ -75,7 +75,7 @@ func TestNativeFirstPromptFailureAndCrashBlockResumeAcrossReload(t *testing.T) {
 					t.Fatalf("unexpected: %v %v", handled, err)
 				}
 			}
-			if len(c.calls) != 0 {
+			if len(c.calls.Snapshot()) != 0 {
 				t.Fatal("unverified session contacted provider")
 			}
 		})
@@ -101,7 +101,7 @@ func TestNativeRefusalPersistsWithoutRepeatedProviderCalls(t *testing.T) {
 			t.Fatalf("refusal not retained: %v", err)
 		}
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("refused identity contacted")
 	}
 }
@@ -127,7 +127,7 @@ func TestNativeAutomaticAllocationFailureDoesNotChainAcrossReload(t *testing.T) 
 		t.Fatal("failed attempt repeated")
 	}
 	n := 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/new" {
 			n++
 		}
@@ -162,7 +162,7 @@ func TestNativeLifecycleMissingRecoverySurvivesTwoReopens(t *testing.T) {
 		}
 	}
 	if countCalls(c, "session/new") != 1 || countCalls(c, "session/prompt") != 1 || countCalls(c, "session/resume") != 3 {
-		t.Fatalf("unexpected calls: %+v", c.calls)
+		t.Fatalf("unexpected calls: %+v", c.calls.Snapshot())
 	}
 }
 
@@ -209,6 +209,6 @@ func TestNativeExplicitRecoveryPromptsThenSurvivesTwoCloseRestartCycles(t *testi
 		t.Fatal("recovery modified source history")
 	}
 	if countCalls(c, "session/new") != 1 || countCalls(c, "session/resume") != 4 {
-		t.Fatalf("recovery churned native identities: %+v", c.calls)
+		t.Fatalf("recovery churned native identities: %+v", c.calls.Snapshot())
 	}
 }

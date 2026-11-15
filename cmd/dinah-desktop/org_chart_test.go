@@ -81,7 +81,7 @@ func TestOrgChartUsesCanonicalSnapshotWithoutProviderDiscovery(t *testing.T) {
 	a, connection := providerTestApp(t)
 	ws := t.TempDir()
 	seedOrgChartFixture(t, a, ws)
-	before := len(connection.calls)
+	before := len(connection.calls.Snapshot())
 	view, err := a.OrgChart()
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestOrgChartUsesCanonicalSnapshotWithoutProviderDiscovery(t *testing.T) {
 	if len(view.Groups) == 0 {
 		t.Fatal("ordinary local group is missing")
 	}
-	if len(connection.calls) != before || starts.Load() != 0 {
+	if len(connection.calls.Snapshot()) != before || starts.Load() != 0 {
 		t.Fatal("chart queried or started a provider")
 	}
 	for _, chat := range view.Chats {
@@ -131,7 +131,7 @@ func TestOrgChartKeepsRepairOwnershipExplicit(t *testing.T) {
 			t.Fatalf("repair ownership guessed: %+v", chat)
 		}
 	}
-	if len(view.Teams) != 0 || len(connection.calls) != 0 || starts.Load() != 0 {
+	if len(view.Teams) != 0 || len(connection.calls.Snapshot()) != 0 || starts.Load() != 0 {
 		t.Fatal("repair query invented an edge or contacted a provider")
 	}
 }

@@ -21,7 +21,7 @@ type qualityHostCleanup struct {
 	now       time.Time
 	seeds     map[string]qualityCleanupSeed
 	copies    map[string]bool
-	events    []qualityCleanupEvent
+	events    testCollector[qualityCleanupEvent]
 	providers *chatCleanupAcceptanceProviders
 	connects  *connectRequests
 	wakes     int
@@ -57,7 +57,7 @@ func (f *qualityHostCleanup) install() {
 		if mode == "unsupported" {
 			return false, nil
 		}
-		f.events = append(f.events, qualityCleanupEvent{id, "provider-delete"})
+		f.events.Add(qualityCleanupEvent{id, "provider-delete"})
 		if mode == "failing" {
 			return true, errors.New("invented deletion failure")
 		}
@@ -185,6 +185,7 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 	case "empty":
 		rs = f.a.EmptyChatRecycleBin()
 	case "expire":
+		var finalized testCollector[ChatCleanupResult]
 		previous := f.a.sink
 		f.a.sink = func(name string, data any) {
 			if name == "chat:finalized" {
@@ -196,7 +197,7 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 				if !ok {
 					f.t.Fatal("missing actual finalized result")
 				}
-				rs = append(rs, result)
+				finalized.Add(result)
 			}
 			if previous != nil {
 				previous(name, data)
@@ -206,6 +207,7 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 		if e := f.a.chatCleanupAcceptanceSweep(); e != nil {
 			f.t.Fatal(e)
 		}
+		rs = finalized.Snapshot()
 	default:
 		f.t.Fatal("unbound action", action)
 	}
@@ -213,13 +215,13 @@ func (f *qualityHostCleanup) Act(action string, ids ...string) []qualityCleanupR
 		r, ok := f.a.cleanupRecord(id)
 		if ok && r.Stage == "deleted" && r.Group == "" {
 			seen := false
-			for _, e := range f.events {
+			for _, e := range f.events.Snapshot() {
 				if e.ID == id && e.Kind == "local-delete" {
 					seen = true
 				}
 			}
 			if !seen {
-				f.events = append(f.events, qualityCleanupEvent{id, "local-delete"})
+				f.events.Add(qualityCleanupEvent{id, "local-delete"})
 			}
 		}
 	}
@@ -267,7 +269,7 @@ func (f *qualityHostCleanup) Restart() {
 }
 func (f *qualityHostCleanup) Advance(d time.Duration) { f.now = f.now.Add(d) }
 func (f *qualityHostCleanup) Events() []qualityCleanupEvent {
-	return append([]qualityCleanupEvent(nil), f.events...)
+	return append([]qualityCleanupEvent(nil), f.events.Snapshot()...)
 }
 func (f *qualityHostCleanup) Observe(id string) qualityCleanupState {
 	obs, e := f.a.chatCleanupAcceptanceObserve(id)

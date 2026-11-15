@@ -212,7 +212,7 @@ func TestSubagentsLeftRunningAreDisconnected(t *testing.T) {
 			t.Fatalf("a subagent left running by the turn: %+v", sa)
 		}
 	}
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method != "session/prompt" && call.method != "session/new" && call.method != "session/set_config_option" {
 			t.Fatalf("Dinah told the agent about a disconnected subagent: %s", call.method)
 		}
@@ -508,7 +508,7 @@ func TestCancelSubagentUsesItsSession(t *testing.T) {
 	if err := a.CancelSubagent("stoppable"); err != nil {
 		t.Fatal(err)
 	}
-	last := c.calls[len(c.calls)-1]
+	last := c.calls.Snapshot()[len(c.calls.Snapshot())-1]
 	if last.method != "session/cancel" || last.params.(acp.CancelParams).SessionID != "stoppable" {
 		t.Fatalf("the cancel did not go to the subagent's session: %+v", last)
 	}

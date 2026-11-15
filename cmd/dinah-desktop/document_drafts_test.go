@@ -18,8 +18,8 @@ func TestDraftBindings(t *testing.T) {
 	a := NewApp()
 	record := newWorkspaceRecord(ws)
 	a.settings.WorkspaceRecords = []WorkspaceRecord{record}
-	events := []string{}
-	a.sink = func(name string, data any) { events = append(events, name) }
+	var events testCollector[string]
+	a.sink = func(name string, data any) { events.Add(name) }
 	ref := ResourceRef{WorkspaceID: record.ID, SourceID: record.Sources[0].ID, Path: "notes.md"}
 
 	v, err := a.OpenDraft(ref)
@@ -55,8 +55,8 @@ func TestDraftBindings(t *testing.T) {
 	// The save also tells the page that the document was written where it
 	// is kept, so that what draws from it reads it again.
 	want := []string{"draft:changed", "documents:recent", "documents:recent", "draft:changed", "draft:changed", "workspace:changed", "draft:changed"}
-	if !slices.Equal(events, want) {
-		t.Fatalf("events %v", events)
+	if !slices.Equal(events.Snapshot(), want) {
+		t.Fatalf("events %v", events.Snapshot())
 	}
 }
 

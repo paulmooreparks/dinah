@@ -19,7 +19,7 @@ func TestNativeReceiptPreservesDeliveryEffectsAfterGateRelease(t *testing.T) {
 			const body = "receipt delivery order"
 			p := s.WithReply(context.Background(), newPrompt(body, []acp.ContentBlock{{Type: "text", Text: body}}).WithLabel("Other chat"))
 			s.Reserve(p)
-			var order []string
+			var order testCollector[string]
 			pendingCount := func() int {
 				n := 0
 				if err := a.busHost().With(func(b *bus.Bus) error {
@@ -43,10 +43,10 @@ func TestNativeReceiptPreservesDeliveryEffectsAfterGateRelease(t *testing.T) {
 			}
 			a.logs().chats = chatlog.New(t.TempDir(), func(text string) string {
 				if text == body {
-					if strings.Join(order, ",") != "sent" || pendingCount() != 0 || !transcriptHasPrompt() {
+					if strings.Join(order.Snapshot(), ",") != "sent" || pendingCount() != 0 || !transcriptHasPrompt() {
 						t.Error("log preceded sent event, ledger or transcript")
 					}
-					order = append(order, "log")
+					order.Add("log")
 				}
 				return text
 			})
@@ -56,10 +56,10 @@ func TestNativeReceiptPreservesDeliveryEffectsAfterGateRelease(t *testing.T) {
 					if pendingCount() != 1 || transcriptHasPrompt() {
 						t.Error("sent event followed ledger or transcript")
 					}
-					order = append(order, "sent")
+					order.Add("sent")
 				case "agent:steer":
 					if data.(map[string]any)["state"] == "accepted" {
-						order = append(order, "accepted")
+						order.Add("accepted")
 					}
 				}
 			}
@@ -83,7 +83,7 @@ func TestNativeReceiptPreservesDeliveryEffectsAfterGateRelease(t *testing.T) {
 				go func() { defer wg.Done(); confirm() }()
 			}
 			wg.Wait()
-			if got := strings.Join(order, ","); got != "sent,log,accepted" {
+			if got := strings.Join(order.Snapshot(), ","); got != "sent,log,accepted" {
 				t.Fatalf("delivery order: %s", got)
 			}
 			if late := a.turnIO().SettleSteers(s); len(late) != 0 {

@@ -10,13 +10,13 @@ import (
 // notification.
 type fakeNotifier struct {
 	focused, known bool
-	shown          []string
+	shown          testCollector[string]
 	attention      int
 	closed         bool
 }
 
 func (f *fakeNotifier) Notify(title, body string) error {
-	f.shown = append(f.shown, title+" | "+body)
+	f.shown.Add(title + " | " + body)
 	return nil
 }
 func (f *fakeNotifier) Attention() error      { f.attention++; return nil }
@@ -27,8 +27,8 @@ func TestHostNoticesOnlyWhenTheWindowIsNotInFront(t *testing.T) {
 	f := &fakeNotifier{known: true, focused: true}
 	h := &hostNotices{notifier: f}
 	h.question(`"First"`, "", true)
-	if len(f.shown) != 0 {
-		t.Fatalf("notified while the window was in front: %v", f.shown)
+	if len(f.shown.Snapshot()) != 0 {
+		t.Fatalf("notified while the window was in front: %v", f.shown.Snapshot())
 	}
 	// Where the host cannot tell, the page's report decides.
 	f.known = false
@@ -36,8 +36,8 @@ func TestHostNoticesOnlyWhenTheWindowIsNotInFront(t *testing.T) {
 	h.question(`"Second"`, "", true)
 	h.pageFocused = false
 	h.question(`"Third"`, "", true)
-	if len(f.shown) != 1 || !strings.Contains(f.shown[0], "Third") || f.attention != 1 {
-		t.Fatalf("the page's focus should decide, got %v and %d flashes", f.shown, f.attention)
+	if len(f.shown.Snapshot()) != 1 || !strings.Contains(f.shown.Snapshot()[0], "Third") || f.attention != 1 {
+		t.Fatalf("the page's focus should decide, got %v and %d flashes", f.shown.Snapshot(), f.attention)
 	}
 }
 
@@ -45,12 +45,12 @@ func TestHostNoticesFollowTheSetting(t *testing.T) {
 	f := &fakeNotifier{known: true}
 	h := &hostNotices{notifier: f}
 	h.question(`"Draft"`, "", false)
-	if len(f.shown) != 0 {
-		t.Fatalf("notified with the setting off: %v", f.shown)
+	if len(f.shown.Snapshot()) != 0 {
+		t.Fatalf("notified with the setting off: %v", f.shown.Snapshot())
 	}
 	h.question(`"Draft"`, "", true)
-	if len(f.shown) != 1 || f.shown[0] != `"Draft" has a question for you | The agent asks for your permission.` {
-		t.Fatalf("permission question: %v", f.shown)
+	if len(f.shown.Snapshot()) != 1 || f.shown.Snapshot()[0] != `"Draft" has a question for you | The agent asks for your permission.` {
+		t.Fatalf("permission question: %v", f.shown.Snapshot())
 	}
 	// With no notifier, as in every other test, nothing happens.
 	(&hostNotices{}).question("", "", true)
@@ -74,14 +74,14 @@ func TestNotifyWhenNeededSettingDefaultsOnAndPersists(t *testing.T) {
 		t.Fatalf("the setting was not saved: %v %+v", err, saved.HostNotificationsOff)
 	}
 	a.noticeQuestion("s1", json.RawMessage(`{"title":"Write notes.md"}`))
-	if len(f.shown) != 0 {
-		t.Fatalf("notified with the setting off: %v", f.shown)
+	if len(f.shown.Snapshot()) != 0 {
+		t.Fatalf("notified with the setting off: %v", f.shown.Snapshot())
 	}
 	if err := a.SetNotifyWhenNeeded(true); err != nil {
 		t.Fatal(err)
 	}
 	a.noticeQuestion("s1", json.RawMessage(`{"title":"Write notes.md"}`))
-	if len(f.shown) != 1 || !strings.Contains(f.shown[0], "Write notes.md") {
-		t.Fatalf("permission question: %v", f.shown)
+	if len(f.shown.Snapshot()) != 1 || !strings.Contains(f.shown.Snapshot()[0], "Write notes.md") {
+		t.Fatalf("permission question: %v", f.shown.Snapshot())
 	}
 }

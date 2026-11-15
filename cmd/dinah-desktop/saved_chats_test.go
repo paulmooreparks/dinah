@@ -28,7 +28,7 @@ func TestSavedChatsUsesLocalCanonicalInventoryWithoutProviderContact(t *testing.
 	}
 	live := newSessionState(&sessionSeed{ID: "codex:runtime", Provider: "codex", Cwd: ws, Title: "Already open"}, sessionInitial{Open: true})
 	a.runtime.PutConversationLocked(live.ID(), live)
-	before := len(conn.calls)
+	before := len(conn.calls.Snapshot())
 	view, err := a.SavedChats()
 	if err != nil {
 		t.Fatal(err)
@@ -43,7 +43,7 @@ func TestSavedChatsUsesLocalCanonicalInventoryWithoutProviderContact(t *testing.
 	if len(rows) != 4 || rows["codex:old"].ID != "claude:head" || rows["codex:old"].Title != "Current title" || rows["codex:fork"].ID != "codex:fork" || rows["codex:other"].Cwd != other || !rows["codex:runtime"].Open {
 		t.Fatalf("wrong canonical inventory: %+v", view)
 	}
-	if starts.Load() != 0 || len(conn.calls) != before || a.runtime.ConversationLocked("claude:head") != nil {
+	if starts.Load() != 0 || len(conn.calls.Snapshot()) != before || a.runtime.ConversationLocked("claude:head") != nil {
 		t.Fatal("passive inventory started, contacted or loaded a provider")
 	}
 	again, err := a.SavedChats()
@@ -90,7 +90,7 @@ func TestSavedChatsExcludesWholeReservedChainAndKeepsRepairRows(t *testing.T) {
 		}
 		repairs++
 	}
-	if repairs == 0 || len(conn.calls) != 0 {
+	if repairs == 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("repair inventory missing or queried native state")
 	}
 }
@@ -118,7 +118,7 @@ func TestDeclaredProvidersDoesNotProbeAvailability(t *testing.T) {
 			t.Fatal("passive row claims checked availability")
 		}
 	}
-	if probes != 0 || len(conn.calls) != 0 {
+	if probes != 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatal("provider declaration performed a native or installation probe")
 	}
 	// The explicit scan remains a positive control for the replaced Info ports.
@@ -142,7 +142,7 @@ func TestCodexPreparationInspectsOnlyCodex(t *testing.T) {
 		providerModules[id] = module
 	}
 	start, err := codexAdapter.prepare(a)
-	if err != nil || start.launch == nil || probes["codex"] != 1 || len(probes) != 1 || len(conn.calls) != 0 {
+	if err != nil || start.launch == nil || probes["codex"] != 1 || len(probes) != 1 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatalf("Codex preparation scanned another program or contacted a provider: %+v %v", probes, err)
 	}
 	module := providerModules["codex"]
@@ -160,7 +160,7 @@ func TestSavedChatsKeepsTranscriptOnlyChatAndNativeListingExplicit(t *testing.T)
 		t.Fatal(err)
 	}
 	view, err := a.SavedChats()
-	if err != nil || len(view.Chats) != 1 || view.Chats[0].ID != id || view.Chats[0].Title != "" || len(conn.calls) != 0 {
+	if err != nil || len(view.Chats) != 1 || view.Chats[0].ID != id || view.Chats[0].Title != "" || len(conn.calls.Snapshot()) != 0 {
 		t.Fatalf("transcript-only local record disappeared or contacted its provider: %+v %v", view, err)
 	}
 	initial := acp.InitializeResult{}
@@ -170,7 +170,7 @@ func TestSavedChatsKeepsTranscriptOnlyChatAndNativeListingExplicit(t *testing.T)
 		t.Fatal(err)
 	}
 	listed := false
-	for _, call := range conn.calls {
+	for _, call := range conn.calls.Snapshot() {
 		listed = listed || call.method == "session/list"
 	}
 	if !listed {
@@ -182,7 +182,7 @@ func TestSavedChatsRefusesFailedStartupWithoutProviderContact(t *testing.T) {
 	a, conn := providerTestApp(t)
 	a.startupErr = errors.New("invented unreadable settings")
 	view, err := a.SavedChats()
-	if !errors.Is(err, a.startupErr) || len(view.Chats) != 0 || len(conn.calls) != 0 {
+	if !errors.Is(err, a.startupErr) || len(view.Chats) != 0 || len(conn.calls.Snapshot()) != 0 {
 		t.Fatalf("failed startup returned a usable inventory or contacted a provider: %+v %v", view, err)
 	}
 }

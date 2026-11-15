@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"sync"
 	"testing"
 )
 
@@ -11,11 +12,19 @@ import (
 func TestTheWindowsStateEventsAreNumbered(t *testing.T) {
 	a, _ := providerTestApp(t)
 	events := map[string][]map[string]any{}
+	var eventMu sync.Mutex
+	read := func(name string) []map[string]any {
+		eventMu.Lock()
+		defer eventMu.Unlock()
+		return append([]map[string]any(nil), events[name]...)
+	}
 	a.sink = func(name string, data any) {
 		raw, _ := json.Marshal(data)
 		var m map[string]any
 		if json.Unmarshal(raw, &m) == nil {
+			eventMu.Lock()
 			events[name] = append(events[name], m)
+			eventMu.Unlock()
 		}
 	}
 	number := func(m map[string]any) (string, float64) {
@@ -26,7 +35,7 @@ func TestTheWindowsStateEventsAreNumbered(t *testing.T) {
 
 	a.emitSettingsChanged()
 	a.emitSettingsChanged()
-	settings := events["settings:changed"]
+	settings := read("settings:changed")
 	g1, v1 := number(settings[0])
 	g2, v2 := number(settings[1])
 	if len(settings) != 2 || g1 == "" || g1 != g2 || v2 <= v1 || settings[0]["revision"] == nil || settings[0]["preferences"] == nil {
@@ -34,7 +43,7 @@ func TestTheWindowsStateEventsAreNumbered(t *testing.T) {
 	}
 
 	a.claudeAccountReport(json.RawMessage(`{"authStatus":{"kind":"account","label":"Claude Max"}}`))
-	account := events["agent:account"]
+	account := read("agent:account")
 	ga, va := number(account[0])
 	if len(account) != 1 || ga != g1 || va <= v2 {
 		t.Fatalf("account event %v, after settings %s/%v", account, g1, v2)
@@ -46,7 +55,7 @@ func TestTheWindowsStateEventsAreNumbered(t *testing.T) {
 
 	a.emitUpdate()
 	a.emitUpdate()
-	update := events["update:state"]
+	update := read("update:state")
 	gu1, vu1 := number(update[0])
 	gu2, vu2 := number(update[1])
 	if len(update) != 2 || gu1 == "" || gu1 != gu2 || vu2 <= vu1 {

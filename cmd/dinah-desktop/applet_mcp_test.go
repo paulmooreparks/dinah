@@ -394,18 +394,18 @@ func TestAppletContextReplayIsPrivate(t *testing.T) {
 	if !strings.Contains(text, capability) {
 		t.Fatal("prompt has no authorization")
 	}
-	var updates []string
+	var updates testCollector[string]
 	a.sink = func(name string, data any) {
 		if name == "agent:update" {
 			encoded, _ := json.Marshal(data)
-			updates = append(updates, string(encoded))
+			updates.Add(string(encoded))
 		}
 	}
 	for _, message := range []string{text, "Make a changelog\n\n" + text} {
 		params, _ := json.Marshal(map[string]any{"sessionId": "chat", "update": map[string]any{"sessionUpdate": "user_message_chunk", "content": map[string]string{"type": "text", "text": message}}})
 		a.newAgentHandler().Notify("session/update", params)
 	}
-	if len(updates) != 1 || !strings.Contains(updates[0], "Make a changelog") || strings.Contains(updates[0], "Applet Context") || strings.Contains(updates[0], channel.token) {
+	if len(updates.Snapshot()) != 1 || !strings.Contains(updates.Snapshot()[0], "Make a changelog") || strings.Contains(updates.Snapshot()[0], "Applet Context") || strings.Contains(updates.Snapshot()[0], channel.token) {
 		t.Fatal("replayed host context entered the user transcript")
 	}
 }

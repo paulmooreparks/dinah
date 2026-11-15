@@ -155,16 +155,16 @@ func TestEverySurfaceServesTheSameChatState(t *testing.T) {
 // and nothing is sent when nothing changed.
 func TestChatStatesAreSentOnceWhenTheyChange(t *testing.T) {
 	a, _, chats := askTestApp(t)
-	var views []ChatStatesView
+	var views testCollector[ChatStatesView]
 	a.sink = func(name string, data any) {
 		if name == sessionhost.EventChatState {
-			views = append(views, data.(ChatStatesView))
+			views.Add(data.(ChatStatesView))
 		}
 	}
 	a.sendChatStates()
 	a.sendChatStates()
-	if len(views) != 1 || len(views[0].Chats) < 3 || views[0].StateGen == "" {
-		t.Fatalf("the first pass sent %d events, and the second should send none: %+v", len(views), views)
+	if len(views.Snapshot()) != 1 || len(views.Snapshot()[0].Chats) < 3 || views.Snapshot()[0].StateGen == "" {
+		t.Fatalf("the first pass sent %d events, and the second should send none: %+v", len(views.Snapshot()), views.Snapshot())
 	}
 	info := chats["A"].Info()
 	if info.State == nil || info.State.Life != lifeOpen || info.State.Exec == nil || info.State.Exec.State != execIdle {
@@ -173,13 +173,13 @@ func TestChatStatesAreSentOnceWhenTheyChange(t *testing.T) {
 	noteTurnResult("chat-A", errors.New("broke"))
 	defer noteTurnResult("chat-A", nil)
 	a.sendChatStates()
-	if len(views) != 2 || views[1].StateVer <= views[0].StateVer {
-		t.Fatalf("a change sent %d events: %+v", len(views), views)
+	if len(views.Snapshot()) != 2 || views.Snapshot()[1].StateVer <= views.Snapshot()[0].StateVer {
+		t.Fatalf("a change sent %d events: %+v", len(views.Snapshot()), views.Snapshot())
 	}
 	if st := chats["A"].Info().State; st == nil || st.Exec.State != execStuck {
 		t.Fatalf("a chat's own information after the change: %+v", st)
 	}
-	if got := a.ChatStates(); got.StateVer <= views[1].StateVer || len(got.Chats) != len(views[1].Chats) {
+	if got := a.ChatStates(); got.StateVer <= views.Snapshot()[1].StateVer || len(got.Chats) != len(views.Snapshot()[1].Chats) {
 		t.Fatalf("the call for a page that missed an event: %+v", got)
 	}
 }

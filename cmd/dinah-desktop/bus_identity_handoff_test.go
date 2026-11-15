@@ -81,13 +81,13 @@ func TestProviderSwitchKeepsTheChatsBusIdentity(t *testing.T) {
 	}
 	// The new agent's bus helper was started under the kept identity.
 	found := false
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/new" && strings.Contains(fmt.Sprintf("%+v", call.params), "--session "+id) {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("the new session was not started under %s: %+v", id, c.calls)
+		t.Fatalf("the new session was not started under %s: %+v", id, c.calls.Snapshot())
 	}
 	// Closing the old chat afterwards leaves the identity alone.
 	a.busCoordinator().LeaveBus(s)
@@ -98,7 +98,7 @@ func TestProviderSwitchKeepsTheChatsBusIdentity(t *testing.T) {
 	// carries a steering marker for it.
 	a.turnIO().Run(next, promptPointer("Continue", []acp.ContentBlock{{Type: "text", Text: "Continue"}}))
 	var sent acp.PromptParams
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/prompt" {
 			sent = call.params.(acp.PromptParams)
 		}

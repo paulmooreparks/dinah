@@ -61,7 +61,7 @@ func TestOrgChartActionsQueryAndCanonicalConversion(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	before := len(c.calls)
+	before := len(c.calls.Snapshot())
 	v := applyOrg(t, a, OrgChartActionRequest{Kind: "create_team", LeadID: "codex:a", Title: "Invented canonical team", MemberIDs: []string{"codex:c"}})
 	if v.Status != "succeeded" || v.GroupID == "" || len(v.Members) != 1 || v.Members[0].ChatID != "codex:c" {
 		t.Fatalf("conversion %+v", v)
@@ -75,7 +75,7 @@ func TestOrgChartActionsQueryAndCanonicalConversion(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(c.calls) != before {
+	if len(c.calls.Snapshot()) != before {
 		t.Fatal("relation management contacted a provider")
 	}
 	view, err := a.OrgChartActions("codex:b")
@@ -142,7 +142,7 @@ func TestOrgChartActionsStaleAndForgedRequestsHaveNoEffect(t *testing.T) {
 			t.Fatal(v)
 		}
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("refusals contacted provider")
 	}
 }
@@ -207,7 +207,7 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 	if recovered.Status != "succeeded" || recovered.GroupID != partial.GroupID {
 		t.Fatal(recovered)
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("composition started a provider")
 	}
 }
@@ -215,7 +215,7 @@ func TestOrgChartActionsMakeLeadAndPartialRecovery(t *testing.T) {
 func TestOrgChartActionsStartIsExplicitAndNeverPrompts(t *testing.T) {
 	a, c, _ := orgActionsFixture(t)
 	action := orgAction(t, a, "", "start_chat")
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("query contacted provider")
 	}
 	r := OrgChartActionRequest{Kind: "start_chat", WorkspaceID: action.Workspaces[0].ID, Provider: "codex"}
@@ -224,7 +224,7 @@ func TestOrgChartActionsStartIsExplicitAndNeverPrompts(t *testing.T) {
 		t.Fatal(v)
 	}
 	newCalls := 0
-	for _, call := range c.calls {
+	for _, call := range c.calls.Snapshot() {
 		if call.method == "session/new" {
 			newCalls++
 		}
@@ -263,7 +263,7 @@ func TestOrgChartActionsDeleteUsesWholeChainAndRefusals(t *testing.T) {
 	if a.removedChat("codex:c") {
 		t.Fatal("unrelated chat binned")
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("closed staging touched provider")
 	}
 	a.transferRunning.Store("codex:c", true)
@@ -308,7 +308,7 @@ func TestOrgChartActionsQueryDoesNotWriteAndAddressesRoundTrip(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(c.calls) != 0 {
+	if len(c.calls.Snapshot()) != 0 {
 		t.Fatal("query contacted provider")
 	}
 	for _, action := range v.Actions {
