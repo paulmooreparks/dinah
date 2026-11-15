@@ -16,6 +16,12 @@ The tagged host exposes StartupPageCounters and StartupPageTrace as diagnostic r
 
 ## Remaining gates
 
-The combined counted run, the previous-visible-set comparison and independent receiving checks remain pending. The receiving journey must preserve identities, titles and states through rename, removal, restore and restart. No product acceptance or installation is claimed by the page checks above.
+The combined candidate at 0a964d7c passed all seventeen counted cases, the selected desktop/sessionhost race checks in 35.792/1.117 seconds, and the tracked-file forbidden-terms guard. Quality independently passed its eight zero-contact cases in 24.126 seconds on that product source. Its other frozen controls remain separate receiving work.
+
+Release then found ownership-conflict retention, legacy-cache ordering and safe repair-title defects in the host. Engine's correction a77e3e0e is now included. It retains contradictory observations as durable repair holds and preserves safe titles. Combined acceptance must rerun against this corrected source; the earlier results do not clear these cases.
+
+The receiving fixture now supplies nonempty skills and model choices plus completed ACP, Codex and Ollama responses. Actual page-driven completed turns passed for Codex, Devin and Claude. The Ollama control exposed an empty model in its invented saved record, now corrected. A later rerun exposed an ambiguous composer locator, which now targets the current chat window. The full richer-fixture rerun remains pending. These corrections change test-only data and routing, without changing production checks or supplying synthetic page outcomes.
+
+The previous-visible-set comparison and remaining independent receiving checks are pending. The receiving journey must preserve identities, titles and states through rename, removal, restore and restart. No product acceptance or installation is claimed by the page checks above.
 
 The hidden host serves the real embedded page and App bridge with invented isolated providers. It does not execute native Wails startup. Native Claude adapter maintenance and the separately recorded manual-calibration runtime crash remain outside this page-startup result.
