@@ -1,6 +1,41 @@
 /* Geometry for the read-only chart. Execution state never enters this calculation. */
 (function () {
   'use strict';
+  // Use clear horizontal and vertical corridors between the reserved boxes.
+  // Diagrams still draws every segment with its documented straight route.
+  function routes(plan) {
+    var obstacles = plan.positions.concat(plan.controls).map(function (p) { return { left: Math.floor(p.x - 6), right: Math.ceil(p.x + p.width + 6), top: Math.floor(p.y - 6), bottom: Math.ceil(p.y + p.height + 6) }; });
+    function port(p, side) { return side === 'bottom' ? [Math.round(p.x + p.width / 2), Math.ceil(p.y + p.height + 6)] : side === 'top' ? [Math.round(p.x + p.width / 2), Math.floor(p.y - 6)] : [Math.ceil(p.x + p.width + 6), Math.round(p.y + p.height / 2)]; }
+    var links = plan.edges.map(function (e) { return Object.assign({}, e, { fromSide: e.dotted ? 'right' : 'bottom', toSide: e.dotted ? 'right' : 'top', start: port(e.from, e.dotted ? 'right' : 'bottom'), end: port(e.to, e.dotted ? 'right' : 'top') }); });
+    var xs = new Set([0, plan.width]), ys = new Set([0, plan.height]);
+    obstacles.forEach(function (o) { xs.add(o.left); xs.add(o.right); ys.add(o.top); ys.add(o.bottom); });
+    links.forEach(function (e) { xs.add(e.start[0]); xs.add(e.end[0]); ys.add(e.start[1]); ys.add(e.end[1]); });
+    xs = Array.from(xs).sort(function (a, b) { return a - b; }); ys = Array.from(ys).sort(function (a, b) { return a - b; });
+    var columns = xs.length, count = columns * ys.length, clear = new Map();
+    function point(index) { return [xs[index % columns], ys[Math.floor(index / columns)]]; }
+    function free(a, b) {
+      var key = Math.min(a, b) + ':' + Math.max(a, b); if (clear.has(key)) return clear.get(key);
+      var first = point(a), last = point(b), horizontal = first[1] === last[1];
+      var allowed = !obstacles.some(function (o) { return horizontal ? first[1] > o.top && first[1] < o.bottom && Math.max(first[0], last[0]) > o.left && Math.min(first[0], last[0]) < o.right : first[0] > o.left && first[0] < o.right && Math.max(first[1], last[1]) > o.top && Math.min(first[1], last[1]) < o.bottom; });
+      clear.set(key, allowed); return allowed;
+    }
+    return links.map(function (edge) {
+      var start = ys.indexOf(edge.start[1]) * columns + xs.indexOf(edge.start[0]), end = ys.indexOf(edge.end[1]) * columns + xs.indexOf(edge.end[0]);
+      var previous = new Int32Array(count); previous.fill(-2); previous[start] = -1;
+      var queue = new Int32Array(count), first = 0, last = 1; queue[0] = start;
+      while (first < last && previous[end] === -2) {
+        var current = queue[first++], x = current % columns, y = Math.floor(current / columns), neighbors = [];
+        if (x > 0) neighbors.push(current - 1); if (x + 1 < columns) neighbors.push(current + 1);
+        if (y > 0) neighbors.push(current - columns); if (y + 1 < ys.length) neighbors.push(current + columns);
+        neighbors.forEach(function (next) { if (previous[next] === -2 && free(current, next)) { previous[next] = current; queue[last++] = next; } });
+      }
+      if (previous[end] === -2) throw new Error('A chart connection could not be drawn without crossing a box.');
+      var points = [], cursor = end;
+      while (cursor !== -1) { points.push(point(cursor)); cursor = previous[cursor]; } points.reverse();
+      edge.points = points.filter(function (p, index) { if (!index || index === points.length - 1) return true; var a = points[index - 1], b = points[index + 1]; return !(a[0] === p[0] && p[0] === b[0] || a[1] === p[1] && p[1] === b[1]); });
+      return edge;
+    });
+  }
   function layout(view, options) {
     var width = Math.max(160, Math.floor(options.width)), folded = new Set(options.folded || []);
     var chats = new Map(view.chats.map(function (c) { return [c.chatId, c]; }));
@@ -82,7 +117,8 @@
         linked.add(a.id); edges.push({ id: 'group:' + index + ':' + id, from: a, to: box, dotted: true });
       });
     });
-    return { width: width, height: Math.max(160, y), positions: positions, frames: frames, controls: controls, edges: edges };
+    var plan = { width: width, height: Math.max(160, y), positions: positions, frames: frames, controls: controls, edges: edges };
+    plan.routes = routes(plan); return plan;
   }
   function signature(view, options) {
     return JSON.stringify([Math.floor(options.width), options.workspace, options.find, options.folded.slice().sort(),

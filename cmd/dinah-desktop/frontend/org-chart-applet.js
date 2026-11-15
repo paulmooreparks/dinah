@@ -31,14 +31,13 @@
       drawing.frames.forEach(function (p) { box(Object.assign({}, p, { id: 'frame:' + p.id }), true); });
       drawing.positions.forEach(function (p) { box(p); });
       drawing.controls.forEach(function (p) { box(Object.assign({}, p, { id: 'fold:' + p.id })); });
-      drawing.edges.forEach(function (e, index) {
+      drawing.routes.forEach(function (e) {
         box(e.from); box(e.to);
-        function line(id, a, side, b, toSide) { edges.push({ id: id, fromNode: a, fromSide: side, fromEnd: 'none', toNode: b, toSide: toSide, toEnd: 'none', yavc: { line: e.dotted ? 'dotted' : 'solid', lineWidth: 2, route: 'elbow' } }); }
-        if (!e.dotted) { line(e.id, e.from.id, 'bottom', e.to.id, 'top'); return; }
-        // A gutter endpoint keeps long group links outside chat text.
-        var bend = { id: 'bend:' + index, x: drawing.width - 5 - index % 3 * 4, y: e.from.y + e.from.height / 2, width: 1, height: 1 };
-        nodes.push({ id: bend.id, type: 'text', x: bend.x, y: bend.y, width: 1, height: 1, text: '', yavc: { shape: 'text' } });
-        line(e.id + ':out', e.from.id, 'right', bend.id, 'left'); line(e.id + ':down', bend.id, 'bottom', e.to.id, 'right');
+        function line(id, a, side, b, toSide) { edges.push({ id: id, fromNode: a, fromSide: side, fromEnd: 'none', toNode: b, toSide: toSide, toEnd: 'none', yavc: { line: e.dotted ? 'dotted' : 'solid', lineWidth: 2, route: 'straight' } }); }
+        var anchors = e.points.map(function (p, index) { var id = 'route:' + e.id + ':' + index; nodes.push({ id: id, type: 'text', x: p[0], y: p[1], width: 0, height: 0, text: '', yavc: { shape: 'text', anchor: true } }); return id; });
+        line(e.id + ':start', e.from.id, e.fromSide, anchors[0], 'left');
+        for (var index = 0; index + 1 < anchors.length; index++) line(e.id + ':' + index, anchors[index], 'right', anchors[index + 1], 'left');
+        line(e.id + ':end', anchors[anchors.length - 1], 'right', e.to.id, e.toSide);
       });
       nodes.push({ id: 'bounds', type: 'text', x: 0, y: 0, width: drawing.width, height: drawing.height, text: '', yavc: { shape: 'text' } });
       var checked = window.yavcCanvas.read(JSON.stringify({ nodes: nodes, edges: edges }));
