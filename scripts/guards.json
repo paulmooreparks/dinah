@@ -364,6 +364,7 @@
     "ollama-file-access",
     "responsiveness-snapshot",
     "settings-updates-loading",
+    "release-notes",
     "settings-updates-current",
     "settings-updates-available",
     "settings-updates-installing",

@@ -541,6 +541,9 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .updates-row > button { flex: none; width: 7rem; }
 .updates-status { box-sizing: border-box; height: 4.5rem; overflow: auto; overflow-wrap: anywhere; margin: 0; }
 .updates-notes { box-sizing: border-box; height: 10rem; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
+.release-notes, .updates-notes.release-notes { white-space: normal; }
+.release-notes .msg-text pre, .release-notes .msg-table { max-inline-size: 100%; overflow-x: auto; }
+.release-notes .msg-text pre { white-space: pre; overflow-wrap: normal; }
 .updates-scroll { height: 18rem; overflow: auto; scrollbar-gutter: stable; border: 1px solid var(--border); }
 .updates-scroll > .updates-row { border-radius: 0; }
 .updates-progress { height: 4rem; min-width: 0; }

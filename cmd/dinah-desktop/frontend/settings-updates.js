@@ -73,8 +73,7 @@
     else if (s.available) words = s.latest + ' is available. This window reports ' + (s.current || 'an unknown running version') + '.';
     else words = 'No newer release was found. The current version is ' + (s.current || 'an unknown current version') + ' and the latest release is ' + s.latest + '.';
     status('updates-release-status', releaseFailure || words, !!(releaseFailure || s.error));
-    // Notes are untrusted text, and do not need HTML to explain a release.
-    if ($('updates-notes').textContent !== (s.notes || 'Release notes are unavailable.')) $('updates-notes').textContent = s.notes || 'Release notes are unavailable.';
+    window.dinahReleaseNotes.set($('updates-notes'), s.notes || 'Release notes are unavailable.');
     var bar = $('updates-progress');
     if (s.downloading && s.size > 0) {
       bar.max = s.size; bar.value = Math.max(0, Math.min(s.received || 0, s.size));
