@@ -69,12 +69,20 @@ withBrowser(async browser => {
   // A change while a turn runs.
   await tryIt('chat:engine'); await tryIt('turn'); await frame();
   await btn().click(); await panel().waitFor();
-  check((await page.locator('.effort-note[data-running]').textContent()).includes('applies from the next turn'), 'while a turn runs, the panel says a new level applies from the next turn');
+  check((await page.locator('.effort-note[data-running]').textContent()).includes("Codex applies a level you choose now from the next turn"), "in a Codex chat the panel says a new level applies from the next turn, as Codex documents");
   await page.locator('.effort-seg [data-level="low"]').click(); await frame();
   const m = await page.evaluate(() => window.__mockModel());
-  check(m.current === 'low' && m.runLevel === 'high' && (await page.locator('.mock-working').textContent()).includes('working at high effort. low applies from the next turn'), 'the running turn keeps its level and the next turn gets the new one');
+  check(m.current === 'low' && m.runLevel === 'high' && (await page.locator('.mock-working').textContent()).includes('the turn started at high effort. The turn already running keeps high; low applies from the next turn'), 'the running turn keeps its level and the next turn gets the new one');
   await tryIt('turn'); await frame();
   check(await page.locator('.mock-working').isHidden(), 'finishing the turn clears the note');
+  await tryIt('claude-turn'); await frame();
+  await btn().click(); await panel().waitFor();
+  const claudeNote = await page.locator('.effort-note[data-running]').textContent();
+  check(claudeNote.includes('Claude doesn’t say whether a change applies to the turn already running') && !claudeNote.includes('next turn'), 'in a Claude chat the panel promises nothing Claude does not document');
+  await page.locator('.effort-seg [data-level="low"]').click(); await frame();
+  const claudeLine = await page.locator('.mock-working').textContent();
+  check(claudeLine.includes('Claude doesn’t say whether Low applies to the turn already running') && !claudeLine.includes('next turn'), 'and so does the working line after a change');
+  await tryIt('turn'); await frame();
 
   // The phone: the toolbar folds, and the same panel opens in the Agent menu.
   await page.setViewportSize({ width: 390, height: 844 });

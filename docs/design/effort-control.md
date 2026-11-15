@@ -16,11 +16,10 @@ The button is a PUDL command with a panel of its own, which pudl-commands.js alr
 
 A chat with one level shows the button with a single full cell, and its panel says the model offers one effort level, so there is nothing to choose. A chat with no effort setting shows no button.
 
-When a level is chosen while a turn is running, the turn already running keeps its level and the new one applies from the next turn. The panel says so before the choice, and the working line says so after it. The mockup also has a state showing today's Thinking button for comparison.
+When a level is chosen while a turn is running, the panel says beforehand, and the working line says afterwards, what that agent program documents about the change, and nothing more. Engine checked each program's documentation (`docs/review/effort-change-protocol-2026-11-16.md` on `engine/effort-protocol`). Codex documents that the effort belongs to the start of a turn, so for Codex the turn already running keeps its level and the new one applies from the next turn. Claude and Devin, through ACP, do not say whether a change applies to the turn already running, and the panel says exactly that. Ollama uses the new value from its next request to the model, which may come before the turn ends, and the panel says that. The mockup also has a state showing today's Thinking button for comparison.
 
 ## What the mockup does not settle
 
-- The mockup assumes a new level applies from the next turn for every agent program. Codex sends the effort with each turn, so this holds there; the engine should confirm it for the others.
 - A chat whose agent offers more than one thinking setting at once is not mocked. The panel would show one segmented control for each, with the setting's name above it, and the mark would follow the first.
 
 ## Questions for Paul

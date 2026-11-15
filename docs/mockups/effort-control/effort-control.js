@@ -45,6 +45,23 @@
   function chat() { return CHATS[M.chat]; }
   function levelOf(c, v) { return c.levels.find(function (l) { return l.value === v; }); }
   function nameOf(c, v) { var l = levelOf(c, v); return l ? l.name : ''; }
+  /* What each agent program documents about a change made while a turn
+     runs (Engine's review, docs/review/effort-change-protocol-2026-11-16.md
+     on engine/effort-protocol). Only Codex documents that the turn running
+     keeps its level; Dinah promises nothing the program does not document. */
+  function timing(c) { return c.provider === 'Codex' ? 'next-turn' : c.provider === 'Ollama' ? 'next-request' : 'unspecified'; }
+  function beforeWords(c) {
+    var t = timing(c);
+    return t === 'next-turn' ? 'A turn is running at ' + nameOf(c, M.runLevel) + '. Codex applies a level you choose now from the next turn.'
+      : t === 'next-request' ? 'A turn is running. Ollama uses a level you choose now from its next request to the model, which may come before this turn ends.'
+      : 'A turn is running. ' + c.provider + ' doesn’t say whether a change applies to the turn already running.';
+  }
+  function afterWords(c) {
+    var t = timing(c), now = nameOf(c, c.current);
+    return t === 'next-turn' ? 'The turn already running keeps ' + nameOf(c, M.runLevel) + '; ' + now + ' applies from the next turn.'
+      : t === 'next-request' ? 'Ollama uses ' + now + ' from its next request to the model, which may come before this turn ends.'
+      : c.provider + ' doesn’t say whether ' + now + ' applies to the turn already running.';
+  }
 
   /* ---- The Effort button's own content: the glyph, the word, the mark. ---- */
   function drawMark() {
@@ -67,7 +84,7 @@
     }));
     var notes = [];
     if (c.levels.length === 1) notes.push(h('p', { class: 'effort-note' }, glyph('info'), h('span', { text: 'This model offers one effort level, so there is nothing to choose.' })));
-    if (M.running) notes.push(h('p', { class: 'effort-note', 'data-running': '' }, glyph('info'), h('span', { text: 'A turn is running at ' + nameOf(c, M.runLevel) + '. A level you choose now applies from the next turn.' })));
+    if (M.running) notes.push(h('p', { class: 'effort-note', 'data-running': '' }, glyph('info'), h('span', { text: beforeWords(c) })));
     container.append(h('div', { class: 'effort-panel' }, h('div', { class: 'md-section-label', text: 'Effort' }), seg, detail, notes));
     describe(c.current);
     seg.addEventListener('focusin', function (e) { var b = e.target.closest('[data-level]'); if (b) describe(b.dataset.level); });
@@ -96,7 +113,7 @@
   function choose(v) {
     var c = chat(); if (c.current === v) return;
     c.current = v; drawMark(); drawWorking(); window.pudlCommands.changed();
-    if (M.running && v !== M.runLevel) note('Effort is now ' + nameOf(c, v) + ' for this chat. The turn already running keeps ' + nameOf(c, M.runLevel) + '; ' + nameOf(c, v) + ' applies from the next turn.');
+    if (M.running && v !== M.runLevel) note('Effort is now ' + nameOf(c, v) + ' for this chat. ' + afterWords(c));
   }
 
   /* ---- The command table, shaped like the chat applet's. ---- */
@@ -130,7 +147,7 @@
     row.hidden = !M.running; if (!M.running) return;
     var c = chat(), later = c.current !== M.runLevel;
     row.replaceChildren(h('span', { class: 'badge', 'data-state': 'working', text: 'Working' }),
-      h('span', { text: c.title + ' is working at ' + nameOf(c, M.runLevel) + ' effort.' + (later ? ' ' + nameOf(c, c.current) + ' applies from the next turn.' : '') }));
+      h('span', { text: c.title + ' is working; the turn started at ' + nameOf(c, M.runLevel) + ' effort.' + (later ? ' ' + afterWords(c) : '') }));
   }
 
   var noteTimer;
@@ -152,6 +169,7 @@
         h('option', { value: 'chat:local', text: 'A chat with one level' }),
         h('option', { value: 'chat:notes', text: 'A chat with no effort setting' }),
         h('option', { value: 'turn', text: 'Start or finish a turn' }),
+        h('option', { value: 'claude-turn', text: 'A turn running in a Claude chat' }),
         h('option', { value: 'theme', text: theme === 'dark' ? 'Switch to light' : 'Switch to dark' }),
         h('option', { value: 'restart', text: 'Start this state again' }),
         h('option', { value: 'index', text: 'Back to the list of states' })));
@@ -210,6 +228,7 @@
     var v = e.target.value; e.target.value = '';
     if (v.indexOf('chat:') === 0) switchChat(v.slice(5));
     else if (v === 'turn') { if (M.running) finishTurn(); else startTurn(); }
+    else if (v === 'claude-turn') { if (M.running) finishTurn(); switchChat('frontend'); startTurn(); }
     else if (v === 'theme') { theme = theme === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', theme); e.target.querySelector('option[value="theme"]').textContent = theme === 'dark' ? 'Switch to light' : 'Switch to dark'; }
     else if (v === 'restart') location.search = '?state=' + M.start + (theme === 'dark' ? '&theme=dark' : '');
     else if (v === 'index') location.search = '?state=index';
@@ -230,8 +249,9 @@
     { key: 'five-open', title: 'Its Effort panel, open', run: function () { M.chat = 'frontend'; }, after: function () { openEffort(); } },
     { key: 'one', title: 'A chat with one level (Ollama: On)', run: function () { M.chat = 'local'; } },
     { key: 'one-open', title: 'Its Effort panel, open: one level and nothing to choose', run: function () { M.chat = 'local'; }, after: function () { openEffort(); } },
-    { key: 'running', title: 'A turn is running: the panel says a new level applies from the next turn', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'high'; }, after: function () { openEffort(); } },
-    { key: 'running-changed', title: 'Changed while the turn runs: the turn keeps its level, the next turn gets the new one', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'medium'; } },
+    { key: 'running', title: 'A turn is running in a Codex chat: the panel says a new level applies from the next turn, as Codex documents', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'high'; }, after: function () { openEffort(); } },
+    { key: 'running-claude', title: 'A turn is running in a Claude chat: Claude doesn’t say when a change applies, so the panel promises nothing', run: function () { M.chat = 'frontend'; M.running = true; M.runLevel = 'high'; }, after: function () { openEffort(); } },
+    { key: 'running-changed', title: 'Changed while a Codex turn runs: Codex documents that the turn keeps its level and the next turn gets the new one', run: function () { M.running = true; M.runLevel = 'high'; CHATS.engine.current = 'medium'; } },
     { key: 'keyboard', title: 'The keyboard: Enter opens the panel on the level in effect, Right moves to the next and shows its description', run: function () { M.chat = 'frontend'; }, after: function () { openEffort(true); setTimeout(function () { var f = document.activeElement; if (f && f.dataset.level) f.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); }, 60); } },
     { key: 'none', title: 'A chat with no effort setting shows no button', run: function () { M.chat = 'notes'; } },
     { key: 'today', title: 'For comparison: the Thinking button as it is today', run: function () { M.today = true; } }
