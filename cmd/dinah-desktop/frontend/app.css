@@ -862,6 +862,9 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .live-work > .run-log { margin: 0; }
 .live-work .tool-group-list { max-height: min(30vh, 18rem); overflow: auto; overscroll-behavior: contain; }
 .live-work .work-group { margin: 0; }
+/* What the agent program documents about an Effort change made while the turn runs. */
+.live-work-note { margin: 0; padding: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.live-work-note[hidden] { display: none; }
 .live-work .activity-time { display: none; }
 .live-work .activity-row { grid-template-columns: minmax(0, 1fr); }
 .live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
@@ -946,8 +949,22 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
   .chat-cleanup { overflow-y: auto; }
 }
 
-/* Keep reported Thinking values from changing the composer's geometry. */
-.composer-toolbar [data-command="thinking"] .toolbar-words { inline-size: 9rem; max-inline-size: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Effort (docs/design/effort-control.md). The button always says "Effort"
+   and shows the level as a mark of one fixed width: one cell for each level
+   the chat offers, filled up to the level in effect. A change of level only
+   fills or empties cells, so the button never changes size. Its panel holds
+   only the word and the levels as a segmented control, so it is always the
+   same size. */
+.effort-mark { display: inline-flex; align-items: center; gap: 2px; inline-size: 26px; block-size: 10px; flex: none; margin-inline-start: 2px; }
+.effort-mark > i { flex: 1; block-size: 100%; border-radius: 1px; box-shadow: inset 0 0 0 1px currentColor; opacity: .55; }
+.effort-mark > i[data-on] { background: currentColor; opacity: 1; box-shadow: none; }
+@media (forced-colors: active) { .effort-mark > i { forced-color-adjust: none; box-shadow: inset 0 0 0 1px ButtonText; } .effort-mark > i[data-on] { background: ButtonText; } }
+.effort-panel { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3); max-inline-size: min(30rem, calc(100vw - 2 * var(--space-3))); }
+.effort-panel .md-section-label { padding: 0; }
+.effort-seg { display: flex; inline-size: 100%; }
+.effort-seg > button { flex: 1 0 auto; justify-content: center; white-space: nowrap; }
+/* A folded toolbar's menu already heads the panel with the command's name. */
+.menu-command-panel .effort-panel[data-single] > .md-section-label { display: none; }
 /* The chart keeps its reading surface and each chat box fixed while state changes. */
 .org-chart { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .org-chart-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); flex: none; }

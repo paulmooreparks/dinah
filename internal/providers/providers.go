@@ -104,6 +104,13 @@ type Row struct {
 	// NativeSessionsRequireImport keeps external native history out of the
 	// chat inventory until Dinah has admitted or locally observed the chat.
 	NativeSessionsRequireImport bool
+	// EffortChange is what the program documents about a thought-level change
+	// made while a turn runs: "next-turn" (the turn already running keeps its
+	// level, the next turn gets the new one), "next-request" (the next request
+	// to the model carries it, which may come before the turn ends), or empty
+	// when the documentation does not say. The composer's Effort control says
+	// only this (docs/review/effort-change-protocol-2026-11-16.md).
+	EffortChange string
 }
 
 // FileLimit is a provider's documented limit on the files in one message: the
@@ -126,6 +133,8 @@ var Registry = map[string]Row{
 		FileLimit: FileLimit{Source: "Devin's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Devin's error if it refuses a file."}},
 	"codex": {Name: "Codex", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
 		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true, NativeSessionsRequireImport: true,
+		// The App Server takes effort as a turn/start override, and turn/steer takes none.
+		EffortChange: "next-turn",
 		// 600,000 is under the app-server's 1,048,576-character request cap, leaving room for the turn that follows and for the thread to grow.
 		HandoffChars: 600_000,
 		FileLimit: FileLimit{Default: 20, Ceiling: 1500,
@@ -144,6 +153,8 @@ var Registry = map[string]Row{
 			URL:    "https://platform.claude.com/docs/en/build-with-claude/vision"},
 		UsageNote: "Claude's plan limits cannot be read by {product}; see your usage in Claude Code or at claude.ai, or in the Claude Console for an API key."},
 	"ollama": {Name: "Ollama", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "adapter", Removal: "deletes", Usage: "none", SessionPrefix: "ollama:", ManagedServers: true, OwnPreferences: true,
+		// think belongs to each chat request, and an agent turn can make several.
+		EffortChange: "next-request",
 		// 90,000 is for a chat whose context length is not known yet.
 		HandoffChars: 90_000, HandoffFromContext: true,
 		FileLimit: FileLimit{Source: "Ollama's API documentation gives no limit on the images in one request, so there is none unless you set one. {product} sends what you attach and shows Ollama's error if it refuses a file."},

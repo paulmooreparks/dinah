@@ -703,12 +703,14 @@
         </div>
       </div>
     </div>
-    <div class="live-work" id="live-work" aria-label="Current work" hidden><ol class="activity run-log"></ol></div>
+    <div class="live-work" id="live-work" aria-label="Current work" hidden><ol class="activity run-log"></ol><p class="live-work-note" id="effort-note" role="status" hidden></p></div>
     <form class="composer" id="composer">
       <!-- The composer's toolbar is drawn from the chat's commands and
            folds into menus as the window narrows.
            The provider, the mode and the model are menus of choices that
-           show the one in effect. Usage, the document that goes with the
+           show the one in effect. Effort always says "Effort", with a mark
+           of one fixed width for the level, and opens the levels as a
+           segmented control (docs/design/effort-control.md). Usage, the document that goes with the
            message and the queued messages are readings, so they stay
            beside the toolbar rather than in it. Subagents, in the Turn
            group, is a menu of the chat's subagents and is there only
@@ -723,7 +725,7 @@
       <div class="composer-bar">
         <div class="toolbar composer-toolbar" role="toolbar" aria-label="Message" data-toolbar-captions="none">
           <div class="toolbar-group" data-toolbar-group="Agent" data-toolbar-glyph="gear" data-toolbar-priority="3">
-            <button type="button" data-command="provider"></button><button type="button" data-command="mode"></button><button type="button" data-command="model"></button><button type="button" data-command="thinking"></button>
+            <button type="button" data-command="provider"></button><button type="button" data-command="mode"></button><button type="button" data-command="model"></button><button type="button" class="btn btn-sm effort-btn" data-command="effort" data-command-own><span class="glyph" style="--glyph: var(--glyph-gear)" aria-hidden="true"></span><span class="toolbar-words">Effort</span><span class="effort-mark" aria-hidden="true"></span></button>
           </div>
           <div class="toolbar-group" data-toolbar-group="Message" data-toolbar-glyph="clip" data-toolbar-priority="1">
             <button type="button" data-command="add"></button><button type="button" data-command="skills"></button>
