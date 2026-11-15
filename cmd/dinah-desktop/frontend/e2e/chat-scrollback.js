@@ -10,9 +10,9 @@ const { launch } = require('./lib/page');
       const ws = 'C:\\Work\\Parser Workspace';
       const opts = [{ id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'swe-1-6', options: [{ value: 'swe-1-6', name: 'SWE-1.6' }] }];
       return {
-        State: async () => ({ workspace: ws, recent: [ws], approvals: 'dinah', devin: 'devin.exe', catalog: opts, defaults: {}, pinned: [], showThinking: true }),
-        AgentProviders: async () => [],
-        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'long', options: opts }), 0); return { sessionId: 'long', cwd: ws, title: '', open: true, working: false, queued: [] }; },
+        State: async () => ({ workspace: ws, recent: [ws], approvals: 'dinah', defaultProvider: 'devin', devin: 'devin.exe', catalog: opts, defaults: {}, pinned: [], showThinking: true }),
+        AgentProviders: async () => [window.__provider('devin')],
+        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'long', options: opts }), 0); return { sessionId: 'long', provider: 'devin', cwd: ws, title: '', open: true, working: false, queued: [] }; },
         SetSessionOption: async () => opts,
         Send: async (id, text) => { window.__calls.push(['Send', id, text]); },
         ShowSavedChatHistory: async (id) => { window.__calls.push(['ShowSavedChatHistory', id]); },
@@ -23,6 +23,8 @@ const { launch } = require('./lib/page');
     },
     init: () => { window.__calls = []; },
   });
+  await t.page.evaluate(() => dinahCommands.describe('new-chat').run());
+  await t.page.locator('.chat-instance').waitFor();
   const p = require('./lib/windows')(t.page);
   const { ok } = t;
   await p.fill('.win[data-chat-current] [data-view-id=prompt]', 'Start a long piece of work.');

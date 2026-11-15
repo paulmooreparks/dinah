@@ -187,7 +187,28 @@ func (a *App) stageChatCleanup(id string) error {
 		// must not leave an unowned retained settings payload behind.
 		return errors.Join(err, removeChatCleanupArchive(group))
 	}
-	return a.finishRetainingChat(group)
+	err = a.finishRetainingChat(group)
+	var lead *bus.TeamLeadRefusal
+	if errors.As(err, &lead) {
+		// This refusal happens before the atomic bus withdrawal and before any
+		// file moves. Only this fresh reservation may be released here.
+		rollback := a.updateSettings(func(s *Settings) error {
+			for _, member := range ids {
+				if row, ok := s.RemovedChats[member]; !ok || row.Group != group || row.Stage != "retaining" {
+					return errors.New("cleanup reservation changed before refusal recovery")
+				}
+			}
+			for _, member := range ids {
+				delete(s.RemovedChats, member)
+			}
+			return nil
+		})
+		if rollback != nil {
+			return errors.Join(err, rollback)
+		}
+		return errors.Join(refuseChatCleanup(lead.Error()), removeChatCleanupArchive(group))
+	}
+	return err
 }
 
 func (a *App) finishRetainingChat(group string) error {
@@ -202,12 +223,11 @@ func (a *App) finishRetainingChat(group string) error {
 		}
 	}
 	if err = a.busHost().With(func(b *bus.Bus) error {
+		ids := make([]string, 0, len(recipients))
 		for recipient := range recipients {
-			if err := b.BinRecipient(context.Background(), recipient); err != nil {
-				return err
-			}
+			ids = append(ids, recipient)
 		}
-		return nil
+		return b.BinRecipients(context.Background(), ids)
 	}); err != nil {
 		return err
 	}

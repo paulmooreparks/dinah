@@ -106,15 +106,10 @@ func TestANestedMembersMessageRisesThroughTwoLeads(t *testing.T) {
 	ctx := context.Background()
 	b, review, lead, docs, parser, outside := teamBus(t)
 	// outside leads lead, lead leads docs and parser.
-	if _, err := b.SetLead(ctx, lead.ID, outside.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.SetLead(ctx, docs.ID, lead.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.SetLead(ctx, parser.ID, lead.ID); err != nil {
-		t.Fatal(err)
-	}
+	// These are historical nested records, which new writes no longer admit.
+	legacyAssignLead(t, b, lead.ID, outside.ID)
+	legacyAssignLead(t, b, docs.ID, lead.ID)
+	legacyAssignLead(t, b, parser.ID, lead.ID)
 	first := sendTo(t, b, docs, review.Name, "Up to the person?", "paul")
 	if got := personMentions(t, b); len(got) != 0 {
 		t.Fatalf("the person was notified: %v", got)
@@ -139,19 +134,19 @@ func TestANestedMembersMessageRisesThroughTwoLeads(t *testing.T) {
 }
 
 // One lead for a chat, moving a member leaves the old team's group, and a relation that would make a cycle is refused.
-func TestTheLeadRelationIsOneLeadAndNeverACycle(t *testing.T) {
+func TestTheLeadRelationIsOneTeamAndNeverACycle(t *testing.T) {
 	ctx := context.Background()
 	b, review, lead, docs, parser, outside := teamBus(t)
 	if _, err := b.SetLead(ctx, docs.ID, lead.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetLead(ctx, parser.ID, docs.ID); err != nil {
+	if _, err := b.SetLead(ctx, parser.ID, lead.ID); err != nil {
 		t.Fatal(err)
 	}
-	for name, c := range map[string][2]string{"itself": {docs.ID, docs.ID}, "own lead": {lead.ID, docs.ID}, "through a chain": {lead.ID, parser.ID}} {
+	for name, c := range map[string][2]string{"itself": {docs.ID, docs.ID}, "own lead": {lead.ID, docs.ID}, "another member": {lead.ID, parser.ID}} {
 		if _, err := b.SetLead(ctx, c[0], c[1]); err == nil {
 			t.Fatalf("%s: a cycle was accepted", name)
-		} else if name != "itself" && !strings.Contains(err.Error(), "already leads") {
+		} else if name != "itself" && !strings.Contains(err.Error(), "Reassign its members") {
 			t.Fatalf("%s: the refusal does not say why: %v", name, err)
 		}
 	}
@@ -381,9 +376,7 @@ func TestATeamsUsageIsPerProviderAndNeverCountsUnknownAsZero(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.SetLead(ctx, lead.ID, outside.ID); err != nil {
-		t.Fatal(err)
-	}
+	legacyAssignLead(t, b, lead.ID, outside.ID)
 	now := b.now()
 	from, to := now.Add(-time.Hour), now.Add(time.Hour)
 	for _, r := range []struct {
@@ -576,9 +569,7 @@ func TestAddingToATeamsGroupRefusesACycleAndAddsNobody(t *testing.T) {
 		t.Fatal(err)
 	}
 	// docs leads review's team; docs is under lead? make the chain docs -> lead -> outside, then add outside to docs's group.
-	if _, err := b.SetLead(ctx, docs.ID, lead.ID); err != nil {
-		t.Fatal(err)
-	}
+	legacyAssignLead(t, b, docs.ID, lead.ID)
 	if err := b.AddToGroup(ctx, Sender{}, review.Name, []string{outside.ID}); err == nil {
 		t.Fatal("a cycle was allowed")
 	}

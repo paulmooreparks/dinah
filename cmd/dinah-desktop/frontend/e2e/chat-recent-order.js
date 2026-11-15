@@ -12,6 +12,7 @@ const { launch } = require('./lib/page');
       item.updatedAt = updatedAt; __emit('agent:session', item);
     };
     return { State: async () => ({ workspace: 'C:/Alpha', recent: ['C:/Alpha','C:/Beta'], workspaces: ['C:/Alpha','C:/Beta'] }),
+      SavedChats: async () => ({ generation: 'recent-fixture', chats: Object.values(lists).flat() }),
       Sessions: async () => lists['C:/Alpha'], SessionsAt: async ws => lists[ws] || [] };
   } });
   const p = t.page;

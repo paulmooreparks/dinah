@@ -27,6 +27,7 @@ type OrgChartChat struct {
 	ChatID        string     `json:"chatId"`
 	Head          string     `json:"head"`
 	Title         string     `json:"title"`
+	UpdatedAt     string     `json:"updatedAt"`
 	Workspace     string     `json:"workspace"`
 	WorkspaceName string     `json:"workspaceName"`
 	Provider      string     `json:"provider"`
@@ -103,7 +104,7 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	view.Chats = []OrgChartChat{}
 	aliases, byChat = map[string]string{}, map[string]int{}
 	for _, row := range inventory.Chats {
-		chat := OrgChartChat{ChatID: row.ChatID, Head: row.ID, Title: row.Title, Workspace: row.Cwd, Provider: row.Provider, ProviderName: providerName(row.Provider), State: row.State, Resolution: row.Resolution, Reason: row.Reason}
+		chat := OrgChartChat{ChatID: row.ChatID, Head: row.ID, Title: row.Title, UpdatedAt: row.UpdatedAt, Workspace: row.Cwd, Provider: row.Provider, ProviderName: providerName(row.Provider), State: row.State, Resolution: row.Resolution, Reason: row.Reason}
 		if row.Resolution != "resolved" {
 			chat.Head = ""
 		}
@@ -146,11 +147,15 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	}
 	ctx := context.Background()
 	err = a.busHost().With(func(b *bus.Bus) error {
-		rooms, err := b.Rooms(ctx)
+		relations, err := b.TeamRelations(ctx)
 		if err != nil {
 			return err
 		}
-		for _, room := range rooms {
+		channels := map[string]bus.Room{}
+		for _, room := range relations.Rooms {
+			if room.Lead != "" {
+				channels[room.Lead] = room
+			}
 			group := OrgChartGroup{ID: room.Name, Title: room.Title, MemberIDs: []string{}, Resolution: "resolved"}
 			if room.Lead != "" && !excluded[room.Lead] {
 				group.OwnerID = busAliases[room.Lead]
@@ -193,9 +198,11 @@ func (a *App) OrgChart() (OrgChartView, error) {
 			if key == "" {
 				key = "repair:" + recipient
 			}
-			members, err := b.TeamMembers(ctx, recipient)
-			if err != nil {
-				return err
+			members := []bus.TeamMember{}
+			for _, member := range relations.Members {
+				if member.Lead == recipient {
+					members = append(members, member)
+				}
 			}
 			if len(members) == 0 {
 				continue
@@ -203,9 +210,13 @@ func (a *App) OrgChart() (OrgChartView, error) {
 			team := teams[key]
 			if team == nil {
 				team = &OrgChartTeam{ID: "team:" + key, Title: "Team needs repair", LeadID: lead, MemberIDs: []string{}, Resolution: "resolved"}
+				if channel, ok := channels[recipient]; ok {
+					team.ID = "team:" + channel.Name
+					team.Title = channel.Title
+				}
 				if lead == "" {
 					team.Resolution, team.Reason = "repair", "The team's lead cannot be resolved to a local chat."
-				} else {
+				} else if _, ok := channels[recipient]; !ok {
 					team.Title = view.Chats[byChat[lead]].Title + "'s team"
 				}
 				teams[key] = team

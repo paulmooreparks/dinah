@@ -8,7 +8,7 @@
       var id = row.chatId || row.sessionId;
       aliases.set(row.sessionId, id);
       aliases.set(id, id);
-      return { chatId: id, head: row.resolution === 'repair' ? '' : row.sessionId, title: row.title, workspace: row.cwd || '', workspaceName: row.workspaceName || '', provider: row.provider || '', providerName: row.providerName || '', state: row.state, resolution: row.resolution || 'resolved', reason: row.reason || '' };
+      return { chatId: id, head: row.resolution === 'repair' ? '' : row.sessionId, title: row.title, updatedAt: row.updatedAt || '', workspace: row.cwd || '', workspaceName: row.workspaceName || '', provider: row.provider || '', providerName: row.providerName || '', state: row.state, resolution: row.resolution || 'resolved', reason: row.reason || '' };
     });
     var present = new Set(chats.map(function (chat) { return chat.chatId; }));
     function reference(id) {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 
+	"studio/internal/bus"
 	"studio/internal/workspaces"
 )
 
@@ -122,6 +123,23 @@ func (a *App) applyOrgChartAction(r OrgChartActionRequest, afterGroup func(strin
 		}
 	case "make_lead":
 		convert(r.GroupID, r.ChatID)
+	case "replace_team_lead":
+		for _, group := range x.view.Groups {
+			if group.ID != r.GroupID {
+				continue
+			}
+			err = a.busHost().With(func(b *bus.Bus) error {
+				return b.ReplaceTeamLead(a.bindingContext(), group.ID, x.busIDs[group.OwnerID], x.busIDs[r.ChatID])
+			})
+			if err == nil {
+				a.teamsActive.Store(true)
+				a.teamsChanged()
+				out.GroupID = group.ID
+				out.Message = "The team has a new lead. Its former lead is now a member."
+				out.Recovery = append(out.Recovery, OrgChartRecoveryTarget{Kind: "group", ID: group.ID, Href: orgChartGroupHref(group.ID), Label: "Open the team chat"})
+			}
+			break
+		}
 	case "create_group", "create_team":
 		ids := append([]string{}, r.MemberIDs...)
 		if r.Kind == "create_team" {
@@ -180,7 +198,7 @@ func validateOrgChartRequest(r OrgChartActionRequest, v OrgChartAction) error {
 			return bad()
 		}
 		r.LeadID = ""
-	case "make_lead":
+	case "make_lead", "replace_team_lead":
 		if !has(v.Groups, r.GroupID) {
 			return bad()
 		}

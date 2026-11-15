@@ -30,6 +30,10 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 	if err != nil {
 		return ChatCleanupListing{}, err
 	}
+	teamRefusals, err := a.cleanupTeamRefusals(settings)
+	if err != nil {
+		return ChatCleanupListing{}, err
+	}
 	_, heads := sessionhost.ConversationLinks(configDir())
 	known := []string{}
 	for id := range settings.ListedChats {
@@ -216,6 +220,12 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 					row.ProviderDeletion = "unknown"
 					break
 				}
+			}
+		}
+		for _, member := range ids {
+			if reason := teamRefusals[settings.BusSessions[member]]; reason != "" {
+				row.Refusal = reason
+				break
 			}
 		}
 		row.Eligible = row.Refusal == ""

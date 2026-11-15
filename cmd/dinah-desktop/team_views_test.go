@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -19,14 +21,17 @@ import (
 // stuck; the lead's information says which team a member is in, with the group's key.
 func TestTheTeamStripShowsStateReasonTaskAndNesting(t *testing.T) {
 	a, lead, member, leadBus, memberBus, _ := teamApp(t)
-	// A third chat led by the member, so teams nest.
+	// Historical nested teams remain readable, although new nesting is refused.
 	ctx := context.Background()
 	err := a.busHost().With(func(b *bus.Bus) error {
 		s, err := b.RegisterSession(ctx, "window-nested", lead.Cwd(), "Nested Worker")
 		if err != nil {
 			return err
 		}
-		if _, err := b.SetLead(ctx, s.ID, memberBus); err != nil {
+		if _, err := b.SetLead(ctx, s.ID, memberBus); err == nil {
+			return errors.New("new nested team was admitted")
+		}
+		if err := seedHistoricalNestedTeam(ctx, s.ID, memberBus); err != nil {
 			return err
 		}
 		// The lead's assignment to the member.
@@ -88,6 +93,35 @@ func TestTheTeamStripShowsStateReasonTaskAndNesting(t *testing.T) {
 	}
 }
 
+// This isolated fixture represents a complete relation and channel written by
+// an older build. It is never used to execute a current team mutation.
+func seedHistoricalNestedTeam(ctx context.Context, member, lead string) error {
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(filepath.Join(configDir(), "bus.db"))+"?_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	group, stamp := "historical-nested-team", time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err = tx.ExecContext(ctx, `INSERT INTO rooms (name, created_at, title, lead) VALUES (?, ?, ?, ?)`, group, stamp, "Historical nested team", lead); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO room_members (room, member_kind, member) VALUES (?, 'human', ?), (?, 'session', ?), (?, 'session', ?)`, group, bus.Human, group, lead, group, member); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO team_members (member, lead, since) VALUES (?, ?, ?)`, member, lead, stamp); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE changes SET counter=counter+1 WHERE id=1`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // The page makes and ends the relations, and a group becomes a team with the chats that cannot be members left out.
 func TestThePageMakesAndEndsTeams(t *testing.T) {
 	a, lead, member, leadBus, _, _ := teamApp(t)
@@ -101,7 +135,16 @@ func TestThePageMakesAndEndsTeams(t *testing.T) {
 	if err != nil || group == "" {
 		t.Fatalf("SetTeamLead %q %v", group, err)
 	}
-	if _, err := a.SetTeamLead(lead.ID(), member.ID()); err == nil || !strings.Contains(err.Error(), "already leads") {
+	var teamTitle string
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		room, err := b.Room(context.Background(), group)
+		teamTitle = room.Title
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	wantReason := "This chat leads " + teamTitle + ". Reassign its members, or make one of them the lead, first."
+	if _, err := a.SetTeamLead(lead.ID(), member.ID()); err == nil || err.Error() != wantReason {
 		t.Fatalf("a cycle: %v", err)
 	}
 	if _, err := a.SetTeamLead("", lead.ID()); err == nil {

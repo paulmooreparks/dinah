@@ -10,11 +10,12 @@ const { launch } = require('./lib/page');
       Answer: async (key, option) => { window.__answers.push([key, option]); if (window.__failAnswer) throw Error('Answer could not be sent'); },
     }),
     init: () => { window.__answers = []; },
-    ready: 'chat',
+    ready: 'ui-state',
   });
   const { page, ok } = t;
   try {
     await page.evaluate(async () => {
+      pudlWindows.close('needs-you');
       __emit('agent:session', { sessionId: 'first', cwd: 'C:/Fixture', provider: 'codex', title: 'Release Notes', open: true, working: true });
       await dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'first' });
       pudlWindows.snap(dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'first' }), 'maximized');

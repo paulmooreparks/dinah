@@ -99,7 +99,17 @@ func (a *App) NewSessionAt(ws string) (SessionInfo, error) {
 }
 
 func (a *App) NewSessionWithProviderAt(ws, provider string) (SessionInfo, error) {
-	return a.sessionsLifecycle().New(ws, provider, false)
+	info, err := a.sessionsLifecycle().New(ws, provider, false)
+	if err != nil {
+		return info, err
+	}
+	// Creation schedules a state publication. Complete that publication before
+	// returning so the next inventory read cannot race the initial nil state.
+	a.sendChatStates()
+	if opened := a.session(info.ID); opened != nil {
+		info = opened.InfoVersioned()
+	}
+	return info, nil
 }
 
 // Sessions lists the sessions of the workspace in front: those open in this

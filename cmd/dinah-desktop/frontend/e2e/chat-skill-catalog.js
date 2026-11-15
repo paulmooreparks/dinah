@@ -23,6 +23,8 @@ const { openMenu } = require('./lib/commands');
     }
   });
   try {
+    await t.page.evaluate(() => dinahCommands.describe('new-chat').run());
+    await t.page.locator('.chat-instance').waitFor();
     const p=t.page, chat=p.locator('.win[data-chat-current]'), prompt=chat.locator('[data-view-id=prompt]');
     await p.waitForFunction(()=>!!window.dinahSkills);
     const menu=await openMenu(p,chat,'skills');

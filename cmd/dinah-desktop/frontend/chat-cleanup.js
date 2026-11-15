@@ -175,7 +175,7 @@
     return { state: address, setState: function (state) { read(state); selected.clear(); applyFilters(); }, destroy: function () { disposed = true; stops.forEach(function (stop) { stop(); }); document.removeEventListener('dinah:chats', syncInventory); document.removeEventListener('dinah:execution-state', syncInventory); } };
   }
   function open() { return window.dinahWorkbench.open('chat-cleanup'); }
-  window.dinahWorkbench.register('chat-cleanup', { singleton: true, title: 'Clean Up Chats', glyph: 'comments', mode: 'maximized', init: init });
+  window.dinahWorkbench.register('chat-cleanup', { applet: { id: 'dinah.chat-cleanup', title: 'Clean Up Chats', glyph: 'comments', workspace: false }, launcher: { run: open }, singleton: true, title: 'Clean Up Chats', glyph: 'comments', mode: 'maximized', init: init });
   window.dinahChatCleanup = { open: open };
   window.dinahCommands.register({ id: 'clean-up-chats', menu: 'view', label: 'Clean Up Chats', run: open });
 }());
