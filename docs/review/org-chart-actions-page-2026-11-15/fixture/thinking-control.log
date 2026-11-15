@@ -1,0 +1,16 @@
+PASS the toolbar shows the reported current Thinking name
+PASS the menu uses the agent names without invented levels
+PASS the selected value uses the ordinary per-chat option call
+PASS a wide chat exposes Thinking beside Model
+PASS Thinking value updates keep every sampled toolbar and composer box fixed at 1440
+PASS the chat fits the viewport at 1440
+PASS the narrow composer has no horizontal overflow at 1440
+PASS Thinking value updates keep every sampled toolbar and composer box fixed at 390
+PASS the chat fits the viewport at 390
+PASS the narrow composer has no horizontal overflow at 390
+PASS an unreported option is absent rather than disabled
+PASS a reported option returns with its authoritative current value
+PASS a refused change preserves the current option
+PASS no page errors
+
+

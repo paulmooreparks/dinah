@@ -1,0 +1,7 @@
+PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 1440
+PASS state refresh keeps the drawing, chat elements and keyboard focus at 1440
+PASS every frame keeps chat boxes, canvas, scroll and taskbar fixed at 390
+PASS state refresh keeps the drawing, chat elements and keyboard focus at 390
+PASS no page errors
+
+
