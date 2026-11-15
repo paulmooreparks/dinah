@@ -150,7 +150,9 @@ const { settled, settledCount } = require('./lib/settled');
       await room.getByRole('button', {name:'Send',exact:true}).click();
       await p.waitForFunction(kind => __calls.some(c => c[0] === 'group-send' && c[4].some(f => f.kind === kind)), kind);
       const sent = (await calls('group-send')).at(-1);
-      ok(kind + ' sends context without notifying members', sent[3].length === 0 && sent[4][0].kind === kind && !sent[4][0].token);
+      // The reference keeps the @word it was written as, which the host stores
+      // so the message can draw it as a reference again (docs/design/group-mentions.md).
+      ok(kind + ' sends context without notifying members', sent[3].length === 0 && sent[4][0].kind === kind && String(sent[4][0].token || '').startsWith('@'));
       await chips.waitFor({state:'hidden'});
     }
 

@@ -1031,7 +1031,7 @@
         if (!catalogAsked) { catalogAsked = true; catalog.load().then(function () { if (!reachEnded && !pop.hidden && scope === 'members') drawPop(); }); }
         var memberIds = [].concat.apply([], members().map(function (m) { return [m.id, m.chat].filter(Boolean); }));  // a member's bus identity and its chat's session
         var refs = catalog.items(q.q, 'all').filter(function (c) { return !(c.att && c.att.kind === 'chat' && memberIds.indexOf(c.att.sessionId) >= 0); }).map(function (c) {
-          return Object.assign({}, c, { title: c.label, group: c.group === 'Open Chats' ? 'Other Chats, Referred To and Not Asked' : c.group, meta: (c.meta ? c.meta + ' · ' : '') + 'a reference, asks no one' });
+          return Object.assign({}, c, { title: c.label, group: c.group === 'Open Chats' ? 'Other Chats, referred to and not asked' : c.group, meta: (c.meta ? c.meta + ' · ' : '') + 'a reference, asks no one' });
         });
         // Typing that matches nothing is not a mention, so the list closes
         // rather than offering Add a Chat… alone under every word.
@@ -1039,7 +1039,7 @@
         choices = choices.concat(refs);
       }
       chosen = Math.min(chosen, choices.length - 1);
-      var items = choices.map(function (c) { return { group: c.group || 'Members, Asked to Answer', label: c.title, meta: c.meta, badge: c.state && !c.att ? stateBadge(c.state) : null, key: c.add ? 'add' : c.ins || c.id }; });
+      var items = choices.map(function (c) { return { group: c.group || 'Members, asked to answer', label: c.title, meta: c.meta, badge: c.state && !c.att ? stateBadge(c.state) : null, key: c.add ? 'add' : c.ins || c.id }; });
       window.dinahMentionList.draw(pop, items, chosen, pick, { hint: catalog && catalog.failed() ? 'Applet lookup failed. Reopen Add to retry.' : scope === 'members' ? 'Members are asked to answer; everything else is a reference and asks no one · Enter or Tab adds · Esc closes' : 'Enter or Tab adds · Up and Down choose · Esc closes' });
       text.setAttribute('aria-expanded', 'true');
     }

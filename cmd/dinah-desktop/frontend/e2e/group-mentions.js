@@ -75,7 +75,7 @@ const { launch } = require('./lib/page');
     await box.click(); await box.type('@');
     await p.waitForFunction(() => [...document.querySelectorAll('.group-mention-pop .md-section-label')].some(h => /Other Chats/.test(h.textContent)), null, { timeout: 5000 }).catch(() => {});
     const h1 = await heads();
-    ok('the @ list offers the members first, then windows, applets, documents and other chats', h1[0] === 'Members, Asked to Answer' && h1.includes('Windows') && h1.includes('Applets') && h1.includes('Open Documents') && h1.includes('Other Chats, Referred To and Not Asked'), JSON.stringify(h1));
+    ok('the @ list offers the members first, then windows, applets, documents and other chats', h1[0] === 'Members, asked to answer' && h1.includes('Windows') && h1.includes('Applets') && h1.includes('Open Documents') && h1.includes('Other Chats, referred to and not asked'), JSON.stringify(h1));
     const k1 = await keys();
     ok('a member chat is listed once, as a member, and a chat outside the group is a reference', k1.filter(k => /Docs_Pass|window-d1/.test(k)).length === 1 && k1.some(k => /Sheet_Helper/.test(k)), JSON.stringify(k1));
     ok('Add a Chat… stays at the end of the members, before the references', k1.indexOf('add') === k1.indexOf('everyone') + 1 && k1.indexOf('add') < k1.findIndex(k => /Sheet_Helper/.test(k)), JSON.stringify(k1));
@@ -89,7 +89,7 @@ const { launch } = require('./lib/page');
     await box.type('against '); await box.type('@Sheet');
     await pickRow((await keys()).find(k => /Sheet_Helper/.test(k)));
     await box.type('numbers.');
-    await p.waitForFunction(() => /Reaches Docs Pass/.test(document.querySelector('.win[data-win-kind="bus-room"]:last-of-type .group-reach, .group-reach').textContent), null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => /Reaches Docs Pass.*2 references ask no one/.test(document.querySelector('.group-reach').textContent), null, { timeout: 8000 }).catch(() => {});
     const r1 = await reach();
     ok('the line under the box says the member is reached and the references ask no one', r1.includes('Reaches Docs Pass') && r1.includes('2 references ask no one'), r1);
     await roomWin.locator('button[type="submit"], .composer-send, [data-view-id="send"]').first().click();
@@ -115,7 +115,7 @@ const { launch } = require('./lib/page');
     // A reference alone leaves the group's own rule in charge.
     await box.fill(''); await box.type('Context: '); await box.type('@Sheet');
     await pickRow((await keys()).find(k => /Sheet_Helper/.test(k)));
-    await p.waitForFunction(() => /1 reference asks no one/.test(document.querySelector('.group-reach').textContent), null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => /1 reference asks no one/.test(document.querySelector('.group-reach').textContent), null, { timeout: 8000 });
     ok('with only a reference, the reach is the group’s own rule', (await reach()).startsWith('Reaches Docs Pass') && (await reach()).includes('1 reference asks no one'), await reach());
     await box.fill('');
 
@@ -123,11 +123,11 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => dinahBus.openGroup('desktop-team'));
     const team = p.locator('.win[data-win-kind="bus-room"]').last();
     await team.locator('textarea').click(); await team.locator('textarea').type('Status, please.');
-    await p.waitForFunction(() => [...document.querySelectorAll('.group-reach')].some(l => /Reaches the lead, Team Lead/.test(l.textContent)), null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => [...document.querySelectorAll('.group-reach')].some(l => /Reaches the lead, Team Lead/.test(l.textContent)), null, { timeout: 8000 });
     ok('a team message with no member mentioned goes to the lead', /Reaches the lead, Team Lead/.test(await team.locator('.group-reach').textContent()));
     await team.locator('textarea').fill(''); await team.locator('textarea').type('@');
     const th = await team.locator('.group-mention-pop').evaluate(el => [...el.querySelectorAll('.md-section-label')].map(h => h.textContent));
-    ok('a team chat has the same @ list', th[0] === 'Members, Asked to Answer' && th.includes('Applets'), JSON.stringify(th));
+    ok('a team chat has the same @ list', th[0] === 'Members, asked to answer' && th.includes('Applets'), JSON.stringify(th));
     await p.keyboard.press('Escape');
 
     // The phone.
