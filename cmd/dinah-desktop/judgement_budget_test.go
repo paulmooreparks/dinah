@@ -49,7 +49,8 @@ func TestTheBudgetPeriodAndPoolAreSavedCheckedAndApplied(t *testing.T) {
 		st.Budget[0].PeriodStart.Weekday() != 5 || st.Budget[0].PeriodStart.Hour() != 9 || st.Pool.Min != 2 || st.Pool.Max != 12 || st.Pool.Size != 2 {
 		t.Fatalf("state %+v", st)
 	}
-	if last := (*events)[len(*events)-1]; last["pool"] == nil || last["budget"] == nil {
+	snapshot := events()
+	if last := snapshot[len(snapshot)-1]; last["pool"] == nil || last["budget"] == nil {
 		t.Fatalf("the event leaves out the budget or the pool: %v", last)
 	}
 	for name, edit := range map[string]func(*JudgementSettings){
