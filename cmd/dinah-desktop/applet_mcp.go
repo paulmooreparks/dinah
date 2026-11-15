@@ -39,6 +39,7 @@ var appletHelperExecutable = os.Executable
 
 type appletChannel struct {
 	token, workspace, session string
+	drawing                   *diagramChannel
 	conn                      agentConnection
 	bound                     bool
 	connected                 bool
@@ -183,7 +184,7 @@ func (a *App) appletPromptContext(session string) (string, error) {
 					"It replaces any older applet context in the conversation. Discover the action schema and digest before invoking. " +
 					"dinah.chat/ask@2 sends its question to the other chat over the bus, and its completion arrives automatically as a later prompt; invoke it once, and do not poll or sleep. For other actions, poll the returned invocation ID instead of starting the same action again. " +
 					"Human requests must be answered by the person in Notifications. " +
-					"If the service fails, report an internal integration error; never ask the person to configure or reconnect it.\n" + a.chatIdentityLine(session) + directory + "\n" + communication.Window(person), nil
+					"If the service fails, report an internal integration error; never ask the person to configure or reconnect it.\n" + a.chatIdentityLine(session) + directory + "\n" + c.diagramNotice() + communication.Window(person), nil
 			}
 		}
 	}
@@ -198,16 +199,23 @@ func (a *App) bindAppletChannel(c *appletChannel, session string) error {
 		return errors.New("the applet bridge stopped")
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if b.channels[c.token] != c || session == "" {
+		b.mu.Unlock()
 		return errors.New("the applet channel expired")
 	}
+	var drawings []*diagramChannel
 	for token, other := range b.channels {
 		if other != c && other.session == session {
 			delete(b.channels, token)
+			drawings = append(drawings, other.drawing)
 		}
 	}
 	c.session, c.bound = session, true
+	c.drawing.bind(session)
+	b.mu.Unlock()
+	for _, d := range drawings {
+		d.revoke()
+	}
 	return nil
 }
 
@@ -221,7 +229,9 @@ func (a *App) revokeAppletChannel(c *appletChannel) {
 	if b != nil {
 		b.mu.Lock()
 		delete(b.channels, c.token)
+		d := c.drawing
 		b.mu.Unlock()
+		d.revoke()
 	}
 }
 func (a *App) revokeAppletChannels(conn agentConnection) {
@@ -229,13 +239,18 @@ func (a *App) revokeAppletChannels(conn agentConnection) {
 	b := a.appletBridge
 	a.bridgeMu.Unlock()
 	if b != nil {
+		var drawings []*diagramChannel
 		b.mu.Lock()
 		for token, c := range b.channels {
 			if c.conn == conn {
 				delete(b.channels, token)
+				drawings = append(drawings, c.drawing)
 			}
 		}
 		b.mu.Unlock()
+		for _, d := range drawings {
+			d.revoke()
+		}
 	}
 }
 func (a *App) revokeAppletSession(session string) {
@@ -243,13 +258,18 @@ func (a *App) revokeAppletSession(session string) {
 	b := a.appletBridge
 	a.bridgeMu.Unlock()
 	if b != nil {
+		var drawings []*diagramChannel
 		b.mu.Lock()
 		for token, c := range b.channels {
 			if c.session == session {
 				delete(b.channels, token)
+				drawings = append(drawings, c.drawing)
 			}
 		}
 		b.mu.Unlock()
+		for _, d := range drawings {
+			d.revoke()
+		}
 	}
 }
 func (a *App) closeAppletBridge() {
@@ -259,8 +279,15 @@ func (a *App) closeAppletBridge() {
 	a.bridgeMu.Unlock()
 	if b != nil {
 		b.mu.Lock()
+		var drawings []*diagramChannel
+		for _, c := range b.channels {
+			drawings = append(drawings, c.drawing)
+		}
 		b.channels = map[string]*appletChannel{}
 		b.mu.Unlock()
+		for _, d := range drawings {
+			d.revoke()
+		}
 		_ = b.server.Close()
 		_ = os.Remove(b.descriptor)
 	}
@@ -666,4 +693,11 @@ func runAppletMCP(stateDir string) error {
 	return appletMCPServer(func(capability string) (*appletBridgeClient, error) {
 		return resolveAppletContext(stateDir, capability)
 	}).Run(context.Background(), &mcp.StdioTransport{MaxLineLength: -1})
+}
+
+func (c *appletChannel) diagramNotice() string {
+	if c.drawing == nil || c.drawing.notice == "" {
+		return ""
+	}
+	return "[Diagram pictures]\n" + c.drawing.notice + "\n"
 }

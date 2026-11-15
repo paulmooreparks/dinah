@@ -442,6 +442,12 @@ func (a *App) RemoveWorkspace(id string) (State, error) {
 	}
 	a.emitSettingsChanged()
 	a.emitWorkspaceMountChanged("workspace-removed", id, "")
+	a.drawingMu.Lock()
+	pictures := a.drawingService
+	a.drawingMu.Unlock()
+	if pictures != nil {
+		pictures.RevokeWorkspace(id)
+	}
 	return a.State(), nil
 }
 

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTraceChannelCredentials(t *testing.T) {
@@ -28,6 +30,32 @@ func TestTraceChannelCredentials(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "oversized diagnostic") {
 		t.Fatal("oversized line was not suppressed")
+	}
+}
+
+func TestProviderRefusalRedactsRegisteredChannelCredential(t *testing.T) {
+	client, peer := net.Pipe()
+	defer peer.Close()
+	var trace bytes.Buffer
+	c := Connect(client, client, notifyFunc(func(string, json.RawMessage) {}), Options{Agent: "fixture", Trace: &trace})
+	defer c.Close()
+	c.RegisterTraceSecret("invented-drawing-lease")
+	go func() {
+		var request map[string]any
+		if json.NewDecoder(peer).Decode(&request) != nil {
+			return
+		}
+		json.NewEncoder(peer).Encode(map[string]any{"jsonrpc": "2.0", "id": request["id"], "error": map[string]any{"code": CodeInternal, "message": "rejected env invented-drawing-lease"}})
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := c.Call(ctx, "session/new", map[string]any{"env": map[string]string{"DIAGRAM_PICTURE_LEASE": "invented-drawing-lease"}}, nil)
+	refusal, ok := err.(*Error)
+	if !ok || refusal.Code != CodeInternal || strings.Contains(refusal.Message, "invented-drawing-lease") || !strings.Contains(refusal.Message, "[redacted]") {
+		t.Fatal("provider refusal exposed a registered credential or lost its code")
+	}
+	if strings.Contains(trace.String(), "invented-drawing-lease") {
+		t.Fatal("protocol trace exposed a registered credential")
 	}
 }
 

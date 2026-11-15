@@ -18,6 +18,7 @@ import (
 	"studio/internal/applet/host"
 	"studio/internal/bus"
 	"studio/internal/bushost"
+	"studio/internal/diagrampicture"
 	"studio/internal/extensions"
 	"studio/internal/layout"
 	"studio/internal/pageask"
@@ -45,6 +46,9 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	drawingMu       sync.Mutex
+	drawingService  *diagrampicture.Service
+	drawingEndpoint string
 	// refused is the request each provider last refused for want of a
 	// sign-in (auth.go).
 	refused                    refusedCalls
@@ -308,6 +312,13 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.drawingMu.Lock()
+	pictures := a.drawingService
+	a.drawingService = nil
+	a.drawingMu.Unlock()
+	if pictures != nil {
+		pictures.Close()
+	}
 	a.closeShows()
 	a.closeResponsiveness()
 	// The watcher stops before the handle it shares is closed.

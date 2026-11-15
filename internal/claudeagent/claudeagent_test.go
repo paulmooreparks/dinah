@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -20,6 +22,14 @@ import (
 // ID "abc", and answers session/prompt after a session/update and a
 // permission request about the session it was asked about.
 func TestMain(m *testing.M) {
+	if os.Getenv("DRAWING_CLAUDE_CHILD") == "1" {
+		values := map[string]string{}
+		for _, key := range []string{"DIAGRAM_PICTURE_LEASE", "DIAGRAM_PICTURE_ENDPOINT", "DIAGRAM_PICTURE_WORKSPACE", "DIAGRAM_PICTURE_ROOT"} {
+			values[key] = os.Getenv(key)
+		}
+		json.NewEncoder(os.Stdout).Encode(values)
+		return
+	}
 	if os.Getenv("CLAUDEAGENT_FAKE") == "1" {
 		fakeAdapter()
 		return
@@ -37,7 +47,12 @@ func fakeAdapter() {
 			ID     json.RawMessage `json:"id"`
 			Method string          `json:"method"`
 			Params struct {
-				SessionID string `json:"sessionId"`
+				SessionID  string `json:"sessionId"`
+				McpServers []struct {
+					Name, Command string
+					Args          []string
+					Env           []struct{ Name, Value string }
+				} `json:"mcpServers"`
 			} `json:"params"`
 		}
 		if json.Unmarshal(in.Bytes(), &m) != nil {
@@ -63,6 +78,25 @@ func fakeAdapter() {
 			}
 			out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": map[string]any{"protocolVersion": 1, "agentInfo": map[string]any{"name": strings.Join(env, ";")}}})
 		case "session/new":
+			if os.Getenv("DRAWING_CLAUDE_PROTOCOL") == "1" {
+				for _, managed := range m.Params.McpServers {
+					cmd := exec.Command(managed.Command, managed.Args...)
+					acp.HideWindow(cmd)
+					cmd.Env = os.Environ()
+					for _, value := range managed.Env {
+						cmd.Env = append(cmd.Env, value.Name+"="+value.Value)
+					}
+					b, err := cmd.Output()
+					if err != nil {
+						out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "error": map[string]any{"code": -32603, "message": "managed fixture failed"}})
+						continue
+					}
+					var values map[string]string
+					json.Unmarshal(b, &values)
+					out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": map[string]any{"sessionId": "abc", "managed": values, "args": managed.Args}})
+				}
+				continue
+			}
 			out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": map[string]any{"sessionId": "abc", "nested": []any{map[string]any{"sessionId": "def", "count": 12345678901234567}}}})
 		case "session/prompt":
 			out.Encode(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": m.Params.SessionID, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "the sessionId is " + m.Params.SessionID}}}})
@@ -213,5 +247,36 @@ func TestInstalledNeedsThePinnedVersion(t *testing.T) {
 	}
 	if _, err := Start(os.Args[0], t.TempDir(), t.TempDir(), "", &recorder{}, nil); err == nil || !strings.Contains(err.Error(), "not installed") {
 		t.Fatalf("starting without the adapter said %v", err)
+	}
+}
+
+func TestDiagramSessionEnvironmentDelivery(t *testing.T) {
+	t.Setenv("CLAUDEAGENT_FAKE", "1")
+	t.Setenv("DRAWING_CLAUDE_PROTOCOL", "1")
+	want := map[string]string{"DIAGRAM_PICTURE_LEASE": "invented-claude-lease", "DIAGRAM_PICTURE_ENDPOINT": "http://127.0.0.1:12345/diagram-pictures", "DIAGRAM_PICTURE_WORKSPACE": "fixture-workspace", "DIAGRAM_PICTURE_ROOT": t.TempDir()}
+	values := []map[string]string{{"name": "DRAWING_CLAUDE_CHILD", "value": "1"}}
+	for key, value := range want {
+		values = append(values, map[string]string{"name": key, "value": value})
+	}
+	c, err := Start(os.Args[0], fakeInstall(t), t.TempDir(), "", &recorder{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	c.RegisterTraceSecret(want["DIAGRAM_PICTURE_LEASE"])
+	var got struct {
+		SessionID string
+		Managed   map[string]string
+		Args      []string
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	args := []string{"fixture-restricted", "argument with spaces"}
+	err = c.Call(ctx, "session/new", acp.NewSessionParams{Cwd: want["DIAGRAM_PICTURE_ROOT"], McpServers: []any{map[string]any{"name": "fixture-drawing-random", "command": os.Args[0], "args": args, "env": values}}}, &got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SessionID != "claude:abc" || !reflect.DeepEqual(got.Managed, want) || !reflect.DeepEqual(got.Args, args) {
+		t.Fatal("ACP managed subprocess configuration changed")
 	}
 }

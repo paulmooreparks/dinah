@@ -20,6 +20,7 @@ import (
 
 	extension "github.com/paulmooreparks/dinah-extension-go"
 	"studio/internal/bridge"
+	"studio/internal/diagrampicture"
 	"studio/internal/helpercompat"
 	"studio/internal/pageroutes"
 )
@@ -51,8 +52,9 @@ type shellServer struct {
 	mu    sync.Mutex
 	codes map[string]shellCode
 
-	http *http.Server
-	ln   net.Listener
+	http     *http.Server
+	ln       net.Listener
+	pictures *diagrampicture.Service
 }
 
 // shellCookie is the cookie that signs the window in (product.ShellCookie).
@@ -139,13 +141,23 @@ func newShellServer(app *App, frontend fs.FS, addr string) (*shellServer, error)
 	// A window under test asks for any free port, and the address is the
 	// one it got.
 	s.addr = ln.Addr().String()
+	s.pictures = diagrampicture.NewService(s.addr, app.drawDiagramSnapshot(frontend))
+	app.drawingMu.Lock()
+	app.drawingService = s.pictures
+	app.drawingEndpoint = "http://" + s.addr
+	app.drawingMu.Unlock()
 	s.http = &http.Server{Handler: s, ReadHeaderTimeout: 10 * time.Second}
 	return s, nil
 }
 
 func (s *shellServer) serve() { s.http.Serve(s.ln) }
 
-func (s *shellServer) close() { s.http.Close() }
+func (s *shellServer) close() {
+	if s.pictures != nil {
+		s.pictures.Close()
+	}
+	s.http.Close()
+}
 
 // entry returns an address that signs the window in, good once and for one
 // minute.
@@ -178,6 +190,14 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Cache-Control", "no-store")
+	if r.URL.Path == diagrampicture.Route || strings.HasPrefix(r.URL.Path, diagrampicture.Route+"/") {
+		if s.pictures == nil {
+			http.Error(w, "drawing service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		s.pictures.ServeHTTP(w, r)
+		return
+	}
 	if r.URL.Path == helpercompat.EndpointPath {
 		if r.Method != http.MethodGet || r.Header.Get("Origin") != "" || r.Header.Get("Sec-Fetch-Site") != "" || r.URL.RawQuery != "" {
 			http.Error(w, "helper compatibility is for local programs", http.StatusForbidden)

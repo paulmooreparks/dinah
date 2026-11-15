@@ -27,6 +27,7 @@ const (
 	ExtensionControl Channel = "extension-control"
 	ExtensionHost    Channel = "extension-host"
 	SlideShow        Channel = "slide-show"
+	DiagramPicture   Channel = "diagram-picture"
 	OfferHeader              = "X-Helper-Protocols"
 	SelectedHeader           = "X-Helper-Protocol"
 	ChannelHeader            = "X-Helper-Channel"
@@ -48,6 +49,7 @@ const (
 	ExtensionControlProtocol = 1
 	ExtensionHostProtocol    = 1
 	SlideShowProtocol        = 1
+	DiagramPictureProtocol   = 1
 )
 
 func For(channel Channel) Policy {
@@ -67,13 +69,15 @@ func For(channel Channel) Policy {
 		current = ExtensionHostProtocol
 	case SlideShow:
 		current = SlideShowProtocol
+	case DiagramPicture:
+		current = DiagramPictureProtocol
 	}
 	return Policy{Channel: channel, Numbers: []int{current}}
 }
 
 func Known(channel Channel) bool {
 	switch channel {
-	case Bus, Steering, Applets, Documents, ExtensionControl, ExtensionHost, SlideShow:
+	case Bus, Steering, Applets, Documents, ExtensionControl, ExtensionHost, SlideShow, DiagramPicture:
 		return true
 	}
 	return false
@@ -111,6 +115,15 @@ func (p Policy) Offer() string {
 	}
 	return strings.Join(parts, ",")
 }
+
+// SelectOffer lets authenticated JSON services use the same negotiation rule
+// while keeping their refusal representation in their own protocol.
+func (p Policy) SelectOffer(offer string, localIsWindow bool) (int, error) {
+	return p.selectNumber(offer, localIsWindow)
+}
+
+// ValidateOffer distinguishes syntax errors from incompatible exchanges.
+func ValidateOffer(offer string) error { _, err := parse(offer); return err }
 
 // Refusal remains identifiable through callers that might otherwise restart a service.
 type Refusal struct{ Message string }
@@ -158,6 +171,8 @@ func (p Policy) selectNumber(offer string, localIsWindow bool) (int, error) {
 		clientName = "applet helper"
 	case SlideShow:
 		clientName = "slide-show helper"
+	case DiagramPicture:
+		clientName = "diagram picture tools program"
 	case ExtensionControl:
 		clientName = "package helper"
 	case ExtensionHost:
@@ -285,7 +300,7 @@ func (p Policy) CheckEndpoint(ctx context.Context, endpoint string) error {
 
 // Channels returns a stable inventory for tests and the host's audit.
 func Channels() []Channel {
-	out := []Channel{Bus, Steering, Applets, Documents, ExtensionControl, ExtensionHost, SlideShow}
+	out := []Channel{Bus, Steering, Applets, Documents, ExtensionControl, ExtensionHost, SlideShow, DiagramPicture}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
