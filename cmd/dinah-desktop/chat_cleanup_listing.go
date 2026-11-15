@@ -46,7 +46,42 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 		known = append(known, id)
 	}
 	listing := ChatCleanupListing{Rows: []ChatCleanupRow{}, Removed: []ChatCleanupRow{}, RetentionDays: 30, GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano), ProviderDeletionEnabled: true, FinalDeleteConfirmation: chatCleanupFinalConfirmation}
-	for _, ids := range cleanupChains(settings, heads, known) {
+	for id := range heads {
+		known = append(known, id)
+	}
+	for source, tr := range settings.ChatTransfers {
+		known = append(known, source)
+		if tr.Target != "" {
+			known = append(known, tr.Target)
+		}
+	}
+	for _, tr := range settings.ChatTransferHistory {
+		known = append(known, tr.Source)
+		if tr.Target != "" {
+			known = append(known, tr.Target)
+		}
+	}
+	sort.Strings(known)
+	seenReferences, seenChats := map[string]bool{}, map[string]bool{}
+	for _, reference := range known {
+		if reference == "" || seenReferences[reference] {
+			continue
+		}
+		seenReferences[reference] = true
+		membership, resolveErr := logicalChatMembersFromSettings(settings, reference)
+		if resolveErr != nil {
+			listing.Rows = append(listing.Rows, ChatCleanupRow{SessionID: reference, SessionIDs: []string{reference}, Title: settings.SessionTitles[reference], Refusal: resolveErr.Error(), ProgramCopies: []ChatProgramCopy{}})
+			continue
+		}
+		if seenChats[membership.ChatID] {
+			continue
+		}
+		seenChats[membership.ChatID] = true
+		ids := make([]string, 0, len(membership.Members))
+		for _, member := range membership.Members {
+			ids = append(ids, member.SessionID)
+		}
+
 		anyRemoved := false
 		for _, id := range ids {
 			if _, ok := settings.RemovedChats[id]; ok {
@@ -56,7 +91,7 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 		if anyRemoved {
 			continue
 		} // Retained rows come from their durable metadata below.
-		id := cleanupDisplayIdentity(settings, ids)
+		id := membership.Head
 		row := ChatCleanupRow{SessionID: id, SessionIDs: ids, Title: settings.SessionTitles[id], MessageCountKnown: true, Eligible: true, ProviderDeletion: "unknown", ProgramCopies: []ChatProgramCopy{}, FinalDeleteConfirmation: chatCleanupFinalConfirmation}
 		members := map[string]bool{}
 		for _, member := range ids {
