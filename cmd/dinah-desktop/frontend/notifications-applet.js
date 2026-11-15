@@ -289,7 +289,7 @@
       var origin = { title: item.originTitle, provider: item.originProvider, started: item.originStarted };
       entry.actions = [{ label: 'Review Chat', primary: true, run: function () { return openSession(item.sessionId); } }];
         entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace, origin); } });
-      if (item.lead && app().RemoveChat) entry.actions.push({ label: 'Remove Chat…', run: function () { return openRemove(item.lead, origin); } });
+      if (item.lead && app().RemoveChat) entry.actions.push({ label: 'Delete Chat…', run: function () { return openRemove(item.lead, origin); } });
         entry.actions.push({ label: 'Refresh Recovery Status', run: function () { return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); }); } });
       if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Message', run: function () {
           return app().RetryWaitingSession(item.lead).then(function () { return restoreNotifications(); });

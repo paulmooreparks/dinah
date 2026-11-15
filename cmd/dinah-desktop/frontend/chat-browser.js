@@ -67,42 +67,17 @@
       input.addEventListener('blur', function () { finish(true); });
     }
 
-    /* Removing a session asks Devin to delete it from its session history,
-       which every program that lists Devin's sessions reads, Devin Desktop
-       too. If Devin will not, or cannot, the session can be hidden from this
-       app's list instead, and Devin keeps it. */
-    var removing = null, removingHere = false;
-    /* A chat that could not be opened, removed from its recovery card
-       (local, with the card's title), is removed from this app alone: its
-       provider may not be reachable, so nothing is asked of it, and the
-       messages waiting for the chat are cancelled, never delivered. No other
-       chat is made or chosen in its place. */
+    /* Single and batch deletion use the same retained local removal. */
+    var removing = null;
     function openRemove(id, local) {
       id = id || adapter.active();
       if (!id) return;
-      removing = id; removingHere = !!local;
-      var s = sessions[id], who = providerName(sessionProvider(s));
-      if (local) {
-        var name = (s && s.info.title) || local.title || 'This chat';
-        $('remove-title').textContent = 'Remove Chat?';
-        $('remove-body').textContent = '"' + name + '" will be removed from ' + productName() + ', with its saved copy here. Messages waiting for it are cancelled and never delivered. Its provider\'s own copy, if it has one, is left as it is. This cannot be undone.';
-        $('remove-go').hidden = false;
-        $('remove-hide').hidden = true;
-        $('remove').showModal();
-        return;
-      }
-      if (window.dinahProviderFact(sessionProvider(s), 'removal') === 'hides') {
-        $('remove-title').textContent = 'Hide Chat?';
-        $('remove-body').textContent = '"' + title(s) + '" will be hidden from ' + productName() + '. ' + who + ' keeps its saved conversation. Chats > Actions > Show Hidden Chats Again restores it to this list.';
-        $('remove-go').hidden = true;
-        $('remove-hide').hidden = false;
-        $('remove').showModal();
-        return;
-      }
-      $('remove-title').textContent = 'Remove Chat?';
-      $('remove-body').textContent = '"' + title(s) + '" will disappear from ' + productName() + ' and from ' + who + '\'s session history. This cannot be undone.' + (s && s.working ? ' ' + who + ' is working in it now; removing it stops that work.' : '');
+      removing = id;
+      var s = sessions[id], name = s ? title(s) : local && local.title || 'This chat';
+      $('remove-title').textContent = 'Delete Chat?';
+      $('remove-body').textContent = '"' + name + '" will move to the Recycle Bin in ' + productName() + '. You can restore it for 30 days. A chat whose agent program cannot unload it may stay loaded until that program stops or the window restarts. Its agent program\'s history is untouched at this step. Open Clean Up Chats to review the Recycle Bin.';
+      $('remove-go').textContent = 'Delete';
       $('remove-go').hidden = false;
-      $('remove-hide').hidden = true;
       $('remove').showModal();
     }
     /* A removed or hidden chat's rows leave every list at once. A list holds
@@ -137,48 +112,23 @@
       // in its place: showing no chat in a window is New Chat, which the
       // person did not ask for.
       if (adapter.active() === id) show(null); else drawSessions();
-      refreshSessions();
     }
     $('remove-go').addEventListener('click', function () {
       var id = removing;
       $('remove-go').disabled = true;
-      var provider = providerName(sessionProvider(sessions[id]));
-      var removal = removingHere ? Promise.resolve().then(function () { return app().RemoveChat(id); }) : app().DeleteSession(id);
-      removal.then(function () {
-        $('remove').close();
-        // A removed chat's unsent draft goes with it; a hidden chat, which
-        // can come back, keeps its draft.
-        var s = sessions[id];
-        if (s && s.view) s.view.forgetDraft(); else window.dinahComposer.forget('chat:' + id);
-        removed(id);
-        toast('The session is removed.', 'positive');
-      }).catch(function (err) {
-        var msg = String(err).replace(/^Error:\s*/, '');
-        if (removingHere) {
-          $('remove-title').textContent = 'The Chat Was Not Removed';
-          $('remove-body').textContent = msg + ' Nothing was changed: the chat and the messages waiting for it are as they were. Press Remove to try again.';
-          return;
-        }
-        $('remove-title').textContent = provider + ' Did Not Remove It';
-        $('remove-body').textContent = /does not support/.test(msg)
-          ? provider + ' does not remove sessions. You can hide this one from ' + productName() + '\'s list instead; ' + provider + ' keeps it.'
-          : provider + ' answered: ' + msg + ' You can hide the chat from ' + productName() + '\'s list instead; ' + provider + ' keeps it, and Chats > Actions > Show Hidden Chats Again brings it back.';
-        $('remove-go').hidden = true;
-        $('remove-hide').hidden = false;
-      }).then(function () { $('remove-go').disabled = false; });
-    });
-    $('remove-hide').addEventListener('click', function () {
-      var id = removing;
-      app().HideSession(id).then(function () {
-        hiddenCount++;
+      Promise.resolve().then(function () { return app().RemoveChat(id); }).then(function () {
         $('remove').close();
         removed(id);
-        toast('The chat is hidden. Chats > Actions > Show Hidden Chats Again brings it back.', 'positive');
-      }).catch(fail);
+        toast('The chat is in the Recycle Bin for 30 days.', 'positive');
+      }).catch(function (error) {
+        $('remove-title').textContent = 'The Chat Was Not Deleted';
+        $('remove-body').textContent = window.dinahHelpers.message(error, 'sentence');
+      }).finally(function () { $('remove-go').disabled = false; });
     });
-    var hiddenCount = 0;
+    window.dinahHost.on('chat:removed', function (event) { if (event && event.sessionId) removed(event.sessionId); });
 
-    var listed = [];        // the workspace's sessions, from Sessions()
+    var hiddenCount = 0;
+    var listed = [];
     var sessionListGeneration = 0;
     function refreshSessions() {
       if (!adapter.workspace()) { listed = []; drawSessions(); return Promise.resolve(); }
@@ -230,6 +180,13 @@
     }
     window.dinahChats = {
       known: knownChats,
+      restore: function (row) {
+        var info = { sessionId: row.sessionId, title: row.title, cwd: row.workspace, provider: row.provider, updatedAt: row.lastActivity, open: false, working: false };
+        var session = S(row.sessionId); session.info = Object.assign({}, session.info, info); session.working = false; session.titleKnown = true;
+        var at = listed.findIndex(function (entry) { return entry.sessionId === row.sessionId; });
+        if (at < 0) listed.push(info); else listed[at] = info;
+        drawSessions();
+      },
       ref: function (id) { return sessions[id] ? chatRef(id) : null; },
       open: function (id) { return openSession(id); },
       // Giving a chat its title, as renaming it in the list does.
@@ -367,8 +324,7 @@
             return sessions[id] && sameWs(sessions[id].info.cwd) ? chatPin(id) : null;
           }, function () {
             if (!sessions[id]) return [];
-            var hides = window.dinahProviderFact(sessionProvider(sessions[id]), 'removal') === 'hides';
-            return [{ label: hides ? 'Hide Chat…' : 'Remove Chat…', danger: !hides, run: function () { openRemove(id); } }];
+            return [{ label: 'Delete Chat…', danger: true, run: function () { openRemove(id); } }];
           });
         }
         var a = row.firstChild;

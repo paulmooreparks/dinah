@@ -122,7 +122,7 @@
             return button.dataset.cmd ? window.dinahCommands.describe(button.dataset.cmd, label) : { label: label, disabled: button.disabled || button.getAttribute('aria-disabled') === 'true', run: function () { button.click(); } };
           });
           function hostCommand(label, cmd) { commands.push(window.dinahCommands.describe(cmd, label)); }
-          if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Show Hidden Chats Again', 'unhide-sessions'); }
+          if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Clean Up Chats', 'clean-up-chats'); }
           return commands;
         }
         return { state: state, setState: setState, commands: commands, destroy: function () {

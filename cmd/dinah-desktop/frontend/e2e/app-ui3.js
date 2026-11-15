@@ -12,7 +12,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
         { id: 'mode', name: 'Session Mode', category: 'mode', type: 'select', currentValue: 'accept-edits', options: [{ value: 'accept-edits', name: 'Code' }, { value: 'ask', name: 'Ask' }, { value: 'plan', name: 'Plan' }] },
         { id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: model, options: models.map(m => ({ value: m[0], name: m[1] })) }];
       let pinned = ['claude-opus-5-5-medium', 'gpt-6-sol-high'];
-      let defaults = {}; let hidden = [];
+      let defaults = {}; let hidden = []; let firstRemoval = true;
       let ws = 'C:\\Work\\Parser Workspace';
       const recent = ['C:\\Work\\Parser Workspace', 'C:\\Work\\Website'];
       const opts = {};
@@ -40,7 +40,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
         ProviderModelPreferences: async provider => ({provider,catalog:mkOpts('swe-1-6'),defaults,pinned}),
         SetDefaultForProvider: async (provider,o,v) => {if(provider!=='devin')throw new Error('Wrong provider');return window.go.main.App.SetDefault(o,v);},
         SetPinnedForProvider: async (provider,v,on) => {if(provider!=='devin')throw new Error('Wrong provider');return window.go.main.App.SetPinned(v,on);},
-        DeleteSession: async (id) => { throw "Session '" + id + "' is already open in another process. Close the other instance before opening it here."; }, HideSession: async (id) => { hidden.push(id); }, UnhideSessions: async () => { hidden = []; }, RenameSession: async (id, t) => { window.__calls.push(['RenameSession', id, t]); return t ? { [id]: t } : {}; }, SetShowThinking: rec('SetShowThinking'), SaveHistory: async () => '', ClearHistory: rec('ClearHistory'), SaveRun: async () => ''
+        RemoveChat: async id => { if (firstRemoval) { firstRemoval = false; throw new Error('The chat is open in another process.'); } hidden.push(id); }, DeleteSession: async () => { throw new Error('Provider deletion must not be called.'); }, RenameSession: async (id, t) => { window.__calls.push(['RenameSession', id, t]); return t ? { [id]: t } : {}; }, SetShowThinking: rec('SetShowThinking'), SaveHistory: async () => '', ClearHistory: rec('ClearHistory'), SaveRun: async () => ''
       };
     },
     init: () => { window.__calls = []; },
@@ -156,24 +156,24 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.waitForTimeout(200);
   ok('the rename action updates the window title', (await p.textContent('.win[data-chat-current] .win-title')) === 'Note 14 Design Doc' && (await p.textContent('#sessions')).includes('Note 14 Design Doc'));
   await t.shot('s-head', { clip: { x: 288, y: 50, width: 992, height: 90 } });
-  // Removing: Devin refuses, so the session is hidden instead.
+  // A refusal leaves the chat unchanged; another attempt uses the same local operation.
   await p.evaluate(() => dinahCommands.run('remove-session'));
-  await p.waitForTimeout(100);
-  ok('remove asks first', await p.evaluate(() => document.getElementById('remove').open) && (await p.textContent('#remove-body')).includes('session history'));
+  await p.locator('#remove').waitFor();
+  ok('deletion asks first and explains the Recycle Bin', (await p.textContent('#remove-body')).includes('restore it for 30 days'));
   await p.click('#remove-go');
-  await p.waitForTimeout(200);
-  ok('a refusal offers to hide it instead', await p.isVisible('#remove-hide') && (await p.textContent('#remove-body')).includes('already open in another process'));
+  await p.getByText('The Chat Was Not Deleted', { exact: true }).waitFor();
+  ok('a refusal explains why and offers no hiding bypass', (await p.textContent('#remove-body')).includes('open in another process') && await p.locator('#remove-hide').count() === 0);
   await t.shot('s-remove');
-  await p.click('#remove-hide');
-  await p.waitForTimeout(300);
-  ok('hiding takes it off the list and out of the front', !(await p.textContent('#sessions')).includes('Note 14 Design Doc') && (await p.textContent('.win[data-chat-current] .win-title')) === 'New Chat');
+  await p.click('#remove-go');
+  await p.locator('#remove').waitFor({ state: 'hidden' });
+  ok('deletion takes it off the list and closes its window', !(await p.textContent('#sessions')).includes('Note 14 Design Doc') && (await p.textContent('.win[data-chat-current] .win-title')) === 'New Chat');
   // A chat is removed from its row's menu too, without opening it first.
   const unopened = p.locator('#sessions .md-row[data-session-row]').first();
   const unopenedTitle = await unopened.locator('.session-title').textContent();
   const windowsBefore = await p.locator('.win[data-win]').count();
   await unopened.hover();
   await unopened.locator('[data-row-actions]').click();
-  await p.getByRole('menuitem', { name: 'Remove Chat…', exact: true }).click();
+  await p.getByRole('menuitem', { name: 'Delete Chat…', exact: true }).click();
   await p.waitForTimeout(150);
   ok('the menu of a row asks to remove that chat, and opens no window for it', await p.evaluate(() => document.getElementById('remove').open) && (await p.textContent('#remove-body')).includes('"' + unopenedTitle + '"') && await p.locator('.win[data-win]').count() === windowsBefore);
   await p.evaluate(() => document.getElementById('remove').close());
@@ -184,6 +184,6 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   ok('each group\'s count matches the chat rows it shows', counts.length > 0 && counts.every(c => c.count == null || Number(String(c.count).trim()) === c.rows), JSON.stringify(counts));
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
   await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
-  ok('Show Hidden Chats Again is available in the Chats browser', await p.locator('#menubar-panel').getByText('Show Hidden Chats Again', { exact: true }).isEnabled());
+  ok('Clean Up Chats is available in the Chats browser menu', await p.locator('#menubar-panel').getByText('Clean Up Chats', { exact: true }).isEnabled());
   await t.close();
 })();
