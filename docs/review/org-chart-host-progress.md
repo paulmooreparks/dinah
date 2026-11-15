@@ -16,4 +16,6 @@ TestOrgChartExportHiddenSeed passed separately in 0.549 seconds and retained inv
 
 To reproduce the export, set DINAH_ORG_CHART_SEED to a fresh child directory below TEMP and run TestOrgChartExportHiddenSeed through scripts/with-test-lock.ps1 with the chatcleanup_acceptance tag. Existing destinations are refused. Ordinary package runs skip the export.
 
-The complete desktop package, vet and hidden real-query rendering remain pending. The seed is local host evidence and does not prove native startup or rendered behavior. No visible window, native provider, installation or real home was used.
+The full desktop package passed with chatcleanup_acceptance in 476.837 seconds through scripts/with-test-lock.ps1 on unchanged production source b02785e0. The subsequent go vet with the same tag completed successfully, and the combined command exited zero. Later commits contain only the agreed resolver replacement plan and this evidence.
+
+Front End owns the remaining combined page and hidden real-query rendering check. The seed is local host evidence and does not prove native startup or rendered behavior. No visible window, native provider, installation or real home was used.
