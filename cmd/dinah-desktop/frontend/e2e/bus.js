@@ -185,9 +185,17 @@ const { launch } = require('./lib/page');
     await pop.waitFor();
     await t.shot('bus-group');
     const offered = await pop.locator('.mention-row').allInnerTexts();
-    ok('@ offers the group\'s members, everyone, and Add a Chat… after them', offered.length === 4 && /Parser Release/.test(offered[0]) && /Docs Pass/.test(offered[1]) && /everyone/.test(offered[2]) && /Add a Chat…/.test(offered[3]) && !offered.some(o => /Outside Chat/.test(o)), JSON.stringify(offered));
+    // Since the approved group mentions design (docs/design/group-mentions.md),
+    // the windows, applets, documents and other chats follow Add a Chat… as
+    // references, each saying it asks no one; a chat outside the group is
+    // never offered as a member.
+    const references = offered.slice(4);
+    ok('@ offers the group\'s members, everyone, and Add a Chat… after them, then the references', offered.length > 4 && /Parser Release/.test(offered[0]) && /Docs Pass/.test(offered[1]) && /everyone/.test(offered[2]) && /Add a Chat…/.test(offered[3]) &&
+      !offered.slice(0, 4).some(o => /Outside Chat/.test(o)) && references.every(o => /a reference, asks no one/.test(o)), JSON.stringify(offered));
     await box.pressSequentially('do');
-    ok('typing narrows the list', (await pop.locator('.mention-row').count()) === 2 && /Docs Pass/.test(await pop.locator('.mention-row').first().innerText()));
+    const narrowed = await pop.locator('.mention-row').allInnerTexts();
+    ok('typing narrows the list', /Docs Pass/.test(narrowed[0]) && !narrowed.some(o => /Parser Release/.test(o)) && narrowed.length < offered.length &&
+      narrowed.slice(narrowed.findIndex(o => /Add a Chat…/.test(o)) + 1).every(o => /a reference, asks no one/.test(o)), JSON.stringify(narrowed));
     await box.press('Enter');
     ok('choosing a member puts its mention in whole', await box.inputValue() === 'Thanks. @Docs Pass ');
     await box.press('Backspace');
