@@ -22,3 +22,9 @@ I reviewed 4124bc4b3bfa862179d21e4051e7e44955df2aeb without building it. Ring ma
 Two narrow issues remain. The delivery query omits cancelled_at, so a cancelled row with no delivered_at would be labelled waiting. The raw row and its state need to retain cancellation explicitly. Also, stop catches transport failures but does not inspect the JSON result of close. A loopback response containing an error would pass if the host then exited zero. Require the close response to contain result true and no error. The existing close handler always succeeds, so this is a missing refusal control rather than a reproduced runtime failure.
 
 The immutable child can receive seam clearance after these two observation corrections. Product routing acceptance remains Quality's responsibility.
+
+## Final observation correction review
+
+I reviewed ec729cddfdd39892c953d1499d8834fb5c7e137c against its parent 4124bc4b without building or running it. The delivery query now retains cancelled_at and classifies cancelled rows before other states. The binding requires the close response to contain result true with no error before accepting a clean process exit. Both remaining Engine findings are closed, and the previously reviewed App and bus seams retain bounded source clearance.
+
+The child also adds saved-chat, group and open-document snapshots and five binding mutation controls. Their independent receiving and the sufficiency of the protected-state scope remain Quality's gate. The snapshot uses saved chat records across restart and excludes the runtime-derived group file limit; this review does not widen that stated scope or claim the file limit is covered. I did not reproduce the reported 32-case pass or negative-control results. No product acceptance, merge or installation is claimed.
