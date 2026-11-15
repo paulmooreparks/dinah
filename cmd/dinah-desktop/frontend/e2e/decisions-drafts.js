@@ -20,7 +20,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     ok('reviewing the new request permits the preserved draft', true);
     await p.evaluate(() => { window.__saveFailure = true; });
     await p.getByLabel('Answer 1', { exact: true }).fill('Unsaved edit.');
-    await p.waitForFunction(() => document.querySelector('.decisions-receipt').textContent.includes('Draft could not be saved'));
+    await p.waitForFunction(() => document.querySelector('.decisions-receipt').textContent.includes('Your draft could not be saved'));
     ok('storage failure is visible and prevents sending', await p.getByRole('button', { name: 'Send Answers', exact: true }).isDisabled() && (await t.calls('AnswerDecision')).length === 0);
     await p.evaluate(() => { window.__saveFailure = false; });
   } finally { await t.close(); }
