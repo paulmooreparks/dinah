@@ -1,0 +1,29 @@
+/* PROPOSED: the full @ list in a group or team chat's composer. The mockup
+   loads the shipped app.css and bus-applets.css first; these rules are the
+   only additions. The list itself is the shared mention list (mention-list.js
+   and app.css's .slash-pop rules), as a one-on-one chat's is. */
+
+/* The composer of a group window, as bus-applets.js builds it. */
+.group-composer { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
+.group-composer .composer-row { display: flex; gap: var(--space-2); align-items: flex-end; }
+.group-composer .form-textarea { flex: 1; min-height: 4.5rem; box-sizing: border-box; }
+.group-composer .composer-actions { display: flex; flex-direction: column; gap: var(--space-2); }
+.group-composer > .slash-pop { left: var(--space-5); right: var(--space-5); }
+
+/* In a sent message a member who is asked to answer is the existing
+   mention: bold, in the accent colour. A reference asks no one, so it is
+   plain text with its kind's glyph and a dotted underline, told from a
+   mention by weight, colour and glyph together. */
+.mention-ref { display: inline-flex; align-items: baseline; gap: 3px; color: var(--text); text-decoration: underline dotted; text-underline-offset: 3px; }
+.mention-ref .glyph { --glyph-size: 12px; align-self: center; color: var(--text-muted); }
+
+/* Under a sent message: who was asked to answer, and what was only referred
+   to. The two lines are said in words as well as by the marks in the text. */
+.msg-reach { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--border); display: grid; gap: 2px; font-size: var(--text-sm); color: var(--text-muted); }
+.msg-reach p { margin: 0; display: flex; gap: var(--space-2); align-items: baseline; }
+.msg-reach .glyph { --glyph-size: 13px; flex: none; align-self: center; }
+.msg-reach strong { color: var(--text); font-weight: 600; }
+
+/* In the @ list, a reference's row says it asks no one; the members' rows
+   say they are asked. The headings carry the same words. */
+.slash-pop .mention-asks { font-size: var(--text-xs); color: var(--text-muted); }
