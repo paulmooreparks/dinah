@@ -111,6 +111,18 @@ func (a *App) Sessions() ([]SessionInfo, error) {
 // SessionsAt lists one workspace without changing the current selection.
 func (a *App) SessionsAt(ws string) ([]SessionInfo, error) { return a.sessionsLifecycle().List(ws) }
 
+// RefreshProviderSessions is an explicit discovery trigger. Ordinary inventory
+// reads use SavedChats, which never prepares or contacts a program.
+func (a *App) RefreshProviderSessions(ws, provider string) (SavedChatInventory, error) {
+	if !supportedPreferenceProvider(provider) {
+		return SavedChatInventory{}, errors.New("that program is not offered by this product")
+	}
+	if _, err := a.sessionsLifecycle().ListProvider(ws, provider); err != nil {
+		return SavedChatInventory{}, err
+	}
+	return a.SavedChats()
+}
+
 // OpenSession reopens a session from Devin's history in this run. Devin
 // replays the conversation as session/update notifications before it
 // answers, so the page sees the whole history arrive. The session gets the

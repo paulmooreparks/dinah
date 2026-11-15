@@ -261,6 +261,7 @@
         providerOpened = true;
         s.openingNotes = (info && info.notes) || [];
         applySessionInfo(s, info);
+        if (adapter.openedProvider) adapter.openedProvider(info);
         rememberCatalog(s);
         if (s.view) s.view.loadSkills();
         drawAgentState();
@@ -331,6 +332,7 @@
       var head = S(info.sessionId), oldKey = chatKey(s.id, s.info.cwd || workspace());
       if (!head.info.cwd && info.cwd) head.info.cwd = info.cwd;
       applySessionInfo(head, info);
+      if (adapter.openedProvider) adapter.openedProvider(info);
       rememberCatalog(head);
       drawAgentState();
       if (isWindowOpen(oldKey)) {

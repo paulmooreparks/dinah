@@ -90,8 +90,11 @@ const { start } = require('./lib/org-chart-fixture');
     ok('a failed read keeps the previous chart visible', await chart.locator('[data-org-chat="nina"]').count() === 1);
     ok('only an error reveals Retry Loading', await chart.getByRole('button', { name: 'Retry Loading', exact: true }).isVisible());
     await p.evaluate(() => { __orgError = ''; __orgGate = new Promise(resolve => { window.__releaseOrg = resolve; }); });
-    await chart.getByRole('button', { name: 'Retry Loading', exact: true }).click(); await p.evaluate(() => __emit('chat:restored', { sessionId: 'mara-current' }));
-    const reads = await p.evaluate(() => __orgReads); await p.evaluate(() => __releaseOrg());
+    const reads = await p.evaluate(() => __orgReads);
+    await chart.getByRole('button', { name: 'Retry Loading', exact: true }).click();
+    await p.waitForFunction(reads => __orgReads === reads + 1, reads);
+    await p.evaluate(() => __emit('chat:restored', { sessionId: 'mara-current' }));
+    await p.evaluate(() => __releaseOrg());
     // Retry first refreshes the common inventory, then reads relationships.
     // The event during that work contributes one coalesced relationship read.
     await p.waitForFunction(reads => __orgReads === reads + 2 && document.querySelector('.org-chart button[aria-hidden="true"]'), reads);

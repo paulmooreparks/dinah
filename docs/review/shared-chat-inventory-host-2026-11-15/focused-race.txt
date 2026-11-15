@@ -1,0 +1,3 @@
+# studio/cmd/dinah-desktop.test
+ok  	studio/cmd/dinah-desktop	42.399s
+ok  	studio/internal/sessionhost	1.138s

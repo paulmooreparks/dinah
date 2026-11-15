@@ -101,6 +101,9 @@ type Row struct {
 	// RequestUsage says the provider's adapter reports what each request used, as a turn_cost update, which a team's budget counts;
 	// a provider without it has its turns recorded as unknown, and none is estimated (docs/plans/teams.md).
 	RequestUsage bool
+	// NativeSessionsRequireImport keeps external native history out of the
+	// chat inventory until Dinah has admitted or locally observed the chat.
+	NativeSessionsRequireImport bool
 }
 
 // FileLimit is a provider's documented limit on the files in one message: the
@@ -122,7 +125,7 @@ var Registry = map[string]Row{
 		Executable: "Devin", ChooseExecutable: true, SignIn: true, HookSteering: true, HookNamespace: "devin:",
 		FileLimit: FileLimit{Source: "Devin's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Devin's error if it refuses a file."}},
 	"codex": {Name: "Codex", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
-		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true,
+		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true, NativeSessionsRequireImport: true,
 		// 600,000 is under the app-server's 1,048,576-character request cap, leaving room for the turn that follows and for the thread to grow.
 		HandoffChars: 600_000,
 		FileLimit: FileLimit{Default: 20, Ceiling: 1500,

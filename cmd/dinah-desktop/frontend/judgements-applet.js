@@ -632,9 +632,16 @@
   });
 
   /* ---- Settings › Judgements ---- */
-  var settings = null, settingsBusy = false, judgeProviders = null;
+  var settings = null, settingsBusy = false, judgeProviders = null, settingsShown = false;
+  var modelsKey = null, modelsRequest = 0;
+  document.addEventListener('dinah:settings-section', function (event) {
+    settingsShown = event.detail.section === 'judgements';
+    if (!settingsShown) { modelsKey = null; modelsRequest++; return; }
+    loadJudgementProviders();
+    drawSettings();
+  });
   function loadJudgementProviders() {
-    if (!app().JudgementProviders) return Promise.resolve();
+    if (!settingsShown || !settings || !settings.enabled || !app().JudgementProviders) return Promise.resolve();
     return Promise.resolve().then(function () { return app().JudgementProviders(); }).then(function (list) {
       judgeProviders = list || [];
       drawSettings();
@@ -707,7 +714,7 @@
     model.value = settings.model || '';
   }
   function loadModelPrices() {
-    if (!app().JudgementModelPrices) return Promise.resolve();
+    if (!settingsShown || !settings || !settings.enabled || !app().JudgementModelPrices) return Promise.resolve();
     return Promise.resolve().then(function () { return app().JudgementModelPrices(); }).then(function (prices) {
       var next = prices && typeof prices === 'object' ? prices : {};
       if (JSON.stringify(next) === JSON.stringify(pickerPrices)) return;
@@ -727,12 +734,17 @@
     var toggle = $('judgements-enabled');
     toggle.setAttribute('aria-checked', String(!!settings.enabled));
     $('judgements-enabled-help').textContent = settings.enabled ? 'Calls go to the judge.' : 'Every call uses its rule.';
-    Promise.resolve().then(function () { return app().JudgementModels(); }).then(function (models) {
-      if (!settings) return;
-      pickerModels = models || [];
-      drawModelOptions();
-      loadModelPrices();
-    }).catch(function () {});
+    if (!settings.enabled) { modelsKey = null; modelsRequest++; }
+    if (settingsShown && settings.enabled && modelsKey !== (settings.provider || '')) {
+      modelsKey = settings.provider || '';
+      var request = ++modelsRequest;
+      Promise.resolve().then(function () { return app().JudgementModels(); }).then(function (models) {
+        if (request !== modelsRequest || !settingsShown || !settings || !settings.enabled) return;
+        pickerModels = models || [];
+        drawModelOptions();
+        loadModelPrices();
+      }).catch(function () { if (request === modelsRequest) modelsKey = null; });
+    }
     var providerSel = $('judgement-provider'), providerNote = $('judgement-provider-note');
     if (providerSel) {
       var chosen = (judgeProviders || []).filter(function (p) { return p.id === settings.provider; })[0];
@@ -740,11 +752,13 @@
       (judgeProviders || []).filter(function (p) { return p.available || p.id === settings.provider; }).forEach(function (p) {
         providerSel.appendChild(new Option(p.name, p.id, false, p.id === settings.provider));
       });
+      if (!providerSel.options.length && settings.provider) providerSel.appendChild(new Option(window.dinahProviderName ? window.dinahProviderName(settings.provider) : settings.provider, settings.provider));
       providerSel.value = settings.provider || '';
       var bits = [];
       if (chosen && chosen.note) bits.push(chosen.note);
       (judgeProviders || []).filter(function (p) { return !p.available; }).forEach(function (p) { bits.push(p.name + ' cannot judge now: ' + p.why); });
       providerNote.textContent = bits.join(' ');
+      if (!settings.enabled && !judgeProviders) providerNote.textContent = 'Turn on judging to check agents and their models.';
     }
     if (document.activeElement !== $('judgement-retention')) $('judgement-retention').value = String(settings.retentionDays || 90);
     if (document.activeElement !== $('judgement-warn-streak')) $('judgement-warn-streak').value = String(settings.warnStreak || 3);
@@ -867,8 +881,8 @@
       box.appendChild(disclosure('What the models were tested on (' + report.cases.length + ' calls)', ul, 'judgement-calibration-cases', 'judgement-calibration-cases-body'));
     }
   }
-  function refreshCalibrationLine() {
-    if (!available() || !settings) return;
+  function refreshCalibrationLine(explicit) {
+    if (!available() || !settings || (!explicit && (!settingsShown || !settings.enabled))) return;
     Promise.resolve().then(function () { return app().JudgementState(); }).then(function (s) {
       return Promise.resolve().then(function () { return app().JudgementCalibration(); }).then(function (report) {
         drawCalibration(s && s.calibration, report);
@@ -888,6 +902,7 @@
     delete next.conflict;
     Promise.resolve().then(function () { return app().SetJudgementSettings(next, revision); }).then(function (r) {
       settings = unpackSettings(r) || next;
+      loadJudgementProviders();
       if (status) {
         status.classList.remove('notice', 'danger');
         status.textContent = settings.conflict ? 'The settings changed since you read them; the newer ones are shown.' : said || 'Saved.';
@@ -977,7 +992,7 @@
       b.disabled = true;
       Promise.resolve().then(function () { return app().RunJudgementCalibration(); }).then(function () {
         status.textContent = 'Calibration is running; its report lands here when it finishes.';
-        refreshCalibrationLine();
+        refreshCalibrationLine(true);
       }, function (error) {
         status.textContent = 'Calibration could not start: ' + error;
       }).finally(function () { b.disabled = false; });

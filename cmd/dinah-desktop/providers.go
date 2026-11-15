@@ -248,6 +248,26 @@ func (a *App) AgentProviders() []AgentProviderInfo {
 	return out
 }
 
+type DeclaredProviderInfo struct {
+	ID      string        `json:"id"`
+	Name    string        `json:"name"`
+	Default bool          `json:"default"`
+	Facts   ProviderFacts `json:"facts"`
+	Status  string        `json:"status"`
+}
+
+// DeclaredProviders supplies composer choices without an availability probe.
+func (a *App) DeclaredProviders() []DeclaredProviderInfo {
+	a.mu.Lock()
+	def := defaultProviderOf(a.settings)
+	a.mu.Unlock()
+	out := make([]DeclaredProviderInfo, 0, len(product.Providers))
+	for _, id := range product.Providers {
+		out = append(out, DeclaredProviderInfo{ID: id, Name: providerName(id), Default: id == def, Facts: a.providerFacts(id), Status: "unknown"})
+	}
+	return out
+}
+
 // providerInfo fills in whether one agent is installed and where, by the
 // provider's own module (provider_modules.go).
 func (a *App) providerInfo(p *AgentProviderInfo, workspaces []string) {

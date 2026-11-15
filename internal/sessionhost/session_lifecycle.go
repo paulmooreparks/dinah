@@ -28,6 +28,8 @@ type SessionLifecycleHost struct {
 	// RecordListedSessions durably retains native identities before they are
 	// returned to a caller. A page is an observation, never proof of absence.
 	RecordListedSessions func(string, string, []acp.SessionInfo) error
+	BeginListing         func(string, string) (uint64, error)
+	FinishListing        func(string, string, uint64, []acp.SessionInfo, bool) error
 	RecordedActivity     func(string) string
 	BeforeOpen           func(string, string) (Info, bool, error)
 	MissingSession       func(string, string, error) (Info, error)
@@ -267,6 +269,15 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 }
 
 func (l *SessionLifecycle) List(ws string) ([]Info, error) {
+	return l.listProviders(ws, l.host.ListProviders())
+}
+
+// ListProvider refreshes one explicitly used program without touching others.
+func (l *SessionLifecycle) ListProvider(ws, provider string) ([]Info, error) {
+	return l.listProviders(ws, []string{provider})
+}
+
+func (l *SessionLifecycle) listProviders(ws string, providers []string) ([]Info, error) {
 	if ws == "" || !filepath.IsAbs(ws) {
 		return []Info{}, errors.New("choose an absolute workspace path first")
 	}
@@ -280,16 +291,27 @@ func (l *SessionLifecycle) List(ws string) ([]Info, error) {
 		}
 	}
 	l.mu.Unlock()
-	for _, provider := range l.host.ListProviders() {
+	for _, provider := range providers {
 		conn, init, err := l.host.Live(provider)
 		if err == nil && init.AgentCapabilities.SessionCapabilities.List != nil {
+			var sequence uint64
+			if l.host.BeginListing != nil {
+				sequence, err = l.host.BeginListing(provider, ws)
+				if err != nil {
+					return nil, err
+				}
+			}
+			observed := []acp.SessionInfo{}
+			complete := false
+			cursors := map[string]bool{}
 			cursor := ""
 			for page := 0; page < 5; page++ {
 				var res acp.ListSessionsResult
 				if err := l.host.CallWithin(conn, 15*time.Second, "session/list", acp.ListSessionsParams{Cwd: ws, Cursor: cursor}, &res); err != nil {
 					break
 				}
-				if l.host.RecordListedSessions != nil {
+				observed = append(observed, res.Sessions...)
+				if l.host.FinishListing == nil && l.host.RecordListedSessions != nil {
 					if err := l.host.RecordListedSessions(provider, ws, res.Sessions); err != nil {
 						return nil, err
 					}
@@ -302,9 +324,19 @@ func (l *SessionLifecycle) List(ws string) ([]Info, error) {
 					}
 				}
 				if res.NextCursor == "" {
+					complete = true
 					break
 				}
+				if cursors[res.NextCursor] {
+					break
+				}
+				cursors[res.NextCursor] = true
 				cursor = res.NextCursor
+			}
+			if l.host.FinishListing != nil {
+				if err := l.host.FinishListing(provider, ws, sequence, observed, complete); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

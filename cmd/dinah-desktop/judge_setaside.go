@@ -146,7 +146,7 @@ func (a *App) judgeSetAside(chat string, needed int, offered []setAsideTurn) ([]
 	if shown == 0 || freed < needed {
 		return nil, false
 	}
-	set, err := a.judges()
+	set, err := a.judgesForCall(setAsideKind.Name)
 	if err != nil {
 		return nil, false
 	}

@@ -147,7 +147,7 @@ func (a *App) judgeHandoffDigest(chat string, lines []string, limit int) (string
 	if hit {
 		return cached.summary, cached.shown, cached.ok
 	}
-	set, err := a.judges()
+	set, err := a.judgesForCall(handoffKind.Name)
 	if err != nil {
 		return "", 0, false
 	}

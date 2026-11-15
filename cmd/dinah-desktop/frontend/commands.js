@@ -296,7 +296,7 @@
     register({ id: 'settings', menu: 'dinah', inline: true, label: 'Settings…', run: () => { openSettings(); } });
     register({ id: 'rename-session', menu: 'view', inline: true, label: 'Rename Chat…', enabled: () => chatCommands('rename-session'), run: () => { startRename(chats.active(), 'head'); } });
     register({ id: 'remove-session', menu: 'view', inline: true, label: 'Delete Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
-    register({ id: 'refresh-sessions', menu: 'view', inline: true, label: 'Refresh Chats', run: () => { refreshSessions(); } });
+    register({ id: 'refresh-sessions', menu: 'view', inline: true, label: 'Refresh Chats', run: () => { chatBrowser.refreshNativeSessions(); } });
     register({ id: 'all-models', menu: 'view', inline: true, label: 'All Models…', enabled: () => chatCommands('all-models'), run: () => { chats.current()?.openModels(); } });
     register({ id: 'history', menu: 'view', inline: true, label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });
     register({ id: 'templates', menu: 'view', inline: true, label: 'My Templates…', run: () => { chats.current()?.openTemplates(null); } });

@@ -100,7 +100,6 @@
     }
 
     function openSettings() {
-      scanProviders();
       drawDefaults();
       drawFavs();
       window.dinahWorkbench.open('settings').catch(fail);
@@ -491,6 +490,19 @@
       }, function (error) { settingsStatus('agents-status', 'Installed agents could not be found: ' + error, true); }).finally(function () { $('scan-agents').disabled = false; });
     }
     $('scan-agents').addEventListener('click', scanProviders);
+    document.addEventListener('dinah:settings-section', function (event) {
+      if (event.detail.section === 'agents') scanProviders();
+    });
+    function declaredProviders() {
+      return app().DeclaredProviders().then(function (list) {
+        adapter.setProviders((list || []).map(function (row) {
+          var scanned = adapter.providers().find(function (provider) { return provider.id === row.id && provider.status !== 'unknown'; });
+          return scanned ? Object.assign({}, row, scanned) : row;
+        }));
+        providerOptions($('default-provider'), adapter.defaultProvider());
+        return readAllProviderPreferences();
+      }).then(function () { adapter.refreshComposerOptions(); });
+    }
     $('default-provider').addEventListener('change', function () {
       var select = $('default-provider'); select.disabled = true;
       app().SetDefaultProvider(select.value).then(refreshSettingsPreferences).then(function () {
@@ -807,7 +819,7 @@
     on('settings:changed', function () { refreshSettingsPreferences().then(readAllProviderPreferences).catch(fail); });
     window.dinahHost.onResync(function () { return refreshSettingsPreferences().then(readAllProviderPreferences); });
 
-    return { readProviderPreferences, thinkingState: () => ({ checked: shownThinking, busy: thinkingSaving }), drawDefaults, openSettings, setWindowModeControl, drawWindowKindModes, setFileLimits, setOptionSubstitutions, scanProviders, drawPrefs, setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, sendKeyName, setPersonName, setDocumentViews, settingsStatus, setBackgroundChatLimitControl };
+    return { declaredProviders, readProviderPreferences, thinkingState: () => ({ checked: shownThinking, busy: thinkingSaving }), drawDefaults, openSettings, setWindowModeControl, drawWindowKindModes, setFileLimits, setOptionSubstitutions, scanProviders, drawPrefs, setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, sendKeyName, setPersonName, setDocumentViews, settingsStatus, setBackgroundChatLimitControl };
   }
 
   window.dinahSettings = { create };

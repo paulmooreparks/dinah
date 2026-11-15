@@ -56,6 +56,9 @@ func (a *App) stageChatCleanup(id string) error {
 			return refuseChatCleanup("This chat is already removed or another cleanup operation is in progress.")
 		}
 	}
+	if err := a.captureRuntimeInventory(); err != nil {
+		return err
+	}
 	membership, err := a.logicalChatMembers(id)
 	if err != nil {
 		return refuseChatCleanup(err.Error())

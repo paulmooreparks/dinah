@@ -23,7 +23,7 @@ import (
 // The window's side of the judgement calls (docs/plans/judgement-agents.md): the
 // settings the person chooses, the set of judges they apply to, and the
 // methods the page reads the record and the state through. The calls
-// themselves are made by the code that needs a judgement, through judges().
+// themselves use judgesForCall; store and presentation reads use judges().
 
 // JudgementSettings are the person's choices for the judges, kept in
 // judgements.json. A provider's own name is never written here: Provider is the
@@ -416,10 +416,24 @@ func (a *App) judges() (*judge.Judges, error) {
 	j.cur, j.rev = settings, judgementRevision(data)
 	a.applyJudgementSettings(j.set, settings)
 	a.loadCalibration()
-	if !j.noAuto {
+	return j.set, nil
+}
+
+// judgesForCall admits automatic calibration only for an enabled judgement
+// that a caller actually needs. The call keeps its existing rule while a
+// calibration is pending or no model has been selected.
+func (a *App) judgesForCall(kind string) (*judge.Judges, error) {
+	set, err := a.judges()
+	if err != nil {
+		return nil, err
+	}
+	a.judging.mu.Lock()
+	needed := a.judging.cur.Enabled && !a.judging.closing && !slices.Contains(effectiveKindsOff(a.judging.cur), kind)
+	a.judging.mu.Unlock()
+	if needed {
 		go a.maybeCalibrate()
 	}
-	return j.set, nil
+	return set, nil
 }
 
 // closeJudges closes the record, and the set is not opened again: a call that is
@@ -804,6 +818,9 @@ func (a *App) JudgementModels() ([]JudgementModel, error) {
 			out = append(out, JudgementModel{Name: m.Name, Provider: id})
 		}
 	}
+	// This inventory is requested by the visible, enabled settings section.
+	// Merely reading settings or the widget's state remains passive.
+	go a.maybeCalibrate()
 	return out, nil
 }
 

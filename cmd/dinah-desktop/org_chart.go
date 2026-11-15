@@ -24,16 +24,16 @@ type OrgChartView struct {
 	Groups      []OrgChartGroup `json:"groups"`
 }
 type OrgChartChat struct {
-	ChatID        string    `json:"chatId"`
-	Head          string    `json:"head"`
-	Title         string    `json:"title"`
-	Workspace     string    `json:"workspace"`
-	WorkspaceName string    `json:"workspaceName"`
-	Provider      string    `json:"provider"`
-	ProviderName  string    `json:"providerName"`
-	State         ChatState `json:"state"`
-	Resolution    string    `json:"resolution"`
-	Reason        string    `json:"reason"`
+	ChatID        string     `json:"chatId"`
+	Head          string     `json:"head"`
+	Title         string     `json:"title"`
+	Workspace     string     `json:"workspace"`
+	WorkspaceName string     `json:"workspaceName"`
+	Provider      string     `json:"provider"`
+	ProviderName  string     `json:"providerName"`
+	State         *ChatState `json:"state"`
+	Resolution    string     `json:"resolution"`
+	Reason        string     `json:"reason"`
 }
 type OrgChartTeam struct {
 	ID         string   `json:"id"`
@@ -56,6 +56,10 @@ type OrgChartGroup struct {
 // confer no authority and never discover history or open a closed conversation.
 func (a *App) OrgChart() (OrgChartView, error) {
 	view := OrgChartView{Chats: []OrgChartChat{}, Teams: []OrgChartTeam{}, Groups: []OrgChartGroup{}}
+	inventory, err := a.SavedChats()
+	if err != nil {
+		return view, err
+	}
 	a.mu.Lock()
 	if a.startupErr != nil {
 		err := a.startupErr
@@ -79,12 +83,8 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	aliases, excluded := map[string]string{}, map[string]bool{}
 	byChat := map[string]int{}
 	for _, reference := range logicalChatReferencesFromSettings(saved) {
-		members, resolveErr := logicalChatMembersFromSettings(saved, reference)
-		metadata, metadataErr := logicalChatMetadataFromSettings(saved, reference)
-		removed := metadata.Lifecycle != "" && metadata.Lifecycle != "active"
-		if resolveErr == nil {
-			resolveErr = metadataErr
-		}
+		members, _ := logicalChatMembersFromSettings(saved, reference)
+		removed := false
 		for _, member := range members.Members {
 			if _, reserved := saved.RemovedChats[member.SessionID]; reserved {
 				removed = true
@@ -97,50 +97,31 @@ func (a *App) OrgChart() (OrgChartView, error) {
 			for _, member := range members.Members {
 				excluded[saved.BusSessions[member.SessionID]] = true
 			}
-			continue
 		}
-		id := members.ChatID
-		if id == "" {
-			id = reference
+	}
+	// Relationships augment the same captured rows used by the Chats panel.
+	view.Chats = []OrgChartChat{}
+	aliases, byChat = map[string]string{}, map[string]int{}
+	for _, row := range inventory.Chats {
+		chat := OrgChartChat{ChatID: row.ChatID, Head: row.ID, Title: row.Title, Workspace: row.Cwd, Provider: row.Provider, ProviderName: providerName(row.Provider), State: row.State, Resolution: row.Resolution, Reason: row.Reason}
+		if row.Resolution != "resolved" {
+			chat.Head = ""
 		}
-		if _, exists := byChat[id]; exists {
-			continue
-		}
-		head := members.Head
-		chat := OrgChartChat{ChatID: id, Head: head, Title: saved.SessionTitles[head], Provider: saved.SessionProviders[head], State: ChatState{Life: lifeClosed}, Resolution: "resolved"}
-		chat.Title, chat.Workspace = metadata.Title, metadata.Workspace
-		if metadata := headers[head]; metadata != nil {
-			chat.Workspace = metadata.Workspace
-			if chat.Provider == "" {
-				chat.Provider = metadata.Provider
+		for _, ws := range saved.WorkspaceRecords {
+			if layout.SamePath(workspaces.ExecutionPath(ws), row.Cwd) {
+				chat.WorkspaceName = ws.Name
 			}
 		}
-		for _, member := range members.Members {
-			if member.SessionID == head && chat.Provider == "" {
-				chat.Provider = member.Provider
+		if row.Resolution == "resolved" {
+			members, err := logicalChatMembersFromSettings(saved, row.ID)
+			if err != nil {
+				return OrgChartView{}, err
 			}
-		}
-		if chat.Title == "" {
-			chat.Title = saved.SessionTitles[reference]
-		}
-		if chat.Title == "" {
-			chat.Title = "Untitled chat"
-		}
-		for _, workspace := range saved.WorkspaceRecords {
-			if chat.Workspace != "" && layout.SamePath(workspaces.ExecutionPath(workspace), chat.Workspace) {
-				chat.WorkspaceName = workspace.Name
-				break
-			}
-		}
-		chat.ProviderName = providerName(chat.Provider)
-		if resolveErr != nil {
-			chat.Head, chat.Resolution, chat.Reason = "", "repair", resolveErr.Error()
-		} else {
 			for _, member := range members.Members {
-				aliases[member.SessionID] = id
+				aliases[member.SessionID] = row.ChatID
 			}
 		}
-		byChat[id] = len(view.Chats)
+		byChat[row.ChatID] = len(view.Chats)
 		view.Chats = append(view.Chats, chat)
 	}
 	// A recipient shared by different logical owners cannot supply an edge.
@@ -245,18 +226,6 @@ func (a *App) OrgChart() (OrgChartView, error) {
 			team.MemberIDs = slices.Compact(team.MemberIDs)
 			view.Teams = append(view.Teams, *team)
 		}
-		for index := range view.Chats {
-			chat := &view.Chats[index]
-			if chat.Resolution != "resolved" {
-				continue
-			}
-			recipient := saved.BusSessions[chat.Head]
-			_, retired, err := b.LeadOf(ctx, recipient)
-			if err != nil {
-				return err
-			}
-			chat.State = a.chatState(ctx, b, recipient, chat.Head, retired, false)
-		}
 		return nil
 	})
 	if err != nil {
@@ -276,7 +245,14 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	if orgChartTranscriptStamp(currentHeaders) != headerStamp {
 		return OrgChartView{}, errors.New("Saved chat identities changed while the chart was read. Refresh the chart.")
 	}
-	data, err := json.Marshal([]any{stamp, headerStamp, view})
+	currentInventory, err := a.SavedChats()
+	if err != nil {
+		return OrgChartView{}, err
+	}
+	if currentInventory.Generation != inventory.Generation {
+		return OrgChartView{}, errors.New("Chat inventory changed while the chart was read. Refresh the chart.")
+	}
+	data, err := json.Marshal([]any{stamp, headerStamp, inventory.Generation, view})
 	if err != nil {
 		return OrgChartView{}, err
 	}

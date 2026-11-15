@@ -7,7 +7,11 @@
 (function () {
   'use strict';
 
-  var modules = new Map(), mounted = new Map(), api = null, lastState = null;
+  var modules = new Map(), mounted = new Map(), api = null, lastState = null, shown = false;
+  document.addEventListener('dinah:settings-section', function (event) {
+    shown = event.detail.section === 'agents';
+    mounted.forEach(function (entry) { if (entry.view && entry.view.shown) entry.view.shown(shown); });
+  });
 
   function register(id, module) { modules.set(id, module); }
   // The calls the shared Settings page lends to the modules.
@@ -35,6 +39,7 @@
         entry = { root: root, view: modules.get(p.id).mount(root, Object.assign({ name: p.name || '' }, api)) };
         mounted.set(p.id, entry);
         if (lastState && entry.view && entry.view.apply) entry.view.apply(lastState);
+        if (entry.view && entry.view.shown) entry.view.shown(shown);
       }
       host.appendChild(entry.root);
     });

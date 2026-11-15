@@ -215,11 +215,7 @@ var devinAdapter = &providerAdapter{
 				return conn, nil
 			},
 			ready: func(init acp.InitializeResult) {
-				version := ""
-				if init.AgentInfo != nil {
-					version = init.AgentInfo.Version
-				}
-				a.refreshDevinPrices(devin, version)
+				a.noteDevinPriceSource(devin)
 			},
 		}, nil
 	},
@@ -554,7 +550,7 @@ func uniqueAppletConfigObjects(v *hujson.Value) error {
 
 // Devin's model prices are read from its command line in the background and
 // shown in the model list (DESIGN.md, Devin Model Prices). They are read once
-// a run, again when Devin starts as another executable or version, and again
+// a run when requested, again for another executable or version, and again
 // when the person opens the model list an hour or more after the last read.
 // Nothing waits for them: the page draws the list at once and draws it again
 // when prices arrive. When the read fails in any way there are no prices,
@@ -570,12 +566,21 @@ var readDevinPrices = agents.DevinModelPrices
 
 type devinPriceCache struct {
 	mu sync.Mutex
+	// livePath is the executable of the initialized runtime. Recording it
+	// does not request prices or replace the provenance of cached prices.
+	livePath string
 	// path and version are the Devin the prices were last read from, or are
 	// being read from, and at when that read finished.
 	path, version string
 	at            time.Time
 	reading       bool
 	prices        map[string]agents.DevinModelPrice
+}
+
+func (a *App) noteDevinPriceSource(path string) {
+	a.devinPrices.mu.Lock()
+	a.devinPrices.livePath = path
+	a.devinPrices.mu.Unlock()
 }
 
 // refreshDevinPrices reads the prices again, in the background, unless a
@@ -656,6 +661,9 @@ func devinModelPrices(a *App) map[string]agents.DevinModelPrice {
 	c := &a.devinPrices
 	c.mu.Lock()
 	path := c.path
+	if running && c.livePath != "" {
+		path = c.livePath
+	}
 	if !running {
 		version = c.version
 	}
@@ -665,7 +673,7 @@ func devinModelPrices(a *App) map[string]agents.DevinModelPrice {
 	} else {
 		// Finding Devin can start it to check it, so it is done in the
 		// background too.
-		go func() { a.refreshDevinPrices(a.providerInfoOf(devinID).Path, "") }()
+		go func() { a.refreshDevinPrices(a.providerInfoOf(devinID).Path, version) }()
 	}
 	return a.matchedDevinPrices()
 }

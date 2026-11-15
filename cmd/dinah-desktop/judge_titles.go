@@ -162,7 +162,7 @@ func (a *App) hasEarlierPerson(s *Session) bool {
 // judgeChatTitle asks the judge for the title and, when the judge's answer was
 // used, keeps it and shows it.
 func (a *App) judgeChatTitle(id, line string) {
-	set, err := a.judges()
+	set, err := a.judgesForCall(chatTitleKind.Name)
 	if err != nil {
 		return
 	}

@@ -18,6 +18,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   } });
   const p = t.page, ok = t.ok;
   try {
+    await p.evaluate(() => dinahWorkbench.open('chat-browser'));
     await p.locator('#sessions a').filter({ hasText: 'Thinking fixture' }).click();
     const chat = p.locator('.win[data-chat-current]');
     await chat.locator('[data-win-action="maximize"]').click();

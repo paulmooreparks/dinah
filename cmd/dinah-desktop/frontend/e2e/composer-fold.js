@@ -23,6 +23,7 @@ const { launch } = require('./lib/page');
   });
   const { page: p, ok } = t;
   try {
+    await p.evaluate(() => dinahWorkbench.open('chat'));
     const chat = p.locator('.win[data-win="chat"]');
     await chat.locator('.composer-toolbar').waitFor();
     await p.evaluate(() => window.pudlWindows.snap('chat', 'floating'));

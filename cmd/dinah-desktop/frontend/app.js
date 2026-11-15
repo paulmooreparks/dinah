@@ -320,7 +320,7 @@
       $('about-version').textContent = st.version || '';
       chats.restoreView();
       refreshSessions();
-      scanProviders();
+      return settings.declaredProviders();
     }).catch(fail).then(function () { setStarted(); });
   }
   /* Until the layout and the app's state have been read, the status area

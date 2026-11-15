@@ -139,43 +139,35 @@
     var hiddenCount = 0;
     var listed = [];
     var sessionListGeneration = 0;
-    var inventoryRefresh = null, inventoryRefreshKey = '', inventoryErrorToast = null;
+    var inventoryRefresh = null, inventoryRefreshKey = '', inventoryRefreshGeneration = 0, inventoryErrorToast = null;
     function clearInventoryError() {
       if (inventoryErrorToast && inventoryErrorToast.isConnected) { var close = inventoryErrorToast.querySelector('.toast-close'); if (close) close.click(); }
       inventoryErrorToast = null;
     }
     function refreshSessions() {
       var key = JSON.stringify([adapter.workspace(), adapter.openPaths()]);
-      if (inventoryRefresh && inventoryRefreshKey === key) return inventoryRefresh;
+      if (inventoryRefresh && inventoryRefreshKey === key && inventoryRefreshGeneration === sessionListGeneration) return inventoryRefresh;
       inventoryRefreshKey = key;
       var request = refreshSessionInventory();
+      inventoryRefreshGeneration = sessionListGeneration;
       inventoryRefresh = request;
       request.finally(function () { if (inventoryRefresh === request) inventoryRefresh = null; });
       return request;
     }
+    function refreshNativeSessions() {
+      return app().DeclaredProviders().then(function (providers) {
+        return Promise.allSettled(providers.map(function (provider) { return app().RefreshProviderSessions(adapter.workspace(), provider.id); }));
+      }).then(function (results) {
+        return refreshSessions().then(function () { results.forEach(function (result) { if (result.status === 'rejected') fail(result.reason); }); });
+      }).catch(fail);
+    }
     function refreshSessionInventory() {
-      if (!adapter.workspace()) { listed = []; drawSessions(); return Promise.resolve(); }
-      var generation = ++sessionListGeneration, selected = adapter.workspace();
-      var nativeRows = Promise.all(adapter.openPaths().map(function (ws) {
-        return (ws === selected ? app().Sessions() : app().SessionsAt(ws)).then(function (l) { return l || []; });
-      }));
-      // Native discovery can save identities and titles. Capture logical
-      // ownership after those writes, rather than during them.
-      return nativeRows.then(function (rows) { return Promise.resolve(app().OrgChart()).then(function (relations) { return [rows, relations]; }); }).then(function (values) {
+      var generation = ++sessionListGeneration;
+      return app().SavedChats().then(function (inventory) {
         if (generation !== sessionListGeneration) return;
-        var relations = values[1], heads = new Map(), merged = new Map(), native = values[0].flat();
-        (relations.chats || []).filter(function (chat) { return chat.resolution === 'resolved' && chat.head; }).forEach(function (chat) {
-          heads.set(chat.chatId, chat.head);
-          merged.set(chat.head, { sessionId: chat.head, title: chat.title, cwd: chat.workspace, provider: chat.provider, chatState: chat.state, open: chat.state && chat.state.life === 'open' });
+        listed = (inventory.chats || []).map(function (row) {
+          return row.resolution === 'repair' && !row.sessionId ? Object.assign({}, row, { sessionId: row.chatId }) : row;
         });
-        native.forEach(function (row) {
-          var id = heads.get(row.sessionId) || row.sessionId;
-          // A predecessor is represented by its current head. Its metadata
-          // must not overwrite a head returned by the same provider listing.
-          if (id !== row.sessionId && native.some(function (other) { return other.sessionId === id; })) return;
-          merged.set(id, Object.assign({}, merged.get(id), row, { sessionId: id }));
-        });
-        listed = Array.from(merged.values());
         listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); if (Object.prototype.hasOwnProperty.call(x, 'title')) s.titleKnown = true; if (s.view) s.view.refresh(); });
         clearInventoryError();
         drawSessions();
@@ -204,7 +196,7 @@
     function knownChats() {
       var ids = listed.map(function (x) { return x.sessionId; });
       Object.keys(sessions).forEach(function (k) { if (ids.indexOf(k) < 0 && sessions[k].info.open) ids.push(k); });
-      return Array.from(new Set(ids)).filter(function (id) { return sessions[id] && !sessions[id].info.continuedBy; }).map(chatRef);
+      return Array.from(new Set(ids)).filter(function (id) { return sessions[id] && sessions[id].info.resolution !== 'repair' && !sessions[id].info.continuedBy; }).map(chatRef);
     }
     function chatRef(id) {
       var s = sessions[id], state = window.dinahChatState.read(s.info), named = (titles[id] || s.info.title || '').trim(), cwd = s.info.cwd || '';
@@ -362,7 +354,7 @@
         // chat state. Unchanged rows retain their badges, focus and DOM nodes.
         var rowSignature = JSON.stringify([title(s), providerName(sessionProvider(s)), when(s.info.updatedAt),
           scope === 'all' ? workspaceLabel(s.info.cwd) : '', state, window.dinahChatState.describe(s.info),
-          needsCount(id), earlier, id === adapter.active()]);
+          needsCount(id), earlier, id === adapter.active(), s.info.resolution, s.info.reason]);
         if (!groups[groupName]) groups[groupName] = [];
         if (row && row._chatRowSignature === rowSignature) {
           groups[groupName].push(row);
@@ -379,25 +371,28 @@
           // the chat is that workspace's, and removes the chat, so that a
           // chat can be removed without opening it first.
           if (window.dinahPins) window.dinahPins.rowActions(row, function () {
-            return sessions[id] && sameWs(sessions[id].info.cwd) ? chatPin(id) : null;
+            return sessions[id] && sessions[id].info.resolution !== 'repair' && sameWs(sessions[id].info.cwd) ? chatPin(id) : null;
           }, function () {
-            if (!sessions[id]) return [];
+            if (!sessions[id] || sessions[id].info.resolution === 'repair') return [];
             return [{ label: 'Delete Chat…', danger: true, run: function () { openRemove(id); } }];
           });
         }
         var a = row.firstChild;
         a.dataset.session = id;
+        if (s.info.resolution === 'repair') {
+          delete a.dataset.session; a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true');
+        } else { a.href = '#'; a.removeAttribute('aria-disabled'); }
         a.querySelector('.session-title').textContent = title(s);
         // The second line says which agent, when and, across workspaces, where;
         // the badge says what the chat is doing.
-        var meta = [providerName(sessionProvider(s))];
+        var meta = s.info.resolution === 'repair' && !s.info.provider ? [] : [providerName(sessionProvider(s))];
         if (s.info.updatedAt) meta.push(when(s.info.updatedAt));
-        if (scope === 'all') meta.push(workspaceLabel(s.info.cwd));
+        if (scope === 'all' && s.info.cwd) meta.push(workspaceLabel(s.info.cwd));
         if (window.dinahChatState.read(s.info).life === 'open' && window.dinahChatState.read(s.info).window === false) meta.push('No window');
         a.querySelector('.md-meta').textContent = meta.join(' · ');
         a.querySelector('.md-meta').title = meta.join(' · ');
         var reason = window.dinahChatState.read(s.info).exec;
-        var why = reason && reason.why || '';
+        var why = s.info.resolution === 'repair' ? s.info.reason || 'This chat needs repair before it can be opened.' : reason && reason.why || '';
         a.querySelector('.session-reason').textContent = why;
         a.querySelector('.session-reason').title = why;
         a.querySelectorAll('.session-badge').forEach(function (badge) { badge.remove(); });
@@ -495,7 +490,7 @@
     });
     });
 
-    return { title, hasKnownTitle: id => !!titles[id] || !!(sessions[id] && sessions[id].info.title), startRename, openRemove, refreshSessions, when, drawSessions, chatPin, sameWs, normalizedWorkspace,
+    return { title, hasKnownTitle: id => !!titles[id] || !!(sessions[id] && sessions[id].info.title), startRename, openRemove, refreshSessions, refreshNativeSessions, when, drawSessions, chatPin, sameWs, normalizedWorkspace,
       setTitles: value => { titles = value || {}; Object.keys(sessions).forEach(id => { if (sessions[id].view) sessions[id].view.refresh(); }); if (window.dinahWorkbench && window.dinahWorkbench.refreshTitles) window.dinahWorkbench.refreshTitles(); },
       setHiddenCount: value => { hiddenCount = value || 0; },
       hiddenCount: () => hiddenCount, listed: () => listed
