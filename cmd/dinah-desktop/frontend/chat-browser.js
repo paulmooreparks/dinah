@@ -10,6 +10,7 @@
     /* A session's name: the one the person gave it, else Devin's title. */
     var titles = {};
     function title(s) { return (s && (titles[s.id] || s.info.title)) || (s && s.info.open ? 'New Chat' : 'Untitled Chat'); }
+    window.dinahHost.on('agent:titles', function (value) { titles = value || {}; drawSessions(); });
 
     /* Renaming: the session's row in the list becomes a field. Enter keeps
        the name, Esc leaves it as it was, and an empty name goes back to
@@ -100,6 +101,7 @@
       });
     }
     function removed(id) {
+      ++sessionListGeneration;
       dropRows(id);
       var s = sessions[id];
       adapter.disposeChat(s);
@@ -126,21 +128,58 @@
       }).finally(function () { $('remove-go').disabled = false; });
     });
     window.dinahHost.on('chat:removed', function (event) { if (event && event.sessionId) removed(event.sessionId); });
+    window.dinahHost.on('chat:restored', function (event) {
+      if (!event || !event.sessionId) return;
+      Promise.resolve(app().ListChatCleanup()).then(function (view) {
+        var chat = (view.rows || []).find(function (row) { return row.sessionId === event.sessionId || (row.sessionIds || []).includes(event.sessionId); });
+        if (chat) window.dinahChats.restore(chat);
+      }).catch(fail);
+    });
 
     var hiddenCount = 0;
     var listed = [];
     var sessionListGeneration = 0;
+    var inventoryRefresh = null, inventoryRefreshKey = '', inventoryErrorToast = null;
+    function clearInventoryError() {
+      if (inventoryErrorToast && inventoryErrorToast.isConnected) { var close = inventoryErrorToast.querySelector('.toast-close'); if (close) close.click(); }
+      inventoryErrorToast = null;
+    }
     function refreshSessions() {
+      var key = JSON.stringify([adapter.workspace(), adapter.openPaths()]);
+      if (inventoryRefresh && inventoryRefreshKey === key) return inventoryRefresh;
+      inventoryRefreshKey = key;
+      var request = refreshSessionInventory();
+      inventoryRefresh = request;
+      request.finally(function () { if (inventoryRefresh === request) inventoryRefresh = null; });
+      return request;
+    }
+    function refreshSessionInventory() {
       if (!adapter.workspace()) { listed = []; drawSessions(); return Promise.resolve(); }
       var generation = ++sessionListGeneration, selected = adapter.workspace();
-      return Promise.all(adapter.openPaths().map(function (ws) {
+      var nativeRows = Promise.all(adapter.openPaths().map(function (ws) {
         return (ws === selected ? app().Sessions() : app().SessionsAt(ws)).then(function (l) { return l || []; });
-      })).then(function (lists) {
+      }));
+      // Native discovery can save identities and titles. Capture logical
+      // ownership after those writes, rather than during them.
+      return nativeRows.then(function (rows) { return Promise.resolve(app().OrgChart()).then(function (relations) { return [rows, relations]; }); }).then(function (values) {
         if (generation !== sessionListGeneration) return;
-        listed = lists.flat();
+        var relations = values[1], heads = new Map(), merged = new Map(), native = values[0].flat();
+        (relations.chats || []).filter(function (chat) { return chat.resolution === 'resolved' && chat.head; }).forEach(function (chat) {
+          heads.set(chat.chatId, chat.head);
+          merged.set(chat.head, { sessionId: chat.head, title: chat.title, cwd: chat.workspace, provider: chat.provider, chatState: chat.state, open: chat.state && chat.state.life === 'open' });
+        });
+        native.forEach(function (row) {
+          var id = heads.get(row.sessionId) || row.sessionId;
+          // A predecessor is represented by its current head. Its metadata
+          // must not overwrite a head returned by the same provider listing.
+          if (id !== row.sessionId && native.some(function (other) { return other.sessionId === id; })) return;
+          merged.set(id, Object.assign({}, merged.get(id), row, { sessionId: id }));
+        });
+        listed = Array.from(merged.values());
         listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); if (Object.prototype.hasOwnProperty.call(x, 'title')) s.titleKnown = true; if (s.view) s.view.refresh(); });
+        clearInventoryError();
         drawSessions();
-      }).catch(fail);
+      }).catch(function (error) { if (generation !== sessionListGeneration) return; clearInventoryError(); inventoryErrorToast = toast(String(error), 'danger'); });
     }
     $('chat-filter').addEventListener('input', drawSessions);
     $('chat-scope').addEventListener('change', drawSessions);
@@ -180,14 +219,23 @@
     }
     window.dinahChats = {
       known: knownChats,
+      refreshInventory: refreshSessions,
+      inventory: function () {
+        return visibleChatIds('all', '').map(function (id) {
+          var session = sessions[id];
+          return Object.assign({}, session.info, { sessionId: id, title: title(session), state: window.dinahChatState.read(session.info), workspaceName: session.info.cwd ? workspaceLabel(session.info.cwd) : '', providerName: providerName(sessionProvider(session)) });
+        });
+      },
       created: function (info) {
+        ++sessionListGeneration;
         var session = S(info.sessionId); session.info = Object.assign({}, session.info, info); session.titleKnown = true;
         var at = listed.findIndex(function (entry) { return entry.sessionId === info.sessionId; });
         if (at < 0) listed.push(info); else listed[at] = info;
         drawSessions(); return openSession(info.sessionId);
       },
       restore: function (row) {
-        var info = { sessionId: row.sessionId, title: row.title, cwd: row.workspace, provider: row.provider, updatedAt: row.lastActivity, open: false, working: false };
+        ++sessionListGeneration;
+        var info = { sessionId: row.sessionId, title: row.title, cwd: row.workspace, provider: row.provider, updatedAt: row.lastActivity, open: false, working: false, chatState: row.chatState || { life: 'closed' } };
         var session = S(row.sessionId); session.info = Object.assign({}, session.info, info); session.working = false; session.titleKnown = true;
         var at = listed.findIndex(function (entry) { return entry.sessionId === row.sessionId; });
         if (at < 0) listed.push(info); else listed[at] = info;
@@ -275,13 +323,7 @@
       if (count.getAttribute('aria-label') !== label) count.setAttribute('aria-label', label);
       if (count.title !== label) count.title = label;
     }
-    function drawSessionList(host, scope, query, empty, prefix) {
-      if (host.querySelector('input.session-rename')) return;
-      var view = listView(host), signature = [scope, query, adapter.workspace()].join('|');
-      var hold = view.signature === signature && host.childElementCount > 0 && listBusy(host);
-      view.signature = signature;
-      var rows = new Map();
-      host.querySelectorAll('.md-row[data-session-row]').forEach(function (row) { rows.set(row.dataset.sessionRow, row); });
+    function visibleChatIds(scope, query) {
       var ids = listed.map(function (x) { return x.sessionId; });
       // Sessions opened in this run that Devin's list does not have yet.
       Object.keys(sessions).forEach(function (k) {
@@ -290,6 +332,16 @@
       });
       ids = Array.from(new Set(ids));
       ids = ids.filter(function (id) { var s = sessions[id]; return !s.info.continuedBy && (scope === 'all' || sameWs(s.info.cwd)) && title(s).toLowerCase().includes(query); });
+      return ids;
+    }
+    function drawSessionList(host, scope, query, empty, prefix) {
+      if (host.querySelector('input.session-rename')) return;
+      var view = listView(host), signature = [scope, query, adapter.workspace()].join('|');
+      var hold = view.signature === signature && host.childElementCount > 0 && listBusy(host);
+      view.signature = signature;
+      var rows = new Map();
+      host.querySelectorAll('.md-row[data-session-row]').forEach(function (row) { rows.set(row.dataset.sessionRow, row); });
+      var ids = visibleChatIds(scope, query);
       // Sort the combined workspace list by activity, retaining source order for ties.
       var activity = new Map(ids.map(function (id) {
         var time = Date.parse(sessions[id].info.updatedAt);

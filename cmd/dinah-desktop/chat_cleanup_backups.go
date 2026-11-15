@@ -13,7 +13,7 @@ import (
 func cleanupRedactBackups(ids []string) error {
 	for _, name := range []string{"settings.json.before-split", "settings.json" + beforeDecisions} {
 		if err := cleanupRewriteBackup(name, func(root map[string]json.RawMessage) error {
-			for _, key := range []string{"sessionProviders", "sessionTitles", "sessionOptions", "judgedTitles", "nativeSessions", "nativeRecoveryAttempts", "busSessions", "chatBindings", "chatTransfers"} {
+			for _, key := range []string{"listedChats", "sessionProviders", "sessionTitles", "sessionOptions", "judgedTitles", "nativeSessions", "nativeRecoveryAttempts", "busSessions", "chatBindings", "chatTransfers"} {
 				if raw, ok := root[key]; ok {
 					var values map[string]json.RawMessage
 					if err := json.Unmarshal(raw, &values); err != nil {

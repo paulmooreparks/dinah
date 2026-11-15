@@ -156,6 +156,9 @@ func logicalChatMembersFromSettings(s Settings, reference string) (LogicalChatMe
 	result := LogicalChatMembers{ChatID: ids[0], Head: head, Members: []LogicalChatMember{}, UnresolvedAllocations: []LogicalChatAllocation{}, SeparateRecipients: []LogicalChatRelation{}}
 	for _, id := range ids {
 		member := LogicalChatMember{SessionID: id, NativeID: id, Provider: s.SessionProviders[id], State: "known_abandoned_candidate"}
+		if member.Provider == "" {
+			member.Provider = s.ListedChats[id].Provider
+		}
 		if id == head {
 			member.State = "active_head"
 		} else if committed[id] != "" {
@@ -195,7 +198,13 @@ func logicalChatMembersFromSettings(s Settings, reference string) (LogicalChatMe
 		}
 		return a.AttemptID < b.AttemptID
 	})
-	raw, _ := json.Marshal([]any{s.ChatBindings, s.ChatTransfers, s.ChatTransferHistory, s.BusSessions, result.Members, result.UnresolvedAllocations})
+	listed := map[string]listedChat{}
+	for _, id := range ids {
+		if row, ok := s.ListedChats[id]; ok {
+			listed[id] = row
+		}
+	}
+	raw, _ := json.Marshal([]any{s.ChatBindings, s.ChatTransfers, s.ChatTransferHistory, s.BusSessions, result.Members, result.UnresolvedAllocations, listed})
 	result.Generation = fmt.Sprintf("%x", sha256.Sum256(raw))
 	return result, nil
 }

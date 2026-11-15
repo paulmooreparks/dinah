@@ -25,16 +25,19 @@ type ChannelCapability interface {
 }
 
 type SessionLifecycleHost struct {
-	RecordedActivity  func(string) string
-	BeforeOpen        func(string, string) (Info, bool, error)
-	MissingSession    func(string, string, error) (Info, error)
-	NormalizeProvider func(string) string
-	PrepareApplets    func(string, string) error
-	Live              func(string) (Connection, acp.InitializeResult, error)
-	Defaults          func(string) map[string]json.RawMessage
-	SavedOptions      func(string) (map[string]json.RawMessage, string)
-	NewChannel        func(Connection, string) (ChannelCapability, []any, error)
-	ManagedServers    func() ([]any, error)
+	// RecordListedSessions durably retains native identities before they are
+	// returned to a caller. A page is an observation, never proof of absence.
+	RecordListedSessions func(string, string, []acp.SessionInfo) error
+	RecordedActivity     func(string) string
+	BeforeOpen           func(string, string) (Info, bool, error)
+	MissingSession       func(string, string, error) (Info, error)
+	NormalizeProvider    func(string) string
+	PrepareApplets       func(string, string) error
+	Live                 func(string) (Connection, acp.InitializeResult, error)
+	Defaults             func(string) map[string]json.RawMessage
+	SavedOptions         func(string) (map[string]json.RawMessage, string)
+	NewChannel           func(Connection, string) (ChannelCapability, []any, error)
+	ManagedServers       func() ([]any, error)
 	// ConfigureServers adds shell-owned session capabilities after defaults.
 	// The capability retains the authority and revokes it when opening fails.
 	ConfigureServers func(ChannelCapability, string, string, []any) ([]any, error)
@@ -285,6 +288,11 @@ func (l *SessionLifecycle) List(ws string) ([]Info, error) {
 				var res acp.ListSessionsResult
 				if err := l.host.CallWithin(conn, 15*time.Second, "session/list", acp.ListSessionsParams{Cwd: ws, Cursor: cursor}, &res); err != nil {
 					break
+				}
+				if l.host.RecordListedSessions != nil {
+					if err := l.host.RecordListedSessions(provider, ws, res.Sessions); err != nil {
+						return nil, err
+					}
 				}
 				for _, x := range res.Sessions {
 					hide := l.host.Hidden(x.SessionID)

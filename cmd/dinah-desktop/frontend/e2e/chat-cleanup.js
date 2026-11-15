@@ -6,6 +6,7 @@ const { launch } = require('./lib/page');
     const bin = ['bin', 'bin2'].map(id => make(id, { removedAt: '2026-11-01T00:00:00Z', expiresAt: '2026-12-01T00:00:00Z', restorable: true, runtimeNote: 'Still loaded by Codex until the program stops or the window restarts.', finalDeleteConfirmation: 'This chat will be permanently deleted. Codex keeps its own copy.' }));
     window.__cleanupCalls = [];
     return {
+      Sessions: async () => rows.map(r => ({ sessionId: r.sessionId, title: r.title, cwd: r.workspace, provider: r.provider, open: r.open })),
       ListChatCleanup: async () => ({ rows, removed: bin, retentionDays: 30, finalDeleteConfirmation: 'The chats will be permanently deleted. Agent copies without a delete command remain.' }),
       RemoveChats: ids => new Promise(resolve => { window.__cleanupCalls.push(ids); window.__finishCleanup = () => resolve(ids.map(id => id === 'old' ? { sessionId: id, ok: true, status: 'removed', row: make(id, { restorable: true, removedAt: '2026-11-15T00:00:00Z', expiresAt: '2026-12-15T00:00:00Z', finalDeleteConfirmation: 'This chat will be permanently deleted.' }) } : { sessionId: id, ok: false, status: 'refused', error: 'The chat started working.' })); }),
       RestoreRemovedChat: async id => {

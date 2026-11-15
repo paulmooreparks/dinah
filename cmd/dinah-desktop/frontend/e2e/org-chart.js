@@ -19,7 +19,7 @@ const { start } = require('./lib/org-chart-fixture');
     await chart.locator('[data-org-fold="research"]').click(); await chart.locator('[data-org-chat="bo"]').waitFor();
     ok('unfolding preserves one box for every chat', await chart.locator('[data-org-chat]').count() === 11);
     await chart.getByRole('searchbox', { name: 'Find a Chat' }).fill('Nina');
-    ok('Find a Chat retains the reporting context of a match', await chart.locator('[data-org-chat="nina"]').count() === 1 && await chart.locator('[data-org-chat="mara"]').count() === 1 && await chart.locator('[data-org-chat="lena"]').count() === 0);
+    ok('Find a Chat shows the same matching chats as the Chats panel', await chart.locator('[data-org-chat="nina"]').count() === 1 && await chart.locator('[data-org-chat="mara"]').count() === 0 && await chart.locator('[data-org-chat="lena"]').count() === 0);
     ok('the filter has an address', await p.evaluate(() => location.search.includes('view.') && decodeURIComponent(location.search).includes('Nina')));
     await p.reload(); await chart.getByRole('searchbox', { name: 'Find a Chat' }).waitFor();
     await p.waitForFunction(() => document.querySelector('.org-chart-canvas').dataset.generation);
@@ -92,11 +92,14 @@ const { start } = require('./lib/org-chart-fixture');
     await p.evaluate(() => { __orgError = ''; __orgGate = new Promise(resolve => { window.__releaseOrg = resolve; }); });
     await chart.getByRole('button', { name: 'Retry Loading', exact: true }).click(); await p.evaluate(() => __emit('chat:restored', { sessionId: 'mara-current' }));
     const reads = await p.evaluate(() => __orgReads); await p.evaluate(() => __releaseOrg());
-    await p.waitForFunction(reads => __orgReads === reads + 1, reads);
-    ok('refreshes are serialized and coalesced after the current read', await p.evaluate(reads => __orgReads === reads + 1, reads));
+    // Retry first refreshes the common inventory, then reads relationships.
+    // The event during that work contributes one coalesced relationship read.
+    await p.waitForFunction(reads => __orgReads === reads + 2 && document.querySelector('.org-chart button[aria-hidden="true"]'), reads);
+    ok('refreshes are serialized and coalesced after the current read', await p.evaluate(reads => __orgReads === reads + 2, reads));
     const baseline = await t.calls();
+    const beforeRemoval = await p.evaluate(() => __orgReads);
     await p.evaluate(() => __emit('chat:removed', { sessionId: 'mara-current' }));
-    await p.waitForFunction(reads => __orgReads > reads + 1, reads);
+    await p.waitForFunction(reads => __orgReads > reads, beforeRemoval);
     const extra = (await t.calls()).slice(baseline.length);
     ok('chart refresh does not discover history or open a chat', extra.every(call => !/Sessions|OpenSession|AgentDirectory/.test(call[0])));
   } finally { await t.close(); }

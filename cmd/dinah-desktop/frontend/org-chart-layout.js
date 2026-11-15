@@ -63,7 +63,7 @@
     var width = Math.max(160, Math.floor(options.width)), folded = new Set(options.folded || []);
     var chats = new Map(view.chats.map(function (c) { return [c.chatId, c]; }));
     var wanted = new Set(view.chats.filter(function (c) {
-      return (!options.workspace || c.workspace === options.workspace) && (!options.find || (c.title + ' ' + c.workspaceName + ' ' + c.providerName).toLocaleLowerCase().includes(options.find.toLocaleLowerCase()));
+      return (!options.workspace || !c.workspace || c.workspace.toLowerCase().replace(/[\\/]+$/, '') === options.workspace.toLowerCase().replace(/[\\/]+$/, '')) && (!options.find || c.title.toLowerCase().includes(options.find.toLowerCase()));
     }).map(function (c) { return c.chatId; }));
     var teams = view.teams.filter(function (t) { return t.resolution === 'resolved'; });
     var byLead = new Map(), parent = new Map(), members = new Map(), claimed = new Set(), positions = [], frames = [], controls = [], edges = [], anchors = new Map();
@@ -75,7 +75,7 @@
     }
     function visible(id) { return descendants(id, new Set()).some(function (key) { return wanted.has(key); }); }
     function card(id, x, y, w) {
-      if (claimed.has(id) || !chats.has(id)) return;
+      if (claimed.has(id) || !chats.has(id) || !wanted.has(id)) return;
       claimed.add(id); var p = { id: id, kind: 'chat', x: x, y: y, width: w, height: 100 }; positions.push(p); anchors.set(id, p);
     }
     function tree(id, x, y, w, seen) {

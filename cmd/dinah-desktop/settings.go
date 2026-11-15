@@ -126,6 +126,7 @@ type Settings struct {
 	// then option id, given to the session again when it is reopened.
 	SessionOptions   map[string]map[string]json.RawMessage `json:"sessionOptions,omitempty"`
 	SessionProviders map[string]string                     `json:"sessionProviders,omitempty"`
+	ListedChats      map[string]listedChat                 `json:"listedChats,omitempty"`
 	// OptionSubstitutions are the values the person chose, by provider, to
 	// reopen a chat with when its saved value of an option is not offered
 	// (option_substitutions.go).

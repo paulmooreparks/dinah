@@ -3,7 +3,7 @@
   'use strict';
   var node = window.dinahHelpers.node, app = window.dinahHelpers.app;
   function init(root, opts) {
-    var disposed = false, snapshot = null, pending = null, again = false, geometry = '', drawing = null, elements = new Map(), folded = new Set();
+    var disposed = false, snapshot = null, relations = null, pending = null, again = false, geometry = '', drawing = null, elements = new Map(), folded = new Set();
     var workspace = '', find = '', readingState = false, failed = false;
     root.classList.add('org-chart');
     var toolbar = node('div', 'org-chart-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Org Chart');
@@ -118,7 +118,9 @@
       }
       updateText();
       canvas.dataset.generation = snapshot.generation;
-      var visible = elements.size, summary = visible ? visible + (visible === 1 ? ' chat is shown.' : ' chats are shown.') : drawing.controls.length ? 'Teams are folded.' : 'No chats match these filters.';
+      var visible = snapshot.chats.filter(function (chat) { return chat.resolution === 'resolved' && (!workspace || !chat.workspace || chat.workspace.toLowerCase().replace(/[\\/]+$/, '') === workspace.toLowerCase().replace(/[\\/]+$/, '')) && (!find.trim() || chat.title.toLowerCase().includes(find.trim().toLowerCase())); }).length;
+      var repairs = snapshot.chats.filter(function (chat) { return chat.resolution === 'repair'; }).length;
+      var summary = visible + (visible === 1 ? ' chat in Chats.' : ' chats in Chats.') + (folded.size ? ' Folded teams include their hidden members in this count.' : '') + (repairs ? ' ' + repairs + ' team or group references are not in Chats and need attention.' : '');
       if (status.textContent !== summary) status.textContent = summary;
     }
     function workspaceOptions() {
@@ -127,23 +129,31 @@
       var choices = [['', 'All Workspaces']].concat(Array.from(values).sort(function (a, b) { return a[1].localeCompare(b[1]); }));
       if (JSON.stringify(choices) !== scope.dataset.choices) { scope.replaceChildren(); choices.forEach(function (pair) { var option = node('option', '', pair[1]); option.value = pair[0]; scope.append(option); }); scope.dataset.choices = JSON.stringify(choices); } scope.value = workspace;
     }
-    function load() {
+    function syncInventory() {
+      if (!relations || disposed) return;
+      snapshot = window.dinahChatInventory.chart(relations, window.dinahChats.inventory());
+      workspaceOptions(); render();
+    }
+    function load(refreshInventory) {
       if (disposed) return Promise.resolve();
       if (pending) { again = true; return pending; }
       refresh.disabled = true;
-      pending = Promise.resolve().then(function () { if (!app() || !app().OrgChart) throw new Error('The chart is not available in this build.'); return app().OrgChart(); }).then(function (view) {
+      pending = Promise.resolve().then(function () { if (refreshInventory === true) return window.dinahChats.refreshInventory(); }).then(function () { if (!app() || !app().OrgChart) throw new Error('The chart is not available in this build.'); return app().OrgChart(); }).then(function (view) {
         if (disposed) return;
         if (!view || typeof view.generation !== 'string' || !Array.isArray(view.chats) || !Array.isArray(view.teams) || !Array.isArray(view.groups)) throw new Error('The chart could not be read.');
-        snapshot = view; failed = false; refresh.style.visibility = 'hidden'; refresh.setAttribute('aria-hidden', 'true'); workspaceOptions(); render();
+        relations = view; failed = false; refresh.style.visibility = 'hidden'; refresh.setAttribute('aria-hidden', 'true'); syncInventory();
       }).catch(function (error) { if (!disposed) { failed = true; refresh.disabled = false; refresh.style.visibility = ''; refresh.removeAttribute('aria-hidden'); status.textContent = window.dinahHelpers.message(error, 'sentence'); status.title = status.textContent; } }).finally(function () { pending = null; if (again && !disposed) { again = false; return load(); } });
       return pending;
     }
-    scope.addEventListener('change', function () { workspace = scope.value; changed(); }); search.addEventListener('input', function () { find = search.value; changed(); }); refresh.addEventListener('click', load);
-    var stops = ['agent:chatstate', 'team:state', 'bus:changed', 'chat:removed', 'chat:restored', 'workspace:changed'].map(function (event) { return window.dinahHost.on(event, load); });
+    scope.addEventListener('change', function () { workspace = scope.value; changed(); }); search.addEventListener('input', function () { find = search.value; changed(); }); refresh.addEventListener('click', function () { load(true); });
+    document.addEventListener('dinah:chats', syncInventory);
+    document.addEventListener('dinah:execution-state', syncInventory);
+    var stops = ['team:state', 'bus:changed', 'chat:removed', 'chat:restored', 'workspace:changed'].map(function (event) { return window.dinahHost.on(event, load); });
+    stops.push(function () { document.removeEventListener('dinah:chats', syncInventory); document.removeEventListener('dinah:execution-state', syncInventory); });
     stops.push(window.dinahHost.onResync(load));
     var resize = new ResizeObserver(render); resize.observe(scroll);
     var theme = new MutationObserver(function () { if (!disposed) drawLines(); }); theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-skin', 'style'] });
-    readState(opts.state); load();
+    readState(opts.state); load(true);
     return { state: address, setState: function (value) { readingState = true; readState(value); render(); readingState = false; }, commands: function () { return [{ label: 'Manage Chats…', run: function () { manage.click(); } }, { label: 'Retry Loading', disabled: !failed, reason: 'The chart updates automatically.', run: load }]; }, destroy: function () { disposed = true; management.destroy(); stops.forEach(function (stop) { stop(); }); resize.disconnect(); theme.disconnect(); } };
   }
   window.dinahWorkbench.register('org-chart', { applet: { id: 'dinah.org-chart', title: 'Org Chart', glyph: 'subagents', workspace: false }, singleton: true, title: 'Org Chart', glyph: 'subagents', mode: 'maximized', init: init });

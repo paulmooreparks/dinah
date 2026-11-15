@@ -61,9 +61,7 @@ func (a *App) StartSkill(id, revision, workspace, provider, model, command strin
 		}
 	}
 	title := "Skill: " + pack.Skill.Name
-	if titles, err := a.RenameSession(s.ID(), title); err == nil {
-		a.emit("agent:titles", titles)
-	}
+	_, _ = a.RenameSession(s.ID(), title)
 	if err := a.turnIO().SendAs(s, title, prompt); err != nil {
 		return SkillChat{}, err
 	}

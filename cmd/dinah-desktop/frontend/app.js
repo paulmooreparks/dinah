@@ -75,11 +75,12 @@
      for the card; noted says the caller has made the card itself. */
   function toast(msg, kind, options) {
     options = options || {};
-    if (window.pudlToast) window.pudlToast(options.title ? options.title + ' ' + msg : msg, { kind: kind || 'info' });
+    var element = window.pudlToast && window.pudlToast(options.title ? options.title + ' ' + msg : msg, { kind: kind || 'info' });
     if (!options.noted) noteEntry(String(msg), kind || 'info', options);
     // What the page shows as an error or a warning is in the log too.
     var level = kind === 'danger' || kind === 'error' ? 'error' : kind === 'warn' || kind === 'warning' ? 'warning' : 'info';
     if (app() && app().Log) Promise.resolve().then(function () { return app().Log('ui', level, (options.title ? options.title + ' ' : '') + String(msg)); }).catch(function () {});
+    return element;
   }
   function fail(err) { toast(String(err), 'danger'); }
   const notifications = window.dinahNotifications.create({

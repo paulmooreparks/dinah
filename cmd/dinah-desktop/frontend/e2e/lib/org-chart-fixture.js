@@ -1,7 +1,7 @@
 const { launch } = require('./page');
 function model() {
   const chats = ['mara', 'ivo', 'nina', 'lena', 'oren', 'tess', 'sasha', 'bo', 'cal', 'uma', 'repair'].map((id, index) => ({
-    chatId: id, head: id === 'repair' ? '' : id + '-current', title: id[0].toUpperCase() + id.slice(1), workspace: index < 6 ? 'C:/Harbor' : 'C:/Orchard', workspaceName: index < 6 ? 'Harbor' : 'Orchard',
+    chatId: id, head: id === 'repair' ? '' : id, title: id[0].toUpperCase() + id.slice(1), workspace: index < 6 ? 'C:/Harbor' : 'C:/Orchard', workspaceName: index < 6 ? 'Harbor' : 'Orchard',
     provider: 'codex', providerName: 'Codex', state: { life: 'open', exec: { state: index % 3 === 0 ? 'working' : index % 3 === 1 ? 'idle' : 'waiting', why: index % 3 === 2 ? 'A question needs your answer.' : '' } }, resolution: id === 'repair' ? 'repair' : 'resolved', reason: id === 'repair' ? 'The chat owner could not be identified.' : ''
   }));
   return { generation: 'fixture:1', generatedAt: '2026-11-15T06:00:00Z', chats,
@@ -9,7 +9,7 @@ function model() {
       { id: 'platform', title: 'Platform', leadId: 'mara', memberIds: ['ivo', 'nina'], resolution: 'resolved', reason: '' },
       { id: 'delivery', title: 'Delivery', leadId: 'lena', memberIds: ['oren', 'tess'], resolution: 'resolved', reason: '' },
       { id: 'research', title: 'Research', leadId: 'sasha', memberIds: ['bo'], resolution: 'resolved', reason: '' },
-      { id: 'repair-team', title: 'Unresolved team', leadId: '', memberIds: [], resolution: 'repair', reason: 'The team lead could not be identified.' }
+      { id: 'repair-team', title: 'Unresolved team', leadId: 'repair', memberIds: [], resolution: 'repair', reason: 'The team lead could not be identified.' }
     ], groups: [{ id: 'review', title: 'Release Review', ownerId: 'lena', memberIds: ['lena', 'nina', 'tess'], resolution: 'resolved', reason: '' }, { id: 'research-group', title: 'Research Exchange', ownerId: '', memberIds: ['cal', 'bo'], resolution: 'resolved', reason: '' }] };
 }
 async function start() {
