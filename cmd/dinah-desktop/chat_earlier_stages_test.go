@@ -205,13 +205,25 @@ func TestAChatLeftMarkedHiddenIsOneChatToListOpenPinAndRemove(t *testing.T) {
 	if len(pins) != 1 || pins[0].Session != "codex:third" {
 		t.Fatalf("the pin is on %+v", pins)
 	}
-	if err := a.RemoveChat("codex:third"); err == nil || err.Error() != "This chat is pinned in the workspace W. Unpin it there before deleting it." {
-		t.Fatalf("a pinned chat was not refused for its pin: %v", err)
+	pinsNow := func() []WorkspacePin {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		return append([]WorkspacePin{}, a.settings.WorkspaceRecords[0].Pins...)
 	}
-	if _, err := a.UnpinWorkspaceItem("w", "chat:codex:third"); err != nil {
+	// The window is on the newest stage, and deleting from it takes the chat
+	// and its pin. Restoring the chat puts the pin back.
+	if err := a.RemoveChat("codex:third"); err != nil {
 		t.Fatal(err)
 	}
-	// The window is on the newest stage, and deleting from it takes the chat.
+	if left := pinsNow(); len(left) != 0 {
+		t.Fatalf("the deleted chat is still pinned: %+v", left)
+	}
+	if restored := a.RestoreRemovedChat("codex:third"); !restored.OK {
+		t.Fatalf("restore %+v", restored)
+	}
+	if back := pinsNow(); len(back) != 1 || back[0].Session != "codex:third" || back[0].Title != "Invented" {
+		t.Fatalf("restoring did not put the pin back: %+v", back)
+	}
 	if err := a.RemoveChat("codex:third"); err != nil {
 		t.Fatal(err)
 	}

@@ -223,7 +223,8 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 		if row.Title == "" {
 			row.Title = id
 		}
-		pinnedIn := ""
+		// A pinned chat can be deleted. Its pins come off with it and come back
+		// on restore (cleanupRemovePins), so the row only says that it is pinned.
 		for _, ws := range settings.WorkspaceRecords {
 			if layout.SamePath(workspaces.ExecutionPath(ws), row.Workspace) {
 				row.WorkspaceID = ws.ID
@@ -232,15 +233,11 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 			for _, pin := range ws.Pins {
 				if pin.Kind == "chat" && members[pin.Session] {
 					row.Pinned = true
-					pinnedIn = ws.Name
 				}
 			}
 		}
 		if row.WorkspaceName == "" && row.Workspace != "" {
 			row.WorkspaceName = filepath.Base(row.Workspace)
-		}
-		if row.Pinned {
-			row.Refusal = unpinFirst(pinnedIn)
 		}
 		if row.Working {
 			row.Refusal = "Wait for this chat to finish working before deleting it."
@@ -334,16 +331,6 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 		return ChatCleanupListing{}, errors.New("Chat inventory changed while cleanup was read. Refresh the list.")
 	}
 	return listing, nil
-}
-
-// unpinFirst is the refusal to delete a pinned chat. It says which workspace
-// the pin is in, because a pin shows only while that workspace is the open
-// one, and the person otherwise has no way to find it.
-func unpinFirst(workspace string) string {
-	if workspace == "" {
-		return "Unpin this chat before deleting it."
-	}
-	return "This chat is pinned in the workspace " + workspace + ". Unpin it there before deleting it."
 }
 
 // RFC3339 timestamps may have different offsets and fractional precision.

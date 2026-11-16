@@ -281,13 +281,13 @@ func TestOrgChartActionsDeleteUsesWholeChainAndRefusals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, action := range view.Actions {
-		if action.Kind == "delete_chat" {
-			t.Fatal("pinned deletion offered")
-		}
+	// A pinned chat was refused until 16 November 2026. Deleting it now takes
+	// its pin off, and restoring it puts the pin back (chat-cleanup.md).
+	if !slices.ContainsFunc(view.Actions, func(action OrgChartAction) bool { return action.Kind == "delete_chat" }) {
+		t.Fatal("deleting a pinned chat is not offered", view)
 	}
-	if !slices.ContainsFunc(view.Unavailable, func(v OrgChartUnavailable) bool { return v.Kind == "delete_chat" && v.Reason != "" }) {
-		t.Fatal("missing pinned reason", view)
+	if slices.ContainsFunc(view.Unavailable, func(v OrgChartUnavailable) bool { return v.Kind == "delete_chat" }) {
+		t.Fatal("deleting a pinned chat is still refused", view)
 	}
 }
 

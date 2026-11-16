@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+
+	"studio/internal/workspaces"
 )
 
-// chatCleanupSettings cannot serialize unrelated application or workspace state.
+// chatCleanupSettings cannot serialize unrelated application or workspace
+// state. Of a workspace it has only the chat's own pins.
 type chatCleanupSettings struct {
 	ListedChats            map[string]listedChat                 `json:"listedChats,omitempty"`
 	SessionProviders       map[string]string                     `json:"sessionProviders,omitempty"`
@@ -20,6 +23,55 @@ type chatCleanupSettings struct {
 	ChatTransfers          map[string]chatTransfer               `json:"chatTransfers,omitempty"`
 	ChatTransferHistory    []chatTransfer                        `json:"chatTransferHistory,omitempty"`
 	Hidden                 []string                              `json:"hidden,omitempty"`
+	// Pins are the chat's pins, each with its workspace and its place among
+	// that workspace's pins. Removing the chat takes them off, and restoring it
+	// puts them back.
+	Pins []chatCleanupPin `json:"pins,omitempty"`
+}
+
+type chatCleanupPin struct {
+	WorkspaceID string       `json:"workspaceId"`
+	Index       int          `json:"index"`
+	Pin         WorkspacePin `json:"pin"`
+}
+
+// cleanupChatPins are the pins of the sessions given, in the order of the
+// workspaces and of each workspace's pins.
+func cleanupChatPins(s Settings, ids []string) []chatCleanupPin {
+	out := []chatCleanupPin{}
+	for _, ws := range s.WorkspaceRecords {
+		for index, pin := range ws.Pins {
+			if pin.Kind == "chat" && slices.Contains(ids, pin.Session) {
+				out = append(out, chatCleanupPin{WorkspaceID: ws.ID, Index: index, Pin: pin})
+			}
+		}
+	}
+	return out
+}
+
+func cleanupRemovePins(s *Settings, ids []string) {
+	for i := range s.WorkspaceRecords {
+		s.WorkspaceRecords[i].Pins = slices.DeleteFunc(s.WorkspaceRecords[i].Pins, func(pin WorkspacePin) bool {
+			return pin.Kind == "chat" && slices.Contains(ids, pin.Session)
+		})
+	}
+}
+
+// cleanupRestorePins puts each pin back at its place, or at the end when the
+// workspace has fewer pins now. A workspace that is gone, and a pin the
+// person made again meanwhile, are passed over.
+func cleanupRestorePins(s *Settings, pins []chatCleanupPin) {
+	for _, saved := range pins {
+		index := workspaces.Index(s.WorkspaceRecords, saved.WorkspaceID)
+		if index < 0 {
+			continue
+		}
+		current := s.WorkspaceRecords[index].Pins
+		if slices.ContainsFunc(current, func(pin WorkspacePin) bool { return workspaces.PinKey(pin) == workspaces.PinKey(saved.Pin) }) {
+			continue
+		}
+		s.WorkspaceRecords[index].Pins = slices.Insert(current, min(max(saved.Index, 0), len(current)), saved.Pin)
+	}
 }
 
 // cleanupSavedSettings retains only fields owned by the selected sessions.
@@ -80,6 +132,7 @@ func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 			out.Hidden = append(out.Hidden, id)
 		}
 	}
+	out.Pins = cleanupChatPins(s, ids)
 	return out
 }
 
@@ -106,4 +159,5 @@ func cleanupRestoreSettings(s *Settings, saved chatCleanupSettings) {
 			s.ChatTransferHistory = append(s.ChatTransferHistory, tr)
 		}
 	}
+	cleanupRestorePins(s, saved.Pins)
 }

@@ -227,8 +227,18 @@ func TestQualityCleanupLoadedWithoutUnload(t *testing.T) {
 		t.Fatal("binned chat reloaded at startup")
 	}
 }
+// A pinned chat was refused until 16 November 2026. The person then had to
+// find the pin, which shows only while its workspace is open, before a chat
+// could be deleted. Deleting now takes the pin off and restoring puts it back.
+func TestQualityCleanupTakesAPinnedChat(t *testing.T) {
+	f := qualityCleanupNew(t)
+	id := "fixture:pinned"
+	f.Seed(qualityCleanupSeed{ID: id, Pinned: true, CanUnload: true, ProviderDelete: "supported"})
+	qualityCleanupResultFor(t, f.Act("remove", id), id, "removed")
+	qualityBinned(t, f.Observe(id))
+}
 func TestQualityCleanupRefusals(t *testing.T) {
-	for _, reason := range []string{"working", "pinned"} {
+	for _, reason := range []string{"working"} {
 		t.Run(reason, func(t *testing.T) {
 			f := qualityCleanupNew(t)
 			id := "fixture:" + reason
@@ -272,9 +282,9 @@ func TestQualityCleanupExpiryBoundary(t *testing.T) {
 
 func TestQualityCleanupMixedBatch(t *testing.T) {
 	f := qualityCleanupNew(t)
-	ids := []string{"fixture:first", "fixture:pinned", "fixture:last"}
+	ids := []string{"fixture:first", "fixture:working", "fixture:last"}
 	for i, id := range ids {
-		f.Seed(qualityCleanupSeed{ID: id, Pinned: i == 1, CanUnload: true, ProviderDelete: "supported"})
+		f.Seed(qualityCleanupSeed{ID: id, Working: i == 1, CanUnload: true, ProviderDelete: "supported"})
 	}
 	rs := f.Act("remove", ids...)
 	if len(rs) != len(ids) {
@@ -286,7 +296,7 @@ func TestQualityCleanupMixedBatch(t *testing.T) {
 		}
 		if i == 1 {
 			if rs[i].OK || rs[i].Status != "refused" || rs[i].Error == "" {
-				t.Fatal("pinned batch member was not refused")
+				t.Fatal("working batch member was not refused")
 			}
 			continue
 		}
@@ -303,7 +313,7 @@ func TestQualityCleanupMixedBatch(t *testing.T) {
 }
 
 func TestQualityCleanupProtectedChain(t *testing.T) {
-	for _, reason := range []string{"working", "pinned"} {
+	for _, reason := range []string{"working"} {
 		t.Run(reason, func(t *testing.T) {
 			f := qualityCleanupNew(t)
 			ids := []string{"codex:chain-head", "claude:chain-history"}

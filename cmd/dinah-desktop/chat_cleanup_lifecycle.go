@@ -6,12 +6,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"time"
 
 	"studio/internal/acp"
 	"studio/internal/bus"
 	"studio/internal/sessionhost"
+	"studio/internal/workspaces"
 )
 
 type chatCleanupAcceptanceHooks struct {
@@ -164,12 +166,10 @@ func (a *App) stageChatCleanup(id string) error {
 		if current.Generation != membership.Generation {
 			return refuseChatCleanup("This chat's membership changed. Refresh the cleanup page and try again.")
 		}
-		for _, ws := range s.WorkspaceRecords {
-			for _, pin := range ws.Pins {
-				if pin.Kind == "chat" && slices.Contains(ids, pin.Session) {
-					return refuseChatCleanup(unpinFirst(ws.Name))
-				}
-			}
+		// The archive has the chat's pins as they were read. A pin made or
+		// moved since would not come back on restore.
+		if !reflect.DeepEqual(cleanupChatPins(*s, ids), archive.Settings.Pins) {
+			return refuseChatCleanup("This chat's pins changed. Refresh the cleanup page and try again.")
 		}
 		for other, recipient := range s.BusSessions {
 			if !slices.Contains(ids, other) {
@@ -191,6 +191,9 @@ func (a *App) stageChatCleanup(id string) error {
 		for _, member := range ids {
 			s.RemovedChats[member] = chatRemoval{Group: group, Recipient: s.BusSessions[member], Stage: "retaining", Created: now, Expires: now.Add(30 * 24 * time.Hour), Snapshot: &archive.Membership}
 		}
+		// A removed chat is in no list, and a pin of it would open nothing.
+		// The archive puts the pins back on restore.
+		cleanupRemovePins(s, ids)
 		return nil
 	}); err != nil {
 		// No files move before the reservation commits. A refused generation
@@ -211,6 +214,7 @@ func (a *App) stageChatCleanup(id string) error {
 			for _, member := range ids {
 				delete(s.RemovedChats, member)
 			}
+			cleanupRestorePins(s, archive.Settings.Pins)
 			return nil
 		})
 		if rollback != nil {
@@ -218,7 +222,32 @@ func (a *App) stageChatCleanup(id string) error {
 		}
 		return errors.Join(refuseChatCleanup(lead.Error()), removeChatCleanupArchive(group))
 	}
+	if err == nil {
+		a.emitChatPins(archive.Settings.Pins)
+	}
 	return err
+}
+
+// emitChatPins gives the page the records of the workspaces whose pins a
+// removal or a restore changed, so that its Pinned group follows at once.
+func (a *App) emitChatPins(pins []chatCleanupPin) {
+	sent := map[string]bool{}
+	for _, pin := range pins {
+		if sent[pin.WorkspaceID] {
+			continue
+		}
+		sent[pin.WorkspaceID] = true
+		a.mu.Lock()
+		index := workspaces.Index(a.settings.WorkspaceRecords, pin.WorkspaceID)
+		var record WorkspaceRecord
+		if index >= 0 {
+			record = workspaces.Copy(a.settings.WorkspaceRecords[index : index+1])[0]
+		}
+		a.mu.Unlock()
+		if index >= 0 {
+			a.emit("workspace:pins", record)
+		}
+	}
 }
 
 func (a *App) finishRetainingChat(group string) error {
@@ -450,6 +479,7 @@ func (a *App) finishRestoringChat(group string) error {
 	}); err != nil {
 		return err
 	}
+	a.emitChatPins(archive.Settings.Pins)
 	return a.finishRestoredCleanup(group)
 }
 

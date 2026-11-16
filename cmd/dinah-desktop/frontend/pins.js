@@ -114,6 +114,12 @@
     document.getElementById('workspace-pins-empty').hidden = list.length > 0;
   }
   document.addEventListener('dinah:workspace-resource-labels', draw);
+  /* Deleting a chat takes its pins off and restoring it puts them back
+     (chat_cleanup_settings.go). The host sends the changed workspace's
+     record, which replaces the one the pane has like any other pin change. */
+  if (window.dinahHost && window.dinahHost.on) window.dinahHost.on('workspace:pins', function (updated) {
+    if (updated && updated.id && window.dinahWorkspaceBrowser) { changed(updated); draw(); }
+  });
 
   window.dinahPins = {
     key: key, isPinned: isPinned, toggle: toggle, command: command, rowActions: rowActions, draw: draw,

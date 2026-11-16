@@ -30,7 +30,7 @@ The newest stage is found by following the committed bindings and, where there i
 
 The hidden list no longer keeps a session out of the lists when the session continues a listed stage and was handed the conversation (`hiddenChats` in `saved_chats.go`). Builds before the switch records existed left that mark on the newest stage of some chats, which were then worked in for weeks. A hidden session that continues nothing stays out, and so does one whose older stages are all hidden, removed or gone.
 
-A pin is on the chat's newest stage. The settings write that commits a switch moves the pins of the stage it continues (`repinChat`), and each start moves the pins that older switches left behind (`pinsFollowChats`). The refusal to delete a pinned chat says which workspace the pin is in, because a pin shows only while that workspace is open.
+A pin is on the chat's newest stage. The settings write that commits a switch moves the pins of the stage it continues (`repinChat`), and each start moves the pins that older switches left behind (`pinsFollowChats`). A pinned chat can be deleted: its pins come off with it and come back on restore (chat-cleanup.md).
 
 Removing a chat also takes what has no chat of its own to be removed with: the targets that unfinished switches left on its stages, and the conversations an older build's deletion left marked deleted on them.
 
