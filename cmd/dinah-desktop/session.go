@@ -277,8 +277,14 @@ func (a *App) promptFrom(s *Session, full string, atts []Attachment) (prompt, er
 	return newPrompt(full, blocks), err
 }
 
+// The person's four ways of writing to a chat each copy the chat's lead, when
+// it has one (lead_copies.go).
 func (a *App) Send(id, text string, doc *DocRef, atts []Attachment) error {
-	return a.turnIO().Send(id, text, doc, atts)
+	err := a.turnIO().Send(id, text, doc, atts)
+	if err == nil {
+		a.copyToLead(id, text, len(atts))
+	}
+	return err
 }
 
 func (a *App) askWait(ctx context.Context, s *Session, p prompt) (string, turnEnd) {
@@ -286,13 +292,25 @@ func (a *App) askWait(ctx context.Context, s *Session, p prompt) (string, turnEn
 	return words, turnEnd{stopReason: end.StopReason, err: end.Err}
 }
 func (a *App) Queue(id, text string, doc *DocRef, atts []Attachment) error {
-	return a.turnIO().Queue(id, text, doc, atts)
+	err := a.turnIO().Queue(id, text, doc, atts)
+	if err == nil {
+		a.copyToLead(id, text, len(atts))
+	}
+	return err
 }
 func (a *App) Unqueue(id string) { a.turnIO().Unqueue(id) }
 func (a *App) Steer(id, text string, doc *DocRef, atts []Attachment) error {
-	return a.turnIO().Steer(id, text, doc, atts)
+	err := a.turnIO().Steer(id, text, doc, atts)
+	if err == nil {
+		a.copyToLead(id, text, len(atts))
+	}
+	return err
 }
 func (a *App) StopAndSteer(id, text string, doc *DocRef, atts []Attachment) error {
-	return a.turnIO().StopAndSteer(id, text, doc, atts)
+	err := a.turnIO().StopAndSteer(id, text, doc, atts)
+	if err == nil {
+		a.copyToLead(id, text, len(atts))
+	}
+	return err
 }
 func (a *App) Cancel(id string) error { return a.turnIO().Cancel(id) }

@@ -67,7 +67,10 @@ type App struct {
 	// waitingOpens are the chats that OpenWaitingSession is opening for their
 	// waiting messages, which may include continuing them from saved history.
 	// A failure recorded during that call is not shown until the call ends.
-	waitingOpens               sync.Map
+	waitingOpens sync.Map
+	// leadCopies are the copies of the person's messages to members whose
+	// answers are still to be copied to their leads (lead_copies.go).
+	leadCopies                 sync.Map
 	startupErr                 error
 	terminalShutdownIncomplete atomic.Bool
 	// judging is the set of judges and the person's choices for them

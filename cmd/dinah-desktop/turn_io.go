@@ -24,6 +24,7 @@ func (a *App) turnIO() *sessionhost.TurnIO {
 			}, FinishTranscript: func(s *Session, err error, reason string) {
 				a.relayTurnEnded(s, err)
 				a.transcriptCapture().RecordTurnEnd(s, err, reason)
+				a.copyAnswerToLead(s)
 			}, CommitTurn: func(s *Session, turn map[string]any) *sessionhost.LoggedEvent {
 				return a.transcriptCapture().CommitTurn(s, turn)
 			}, DisconnectSubagents: func(root *Session) { a.subagentService().Disconnect(root) },

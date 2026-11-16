@@ -343,7 +343,7 @@
       memberNote.tabIndex = -1;
       if (lead) {
         var room = window.dinahBus && (window.dinahBus.overview().rooms || []).find(function (r) { return r.name === lead.group; });
-        memberNote.appendChild(node('span', null, 'Speak to this member in ' + (room ? room.title : lead.title + "'s team") + '. '));
+        memberNote.appendChild(node('span', null, 'This chat reports to ' + lead.title + '. What you send here is copied, with its answer, to ' + (room ? room.title : lead.title + "'s team room") + '. '));
         var a = node('a', null, 'Open Team Chat'); a.href = groupAddress(lead.group);
         a.addEventListener('click', function (e) {
           e.preventDefault(); groupLink(lead.group, 0, { chat: id, title: o.title() }).catch(host().fail);
@@ -353,7 +353,6 @@
         memberNote.appendChild(node('span', null, (lead ? ' ' : '') + (relationError || 'Checking team membership…')));
         if (relationError) { var retry = node('button', 'btn btn-sm', 'Retry'); retry.type = 'button'; retry.addEventListener('click', function () { read(); }); memberNote.appendChild(retry); }
       }
-      if (lead && memberNote.isConnected && o.root.querySelector('.composer-row').contains(document.activeElement)) memberNote.querySelector('a').focus();
       if (o.changed) o.changed(lead);
     }
     function draw(v, again) {

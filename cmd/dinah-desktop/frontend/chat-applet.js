@@ -2636,7 +2636,6 @@
       go.title = 'Ask ' + name + ' to keep going from where it stopped';
       go.addEventListener('click', function () {
         if (teamPanel.isPending()) return;
-        if (teamPanel.isMember()) { teamPanel.openTeam().catch(fail); return; }
         var box = $('prompt');
         if (!box) return;
         box.value = 'Keep going from where you stopped.';
@@ -2922,7 +2921,6 @@
     }
     function send(how) {
       if (teamPanel.isPending()) return;
-      if (teamPanel.isMember()) return teamPanel.openTeam().catch(fail);
       if (switchingProvider) return;
       var pickedSkill = skillForm.skill() || selectedSkill;
       var text = $('prompt').value.trim();
@@ -3586,7 +3584,7 @@
     /* Menu entries that can do nothing at the moment are greyed out. */
     function commandEnabled(id) {
       const session = active && sessions[active];
-      if ((teamPanel.isMember() || teamPanel.isPending()) && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates'].includes(id)) return false;
+      if (teamPanel.isPending() && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates'].includes(id)) return false;
       if (id === 'all-models') return !!byCat(barOptions(), 'model');
       if (id === 'cancel') return !!session?.working;
       if (id === 'save-run') return !!session?.log.children.length;
@@ -3862,7 +3860,7 @@
           { id: 'drop-queue', actions: true, label: 'Drop the Queued Messages', glyph: 'close', hidden: $('queue').hidden, run: function () { if (active) app().Unqueue(active); } },
           { id: 'clear-document', label: 'Clear the Document', hidden: $('context').hidden, run: function () { $('context-clear').click(); } }
         ].map(function (command) {
-          if ((teamPanel.isMember() || teamPanel.isPending()) && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates', 'clear-document'].indexOf(command.id) >= 0) return Object.assign({}, command, { hidden: true });
+          if (teamPanel.isPending() && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates', 'clear-document'].indexOf(command.id) >= 0) return Object.assign({}, command, { hidden: true });
           return command;
         }).concat(teamPanel.commands().map(function (command) { return Object.assign({}, command, { actions: true }); }));
       }
@@ -3878,7 +3876,7 @@
           if (!app().SkillCatalog) return;
           skills=catalog.skills.filter(function (skill) {return (skill.scope!=='workspace'||skill.workspace===workspace)&&(skill.scope!=='provider'||providerFact(chatProvider(),'ownCommands'));}); skillsChanged();
         },
-        skillTarget: function () { if (teamPanel.isMember() || teamPanel.isPending()) return null; var targetWorkspace=workspace, targetProvider=chatProvider(); return {title: active ? title(sessions[active]) : 'New Chat', workspace: targetWorkspace, provider: targetProvider, put: function (text) {
+        skillTarget: function () { if (teamPanel.isPending()) return null; var targetWorkspace=workspace, targetProvider=chatProvider(); return {title: active ? title(sessions[active]) : 'New Chat', workspace: targetWorkspace, provider: targetProvider, put: function (text) {
           if(workspace!==targetWorkspace||chatProvider()!==targetProvider)return Promise.reject(new Error('The chat changed workspace or provider. Choose it again.'));
           return dinahWorkbench.open(active ? {kind:'chat-session',workspace:workspace,path:active} : 'chat').then(function () {
             closeForm(true); var box=$('prompt'); box.value += (box.value.trim() ? '\n\n' : '') + text; typed(); box.focus();
@@ -3956,7 +3954,7 @@
           markCurrentChat();
           controller.refresh();
         },
-        focus: function () { if (teamPanel.isMember() || teamPanel.isPending()) teamPanel.focus(); else $('prompt').focus(); },
+        focus: function () { if (teamPanel.isPending()) teamPanel.focus(); else $('prompt').focus(); },
         // The window's Actions menu, by the ids of the chat's commands.
         commands: function () { return chatCommandTable().filter(function (command) { return command.actions; }).map(function (command) { return command.id; }); },
         destroy: function () {

@@ -41,8 +41,8 @@
 .team-report-section { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
 .team-report-section[hidden], .team-report .team-tree[hidden] { display: none; }
 .team-member-note { padding-block: var(--space-2); }
-[data-team-member] .composer-row, [data-team-member] .attachments, [data-team-member] .skill-form,
-[data-team-member] [data-toolbar-group="Message"], [data-team-member] .composer-context { display: none; }
+/* A chat that reports to a lead keeps its input box; what the person writes in
+   it is copied, with the answer, to the lead (docs/design/team-hierarchy.md). */
 @container (max-width: 640px) { .team-task { white-space: normal; } }
 
 .team-traffic-original { display: none !important; }

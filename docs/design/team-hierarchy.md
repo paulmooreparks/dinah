@@ -1,6 +1,6 @@
 # Team hierarchy
 
-This document records the decisions of 17 November 2026 about how chats report to one another. Nothing in it is built yet. The Org Chart change needs a clickable mockup that the person approves before any product code.
+This document records the decisions of 17 November 2026 about how chats report to one another. The person approved the Org Chart mockup (`docs/mockups/org-chart.html`) the same night, and the design was built then: reporting at any depth in the bus, the chart's workspace boxes and Reports To…, and the input box with the copies to the lead (`lead_copies.go`). Replacing a lead that itself reports to another lead is still refused (`checkReplaceTeamLead`), because the replacement would have to take over the old lead's place under its own lead, which is not built.
 
 ## Two layers
 
