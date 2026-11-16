@@ -160,7 +160,7 @@ func (a *App) RequestState(id string) (RequestDetails, error) {
 		}
 		return out, nil
 	}
-	if !strings.HasPrefix(id, "request:") && !strings.HasPrefix(id, "mention:") {
+	if !strings.HasPrefix(id, "request:") {
 		return RequestDetails{}, errors.New("This request source is unavailable.")
 	}
 	var detail bus.DecisionDetail

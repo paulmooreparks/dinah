@@ -142,14 +142,6 @@ func (x *requestSettlementFixture) seed(source string) (any, error) {
 		if err != nil {
 			return err
 		}
-		if source == "mention" {
-			m, err := b.SendMentioning(context.Background(), bus.Sender{Session: &owner}, "#"+x.group, "Review this invented result.", nil, 0, []string{bus.Human})
-			if err != nil {
-				return err
-			}
-			decision, err = b.DecisionForMessage(context.Background(), m.ID)
-			return err
-		}
 		if source != "request" && source != "partial-request" {
 			return errors.New("unknown source")
 		}
@@ -293,7 +285,7 @@ func TestRequestSettlementAcceptanceServer(t *testing.T) {
 }
 
 func TestRequestSettlementReceivingSeedsActualSources(t *testing.T) {
-	for _, source := range []string{"request", "mention", "attention-report", "partial-request", "task-single", "task-text", "task-multiple"} {
+	for _, source := range []string{"request", "attention-report", "partial-request", "task-single", "task-text", "task-multiple"} {
 		t.Run(source, func(t *testing.T) {
 			x := newRequestSettlementFixture(t)
 			seed, err := x.seed(source)
@@ -336,7 +328,7 @@ func TestRequestSettlementReceivingSeedsActualSources(t *testing.T) {
 }
 
 func TestRequestSettlementReceivingWithdrawsAsActualOwner(t *testing.T) {
-	for _, source := range []string{"request", "mention", "attention-report", "partial-request", "task-single", "task-text", "task-multiple"} {
+	for _, source := range []string{"request", "attention-report", "partial-request", "task-single", "task-text", "task-multiple"} {
 		t.Run(source, func(t *testing.T) {
 			x := newRequestSettlementFixture(t)
 			seed, err := x.seed(source)

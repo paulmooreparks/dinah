@@ -73,6 +73,10 @@ func (a *App) DismissNotification(id string) error {
 	if item.Kind == "mention" && item.Message != 0 {
 		err := a.busHost().With(func(b *bus.Bus) error {
 			ctx := context.Background()
+			requestID, err := b.PersonRequestIdentity(ctx, item.Message)
+			if err != nil || requestID == "" {
+				return err
+			}
 			d, err := b.DecisionForMessage(ctx, item.Message)
 			if err != nil {
 				return err

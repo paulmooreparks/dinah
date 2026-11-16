@@ -48,6 +48,10 @@ func (a *App) repairRequestProjections() error {
 			return err
 		}
 		err := a.busHost().With(func(b *bus.Bus) error {
+			requestID, err := b.PersonRequestIdentity(context.Background(), item.Message)
+			if err != nil || requestID == "" {
+				return err
+			}
 			source, err := b.DecisionForMessage(context.Background(), item.Message)
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil // A pruned historical message grants no new authority.

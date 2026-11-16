@@ -6,10 +6,40 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"studio/internal/requestsettlement"
 )
+
+func TestRequestSettlementRefusesPlainMentionWithoutChangingItsChat(t *testing.T) {
+	ctx := context.Background()
+	b, owner, _ := personRequestFixture(t)
+	message, err := b.Send(ctx, Sender{Session: &owner}, Human, "Invented ordinary mention", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := requestsettlement.Input{ID: "mention:" + strconv.FormatInt(message.ID, 10), Revision: 1, OperationID: "removed-mention-source"}
+	for _, command := range []string{"Dismiss", "Withdraw"} {
+		var receipt requestsettlement.Receipt
+		if command == "Dismiss" {
+			receipt, err = b.DismissRequest(ctx, in)
+		} else {
+			receipt, err = b.WithdrawRequest(ctx, owner, in)
+		}
+		if err != nil || receipt.State != "refused" || receipt.Code != "unsupported_source" {
+			t.Fatal("plain mention accepted settlement", receipt, err)
+		}
+	}
+	after, err := b.Message(ctx, message.ID)
+	if err != nil || !reflect.DeepEqual(after, message) {
+		t.Fatal("settlement changed the source message", after, err)
+	}
+	var count int
+	if err := b.db.QueryRow(`SELECT COUNT(*) FROM request_completion_obligations WHERE request_id=?`, in.ID).Scan(&count); err != nil || count != 0 {
+		t.Fatal("plain mention created a settlement completion", count, err)
+	}
+}
 
 func TestRequestSettlementPreservesPartialAnswersAndReconcilesOriginalReceipt(t *testing.T) {
 	for _, command := range []string{"Dismiss", "Withdraw"} {

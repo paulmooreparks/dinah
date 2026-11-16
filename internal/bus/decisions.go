@@ -536,7 +536,7 @@ func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (Dec
 	if r.State == "refused" {
 		out.State = "rejected"
 		out.Reason = &DecisionRejection{Code: r.Code, Message: r.Text}
-		if r.Code == "request_closed" {
+		if r.Code == "request_closed" || r.Code == "unsupported_source" && strings.HasPrefix(in.ID, "mention:") {
 			out.Closed = true
 			out.Reason.Code = "decision_closed"
 		}

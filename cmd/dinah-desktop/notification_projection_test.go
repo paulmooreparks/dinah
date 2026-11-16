@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"studio/internal/bus"
@@ -9,13 +10,18 @@ import (
 )
 
 func TestNotificationProjectionRepairsFromCommittedSourceAfterRestart(t *testing.T) {
-	a, _, owner, group, _, _ := mentionRig(t)
-	pass(t, a) // Establish the ordinary mention baseline before the message.
-	chatSays(t, a, owner, group, "An invented request for the person.", bus.Human)
+	a, _, owner, _, _, _ := mentionRig(t)
+	pass(t, a)
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		_, err := b.AskPerson(context.Background(), owner, bus.AskPersonInput{OperationID: "projection-source", Questions: []bus.PersonQuestion{{Number: 1, Text: "Proceed with the invented work?", Recommendation: "Proceed."}}})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	pass(t, a)
 	cards := mentionCards(t, a)
 	if len(cards) != 1 {
-		t.Fatal("the real mention did not make one projection", cards)
+		t.Fatal("the real request did not make one projection", cards)
 	}
 	card := cards[0]
 	var settled requestsettlement.Receipt
@@ -54,5 +60,25 @@ func TestNotificationProjectionRepairsFromCommittedSourceAfterRestart(t *testing
 	source, err := restarted.RequestState(settled.ID)
 	if err != nil || source.Status != "dismissed" || source.Wording == "" {
 		t.Fatal("the original source history was lost", source, err)
+	}
+}
+
+func TestSettlementProjectionRepairPreservesPlainMention(t *testing.T) {
+	a, _, owner, group, _, _ := mentionRig(t)
+	pass(t, a)
+	chatSays(t, a, owner, group, "An invented ordinary mention.", bus.Human)
+	pass(t, a)
+	cards := mentionCards(t, a)
+	if len(cards) != 1 {
+		t.Fatal("missing actual mention", cards)
+	}
+	if err := a.repairRequestProjections(); err != nil {
+		t.Fatal(err)
+	}
+	if kept := mentionCards(t, a); len(kept) != 1 || kept[0].Message != cards[0].Message {
+		t.Fatal("settlement projection repair cleared plain attention", kept)
+	}
+	if _, err := a.RequestState("mention:" + fmt.Sprint(cards[0].Message)); err == nil {
+		t.Fatal("plain mention remained a settlement source")
 	}
 }

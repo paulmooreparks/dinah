@@ -61,6 +61,10 @@ func (b *Bus) settleRequest(ctx context.Context, actor, command string, in reque
 		if d.ID != in.ID {
 			return nil
 		}
+		if d.Kind != "request" {
+			out = requestsettlement.Refuse(in, "unsupported_source", "This message belongs to its chat and has no request settlement command.")
+			return nil
+		}
 		if command == "Withdraw" {
 			available, err := decisionSessionAvailable(t, actor)
 			if err != nil {
