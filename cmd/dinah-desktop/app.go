@@ -309,6 +309,9 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.repinContinuedChats(); err != nil {
 		logf("chat", "error", "moving chat pins to their chats' newest stages: %v", err)
 	}
+	if err := a.removeHiddenChats(); err != nil {
+		logf("chat", "error", "moving hidden chats to the Recycle Bin: %v", err)
+	}
 	if err := a.retireStaleAddresses(); err != nil {
 		logf("bus", "error", "retiring the addresses of chats that are gone: %v", err)
 	}

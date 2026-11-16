@@ -235,7 +235,22 @@ func (a *App) orgChartAtBoundary(afterInventory func()) (OrgChartView, error) {
 				if id := busAliases[member.Session]; id != "" {
 					team.MemberIDs = append(team.MemberIDs, id)
 				} else {
-					team.Resolution, team.Reason = "repair", "A team member cannot be resolved to a local chat."
+					// The message says which member and why. A member that no
+					// chat of this window owns was registered from outside it,
+					// for example a chat in an editor, and has no card here.
+					name := "A team member"
+					if row, err := b.Session(ctx, member.Session); err == nil && row.Title != "" {
+						name = row.Title
+					}
+					owned := false
+					for _, recipient := range saved.BusSessions {
+						owned = owned || recipient == member.Session
+					}
+					if owned {
+						team.Resolution, team.Reason = "repair", name+" is a member of this team and is not a chat in the lists."
+					} else {
+						team.Resolution, team.Reason = "repair", name+" is a member of this team that runs outside this window, so it has no card here."
+					}
 				}
 			}
 		}

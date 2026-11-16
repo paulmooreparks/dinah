@@ -134,7 +134,9 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 		if metadata.Lifecycle != "" && metadata.Lifecycle != "active" {
 			continue
 		}
-		excluded := notListed(reference) || notListed(members.Head) || sessionhost.NotChat(reference) || sessionhost.NotChat(members.Head)
+		// Removing a chat by its identity reaches a hidden chat too: it is in
+		// no list, and removal is the only thing left to do with it.
+		excluded := (!stages && (notListed(reference) || notListed(members.Head))) || sessionhost.NotChat(reference) || sessionhost.NotChat(members.Head)
 		if _, reserved := saved.RemovedChats[reference]; reserved {
 			excluded = true
 		}
