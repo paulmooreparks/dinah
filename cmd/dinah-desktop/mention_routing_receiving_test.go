@@ -177,7 +177,9 @@ func (a *App) OrgChartHostFixtureMentionState() (map[string]any, error) {
 		return nil, err
 	}
 	raw, err := os.ReadFile(filepath.Join(configDir(), "notifications.json"))
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		raw = []byte{}
+	} else if err != nil {
 		return nil, err
 	}
 	return map[string]any{"notifications": notices, "entries": entries, "decisions": decisions, "sourceMessages": messages, "notificationBytes": raw, "pendingTaskQuestions": f.a.PendingTaskPermissions()}, nil
@@ -188,6 +190,13 @@ func TestMentionReceivingSeedsAndRestartsActualStore(t *testing.T) {
 	a := newFileAccessFixtureApp(t)
 	a.ctx = context.Background()
 	newOrgChartHostFixture(t, a)
+	initial, err := a.OrgChartHostFixtureMentionState()
+	if err != nil {
+		t.Fatal("fresh notification baseline failed", err)
+	}
+	if len(initial["notifications"].([]Notification)) != 0 || len(initial["notificationBytes"].([]byte)) != 0 {
+		t.Fatal("fresh notification baseline was not empty", initial)
+	}
 	for _, kind := range []string{"group", "direct", "request", "nonmention"} {
 		if _, err := a.OrgChartHostFixtureMentionSeed(MentionReceivingSeed{Kind: kind}); err != nil {
 			t.Fatal(err)
