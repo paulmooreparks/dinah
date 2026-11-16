@@ -15,8 +15,14 @@ type TeamLeadRefusal struct{ Reason string }
 
 func (e *TeamLeadRefusal) Error() string { return e.Reason }
 
+// checkRecipientRemoval refuses to remove a chat that leads a team. Only the
+// members the person can still see and reassign count: a member that is in
+// the Recycle Bin is in no team as any reading of the teams shows them
+// (LeadOf, Team), and a lead whose every member had been deleted first was
+// refused with nothing left to reassign. The member's row is kept, so
+// restoring both chats gives the team back.
 func checkRecipientRemoval(t querier, id string) error {
-	if yes, err := leadsTeam(t, id); err != nil {
+	if yes, err := leadsAvailableMember(t, id); err != nil {
 		return err
 	} else if yes {
 		reason, err := currentTeamLeadReason(t, id)
@@ -43,6 +49,12 @@ func currentTeamLeadReason(t querier, id string) (string, error) {
 func leadsTeam(t querier, id string) (bool, error) {
 	var n int
 	err := t.QueryRow(`SELECT COUNT(*) FROM team_members WHERE lead = ?`, id).Scan(&n)
+	return n > 0, err
+}
+
+func leadsAvailableMember(t querier, id string) (bool, error) {
+	var n int
+	err := t.QueryRow(`SELECT COUNT(*) FROM team_members tm WHERE tm.lead = ? AND EXISTS (SELECT 1 FROM sessions s WHERE s.id = tm.member AND s.removed_at IS NULL)`, id).Scan(&n)
 	return n > 0, err
 }
 

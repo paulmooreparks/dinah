@@ -205,6 +205,40 @@ func TestReplaceTeamLeadPublishesOnlyCommittedRelations(t *testing.T) {
 	}
 }
 
+// The case of 16 November 2026: the person deleted a team's only member and
+// then could not delete its lead, which was told to reassign members that
+// were in the Recycle Bin and in no list.
+func TestALeadWhoseMembersAreAllBinnedCanBeBinned(t *testing.T) {
+	ctx := context.Background()
+	b, _, lead, docs, _, _ := teamBus(t)
+	if _, err := b.SetLead(ctx, docs.ID, lead.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.BinRecipient(ctx, docs.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.BinRecipient(ctx, lead.ID); err != nil {
+		t.Fatal("a lead with no member left to reassign was refused", err)
+	}
+	// Restoring the member alone leaves it in no team, and restoring the lead
+	// as well gives the team back.
+	if err := b.RestoreRecipient(ctx, docs.ID); err != nil {
+		t.Fatal(err)
+	}
+	if of, _, err := b.LeadOf(ctx, docs.ID); err != nil || of != "" {
+		t.Fatalf("the restored member reports to a binned lead %q: %v", of, err)
+	}
+	if err := b.RestoreRecipient(ctx, lead.ID); err != nil {
+		t.Fatal(err)
+	}
+	if of, _, err := b.LeadOf(ctx, docs.ID); err != nil || of != lead.ID {
+		t.Fatalf("restoring both did not give the team back: %q, %v", of, err)
+	}
+	if err := b.BinRecipient(ctx, lead.ID); err == nil || !strings.Contains(err.Error(), "Reassign its members") {
+		t.Fatal("a lead with an available member was binned", err)
+	}
+}
+
 func TestCurrentLeadCannotBeRemovedOrBinned(t *testing.T) {
 	ctx := context.Background()
 	b, _, lead, docs, parser, _ := teamBus(t)
