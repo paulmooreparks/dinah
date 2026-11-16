@@ -1,5 +1,13 @@
 # Request settlement implementation status
 
+## Current sequencing amendment
+
+Paul's 16 November ruling in Lead message 10127 removes plain mentions from Decisions and from settlement. The standalone host is being received on engine/mention-notifications before this implementation resumes. Contract amendment c4f516fa defines six remaining sources. Quality's immutable amendment 5e0cf6fe was received as cb24cefe; the active suite now has 45 cases, and the complete prior 48-case file is retained byte-for-byte under superseded. Implementation and the receiving scaffold below still contain the old mention adapter and seed. They must be rebased onto the standalone host and revised before this branch can claim compliance. The original seven-source results remain historical construction evidence.
+
+Stage two is approved under addendum 873127ff and frozen at 592f768d, but its implementation remains gated on this first-stage merge. Permission entries keep disabled Dismiss and later receive separately named Stop the Turn through the existing Stop behavior. Owner applet withdrawal remains applet_cancel. Reply quotes were deferred by Paul in Lead message 10110, and no implementation is authorized. The answer-attachment contract requested in 10099 remains queued after settlement handover.
+
+The chat-inventory correction was completed separately on engine/chat-inventory at aec37a37, with source review and producer runtime gates recorded there. It does not replace the unfinished 45-case settlement gate.
+
 The implementation tree starts at typed-question master 7a5ebe0e on engine/request-settlement. Approved contract a7d5ed60 and Quality freeze 408da017 were received as 8965a960 and 5d80c05f. The 48-case assertion file is unchanged.
 
 Implementation resumed after the standalone bin-publication correction 5c0cbbba received Quality clearance in message 9911. Current working changes add common settlement types, transactional chat-request dispositions and completion obligations, authenticated chat withdrawal, and task-question journal checkpoints that persist a disposition with the operation receipt. These changes are incomplete and have no receiving clearance. New reviewed-question persistence tests pass with race/all-vet in 1.611 seconds, including dismissal, owner withdrawal, restart, original-operation reconciliation and unchanged legacy answer results. An index record initially omitted its required identity; the new test exposed that persistence fault and the index now stores its identity with the scope. Earlier task-question selections and compile checks also passed, but do not establish the frozen 48-case gate.
