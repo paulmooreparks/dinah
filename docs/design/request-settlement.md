@@ -6,7 +6,9 @@ Paul's answers recorded in Desktop Team message 9835 authorize dismissal of ever
 
 Dismiss is a person action. It closes the open request as dismissed without supplying an answer. Withdraw is an owner action. It closes the owner's open request as withdrawn without supplying an answer. Neither means approval, rejection, successful completion of the underlying work, or permission to repeat an operation with an unknown outcome.
 
-The contract applies to explicit person requests, person mentions represented as Decisions entries, local request/attention reports and task questions, including legacy single choice, text and multiple selection. A report without an asking chat can be dismissed but cannot offer owner withdrawal. Requests asked between chats use their existing separate lifecycle and are outside this contract.
+The contract applies to explicit person requests, local request/attention reports and task questions, including legacy single choice, text and multiple selection. A report without an asking chat can be dismissed but cannot offer owner withdrawal. Requests asked between chats use their existing separate lifecycle and are outside this contract.
+
+Paul superseded the original mention scope on 16 November 2026, recorded in docs/design/decisions-redesign.md and Lead message 10127. Plain mentions belong to their chat and Notifications. They have no Decisions entry, settlement command or completion obligation. Exact-message navigation acknowledges their attention separately, and replying in their source chat clears it. Existing mention projection removal cannot settle or rewrite its source. The remaining six source categories are explicit ask_person request, partly answered ask_person request, local attention report, task single choice, task text and task multiple selection. Decisions lists only ask_person requests and task questions; local reports use Notifications. The old seven-source freeze remains historical evidence until Quality records its explicit amendment.
 
 ## Representation and commands
 
@@ -42,7 +44,7 @@ Dismissing a Cannot be delivered report acknowledges that report. It does not er
 
 ## Independent receiving boundary
 
-Quality should freeze checks against real App dismissal and authenticated chat/consumer withdrawal paths before implementation is handed over. The fixture must retain raw requests, receipts, durable source rows, completion obligations and all three view snapshots. It must exercise answerable requests, mentions, unavailable askers, reports without owners, partly answered requests and each task-question type.
+Quality should freeze checks against real App dismissal and authenticated chat/consumer withdrawal paths before implementation is handed over. The fixture must retain raw requests, receipts, durable source rows, completion obligations and all applicable view snapshots. It must exercise answerable requests, unavailable askers, reports without owners, partly answered requests and each task-question type. Mention exclusion and acknowledgement have their own independent gate and must never create a settlement notice.
 
 The checks must prove person-only dismissal, owner-only withdrawal, forged owner rejection, service inability to answer, unchanged typed bounds and the legacy answer path. Concurrent Answer/Dismiss/Withdraw must produce one terminal record and one logical completion. Same-ID retries, changed-input reuse, stale revisions, stale generations, removal, cancellation, shutdown and restart must preserve the winning outcome without replay. Controls must lose responses before and after commit, interrupt notice dispatch and verify subsequent reconciliation.
 
