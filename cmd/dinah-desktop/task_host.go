@@ -60,7 +60,9 @@ func (a *App) startTaskServices() error {
 			HoldTask: a.holdTaskRecord, Admit: a.admitTaskOperation, Confirm: a.confirmTaskReview, TargetRevision: a.taskTargetRevision,
 			Resource:   a.taskResource,
 			Operations: a.taskHostOperations, DescribeChats: a.describeTaskChats, CheckProgram: a.checkTaskProgram, DescribeAction: a.describeTaskAction,
-			Backend: taskBackend{a}, RoomsAvailable: func() bool { return a.taskRooms() != nil },
+			PendingQuestions: a.pendingServiceQuestions,
+			SavedChange:      func(change taskhost.Change) { a.emit("service:"+change.Service+":changed", change) },
+			Backend:          taskBackend{a}, RoomsAvailable: func() bool { return a.taskRooms() != nil },
 			Now: func() time.Time {
 				a.taskServices.mu.Lock()
 				now := a.taskServices.now

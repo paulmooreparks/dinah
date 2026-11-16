@@ -151,14 +151,16 @@ type Options struct {
 	Resolve func(context.Context, Scope) (Binding, error)
 	Check   func(context.Context, Scope) error
 	// HoldTask acquires the consumer record lock for reconciliation only.
-	HoldTask       func(context.Context, Scope) (func() error, error)
-	Admit          func(context.Context, Scope, Operation) error
-	TargetRevision func(context.Context, Scope, Permit) (string, error)
-	Resource       func(context.Context, Scope, Operation) (string, error)
-	Operations     func(context.Context, Scope) ([]string, error)
-	DescribeChats  func(context.Context, Scope) ([]ChatDescription, error)
-	CheckProgram   func(context.Context, Scope, string) (ProgramDescription, error)
-	DescribeAction func(context.Context, Scope, string) (ActionDescription, error)
+	HoldTask         func(context.Context, Scope) (func() error, error)
+	Admit            func(context.Context, Scope, Operation) error
+	TargetRevision   func(context.Context, Scope, Permit) (string, error)
+	Resource         func(context.Context, Scope, Operation) (string, error)
+	Operations       func(context.Context, Scope) ([]string, error)
+	DescribeChats    func(context.Context, Scope) ([]ChatDescription, error)
+	CheckProgram     func(context.Context, Scope, string) (ProgramDescription, error)
+	DescribeAction   func(context.Context, Scope, string) (ActionDescription, error)
+	PendingQuestions func(context.Context, Scope) ([]Question, error)
+	SavedChange      func(Change)
 	// Confirm obtains actual person consent or validates current invocation grants.
 	// It must never trust a caller label in request JSON.
 	Confirm        func(context.Context, Review) error
@@ -188,4 +190,14 @@ type Snapshot struct {
 	AdmissionClosed bool
 	Handles         int
 	Workers         int
+}
+
+// Change identifies a saved consumer record. Consumers publish it only after
+// their durable save succeeds; readers obtain content from the service itself.
+type Change struct {
+	Service    string `json:"service"`
+	Workspace  string `json:"workspace"`
+	Task       string `json:"task"`
+	Generation string `json:"generation"`
+	Sequence   uint64 `json:"sequence"`
 }
