@@ -1,6 +1,6 @@
 const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
 (async () => {
-  const t = await setup([makeRequest('r100', { kind: 'mention', questions: [], text: 'Please review the proposal.' }), makeRequest('r200'), makeRequest('r300', { group: '', groupTitle: '', destination: 'Direct Review' })]);
+  const t = await setup([makeRequest('r100', { text: 'Please review the proposal.' }), makeRequest('r200'), makeRequest('r300', { group: '', groupTitle: '', destination: 'Direct Review' })]);
   const { page: p, ok } = t;
   const bounds = () => p.evaluate(() => ['[data-win="decisions"]', '.decisions-list', '.decisions-detail', '.decisions-source', '.decisions-foot', '.decisions-about', '.decisions-question', '.decisions-about .kv-table', '.decisions-detail .btn-primary', '.win-bar'].map(selector => {
     const r = document.querySelector(selector).getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
@@ -10,16 +10,16 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await p.evaluate(() => { __holdContext = true; });
     await choose(t, 'r100'); await p.waitForFunction(() => window.__contextPending?.length === 1);
     ok('slow context has a fixed placeholder', await p.locator('.decisions-context-body').getAttribute('aria-busy') === 'true' && (await p.locator('.decisions-context').innerText()).includes('Loading the group conversation.'));
-    await p.getByLabel('Your Reply', { exact: true }).fill('Keep this draft while reading.');
+    await p.getByLabel('Answer 1', { exact: true }).fill('Keep this draft while reading.');
     const before = await bounds();
     await p.evaluate(messages => { __contextMessages = messages; __holdContext = false; __contextPending.splice(0).forEach(resolve => resolve()); }, messages);
     await p.locator('[data-context-message="94"]').waitFor();
     ok('five earlier messages keep chronological order, sender and time', await p.locator('[data-context-message]').evaluateAll(nodes => nodes.map(el => el.dataset.contextMessage).join(',') === '90,91,92,93,94' && nodes.every(el => el.querySelector('strong').textContent.startsWith('Reviewer ') && el.querySelector('time').dateTime)));
-    ok('loading context changes no measured bounds, draft or focus', JSON.stringify(before) === JSON.stringify(await bounds()) && await p.getByLabel('Your Reply', { exact: true }).inputValue() === 'Keep this draft while reading.' && await p.getByLabel('Your Reply', { exact: true }).evaluate(el => document.activeElement === el));
+    ok('loading context changes no measured bounds, draft or focus', JSON.stringify(before) === JSON.stringify(await bounds()) && await p.getByLabel('Answer 1', { exact: true }).inputValue() === 'Keep this draft while reading.' && await p.getByLabel('Answer 1', { exact: true }).evaluate(el => document.activeElement === el));
     ok('message text is literal and collapsed to three lines', await p.locator('.decisions-context-text').first().evaluate(el => !el.querySelector('script') && el.textContent.includes('<script>') && el.clientHeight <= parseFloat(getComputedStyle(el).lineHeight) * 3 + 1 && el.scrollHeight > el.clientHeight));
     await p.getByRole('button', { name: 'Expand Message', exact: true }).first().click();
     ok('expansion stays inside the fixed conversation area', JSON.stringify(before) === JSON.stringify(await bounds()) && await p.locator('.decisions-context-message').first().getAttribute('data-expanded') === 'true');
-    await t.shot('decisions-context-mention');
+    await t.shot('decisions-context-request');
     await p.evaluate(() => { window.__groupOpens = []; window.dinahBus.openGroup = async (group, target) => { __groupOpens.push({ group, target }); }; });
     const link = p.getByRole('link', { name: 'Open Message', exact: true }).first();
     ok('message links carry their destination in the address', (await link.getAttribute('href')).includes('message'));

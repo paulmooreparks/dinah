@@ -8,6 +8,10 @@ const { launch } = require('./lib/page');
         if (window.__holdRestore) await new Promise(resolve => { window.__restoreDone = resolve; });
         return snapshot;
       },
+      AcknowledgeMention: async message => {
+        __calls.push('ack-' + message);
+        sessionStorage.setItem('attention', JSON.stringify(JSON.parse(sessionStorage.getItem('attention') || '[]').filter(n => n.kind !== 'mention' || n.message !== message)));
+      },
       DismissNotification: async id => {
         __calls.push(id);
         if (window.__rejectDismiss) throw new Error('Dismissal unavailable');
@@ -34,7 +38,7 @@ const { launch } = require('./lib/page');
     await p.locator('#needs-filter').focus();
     await emit(2); await emit(2);
     await p.waitForFunction(() => dinahHost.notices.list(e => e.data.requestCount === 2).length === 1);
-    ok('one source has one counted card without duplicate requests', await cards.count() === 1 && (await cards.first().innerText()).includes('2 requests'));
+    ok('one source has one counted card without duplicate requests', await cards.count() === 1 && (await cards.first().innerText()).includes('2 mentions'));
     ok('the card names the chat and shows only the first line', (await cards.first().innerText()).includes('review') && !(await cards.first().innerText()).includes('Private second'));
     await emit(3, 'other');
     await p.waitForFunction(() => document.querySelectorAll('#questions .attention-kept').length === 2);
@@ -58,13 +62,14 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => dinahHost.notices.list(e => e.data.attentionChat === 'review' && e.data.requestCount === 1).length === 1);
     ok('answering one request leaves its grouped neighbour', true);
     await emit(6, 'group-source', 'mention', 'fixture-group');
-    await p.evaluate(() => { dinahBus.openGroup = (key, target) => { window.__openRequested = [key, target.message]; return new Promise(resolve => { window.__shown = resolve; }); }; });
-    await p.locator('#questions [data-notice-id="kept-6"]').getByRole('button', { name: 'Open Group' }).click();
+    await p.evaluate(() => { dinahBus.openMessage = target => { window.__openRequested = [target.group, target.message]; return new Promise(resolve => { window.__shown = resolve; }); }; });
+    await p.locator('#questions [data-notice-id="kept-6"]').getByRole('button', { name: 'Open in Chat' }).click();
     await p.waitForFunction(() => window.__openRequested);
+    ok('opening the window alone does not acknowledge the target', await p.evaluate(() => !__calls.includes('ack-6')));
     await emit(7, 'group-source', 'mention', 'fixture-group');
-    await p.evaluate(() => __shown(true));
+    await p.evaluate(() => { document.dispatchEvent(new CustomEvent('dinah:bus-message-opened', { detail: { message: 6, group: 'fixture-group' } })); __shown(true); });
     await p.waitForFunction(() => dinahHost.notices.list(e => e.data.attentionChat === 'group-source' && e.data.requestCount === 1).length === 1);
-    ok('navigation targets the requested message and preserves later arrivals', await p.evaluate(() => __openRequested[0] === 'fixture-group' && __openRequested[1] === 6 && __calls.includes('kept-6') && !__calls.includes('kept-7')));
+    ok('navigation targets the requested message and preserves later arrivals', await p.evaluate(() => __openRequested[0] === 'fixture-group' && __openRequested[1] === 6 && __calls.includes('ack-6') && !__calls.includes('ack-7')));
     await p.evaluate(() => { window.__rejectDismiss = true; });
     await p.locator('#questions [data-notice-id="kept-4"]').getByRole('button', { name: 'Dismiss', exact: true }).click();
     await p.waitForFunction(() => __calls.includes('kept-4'));

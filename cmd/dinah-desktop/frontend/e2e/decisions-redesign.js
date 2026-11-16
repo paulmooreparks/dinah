@@ -2,7 +2,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
 (async () => {
   for (const theme of ['light', 'dark']) for (const width of [1440, 390]) {
     const t = await setup([
-      makeRequest('r2', { createdAt: '2026-11-14T02:00:00Z', kind: 'mention', questions: [], text: Array.from({ length: 30 }, (_, n) => 'Message line ' + n).join('\n') }),
+      makeRequest('r2', { createdAt: '2026-11-14T02:00:00Z', text: Array.from({ length: 30 }, (_, n) => 'Message line ' + n).join('\n') }),
       makeRequest('r1', { createdAt: '2026-11-14T01:00:00Z', questions: [{ number: 1, text: 'Which release?', recommendation: 'Use the reviewed release.', choices: ['Reviewed', 'Wait'], answered: false, answer: '' }] })
     ]);
     const { page: p, ok } = t;
@@ -54,18 +54,16 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
       await send.click();
       await p.waitForFunction(() => window.__delivered.length === 1);
       await p.waitForFunction(() => document.querySelector('.decisions-row a[aria-current="true"]').parentElement.dataset.requestId === 'r2');
-      ok('settlement automatically opens the next request and removes the finished row', await p.locator('.decisions-row[data-request-id="r1"]').count() === 0 && await p.getByLabel('Your Reply', { exact: true }).isVisible());
+      ok('settlement automatically opens the next request and removes the finished row', await p.locator('.decisions-row[data-request-id="r1"]').count() === 0 && await p.getByLabel('Answer 1', { exact: true }).isVisible());
       ok('completion names the prior asking chat and destination', (await p.locator('.decisions-foot-status').innerText()).includes('Review Group, replying to Review r1'));
       await p.evaluate(() => { __saveFailure = true; });
-      await p.getByLabel('Your Reply', { exact: true }).fill('Retain this unsaved draft.');
+      await p.getByLabel('Answer 1', { exact: true }).fill('Retain this unsaved draft.');
       await p.waitForFunction(() => document.querySelector('.decisions-foot-status').textContent.includes('Your draft could not be saved.'));
-      ok('current save errors take priority over the prior completion', await send.isDisabled() && !(await p.locator('.decisions-foot-status').innerText()).includes('Your reply was sent') && await p.getByLabel('Your Reply', { exact: true }).inputValue() === 'Retain this unsaved draft.');
+      ok('current save errors take priority over the prior completion', await send.isDisabled() && !(await p.locator('.decisions-foot-status').innerText()).includes('Your reply was sent') && await p.getByLabel('Answer 1', { exact: true }).inputValue() === 'Retain this unsaved draft.');
       await p.evaluate(() => { __saveFailure = false; });
-      await p.getByLabel('Your Reply', { exact: true }).fill('Retain this saved draft.');
+      await p.getByLabel('Answer 1', { exact: true }).fill('Retain this saved draft.');
       await p.waitForFunction(() => !document.querySelector('.decisions-foot .btn-primary').disabled);
-      ok('a plain message is quoted once', await p.locator('.decisions-message').count() === 1 && (await p.locator('.decisions-message').innerText()).includes('Message line 29'));
-      await p.getByRole('button', { name: 'Show the Whole Message' }).click();
-      ok('long-message expansion stays in the main scroll', await p.locator('.decisions-message').getAttribute('data-folded') === 'false' && await p.locator('.decisions-message').evaluate(el => getComputedStyle(el).overflowY !== 'auto'));
+      ok('auto-next retains the next request questions without a plain-message reply form', await p.locator('.decisions-question').count() === 2 && await p.locator('.decisions-message').count() === 0);
       if (width === 390) await p.getByRole('button', { name: 'Back to Requests', exact: true }).click();
       const actions = p.locator('[data-request-id="r2"] [data-decision-actions]');
       await actions.focus(); await p.keyboard.press('Shift+F10');

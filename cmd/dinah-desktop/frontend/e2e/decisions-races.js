@@ -1,6 +1,6 @@
 const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
 (async () => {
-  const t = await setup([makeRequest('r1'), makeRequest('r2'), makeRequest('r3', { kind: 'mention', questions: [], text: 'A plain request.' })]); const { page: p, ok } = t;
+  const t = await setup([makeRequest('r1'), makeRequest('r2'), makeRequest('r3', { text: 'A plain request.' })]); const { page: p, ok } = t;
   try {
     await choose(t, 'r1'); await p.getByLabel('Answer 1', { exact: true }).fill('Only send this to the first request.');
     await p.waitForFunction(() => !document.querySelector('.decisions-detail .btn-primary').disabled);
