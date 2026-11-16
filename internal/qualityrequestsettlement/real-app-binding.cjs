@@ -49,7 +49,7 @@ function logical(raw) {
     if(raw.source.status==='answered')return rows(raw,'decision_operations').map(r=>JSON.parse(r.receipt)).filter(r=>r.id===raw.source.id&&r.state==='committed'&&r.closed).map(r=>({outcome:'answered',hasAnswer:true,messageIds:r.messageIds}));
     return [];
   }
-  return [{outcome:c.outcome,recipient:c.recipient || '',hasAnswer:Object.hasOwn(c,'answer')}];
+  return [{outcome:c.outcome,recipient:c.recipient || '',hasAnswer:raw.source.kind==='task-question' && raw.source.status==='answered' ? operation(raw).hasAnswer : Object.hasOwn(c,'answer')}];
 }
 function notices(raw) {
   const out = [];
@@ -121,7 +121,9 @@ exports.open = async function(spec) {
       const afterRaw=await call('inspect',{id:seeded.id});
       const unrelatedAfter=await call('state',{id:unrelated.id});
       const previous=new Set(rows(beforeRaw,'messages').map(m=>m.id));
-      const answerDeliveries=rows(afterRaw,'messages').filter(m=>!previous.has(m.id)&&m.kind==='text'&&m.reply_to===seeded.request.messageId);
+      const answerDeliveries=spec.source.startsWith('task-')
+        ? (afterRaw.waiterReleased && afterRaw.operationReceipt?.disposition==='answered' && operation(afterRaw).hasAnswer ? [afterRaw.operationReceipt] : [])
+        : rows(afterRaw,'messages').filter(m=>!previous.has(m.id)&&m.kind==='text'&&m.reply_to===seeded.request.messageId);
       const evidence={scenario:spec.scenario,source:spec.source,artifactDirectory,operationId,receipt,
         before:canonical(beforeRaw,spec.source),after:canonical(afterRaw,spec.source),seed:{askingChat:owner(beforeRaw)},
         answerDeliveries,logicalCompletions:logical(afterRaw),chatNotices:notices(afterRaw),
