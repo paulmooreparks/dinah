@@ -108,6 +108,15 @@ func (a *App) waitingRoute(origin, cwd string) (sessionhost.WakeRoute, error) {
 // OpenWaitingSession joins only the generation issued by the wake owner. It is
 // used by both the page and fallback rather than opening the requested alias.
 func (a *App) OpenWaitingSession(origin, attempt string) (SessionInfo, error) {
+	// A chat switched to another program and closed before its first message
+	// has never been prompted, so it is continued from its saved history in a
+	// new session (beforeNativeOpen). That cannot happen while the delivery
+	// attempt that opens it is running (recoverNativeSession), so the attempt
+	// records a failure and the continuation follows below, a few seconds
+	// later. The failure is not shown while this call is still putting it
+	// right; it is shown if the call ends with it.
+	a.waitingOpens.Store(origin, true)
+	defer a.waitingOpens.Delete(origin)
 	info, err := a.busCoordinator().OpenDeliveryAttempt(origin, attempt)
 	var missing *missingNativeError
 	if errors.As(err, &missing) && missing.detail.Recoverable {
@@ -158,6 +167,9 @@ func (a *App) waitingChatNotifications() ([]Notification, error) {
 	out := []Notification{}
 	for origin, record := range records {
 		if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(origin); record.Stage == "opening" && active {
+			continue
+		}
+		if _, opening := a.waitingOpens.Load(origin); opening {
 			continue
 		}
 		r := record.Route

@@ -56,14 +56,18 @@ type App struct {
 	drawingEndpoint string
 	// refused is the request each provider last refused for want of a
 	// sign-in (auth.go).
-	refused                    refusedCalls
-	diagnosticsMu              sync.Mutex
-	diagnosticsNext            time.Time
-	responsivenessMu           sync.Mutex
-	responsivenessClosed       bool
-	responsiveness             atomic.Pointer[responsiveness.Recorder]
-	fileAccess                 fileAccessRuntime
-	transferRunning            sync.Map
+	refused              refusedCalls
+	diagnosticsMu        sync.Mutex
+	diagnosticsNext      time.Time
+	responsivenessMu     sync.Mutex
+	responsivenessClosed bool
+	responsiveness       atomic.Pointer[responsiveness.Recorder]
+	fileAccess           fileAccessRuntime
+	transferRunning      sync.Map
+	// waitingOpens are the chats that OpenWaitingSession is opening for their
+	// waiting messages, which may include continuing them from saved history.
+	// A failure recorded during that call is not shown until the call ends.
+	waitingOpens               sync.Map
 	startupErr                 error
 	terminalShutdownIncomplete atomic.Bool
 	// judging is the set of judges and the person's choices for them

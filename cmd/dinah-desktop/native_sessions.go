@@ -29,6 +29,9 @@ func (e *missingNativeError) Error() string {
 	if e.detail.Kind == "session-unverified" {
 		return "The first turn did not finish; continue from saved history to reopen this chat."
 	}
+	if e.detail.Kind == "handoff-pending" {
+		return "This chat's first message has not been sent yet, so it is continued from its saved history in a new session."
+	}
 	return "The provider could not reopen this session. Continue from saved history instead of retrying this native ID."
 }
 func (e *missingNativeError) ErrorDetail() any { return e.detail }
@@ -137,8 +140,11 @@ func (a *App) nativeSessionMissing(ws, id string, refused error) (SessionInfo, e
 func (a *App) recoverNativeSession(ws, id, provider string) (SessionInfo, error) {
 	key := a.nativeRecoveryKey(id)
 	refusal := a.missingNative(id, provider)
-	if !a.nativeRecord(id).Refused {
+	if r := a.nativeRecord(id); !r.Refused && r.Prompted {
 		refusal = a.unverifiedNative(id, provider)
+	} else if !r.Refused {
+		// Never prompted: nothing failed, the handoff is still to be delivered.
+		refusal = &missingNativeError{missingNativeDetail{Kind: "handoff-pending", Provider: provider, SessionID: id, Recoverable: a.SavedConversation(id).Recoverable}}
 	}
 	// A wake attempt must finish with its exact original target before a
 	// recipient-preserving recovery can publish the replacement target.
