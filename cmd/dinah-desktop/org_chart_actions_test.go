@@ -105,20 +105,22 @@ func TestOrgChartActionsAssignmentMovesAndRejectsCycles(t *testing.T) {
 			t.Fatal("self edge offered")
 		}
 	}
-	if _, err := a.SetTeamLead("codex:c", "codex:a"); err == nil {
-		t.Fatal("current lead was assigned to another team")
+	// A lead can report to another chat (docs/design/team-hierarchy.md); until
+	// 17 November 2026 this was refused. The reverse is then a cycle.
+	if _, err := a.SetTeamLead("codex:c", "codex:a"); err != nil {
+		t.Fatal("a lead could not report to another chat", err)
 	}
 	view, err = a.OrgChartActions("codex:a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, v := range view.Actions {
-		if v.Kind == "assign_team" && slices.ContainsFunc(v.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:a" }) {
-			t.Fatal("self assignment offered")
+		if v.Kind == "assign_team" && slices.ContainsFunc(v.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:a" || c.ID == "codex:c" || c.ID == "codex:b" }) {
+			t.Fatal("the chat itself or a chat that reports to it is offered as its lead")
 		}
 	}
-	if _, err := a.SetTeamLead("codex:a", "codex:c"); err != nil {
-		t.Fatal("former lead was not assignable after its final member moved", err)
+	if _, err := a.SetTeamLead("codex:a", "codex:c"); err == nil || !strings.Contains(err.Error(), "cannot report to") {
+		t.Fatal("a cycle was accepted", err)
 	}
 }
 

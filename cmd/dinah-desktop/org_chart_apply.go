@@ -117,7 +117,11 @@ func (a *App) applyOrgChartAction(r OrgChartActionRequest, afterGroup func(strin
 	}
 	switch r.Kind {
 	case "assign_team":
-		out.GroupID, err = a.SetTeamLead(x.chats[r.ChatID].Head, x.chats[r.LeadID].Head)
+		if r.LeadID == orgChartPerson {
+			err = a.ClearTeamLead(x.chats[r.ChatID].Head)
+		} else {
+			out.GroupID, err = a.SetTeamLead(x.chats[r.ChatID].Head, x.chats[r.LeadID].Head)
+		}
 		if err == nil {
 			out.Members = append(out.Members, OrgChartMemberOutcome{ChatID: r.ChatID, Status: "assigned"})
 		}

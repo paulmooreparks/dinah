@@ -28,10 +28,8 @@ func TestTheTeamStripShowsStateReasonTaskAndNesting(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if _, err := b.SetLead(ctx, s.ID, memberBus); err == nil {
-			return errors.New("new nested team was admitted")
-		}
-		if err := seedHistoricalNestedTeam(ctx, s.ID, memberBus); err != nil {
+		// A member can lead a team of its own (docs/design/team-hierarchy.md).
+		if _, err := b.SetLead(ctx, s.ID, memberBus); err != nil {
 			return err
 		}
 		// The lead's assignment to the member.
@@ -143,8 +141,8 @@ func TestThePageMakesAndEndsTeams(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	wantReason := "This chat leads " + teamTitle + ". Reassign its members, or make one of them the lead, first."
-	if _, err := a.SetTeamLead(lead.ID(), member.ID()); err == nil || err.Error() != wantReason {
+	_ = teamTitle
+	if _, err := a.SetTeamLead(lead.ID(), member.ID()); err == nil || !strings.Contains(err.Error(), "cannot report to") {
 		t.Fatalf("a cycle: %v", err)
 	}
 	if _, err := a.SetTeamLead("", lead.ID()); err == nil {

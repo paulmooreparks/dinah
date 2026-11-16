@@ -13,7 +13,7 @@ const fs = require('node:fs'), path = require('node:path');
         const chats = __orgModel.chats.filter(c => c.resolution === 'resolved').map(c => ({ id: c.chatId, title: c.title }));
         const action = (kind, label, extra) => Object.assign({ kind, label, token: 'fresh-' + kind, href: href(kind, chatId), explanation: '', confirmation: '', chats: [], leads: [], groups: [], workspaces: [], providers: [] }, extra);
         return { chatId, title: (__orgModel.chats.find(c => c.chatId === chatId) || {}).title || 'Org Chart', actions: [
-          action('assign_team', 'Assign to a Team', { chats: chats.filter(c => c.id === 'mara') }),
+          action('assign_team', 'Reports To…', { chats: chats.filter(c => c.id === 'mara') }),
           action('replace_team_lead', 'Make Team Lead', { groups: [{id:'platform-channel', title:'Platform'}] }),
           action('make_lead', 'Make Lead', { groups: [{ id: 'review', title: 'Release Review' }].concat(__retained ? [{ id: 'retained-group', title: 'Retained Review' }] : []), explanation: 'Turn the selected ordinary group into a team led by this chat.' }),
           action('create_team', 'Create Team', { chats, leads: chats.filter(c => ['nina', 'uma'].includes(c.id)) }),
@@ -106,7 +106,7 @@ const fs = require('node:fs'), path = require('node:path');
     t.ok('the returned chat opens without a second creation request',await p.evaluate(()=>__actions.filter(r=>r.kind==='start_chat').length===1&&!__bridgeCalls.some(c=>c[0]==='NewSessionWithProviderAt'||c[0]==='NewSessionAt')));
     await p.evaluate(()=>{__pageSuccess=true;return dinahWorkbench.open('org-chart');});
     const geometry=()=>chart.evaluate(root=>{const origin=root.querySelector('.org-chart-scroll').getBoundingClientRect();return {scroll:root.querySelector('.org-chart-scroll').scrollTop,boxes:[...root.querySelectorAll('[data-org-chat]')].map(el=>{const r=el.getBoundingClientRect();return [el.dataset.orgChat,r.x-origin.x,r.y-origin.y,r.width,r.height];})};});
-    const actions=[['assign_team','Assign to a Team'],['replace_team_lead','Make Team Lead'],['create_team','Create Team'],['create_group','Create Group'],['start_chat','Start a Chat'],['delete_chat','Delete Chat…']];
+    const actions=[['assign_team','Reports To…'],['replace_team_lead','Make Team Lead'],['create_team','Create Team'],['create_group','Create Group'],['start_chat','Start a Chat'],['delete_chat','Delete Chat…']];
     for(const width of [1440,390])for(const theme of ['light','dark']){
       await p.setViewportSize({width,height:1000});await p.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
       await chart.getByRole('searchbox').fill('');
@@ -123,7 +123,7 @@ const fs = require('node:fs'), path = require('node:path');
         await open();
         const name=panel.getByLabel('Name',{exact:true});if(await name.count())await name.fill('Page control '+kind+' '+width+' '+theme);
         const lead=panel.getByLabel('Lead',{exact:true});if(await lead.count())await lead.selectOption('nina');
-        const team=panel.getByLabel('Team Lead',{exact:true});if(await team.count())await team.selectOption('mara');
+        const team=panel.getByLabel('Reports to',{exact:true});if(await team.count())await team.selectOption('mara');
         const ws=panel.getByLabel('Workspace',{exact:true});if(await ws.count())await ws.selectOption('saved-harbor');
         const provider=panel.getByLabel('Agent Program',{exact:true});if(await provider.count())await provider.selectOption('codex');
         const member=panel.locator('fieldset label').filter({hasText:'Uma'}).locator('input');if(await member.count())await member.check();

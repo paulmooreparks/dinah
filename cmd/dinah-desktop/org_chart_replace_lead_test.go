@@ -15,20 +15,15 @@ func TestOrgChartReplaceLeadRetainsTeamAndRefusesLeadAssignment(t *testing.T) {
 	if created.Status != "succeeded" {
 		t.Fatal(created)
 	}
-	view, err := a.OrgChartActions("codex:a")
-	if err != nil {
-		t.Fatal(err)
+	// Since 17 November 2026 a lead can report to another chat
+	// (docs/design/team-hierarchy.md); its own members are not offered, since
+	// that would make a cycle. Until then a lead could not be assigned at all.
+	assign := orgAction(t, a, "codex:a", "assign_team")
+	if !slices.ContainsFunc(assign.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:c" }) {
+		t.Fatal("a chat outside the team is not offered as the lead's lead", assign)
 	}
-	if slices.ContainsFunc(view.Actions, func(v OrgChartAction) bool { return v.Kind == "assign_team" }) {
-		t.Fatal("current lead can be assigned", view)
-	}
-	if !slices.ContainsFunc(view.Unavailable, func(v OrgChartUnavailable) bool {
-		return v.Kind == "assign_team" && v.Reason == bus.TeamLeadAssignmentReason("Invented stable team")
-	}) {
-		t.Fatal("lead refusal omitted ways out", view)
-	}
-	if _, err := a.SetTeamLead("codex:a", "codex:c"); err == nil || err.Error() != bus.TeamLeadAssignmentReason("Invented stable team") {
-		t.Fatal("direct host assignment accepted lead", err)
+	if slices.ContainsFunc(assign.Chats, func(c OrgChartChoice) bool { return c.ID == "codex:b" || c.ID == "codex:d" }) {
+		t.Fatal("the lead's own members are offered as its lead", assign)
 	}
 	action := orgAction(t, a, "codex:b", "replace_team_lead")
 	beforeChart, err := a.OrgChart()

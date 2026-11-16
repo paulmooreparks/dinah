@@ -181,6 +181,10 @@ func orgChartChoice(chat OrgChartChat) OrgChartChoice {
 	return OrgChartChoice{ID: chat.ChatID, Title: chat.Title, Workspace: chat.Workspace, Provider: chat.Provider}
 }
 
+// orgChartPerson is the choice of the person as the lead in Reports To…: the
+// chat then reports to no lead. No chat's identity is empty or starts with a colon.
+const orgChartPerson = ":person"
+
 func (a *App) OrgChartActions(chatID string) (OrgChartActionView, error) {
 	x, err := a.orgChartActionSnapshot()
 	if err != nil {
@@ -220,21 +224,30 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 	}
 	if chatID != "" {
 		var leads, groups, replacements []OrgChartChoice
-		assignReason := "No eligible team is available."
+		assignReason := "No other chat can be this chat's lead."
 		replaceReason := "Choose a current, non-retired member of a team."
 		err := a.busHost().With(func(b *bus.Bus) error {
+			// Reporting is a tree of any depth (docs/design/team-hierarchy.md):
+			// any chat can be the lead unless that would make a cycle, which the
+			// bus refuses, so a chat that reports to this one is not offered.
+			current := ""
 			for _, team := range x.view.Teams {
-				if team.LeadID == chatID && len(team.MemberIDs) > 0 {
-					assignReason = bus.TeamLeadAssignmentReason(team.Title)
+				if slices.Contains(team.MemberIDs, chatID) {
+					current = team.LeadID
 				}
-				if chat, ok := x.chats[team.LeadID]; ok && team.Resolution == "resolved" && b.CheckTeamLead(x.busIDs[chatID], x.busIDs[chat.ChatID]) == nil {
-					leads = append(leads, orgChartChoice(chat))
+			}
+			if current != "" {
+				leads = append(leads, OrgChartChoice{ID: orgChartPerson, Title: "You"})
+			}
+			for _, choice := range choices {
+				if choice.ID == chatID || x.busIDs[choice.ID] == "" {
+					continue
+				}
+				if b.CheckTeamLead(x.busIDs[chatID], x.busIDs[choice.ID]) == nil {
+					leads = append(leads, choice)
 				}
 			}
 			for _, group := range x.view.Groups {
-				if group.OwnerID == chatID && assignReason != "No eligible team is available." {
-					assignReason = bus.TeamLeadAssignmentReason(group.Title)
-				}
 				if group.OwnerID != "" && group.Resolution == "resolved" && slices.Contains(group.MemberIDs, chatID) {
 					if _, ok := x.chats[group.OwnerID]; ok {
 						if err := b.CheckReplaceTeamLead(group.ID, x.busIDs[group.OwnerID], x.busIDs[chatID]); err == nil {
@@ -254,7 +267,9 @@ func (a *App) orgChartActions(x orgChartActionSnapshot, chatID string) (OrgChart
 			return out, err
 		}
 		if len(leads) > 0 {
-			add("assign_team", "Assign to a Team").Chats = leads
+			v := add("assign_team", "Reports To…")
+			v.Chats = leads
+			v.Explanation = "Choose whom this chat reports to. It joins that chat's team room and leaves the one it is in now. A chat that reports to this one is not offered, and its group chats do not change."
 		} else {
 			out.Unavailable = append(out.Unavailable, OrgChartUnavailable{"assign_team", assignReason})
 		}

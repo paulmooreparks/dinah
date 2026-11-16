@@ -146,7 +146,7 @@ func TestTheLeadRelationIsOneTeamAndNeverACycle(t *testing.T) {
 	for name, c := range map[string][2]string{"itself": {docs.ID, docs.ID}, "own lead": {lead.ID, docs.ID}, "another member": {lead.ID, parser.ID}} {
 		if _, err := b.SetLead(ctx, c[0], c[1]); err == nil {
 			t.Fatalf("%s: a cycle was accepted", name)
-		} else if name != "itself" && !strings.Contains(err.Error(), "Reassign its members") {
+		} else if name != "itself" && !strings.Contains(err.Error(), "cannot report to") {
 			t.Fatalf("%s: the refusal does not say why: %v", name, err)
 		}
 	}

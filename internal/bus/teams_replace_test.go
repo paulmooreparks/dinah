@@ -9,40 +9,52 @@ import (
 	"testing"
 )
 
-func TestTeamLeadCannotBeAssignedUntilReportsMove(t *testing.T) {
+// A lead can report to another lead and keeps its own team: reporting is a tree
+// of any depth (docs/design/team-hierarchy.md). Until 17 November 2026 a lead
+// had to give up its reports first, and this test held that rule.
+func TestALeadCanReportToALeadAndKeepsItsTeam(t *testing.T) {
 	ctx := context.Background()
 	b, review, lead, docs, parser, outside := teamBus(t)
 	group, err := b.SetLead(ctx, docs.ID, lead.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := b.CheckTeamLead(lead.ID, outside.ID); err == nil || !strings.Contains(err.Error(), "Reassign its members") {
+	if err := b.CheckTeamLead(lead.ID, outside.ID); err != nil {
+		t.Fatal("a lead could not be checked as a member of another team", err)
+	}
+	outsideGroup, err := b.SetLead(ctx, lead.ID, outside.ID)
+	if err != nil {
+		t.Fatal("a lead could not report to another lead", err)
+	}
+	if of, _, _ := b.LeadOf(ctx, lead.ID); of != outside.ID {
+		t.Fatalf("the lead reports to %q", of)
+	}
+	if of, _, _ := b.LeadOf(ctx, docs.ID); of != lead.ID {
+		t.Fatalf("the lead's own member now reports to %q", of)
+	}
+	if own, err := b.TeamGroup(ctx, lead.ID); err != nil || own != group {
+		t.Fatalf("the lead lost its own team room: %q, %v", own, err)
+	}
+	members, err := b.RoomMembers(ctx, outsideGroup)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetLead(ctx, lead.ID, outside.ID); err == nil || !strings.Contains(err.Error(), "Reassign its members") {
-		t.Fatal(err)
+	inRoom := map[string]bool{}
+	for _, m := range members {
+		inRoom[m.Key] = true
+	}
+	if !inRoom[lead.ID] || inRoom[docs.ID] {
+		t.Fatalf("the upper team room holds %v, want the lead and not its member", inRoom)
+	}
+	// A third level, and the refusal of a cycle through it.
+	if _, err := b.SetLead(ctx, parser.ID, docs.ID); err != nil {
+		t.Fatal("a member could not lead a team of its own", err)
+	}
+	if _, err := b.SetLead(ctx, outside.ID, parser.ID); err == nil || !strings.Contains(err.Error(), "cannot report to") {
+		t.Fatal("a cycle through three levels was accepted", err)
 	}
 	if err := b.AddToGroup(ctx, Sender{}, review.Name, []string{lead.ID}); err != nil {
-		t.Fatal("lead could not join ordinary group", err)
-	}
-	if _, err := b.SetLead(ctx, parser.ID, outside.ID); err != nil {
-		t.Fatal(err)
-	}
-	outsideGroup := mustGroup(t, b, outside.ID)
-	if err := b.AddToGroup(ctx, Sender{}, outsideGroup, []string{lead.ID}); err == nil || !strings.Contains(err.Error(), "Reassign its members") {
-		t.Fatal("team-group join bypassed lead refusal", err)
-	}
-	if _, err := b.SetLead(ctx, docs.ID, outside.ID); err != nil {
-		t.Fatal(err)
-	}
-	if old, err := b.TeamGroup(ctx, lead.ID); err != nil || old != "" {
-		t.Fatal("empty former team still belongs to its lead", old, err)
-	}
-	if room, err := b.Room(ctx, group); err != nil || room.Lead != "" {
-		t.Fatal("former channel was not retained as an ordinary group", room, err)
-	}
-	if _, err := b.SetLead(ctx, lead.ID, outside.ID); err != nil {
-		t.Fatal("former lead could not be assigned", err)
+		t.Fatal("a lead could not join an ordinary group", err)
 	}
 }
 

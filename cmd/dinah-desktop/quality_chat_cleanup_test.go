@@ -227,6 +227,7 @@ func TestQualityCleanupLoadedWithoutUnload(t *testing.T) {
 		t.Fatal("binned chat reloaded at startup")
 	}
 }
+
 // A pinned chat was refused until 16 November 2026. The person then had to
 // find the pin, which shows only while its workspace is open, before a chat
 // could be deleted. Deleting now takes the pin off and restoring puts it back.

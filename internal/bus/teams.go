@@ -192,20 +192,9 @@ func checkTeamLead(t querier, member, lead string) error {
 	if member == lead {
 		return errors.New("a chat cannot lead itself")
 	}
-	if yes, err := leadsTeam(t, member); err != nil {
-		return err
-	} else if yes {
-		reason, err := currentTeamLeadReason(t, member)
-		if err != nil {
-			return err
-		}
-		return &TeamLeadRefusal{Reason: reason}
-	}
-	if parent, _, err := teamLeadOf(t, lead); err != nil {
-		return err
-	} else if parent != "" {
-		return errors.New("the chosen lead already belongs to a team; take it out of that team before making it a lead")
-	}
+	// Reporting is a tree of any depth (docs/design/team-hierarchy.md): a chat
+	// that leads a team can report to another lead, and a lead can itself be a
+	// member of a team. Only a cycle is refused, below.
 	memberTitle, err := knownSession(t, member)
 	if err != nil {
 		return err
@@ -230,15 +219,26 @@ func checkTeamLead(t querier, member, lead string) error {
 	}
 	for _, c := range chain {
 		if c == member {
-			names := []string{leadTitle}
+			named := func(title, otherwise string) string {
+				if title == "" {
+					return otherwise
+				}
+				return title
+			}
+			names, complete := []string{leadTitle}, leadTitle != ""
 			for _, id := range chain {
 				title, _ := knownSession(t, id)
 				names = append(names, title)
+				complete = complete && title != ""
 				if id == member {
 					break
 				}
 			}
-			return fmt.Errorf("%s cannot be a member of %s's team, because %s already leads it (%s)", memberTitle, leadTitle, leadTitle, strings.Join(names, " is led by "))
+			reason := fmt.Sprintf("%s cannot report to %s, because %s already reports to it", named(memberTitle, "This chat"), named(leadTitle, "the chosen chat"), named(leadTitle, "that chat"))
+			if complete && len(names) > 2 {
+				reason += " (" + strings.Join(names, " reports to ") + ")"
+			}
+			return errors.New(reason + ".")
 		}
 	}
 	return nil
@@ -358,16 +358,6 @@ func (b *Bus) MakeGroupTeam(ctx context.Context, group, lead string) (made []str
 		}
 		for _, m := range members {
 			title, _ := knownSession(t, m)
-			if yes, err := leadsTeam(t, m); err != nil {
-				return err
-			} else if yes {
-				reason, err := currentTeamLeadReason(t, m)
-				if err != nil {
-					return err
-				}
-				left = append(left, LeftOut{Session: m, Title: title, Why: reason})
-				continue
-			}
 			prior, _, err := teamLeadOf(t, m)
 			if err != nil {
 				return err
@@ -415,11 +405,6 @@ func (b *Bus) CheckGroupTeam(group, lead string) error {
 }
 
 func checkGroupTeam(t querier, group, lead string) (string, error) {
-	if parent, _, err := teamLeadOf(t, lead); err != nil {
-		return "", err
-	} else if parent != "" {
-		return "", errors.New("the chosen lead already belongs to a team; take it out of that team before making it a lead")
-	}
 	key, _, err := findGroup(t, group)
 	if err != nil {
 		return "", err
@@ -451,8 +436,7 @@ func checkGroupTeam(t querier, group, lead string) (string, error) {
 	var eligible int
 	if err := t.QueryRow(`SELECT COUNT(*) FROM room_members rm JOIN sessions s ON s.id = rm.member AND s.removed_at IS NULL
 		WHERE rm.room = ? AND rm.member_kind = 'session' AND rm.member <> ?
-		AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.member = rm.member AND tm.lead <> ?)
-		AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.lead = rm.member)`, key, lead, lead).Scan(&eligible); err != nil {
+		AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.member = rm.member AND tm.lead <> ?)`, key, lead, lead).Scan(&eligible); err != nil {
 		return "", err
 	}
 	if eligible == 0 {

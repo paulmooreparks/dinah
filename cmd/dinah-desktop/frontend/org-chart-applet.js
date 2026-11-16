@@ -188,11 +188,14 @@
       });
       return box;
     }
+    // A card says whom its chat reports to; how many it leads is on its team's head.
     function roleOf(chat) {
-      var team = snapshot.teams.find(function(t) { return t.leadId === chat.chatId; }) || snapshot.teams.find(function(t) {
-        return t.leadId === chat.chatId || t.memberIds.includes(chat.chatId);
-      });
-      return team ? (team.leadId === chat.chatId ? "Leads " : "Member of ") + team.title : "No team";
+      var team = snapshot.teams.find(function(t) { return t.memberIds.includes(chat.chatId); });
+      if (team) {
+        var lead = snapshot.chats.find(function(c) { return c.chatId === team.leadId; });
+        return "Reports to " + (lead && lead.title || "its lead");
+      }
+      return snapshot.teams.some(function(t) { return t.leadId === chat.chatId; }) ? "Reports to you" : "Free agent, reports to you";
     }
     function updateText() {
       snapshot.chats.forEach(function(chat) {
@@ -250,11 +253,18 @@
       elements.clear();
       canvas.replaceChildren();
       var personRow = node("div", "oc-person-row"), person = node("div", "oc-person");
-      person.append(node("p", "oc-person-name", "You"), node("p", "oc-person-role", "In charge. Every team lead reports to you."));
+      person.append(node("p", "oc-person-name", "You"), node("p", "oc-person-role", "In charge. Every chat at the top of a branch reports to you."));
       personRow.append(person);
       canvas.append(personRow);
-      var teams = node("div", "oc-teams");
-      canvas.append(teams);
+      /* Each workspace is a box holding its branches, each drawn from the chat at
+         its top, and its free agents (docs/design/team-hierarchy.md). A branch is
+         in the box of its top chat's workspace. */
+      var spacesRow = node("div", "oc-spaces"), spaces = new Map();
+      function spaceOf(chat) {
+        var key = chat && chat.workspace || "";
+        if (!spaces.has(key)) spaces.set(key, { name: chat && chat.workspaceName || key || "Workspace not recorded", trees: [], free: [] });
+        return spaces.get(key);
+      }
       var renderedTeams = new Set(), parentTeams = new Map(), byLead = new Map(snapshot.teams.map(function(team) { return [team.leadId, team]; }));
       snapshot.teams.forEach(function(team) {
         team.memberIds.forEach(function(id) { if (byLead.has(id) && !parentTeams.has(id)) parentTeams.set(id, team); });
@@ -328,41 +338,39 @@
         section.append(members);
         return section;
       }
+      function leadChat(team) { return snapshot.chats.find(function(c) { return c.chatId === team.leadId; }); }
       snapshot.teams.filter(function(team) { return !parentTeams.has(team.leadId); }).forEach(function(team) {
-        var section = teamSection(team); if (section) teams.append(section);
+        var section = teamSection(team); if (section) spaceOf(leadChat(team)).trees.push(section);
       });
       snapshot.teams.forEach(function(team) {
         if (hiddenByAncestor(team)) return;
-        if (!renderedTeams.has(team.id)) { var section = teamSection(team); if (section) teams.append(section); }
+        if (!renderedTeams.has(team.id)) { var section = teamSection(team); if (section) spaceOf(leadChat(team)).trees.push(section); }
       });
-      if (!teams.childNodes.length) teams.remove();
       var teamIds = new Set(snapshot.teams.flatMap(function(t) {
         return [t.leadId].concat(t.memberIds);
       }));
       var free = snapshot.chats.filter(function(c) {
         return wanted(c) && !teamIds.has(c.chatId);
       });
-      if (free.length) {
-        canvas.append(node("h2", "oc-section", "No team"), node("p", "oc-section-note", "These chats report to no team. They are listed by workspace."));
-        var wrap = node("div", "oc-wrap");
-        var spaces = new Map();
-        free.forEach(function(c) {
-          if (!spaces.has(c.workspace)) spaces.set(c.workspace, []);
-          spaces.get(c.workspace).push(c);
-        });
-        spaces.forEach(function(chats, space) {
-          var section = node("section", "oc-ws");
-          section.append(node("h3", "oc-ws-name", chats[0].workspaceName || space || "Workspace not recorded"));
-          var boxes = node("div", "oc-ws-boxes");
-          chats.forEach(function(c) {
-            var box = chatBox(c);
-            if (box) boxes.append(box);
-          });
-          section.append(boxes);
-          wrap.append(section);
-        });
-        canvas.append(wrap);
-      }
+      free.forEach(function(c) { spaceOf(c).free.push(c); });
+      spaces.forEach(function(space) {
+        var box = node("section", "oc-space");
+        box.append(node("h3", "oc-ws-name", space.name));
+        if (space.trees.length) {
+          var trees = node("div", "oc-space-trees");
+          space.trees.forEach(function(section) { trees.append(section); });
+          box.append(trees);
+        }
+        if (space.free.length) {
+          var freeBox = node("div", "oc-free"), boxes = node("div", "oc-ws-boxes");
+          freeBox.append(node("h4", "oc-free-title", "Free agents"));
+          space.free.forEach(function(c) { var cb = chatBox(c); if (cb) boxes.append(cb); });
+          freeBox.append(boxes);
+          box.append(freeBox);
+        }
+        spacesRow.append(box);
+      });
+      if (spacesRow.childNodes.length) canvas.append(spacesRow);
       var groups = ordinaryGroups().filter(function(g) {
         return g.memberIds.concat(g.ownerId || []).some(function(id) {
           return snapshot.chats.some(function(c) {
@@ -430,28 +438,31 @@
       if (disposed || !snapshot || !canvas.clientWidth) return;
       var previous = canvas.querySelector(".oc-lines");
       if (previous) previous.remove();
-      var origin = canvas.getBoundingClientRect(), person = canvas.querySelector(".oc-person"), columns = Array.from(canvas.querySelectorAll(".oc-teams > .oc-team")), segments = [];
+      var origin = canvas.getBoundingClientRect(), person = canvas.querySelector(".oc-person"), columns = Array.from(canvas.querySelectorAll(".oc-space-trees > .oc-team")), segments = [];
+      /* A line runs from the person to the top of each branch. A branch in the
+         first row is reached straight down from the rail; one in a later row,
+         where the workspace boxes wrap, down the left edge, so that no line
+         crosses the cards of another branch. */
       if (person && columns.length) {
-        var p = person.getBoundingClientRect(), px = p.left - origin.left + p.width / 2, pb = p.bottom - origin.top, rail = columns[0].getBoundingClientRect().top - origin.top - 20;
+        var p = person.getBoundingClientRect(), px = p.left - origin.left + p.width / 2, pb = p.bottom - origin.top;
+        var rail = canvas.querySelector(".oc-spaces").getBoundingClientRect().top - origin.top - 20;
+        var firstTop = Math.min.apply(null, columns.map(function(col) { return col.getBoundingClientRect().top; }));
+        var gutter = Math.max(2, Math.min.apply(null, Array.from(canvas.querySelectorAll(".oc-space")).map(function(sp) { return sp.getBoundingClientRect().left; })) - origin.left - 5);
         columns.forEach(function(col) {
-          var lead = col.querySelector(":scope > .oc-chat");
-          if (!lead) return;
-          var c = col.getBoundingClientRect(), l = lead.getBoundingClientRect(), gx = Math.max(1, c.left - origin.left - 12), ly = l.top - origin.top + 17, lx = l.left - origin.left;
-          segments.push([[px, pb], [px, rail], [gx, rail], [gx, ly], [lx, ly]]);
+          var c = col.getBoundingClientRect(), x = c.left - origin.left + c.width / 2, y = c.top - origin.top;
+          segments.push(c.top - firstTop < 4 ? [[px, pb], [px, rail], [x, rail], [x, y]] : [[px, pb], [px, rail], [gutter, rail], [gutter, y - 14], [x, y - 14], [x, y]]);
         });
       }
-      var nodes = [], edges = [], css = getComputedStyle(root);
-      segments.forEach(function(points, index) {
-        points.forEach(function(p2, j) {
-          nodes.push({ id: index + ":" + j, type: "text", x: Math.round(p2[0]), y: Math.round(p2[1]), width: 0, height: 0, text: "", yavc: { shape: "text", anchor: true } });
-          if (j) edges.push({ id: index + ":line:" + j, fromNode: index + ":" + (j - 1), fromSide: "right", fromEnd: "none", toNode: index + ":" + j, toSide: "left", toEnd: "none", yavc: { line: "solid", lineWidth: 2, route: "straight" } });
-        });
+      /* The lines are plain paths over the workspace boxes, so they reach the
+         top of each branch inside its box. They take no pointer events. */
+      var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("width", String(canvas.scrollWidth));
+      svg.setAttribute("height", String(canvas.scrollHeight));
+      segments.forEach(function(points) {
+        var path = document.createElementNS(ns, "path");
+        path.setAttribute("d", points.map(function(pt, j) { return (j ? "L" : "M") + Math.round(pt[0]) + " " + Math.round(pt[1]); }).join(" "));
+        svg.append(path);
       });
-      nodes.push({ id: "bounds", type: "text", x: 0, y: 0, width: canvas.scrollWidth, height: canvas.scrollHeight, text: "", yavc: { shape: "text" } });
-      var checked = window.yavcCanvas.read(JSON.stringify({ nodes, edges }));
-      if (checked.problems.length) throw new Error("The reporting lines could not be drawn.");
-      var rendered = window.yavcCanvas.render(checked.doc, { palette: { bg: css.getPropertyValue("--bg").trim(), surface: css.getPropertyValue("--surface").trim(), text: css.getPropertyValue("--text").trim(), line: css.getPropertyValue("--text-muted").trim(), presets: [] }, pad: 0, measure: false, font: css.fontFamily, title: "Team reporting lines" });
-      var svg = new DOMParser().parseFromString(rendered.svg, "image/svg+xml").documentElement;
       svg.classList.add("oc-lines", "org-chart-lines");
       svg.setAttribute("aria-hidden", "true");
       var old = canvas.querySelector(".oc-lines");

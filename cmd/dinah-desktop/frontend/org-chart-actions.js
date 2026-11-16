@@ -28,7 +28,7 @@
     function back() { var p = new URLSearchParams(host.state()); draftKeys.forEach(function (name) { p.delete(name); }); navigate(p, true); }
     function menuRows(value) {
       var rows = value.chatId ? [{ label: 'Open Chat', run: function () { return host.openChat(value.chatId); } }, '-'] : [];
-      return rows.concat((value.actions || []).map(function (a) { return { id: a.kind, label: a.label, run: function () { href(a.href); } }; }), (value.unavailable || []).map(function (a) { return { id: a.kind, label: { assign_team: 'Assign to a Team…', replace_team_lead: 'Make Team Lead…', make_lead: 'Make Lead…', create_team: 'Create Team…', create_group: 'Create Group…', start_chat: 'Start a Chat…', delete_chat: 'Delete Chat…' }[a.kind] || 'Unavailable', disabled: true, reason: a.reason }; }));
+      return rows.concat((value.actions || []).map(function (a) { return { id: a.kind, label: a.label, run: function () { href(a.href); } }; }), (value.unavailable || []).map(function (a) { return { id: a.kind, label: { assign_team: 'Reports To…', replace_team_lead: 'Make Team Lead…', make_lead: 'Make Lead…', create_team: 'Create Team…', create_group: 'Create Group…', start_chat: 'Start a Chat…', delete_chat: 'Delete Chat…' }[a.kind] || 'Unavailable', disabled: true, reason: a.reason }; }));
     }
     function menu(chatId, mark, detail) {
       openerId = chatId;
@@ -68,7 +68,7 @@
       root.append(node('h2', 'dialog-title', action.label), node('p', 'org-action-subject', value.title || 'Org Chart'), node('p', 'dialog-body', action.explanation));
       form = node('form', 'org-action-form org-dialog-fields'); root.append(form);
       if (['create_team', 'create_group'].includes(action.kind)) { var title = node('input', 'form-input'); title.type = 'text'; title.required = true; title.value = state.get('title') || ''; title.addEventListener('input', save); inputs.title = label('Name', title); }
-      if (action.kind === 'assign_team') choices('lead', 'Team Lead', action.chats || []);
+      if (action.kind === 'assign_team') choices('lead', 'Reports to', action.chats || []);
       if (action.kind === 'make_lead') choices('group', 'Ordinary Group', action.groups || []);
       if (action.kind === 'replace_team_lead') choices('group', 'Team', action.groups || [], action.groups && action.groups.length === 1 ? action.groups[0].id : '');
       if (action.kind === 'create_team') choices('lead', 'Lead', action.leads || [], value.chatId);
@@ -78,7 +78,7 @@
         (action.chats || []).forEach(function (chat) { var wrap = node('label'), input = node('input'); input.type = 'checkbox'; input.checked = state.getAll('member').includes(chat.id) || action.kind === 'create_group' && !state.has('member') && chat.id === value.chatId; input.addEventListener('change', save); wrap.append(input, document.createTextNode(chat.title)); fieldset.append(wrap); memberInputs.push({ id: chat.id, input: input }); });
       }
       if (action.confirmation) form.append(node('p', 'org-action-confirmation', action.confirmation));
-      submit = node('button', 'btn btn-primary', action.kind === 'delete_chat' ? 'Delete Chat' : action.label.replace(/…$/, '')); submit.type = 'submit';
+      submit = node('button', 'btn btn-primary', action.kind === 'delete_chat' ? 'Delete Chat' : action.kind === 'assign_team' ? 'Change' : action.label.replace(/…$/, '')); submit.type = 'submit';
       var controls = node('div', 'dialog-actions'); controls.append(cancel, submit); form.append(controls);
       report = node('section', 'org-action-result'); report.hidden = true; report.setAttribute('role', 'status'); report.setAttribute('aria-label', 'Action result'); root.append(report);
       form.addEventListener('submit', function (event) { event.preventDefault(); if (!submit.disabled) run(); });
