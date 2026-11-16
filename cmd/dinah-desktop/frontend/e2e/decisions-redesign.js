@@ -110,7 +110,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
       await send.click(); await p.waitForFunction(() => __typedAnswers.length === 2);
       await p.evaluate(() => { __decisionItems = []; __emit('bus:changed'); });
       await p.locator('.decisions-empty').waitFor({ state: 'visible' });
-      ok('empty state explains which requests appear', (await p.locator('.decisions-empty').innerText()).includes('When an agent asks you a question or mentions you in a group'));
+      ok('empty state explains which requests appear', (await p.locator('.decisions-empty').innerText()).includes('When a chat or task asks you a question'));
       ok('multiple answers retain offered order', await p.evaluate(() => JSON.stringify(__typedAnswers[1]) === '["multi-q",{"type":"multiple","optionIds":["A","C"]}]'));
     } finally { await t.close(); }
   }

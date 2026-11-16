@@ -359,7 +359,7 @@
       layout.dataset.mdPane = selected || view !== 'requests' ? 'detail' : 'list';
       root.dataset.decisionPane = pane;
       empty.hidden = items.size > 0 || view !== 'requests'; layout.hidden = !items.size && view === 'requests';
-      if (!items.size && view === 'requests') { var explanation = node('div', 'empty-state'); explanation.append(node('p', 'empty-state-title', status.textContent || 'There are no open requests.'), node('p', 'empty-state-body', 'When an agent asks you a question or mentions you in a group, it appears here with its recommendation.')); empty.replaceChildren(explanation); if (lastFinished) { var done = node('p', 'decisions-done', lastFinished.text); if (!lastFinished.id.startsWith('task:')) done.appendChild(button('Show Answers', function () { navigate('record', lastFinished.id); })); empty.appendChild(done); } }
+      if (!items.size && view === 'requests') { var explanation = node('div', 'empty-state'); explanation.append(node('p', 'empty-state-title', status.textContent || 'There are no open requests.'), node('p', 'empty-state-body', 'When a chat or task asks you a question, the request appears here.')); empty.replaceChildren(explanation); if (lastFinished) { var done = node('p', 'decisions-done', lastFinished.text); if (!lastFinished.id.startsWith('task:')) done.appendChild(button('Show Answers', function () { navigate('record', lastFinished.id); })); empty.appendChild(done); } }
       root.dataset.decisionDetail = String(view !== 'requests' || !!selected);
       drawList();
       try {
