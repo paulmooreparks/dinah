@@ -14,6 +14,18 @@ SavedChats retains its all-workspace `{generation, chats}` response. Every row k
 
 All consumers use that captured response. The chart adds team, lead and group relationships keyed by chatId; relationship-only identities remain visibly unresolved with a reason. Cleanup adds eligibility and refusal fields from host checks for each inventory row, with canonical member mappings. A page never manufactures a cleanup target. The Recycle Bin is a separate retained-record view. Workspace comparison uses the same existing path identity rules everywhere, and consumers reject stale asynchronous responses by request order.
 
+## A chat's earlier stages
+
+A chat that is switched to another program, compacted, or continued in another workspace goes on in a new session, and the saved conversation of that session records the one it continues. The earlier session is then a stage of the chat. It can no longer be worked in, and opening it opens the chat's newest stage. An earlier stage is therefore never a row in the Chats panel, the org chart or Clean Up Chats, and it is not counted (`continuedConversations` in `saved_chats.go`). The chat directory that agents address chats through has always left such stages out.
+
+This rule was added on 16 November 2026. The inventory had grouped a chat's stages only through the bindings and transfers recorded in settings. Switches made before those records existed have none, so each of their stages was listed as a chat. On one person's state 60 of 103 rows were earlier stages, and one chat that had been switched fourteen times was shown as twelve chats. The parent recorded in the saved conversation is used for this one purpose, which is deciding that a session is no longer a chat of its own. It still establishes no ownership, recipient or chain membership, and the resolver described above is unchanged.
+
+Two cases keep an earlier stage out of the lists or in them on purpose. When the newest stage has been removed or deleted, the earlier stages stay out, because the person deleted that chat. When the only newer stage is hidden without being removed, the earlier stage stays in, because that is how a switch that did not finish leaves its target, and the chat goes on where it was.
+
+Removing a chat by its identity still accepts an earlier stage (`savedChatsWithStages`). A stage from an older build can have its own queue on the bus, and when its messages cannot be routed to the newer stage's queue, the person removes that stage alone from the notice about it.
+
+Two things are known to be unfinished. Removing a chat takes only the stages its bindings link, so stages linked only by their saved conversations stay on disk, and they would be listed again once the newest stage's saved conversation is finally deleted. An earlier stage from an older build also keeps its own registration on the bus, so several registrations can share one title.
+
 ## Durable provider observations
 
 The host records native identity, provider, workspace scope, safe provider title, supplied state and update time, and host observation time separately from SessionTitles. SessionTitles continues to hold the person's override. The common title resolver chooses that override first, then applies the existing judged-title rule to the retained safe provider title. Existing bus metadata supplies a title only when neither is available; no prompt preview is promoted into provider metadata. Empty or unsafe provider titles cannot erase a safe retained title. The existing private-context title filter applies before persistence and display.

@@ -41,6 +41,14 @@ func (a *App) SavedChats() (SavedChatInventory, error) {
 // The private boundary lets receiving schedule a real publisher after the
 // snapshot, without a timer delay or a retry in the production query.
 func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, error) {
+	return a.savedChatsWithStages(afterSnapshot, false)
+}
+
+// savedChatsWithStages can also give the earlier stages of a chat as rows of
+// their own, which no list shows (continuedConversations). Removing a chat by
+// its identity asks for them, because a stage that still has its own queue on
+// the bus is removed by itself when its messages cannot be routed.
+func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChatInventory, error) {
 	view := SavedChatInventory{Chats: []SavedChatInfo{}}
 	if err := a.captureRuntimeInventory(); err != nil {
 		return view, err
@@ -85,6 +93,7 @@ func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, er
 	for _, id := range saved.Hidden {
 		hidden[id] = true
 	}
+	continued := continuedConversations(headers, saved)
 	seen := map[string]bool{}
 	for _, reference := range logicalChatReferencesFromSettings(saved) {
 		members, resolveErr := logicalChatMembersFromSettings(saved, reference)
@@ -104,7 +113,7 @@ func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, er
 				excluded = true
 			}
 		}
-		if excluded {
+		if excluded || (continued[members.Head] && !stages) {
 			continue
 		}
 		id := members.ChatID
@@ -208,6 +217,34 @@ func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, er
 	view.Generation = fmt.Sprintf("%x", sha256.Sum256(data))
 	view.identity = inventoryHash([]any{stamp, headerStamp, busTitles, inventoryRuntimeIdentity(runtimes)})
 	return view, nil
+}
+
+// continuedConversations are the saved conversations that another saved
+// conversation continues: the earlier stages of a chat that was switched to
+// another program, compacted, or moved to another workspace. Such a stage can
+// no longer be worked in, and opening it opens the chat's newest stage
+// (SessionLifecycle.current), so it is part of that chat and never a chat of
+// its own in a list. The stage stays out of the lists when the newer stage
+// was deleted, because the person deleted that chat. It stays in them when
+// the only newer stage is hidden without being removed, which is how a switch
+// that did not finish leaves its target.
+func continuedConversations(headers map[string]*sessionhost.TranscriptHead, saved Settings) map[string]bool {
+	hidden := map[string]bool{}
+	for _, id := range saved.Hidden {
+		hidden[id] = true
+	}
+	continued := map[string]bool{}
+	for id, header := range headers {
+		if header == nil || header.ParentSessionID == "" || header.ParentSessionID == id {
+			continue
+		}
+		_, removed := saved.RemovedChats[id]
+		if hidden[id] && !removed && !header.Deleted {
+			continue
+		}
+		continued[header.ParentSessionID] = true
+	}
+	return continued
 }
 
 func savedChatsSettingsStamp(saved Settings) string {

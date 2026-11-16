@@ -20,7 +20,13 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 }
 
 func (a *App) listChatCleanupAtBoundary(afterInventory func()) (ChatCleanupListing, error) {
-	inventory, err := a.SavedChats()
+	return a.listChatCleanupWithStages(afterInventory, false)
+}
+
+// listChatCleanupWithStages also gives the earlier stages of a chat as rows
+// when stages is set (savedChatsWithStages). The page's listing never does.
+func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (ChatCleanupListing, error) {
+	inventory, err := a.savedChatsWithStages(nil, stages)
 	if err != nil {
 		return ChatCleanupListing{}, err
 	}

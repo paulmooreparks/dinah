@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -175,6 +177,94 @@ func TestSavedChatsKeepsTranscriptOnlyChatAndNativeListingExplicit(t *testing.T)
 	}
 	if !listed {
 		t.Fatal("explicit native listing did not reach the connection positive control")
+	}
+}
+
+// A chat switched between programs is one row, its newest stage, in the
+// Chats list, the Org Chart and Clean Up Chats alike. The saved conversations
+// here are linked only by the parent each one records, as the stages of a chat
+// switched before a switch was also recorded in the settings are.
+func TestSavedChatsListsAChatSwitchedBetweenProgramsOnce(t *testing.T) {
+	a, conn := providerTestApp(t)
+	ws := t.TempDir()
+	stage := func(id, provider, parent string) {
+		t.Helper()
+		if err := writeTranscript(&sessionhost.Transcript{SessionID: id, Provider: provider, Workspace: ws, ParentSessionID: parent, Complete: true}); err != nil {
+			t.Fatal(err)
+		}
+		if err := a.updateSettings(func(s *Settings) error {
+			if s.SessionProviders == nil {
+				s.SessionProviders = map[string]string{}
+			}
+			if s.SessionTitles == nil {
+				s.SessionTitles = map[string]string{}
+			}
+			s.SessionProviders[id] = provider
+			s.SessionTitles[id] = "Invented " + id
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// One chat, switched twice.
+	stage("claude:first", "claude", "")
+	stage("ollama:second", "ollama", "claude:first")
+	stage("claude:third", "claude", "ollama:second")
+	// A chat whose newest stage the person deleted: the chat is gone.
+	stage("claude:deleted-first", "claude", "")
+	stage("claude:deleted-newest", "claude", "claude:deleted-first")
+	// A chat whose switch did not finish: its target is hidden, and the chat
+	// goes on where it was.
+	stage("claude:kept", "claude", "")
+	stage("ollama:unfinished", "ollama", "claude:kept")
+	// A chat that was never switched.
+	stage("claude:alone", "claude", "")
+	if err := a.updateSettings(func(s *Settings) error {
+		s.RemovedChats = map[string]chatRemoval{"claude:deleted-newest": {Stage: "removed"}}
+		s.Hidden = []string{"ollama:unfinished"}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"claude:alone", "claude:kept", "claude:third"}
+	view, err := a.SavedChats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, row := range view.Chats {
+		got = append(got, row.ID)
+	}
+	sort.Strings(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("the Chats list shows %v, want %v", got, want)
+	}
+	chart, err := a.OrgChart()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = got[:0]
+	for _, chat := range chart.Chats {
+		got = append(got, chat.Head)
+	}
+	sort.Strings(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("the Org Chart shows %v, want %v", got, want)
+	}
+	cleanup, err := a.ListChatCleanup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = got[:0]
+	for _, row := range cleanup.Rows {
+		got = append(got, row.SessionID)
+	}
+	sort.Strings(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("Clean Up Chats shows %v, want %v", got, want)
+	}
+	if len(conn.calls.Snapshot()) != 0 {
+		t.Fatal("reading the lists contacted a program")
 	}
 }
 

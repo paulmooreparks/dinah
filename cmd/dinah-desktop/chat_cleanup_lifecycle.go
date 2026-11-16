@@ -63,7 +63,7 @@ func (a *App) stageChatCleanup(id string) error {
 	if err != nil {
 		return refuseChatCleanup(err.Error())
 	}
-	listing, err := a.ListChatCleanup()
+	listing, err := a.listChatCleanupWithStages(nil, true)
 	if err != nil {
 		return err
 	}
