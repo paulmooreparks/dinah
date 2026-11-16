@@ -42,12 +42,13 @@ An allowance is set for a lead. The turns of a team count against the allowance 
 
 The Org Chart groups chats by workspace, and a branch of the tree is drawn inside its workspace's box. A piece of work is one workspace in practice today. The person has said that may change, so the grouping must not be written into the reporting relation: who reports to whom is independent of which box a chat is drawn in.
 
-## Open decisions
+## Speaking to a member directly
 
-A chat that reports to a lead has no input box today, and the person reaches it only through its team room. The person is inclined to give every chat its input box back while keeping a room for each team. Two things are undecided:
+A chat that reports to a lead has no input box today, and the person reaches it only through its team room. Every chat gets its input box back, and every team keeps its room.
 
-1. What the lead learns when the person speaks to its member directly: nothing, one line in the team room saying that it happened, or the message itself. The recommendation is the one line, which keeps the lead's overview without making every quick question a turn for the lead.
-2. Whether the member's answer stays in that chat only. The recommendation is that it does.
+When the person speaks to a member directly, the member's lead is sent a copy of what the person said, so the lead knows when the person goes around it. The person asked for the copy and not for a bare notice: a lead that only learns that something was said cannot tell whether its own instructions still stand. The member's answer stays in the member's chat.
+
+One point is open. The person said the answer stays in the member's chat and that the lead gets its copy "as discussed". That is read here as a copy of the person's message only. Whether the lead is also sent the member's answer is to be confirmed.
 
 ## What is to be built
 
@@ -55,4 +56,4 @@ A chat that reports to a lead has no input box today, and the person reaches it 
 - A team room for every lead at every depth, with direct reports only.
 - Allowances counted up the chain.
 - The Org Chart drawn as a tree of any depth inside each workspace's box, after its mockup is approved.
-- The input box, once the two open decisions are made.
+- The input box for every chat, with the copy to the member's lead.
