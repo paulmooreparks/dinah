@@ -219,9 +219,15 @@ func TestSavedChatsListsAChatSwitchedBetweenProgramsOnce(t *testing.T) {
 	stage("ollama:unfinished", "ollama", "claude:kept")
 	// A chat that was never switched.
 	stage("claude:alone", "claude", "")
+	// A chat an older build deleted: its saved conversation is marked deleted,
+	// and its bus recipient was left in the settings.
+	if err := writeTranscript(&sessionhost.Transcript{SessionID: "ollama:deleted-before", Provider: "ollama", Workspace: ws, Complete: true, Deleted: true}); err != nil {
+		t.Fatal(err)
+	}
 	if err := a.updateSettings(func(s *Settings) error {
 		s.RemovedChats = map[string]chatRemoval{"claude:deleted-newest": {Stage: "removed"}}
 		s.Hidden = []string{"ollama:unfinished"}
+		s.BusSessions = map[string]string{"ollama:deleted-before": "window-left-behind"}
 		return nil
 	}); err != nil {
 		t.Fatal(err)

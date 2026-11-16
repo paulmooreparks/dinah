@@ -113,7 +113,14 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 				excluded = true
 			}
 		}
-		if excluded || (continued[members.Head] && !stages) {
+		// A saved conversation is marked deleted only when the person deleted
+		// the chat, so what other records an older build left of it is not a
+		// chat in a list.
+		deleted := false
+		if header := headers[members.Head]; header != nil && header.Deleted {
+			deleted = true
+		}
+		if excluded || ((continued[members.Head] || deleted) && !stages) {
 			continue
 		}
 		id := members.ChatID

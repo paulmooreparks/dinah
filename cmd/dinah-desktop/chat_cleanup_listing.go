@@ -88,12 +88,21 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 	}
 	sort.Strings(known)
 	seenReferences, seenChats := map[string]bool{}, map[string]bool{}
+	// A stage is a member of its own row and of the row of every chat that
+	// continues it, so its saved conversation is read once for all of them.
+	type savedMessages struct {
+		count int
+		known bool
+	}
+	messages := map[string]savedMessages{}
 	for _, reference := range known {
 		if reference == "" || seenReferences[reference] {
 			continue
 		}
 		seenReferences[reference] = true
-		membership, resolveErr := logicalChatMembersFromSettings(settings, reference)
+		// A row has what removing it takes, which includes the chat's earlier
+		// stages (chatWithEarlierStages).
+		membership, resolveErr := chatWithEarlierStages(settings, heads, reference)
 		if resolveErr != nil {
 			listing.Rows = append(listing.Rows, ChatCleanupRow{SessionID: reference, SessionIDs: []string{reference}, Title: settings.SessionTitles[reference], Refusal: resolveErr.Error(), ProgramCopies: []ChatProgramCopy{}})
 			continue
@@ -182,12 +191,20 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 			if at := a.recordedActivity(member); cleanupActivityAfter(at, row.LastActivity) {
 				row.LastActivity = at
 			}
-			if tr, readErr := readTranscript(member); readErr == nil && !tr.Deleted {
-				for _, m := range tr.Messages {
-					if m.Role == "you" || m.Role == "agent" {
-						row.MessageCount++
+			saved, read := messages[member]
+			if !read {
+				if tr, readErr := readTranscript(member); readErr == nil && !tr.Deleted {
+					saved.known = true
+					for _, m := range tr.Messages {
+						if m.Role == "you" || m.Role == "agent" {
+							saved.count++
+						}
 					}
 				}
+				messages[member] = saved
+			}
+			if saved.known {
+				row.MessageCount += saved.count
 			} else {
 				row.MessageCountKnown = false
 			}

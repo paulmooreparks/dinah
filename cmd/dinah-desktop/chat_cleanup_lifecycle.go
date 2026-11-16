@@ -11,6 +11,7 @@ import (
 
 	"studio/internal/acp"
 	"studio/internal/bus"
+	"studio/internal/sessionhost"
 )
 
 type chatCleanupAcceptanceHooks struct {
@@ -59,7 +60,7 @@ func (a *App) stageChatCleanup(id string) error {
 	if err := a.captureRuntimeInventory(); err != nil {
 		return err
 	}
-	membership, err := a.logicalChatMembers(id)
+	membership, err := a.chatRemovalMembers(id)
 	if err != nil {
 		return refuseChatCleanup(err.Error())
 	}
@@ -67,11 +68,19 @@ func (a *App) stageChatCleanup(id string) error {
 	if err != nil {
 		return err
 	}
+	// The row is the one the listing built for this membership. An earlier
+	// stage is also among the identities of the chat that continues it, so a
+	// search of each row's identities could find that chat's row instead.
 	var row *ChatCleanupRow
-	for _, candidate := range listing.Rows {
-		if candidate.SessionID == id || slices.Contains(candidate.SessionIDs, id) {
-			v := candidate
-			row = &v
+	for _, wanted := range []string{membership.Head, id, membership.ChatID} {
+		for _, candidate := range listing.Rows {
+			if candidate.SessionID == wanted {
+				v := candidate
+				row = &v
+				break
+			}
+		}
+		if row != nil {
 			break
 		}
 	}
@@ -147,7 +156,8 @@ func (a *App) stageChatCleanup(id string) error {
 	}
 	group := row.SessionID
 	if err = a.updateSettings(func(s *Settings) error {
-		current, err := logicalChatMembersFromSettings(*s, id)
+		_, headers := sessionhost.ConversationLinks(configDir())
+		current, err := chatWithEarlierStages(*s, headers, id)
 		if err != nil {
 			return err
 		}

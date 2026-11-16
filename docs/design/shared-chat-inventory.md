@@ -24,7 +24,13 @@ Two cases keep an earlier stage out of the lists or in them on purpose. When the
 
 Removing a chat by its identity still accepts an earlier stage (`savedChatsWithStages`). A stage from an older build can have its own queue on the bus, and when its messages cannot be routed to the newer stage's queue, the person removes that stage alone from the notice about it.
 
-Two things are known to be unfinished. Removing a chat takes only the stages its bindings link, so stages linked only by their saved conversations stay on disk, and they would be listed again once the newest stage's saved conversation is finally deleted. An earlier stage from an older build also keeps its own registration on the bus, so several registrations can share one title.
+Removing a chat takes its earlier stages with it (`chatWithEarlierStages` in `chat_earlier_stages.go`). The members of a removal are the chat's own members followed upward through the parents recorded in the saved conversations, oldest first, and every one of them gets the removal record, goes into the same Recycle Bin entry, comes back on restore, and is erased at final deletion. Without this an earlier stage was listed as a chat again as soon as the saved conversation that continued it had moved to the Recycle Bin, because nothing in place continued it any longer. The row in Clean Up Chats covers the same members, so its message count, its program copies and its refusals (a pin on an earlier stage, a team that an earlier stage's recipient leads) are those of the whole chat.
+
+Three kinds of earlier stage are not taken. A stage that another chat still goes on from stays, and the last of those chats to be removed takes it. A stage with a removal in progress or in the Recycle Bin is governed by its own record. A stage that an older build removed for good is passed over, and the stages older than it are still taken. The identity and the head of the chat do not change, and the lists and the ownership of a chat still follow the bindings alone.
+
+A saved conversation that is marked deleted is also never a row. Only a deletion by the person writes that mark, and older builds left the bus recipient or the provider's listing of such a chat in the settings, where the inventory found it and showed it with the state Unknown.
+
+One thing is known to be unfinished. An earlier stage from an older build keeps its own registration on the bus until its chat is removed, and so does a chat that an older build deleted, so several registrations can share one title.
 
 ## Durable provider observations
 
