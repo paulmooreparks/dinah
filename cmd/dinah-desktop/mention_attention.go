@@ -16,3 +16,27 @@ func (a *App) AcknowledgeMention(messageID int64) error {
 		return nil
 	})
 }
+
+func (a *App) notificationRequestIdentities(items []Notification) ([]Notification, error) {
+	needed := false
+	for _, item := range items {
+		needed = needed || item.Kind == "mention"
+	}
+	if !needed {
+		return items, nil
+	}
+	err := a.busHost().With(func(b *bus.Bus) error {
+		for i := range items {
+			if items[i].Kind != "mention" {
+				continue
+			}
+			identity, err := b.PersonRequestIdentity(context.Background(), items[i].Message)
+			if err != nil {
+				return err
+			}
+			items[i].RequestID = identity
+		}
+		return nil
+	})
+	return items, err
+}

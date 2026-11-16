@@ -6,6 +6,19 @@ import (
 	"errors"
 )
 
+// PersonRequestIdentity reads the authoritative structured source, including
+// closed requests. Notification routing must not depend on a list projection.
+func (b *Bus) PersonRequestIdentity(ctx context.Context, id int64) (string, error) {
+	var exists bool
+	if err := b.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM person_requests WHERE message_id=?)`, id).Scan(&exists); err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", nil
+	}
+	return decisionIdentity("request", id), nil
+}
+
 // AcknowledgeMention is the person's exact-message navigation acknowledgement.
 // It changes attention metadata only and refuses structured requests.
 func (b *Bus) AcknowledgeMention(ctx context.Context, id int64) error {

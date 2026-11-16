@@ -12,6 +12,8 @@ The watcher excludes acknowledged messages from new notification capture and cle
 
 The trusted page calls acknowledgement only after exact-message navigation succeeds. The host does not infer arrival from background read receipts, current focus or chat titles. Front End is responsible for observed arrival and marking; the host accepts the person's explicit window action. The page must retain the notification on a failed open.
 
+Front End found that structured requests also use kind mention on their existing cards (10175). The additive requestId now comes directly from person_requests during live capture and every saved Notifications read. Old saved cards are enriched from that source without rewriting chat records or trusting a saved string. A source read failure propagates rather than classifying the request as plain. The Notifications store lock is released after its detached read and before bus lookup. The new actual live-event and old-card control passes without consulting the Decisions index.
+
 ## Existing expectation changes
 
 The original focused receipt is retained privately as dinah-mention-boundary-initial.jsonl. It records the former plain-answer-origin test indexing an empty receipt list, and DecisionEntriesReuseDurableAttention expecting a second Decisions row for a mention. These are authorized behavior changes under Paul's ruling, not weakened receiving assertions.
@@ -31,4 +33,8 @@ The existing org_chart_acceptance/startup_page_acceptance fixture supplies isola
 
 The seed control validates fixture chat and group identities. It rejects arbitrary identities. Existing fixture Control and Snapshot retain their separate uses. The page binding must record its raw requests/results, source commit, tagged binary hash, navigation timing and actual DOM target rather than treating these ports as a substitute for rendered evidence. Legacy/typed question positives can use the existing real typed-question fixture; no task mutation is added by this host change.
 
-The initial tagged seed/acknowledgement/restart test passes with race/all-vet in 3.507 seconds. It proves that two plain mentions, a structured request and an unaddressed group message enter the actual stores; invalid acknowledgements fail, the acknowledged card stays cleared after a real App restart, and the other mention and request remain. The expanded forwarding control and ten repetitions are running. Full package receiving and the unchanged 18-case independent gate remain pending. No merge, push or installation is claimed.
+The initial tagged seed/acknowledgement/restart test passes with race/all-vet in 3.507 seconds. It proves that two plain mentions, a structured request and an unaddressed group message enter the actual stores; invalid acknowledgements fail, the acknowledged card stays cleared after a real App restart, and the other mention and request remain.
+
+The expanded ten-repeat command stalled during a receiving restart, leaving an incomplete JSON record. It exceeded its internal timeout without a usable traceback. Its verified owned process tree was stopped, and the queued broad gate was cancelled before starting. That run remains failed evidence in dinah-mention-final-repeats.jsonl; it cannot be replaced by the earlier pass. No cause is inferred from the incomplete output.
+
+The DTO and expanded forwarding control pass together once with race/all-vet and explicit runtime/debug crash capture in 12.065 seconds, exit zero. The crash file for that process is empty. The receipt is dinah-mention-dto-diagnostic.jsonl. A diagnostic ten-repeat run is now active on the final source. Full package receiving and the unchanged 18-case independent gate remain pending. No merge, push or installation is claimed.

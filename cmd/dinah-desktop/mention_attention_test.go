@@ -104,3 +104,65 @@ func TestGroupReplyClearsMentionsAndPreservesStructuredRequests(t *testing.T) {
 		t.Fatal("group reply altered the structured request", entries, err)
 	}
 }
+
+func TestMentionNotificationsCarryAuthoritativeRequestIdentity(t *testing.T) {
+	a, _, me, group, _, _ := mentionRig(t)
+	pass(t, a)
+	live := []Notification{}
+	prior := a.sink
+	a.sink = func(name string, value any) {
+		if name == "notifications:added" {
+			live = append(live, value.(Notification))
+		}
+		if prior != nil {
+			prior(name, value)
+		}
+	}
+	chatSays(t, a, me, group, "Invented plain mention", bus.Human)
+	var request bus.Decision
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		var err error
+		request, err = b.AskPerson(context.Background(), me, bus.AskPersonInput{OperationID: "identity-request", Group: "#" + group, Questions: []bus.PersonQuestion{{Number: 1, Text: "Proceed?", Recommendation: "Wait."}}})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pass(t, a)
+	if len(live) != 2 {
+		t.Fatal("missing actual live notifications", live)
+	}
+	for _, item := range live {
+		if item.Message == request.MessageID && item.RequestID != request.ID {
+			t.Fatal("live structured request lost its identity", item)
+		}
+		if item.Message != request.MessageID && item.RequestID != "" {
+			t.Fatal("plain mention became a request", item)
+		}
+	}
+	// Preserve an old persisted card with no added field. Its source decides
+	// routing on every read, independently of the Decisions index.
+	notificationStoreMu.Lock()
+	store, err := readNotifications()
+	if err == nil {
+		for i := range store.Items {
+			store.Items[i].RequestID = ""
+		}
+		err = writeNotifications(store)
+	}
+	notificationStoreMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := a.Notifications()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range items {
+		if item.Message == request.MessageID && item.RequestID != request.ID {
+			t.Fatal("saved old request card was misclassified", item)
+		}
+		if item.Message != request.MessageID && item.RequestID != "" {
+			t.Fatal("saved plain mention became a request", item)
+		}
+	}
+}

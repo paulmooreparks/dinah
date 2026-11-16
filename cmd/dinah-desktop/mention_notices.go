@@ -51,6 +51,11 @@ func (a *App) noticeMentions(ctx context.Context, b *bus.Bus) {
 	complete := true
 	for _, m := range mentions {
 		item := mentionCard(m)
+		item.RequestID, err = b.PersonRequestIdentity(ctx, m.ID)
+		if err != nil {
+			complete = false
+			break
+		}
 		item.SessionID = a.chatOfBus(m.FromSession)
 		saved, created, err := a.saveNotification(item)
 		if err != nil {
