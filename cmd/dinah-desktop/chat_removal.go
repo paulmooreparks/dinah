@@ -24,6 +24,11 @@ func (a *App) removedChat(id string) bool {
 	return ok
 }
 
+// ChatRemoved says whether a chat is in the Recycle Bin or deleted. The page
+// asks when a window of its saved layout cannot be opened: a window of a chat
+// that is gone is closed without a word, and any other failure is reported.
+func (a *App) ChatRemoved(id string) bool { return a.removedChat(id) }
+
 func (a *App) finishChatRemoval(id string) error {
 	a.mu.Lock()
 	record, ok := a.settings.RemovedChats[id]

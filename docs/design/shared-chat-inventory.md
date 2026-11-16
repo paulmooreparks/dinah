@@ -44,7 +44,15 @@ Three kinds of earlier stage are not taken. A stage that another chat still goes
 
 A saved conversation that is marked deleted is also never a row. Only a deletion by the person writes that mark, and older builds left the bus recipient or the provider's listing of such a chat in the settings, where the inventory found it and showed it with the state Unknown.
 
-One thing is known to be unfinished. An earlier stage from an older build keeps its own registration on the bus until its chat is removed, and so does a chat that an older build deleted, so several registrations can share one title.
+## Addresses of chats that are gone
+
+Builds before a switch moved a chat's bus recipient to its new session, and before a removal took every stage of a chat, left recipients behind: each earlier stage of a switched chat kept one of its own, and so did a chat that an older build deleted. They shared their titles with live chats, so a chat could not be addressed by its title, and a message sent to one waited for a session that would never read it.
+
+Each start retires them (`retireStaleAddresses` in `stale_addresses.go`). A recipient is stale only when every session that owns it is an earlier stage of a listed chat whose newest stage has a recipient of its own, a session whose saved conversation is marked deleted or whose removal is finished for good, or a stage of a chat whose newest stage is one of those. A recipient that a listed chat's newest stage owns, that an open chat is joined to, or that a hidden chat with a saved conversation owns is never stale, and one that no chat in the settings owns is left alone, because it was registered from outside the window. Retiring withdraws the address the way a chat's removal does (`bus.BinRecipient`): it takes no new message and is in no list, its queue is kept, and `bus.RestoreRecipient` brings it back. Each retirement is logged as a warning, so it is on record at the default log level.
+
+A window of the saved layout can be of a chat that has since gone to the Recycle Bin, when it was saved under another spelling of the chat's folder and so was not closed with the chat. Opening it failed at every start with "this chat was removed". The page now asks the host whether the chat is gone (`ChatRemoved`) and closes such a window without reporting anything.
+
+One thing is known to be unfinished. A hidden chat that continues no listed chat still has its saved conversation and its recipient, and can still be woken by a message. Older builds hid such chats where the person had asked for them to be deleted.
 
 ## Durable provider observations
 

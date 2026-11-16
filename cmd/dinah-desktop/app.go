@@ -309,6 +309,9 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.repinContinuedChats(); err != nil {
 		logf("chat", "error", "moving chat pins to their chats' newest stages: %v", err)
 	}
+	if err := a.retireStaleAddresses(); err != nil {
+		logf("bus", "error", "retiring the addresses of chats that are gone: %v", err)
+	}
 	go a.watchChatCleanup(ctx)
 	a.nameContinuations()
 	// A chat deleted or continued while it was not running has queued messages that

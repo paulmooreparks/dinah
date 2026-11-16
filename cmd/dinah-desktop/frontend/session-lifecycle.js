@@ -38,7 +38,21 @@
           });
         }
         return openResolvedSession(head || id, reveal);
-      }).catch(function (error) { fail(error); return null; });
+      }).catch(function (error) {
+        /* A window of the saved layout can be of a chat that has since gone
+           to the Recycle Bin: one saved under another spelling of its folder
+           was not closed with the chat, and every start tried to open it and
+           reported "this chat was removed". The host says whether the chat is
+           gone; its windows then close and nothing is reported. */
+        return Promise.resolve(app().ChatRemoved ? app().ChatRemoved(id) : false).then(function (gone) {
+          if (!gone) { fail(error); return null; }
+          if (window.pudlWindows && window.dinahWorkbench) window.pudlWindows.state().open.forEach(function (key) {
+            var item = window.dinahWorkbench.item(key);
+            if (item && item.kind === 'chat-session' && item.path === id) window.pudlWindows.close(key);
+          });
+          return null;
+        }, function () { fail(error); return null; });
+      });
       return openResolvedSession(id, reveal);
     }
     // Recovery reviews this recipient's saved history without following a
