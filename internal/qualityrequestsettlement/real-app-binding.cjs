@@ -44,7 +44,11 @@ function canonical(raw, source) {
 }
 function logical(raw) {
   const c = completion(raw);
-  if (!c) return [];
+  if (!c) {
+    if(raw.source.status==='answered' && raw.operationReceipt?.disposition==='answered')return [{outcome:'answered',hasAnswer:operation(raw).hasAnswer}];
+    if(raw.source.status==='answered')return rows(raw,'decision_operations').map(r=>JSON.parse(r.receipt)).filter(r=>r.id===raw.source.id&&r.state==='committed'&&r.closed).map(r=>({outcome:'answered',hasAnswer:true,messageIds:r.messageIds}));
+    return [];
+  }
   return [{outcome:c.outcome,recipient:c.recipient || '',hasAnswer:Object.hasOwn(c,'answer')}];
 }
 function notices(raw) {
@@ -63,7 +67,7 @@ function operation(raw) {
 }
 
 exports.open = async function(spec) {
-  if (spec.scenario !== 'settle') throw new Error('Receiving scenario remains unbound: '+spec.scenario);
+  if (!['settle','concurrent-settlement'].includes(spec.scenario)) throw new Error('Receiving scenario remains unbound: '+spec.scenario);
   const binary = process.env.QUALITY_REQUEST_SETTLEMENT_BINARY;
   const sourceCommit = process.env.QUALITY_REQUEST_SETTLEMENT_SOURCE;
   if (!binary || !sourceCommit) throw new Error('Set QUALITY_REQUEST_SETTLEMENT_BINARY and QUALITY_REQUEST_SETTLEMENT_SOURCE');
@@ -106,8 +110,12 @@ exports.open = async function(spec) {
       const beforeRaw=await call('inspect',{id:seeded.id});
       const operationId='frozen-original-settlement';
       const input={id:seeded.id,revision:seeded.revision,operationId};
-      const result=await call(spec.outcome==='dismissed'?'dismiss':'withdraw',input);
-      const receipt=spec.outcome==='dismissed'?result:JSON.parse(result.OutputJSON);
+      let receipt, race;
+      if(spec.scenario==='concurrent-settlement')race=await call('race',input);
+      else {
+        const result=await call(spec.outcome==='dismissed'?'dismiss':'withdraw',input);
+        receipt=spec.outcome==='dismissed'?result:JSON.parse(result.OutputJSON);
+      }
       if(spec.source.startsWith('task-'))await call('wait',{id:seeded.id});
       await call('reconcile');
       const afterRaw=await call('inspect',{id:seeded.id});
@@ -118,6 +126,26 @@ exports.open = async function(spec) {
         before:canonical(beforeRaw,spec.source),after:canonical(afterRaw,spec.source),seed:{askingChat:owner(beforeRaw)},
         answerDeliveries,logicalCompletions:logical(afterRaw),chatNotices:notices(afterRaw),
         unrelatedBefore,unrelatedAfter,...afterRaw.observations};
+      if(race) {
+        evidence.commands=race.commands;
+        evidence.responses=race.responses.map(r=>{
+          const value=r.result?.OutputJSON?JSON.parse(r.result.OutputJSON):r.result;
+          const accepted=!r.error && (r.command==='Answer' && value===null || value?.state==='committed');
+          let code=r.errorCode || value?.code || value?.reason?.code;
+          // Canonical settlement names unify the existing legacy closed codes;
+          // the unmodified responses stay in binding-calls.jsonl.
+          if(code==='decision_closed' || r.command==='Answer' && code==='stale' && afterRaw.source.status!=='open')code='request_closed';
+          return {command:r.command,accepted,outcome:accepted?(r.command==='Answer'?'answered':value.outcome):undefined,code};
+        });
+        if(race.unsupportedAnswer)evidence.unsupportedAnswer={accepted:!race.unsupportedAnswer.error&&race.unsupportedAnswer.result?.state==='committed',authorityGranted:beforeRaw.source.commands.some(c=>c.name==='Answer'&&c.enabled),sideEffects:rows(afterRaw,'decision_answer_origins').filter(r=>!rows(beforeRaw,'decision_answer_origins').some(b=>b.message_id===r.message_id)).length};
+        evidence.terminalRecords=afterRaw.source.status==='open'?[]:[evidence.after.record];
+        evidence.repeatRequests=Math.max(0,rows(afterRaw,'person_requests').length-rows(beforeRaw,'person_requests').length)+afterRaw.observations.questionReplayCount;
+        const restart=await call('restart');
+        if(restart && restart.accepted===false)throw new Error('Actual restart refused');
+        const restarted=await call('inspect',{id:seeded.id});
+        evidence.afterRestart={record:canonical(restarted,spec.source).record,completions:logical(restarted)};
+        evidence.questionReplayCount=restarted.observations.questionReplayCount;
+      }
       if(spec.source.startsWith('task-')) {
         evidence.waiter={released:afterRaw.waiterReleased,disposition:afterRaw.operationReceipt.disposition,hasAnswer:operation(afterRaw).hasAnswer};
         evidence.operationReceipt=operation(afterRaw);

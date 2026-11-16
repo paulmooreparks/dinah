@@ -229,6 +229,12 @@ func (x *requestSettlementFixture) call(method string, raw json.RawMessage) (any
 			return nil, err
 		}
 		return a.DismissRequest(in)
+	case "race":
+		var in requestsettlement.Input
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		return x.race(in)
 	case "withdraw", "withdrawal-outcome":
 		bundle, err := a.requestSettlementBundle()
 		if err != nil {

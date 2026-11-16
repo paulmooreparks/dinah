@@ -50,7 +50,7 @@ func (x *requestSettlementFixture) inspect(id string) (map[string]any, error) {
 	}
 	defer tx.Rollback()
 	tables := map[string]any{}
-	for _, table := range []string{"messages", "deliveries", "person_requests", "decision_answer_origins", "request_settlements", "request_completion_obligations", "request_settlement_operations", "host_results"} {
+	for _, table := range []string{"messages", "deliveries", "person_requests", "decision_operations", "decision_answer_origins", "request_settlements", "request_completion_obligations", "request_settlement_operations", "host_results"} {
 		rows, err := tx.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
 		if err != nil {
 			return nil, err
