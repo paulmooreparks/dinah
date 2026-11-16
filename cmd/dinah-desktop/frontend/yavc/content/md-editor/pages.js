@@ -263,6 +263,27 @@
             });
         });
     }
+    function closePrintTables(sheet,d){
+        var origin=sheet.getBoundingClientRect();
+        sheet.querySelectorAll('table[data-doc-cut-end]').forEach(function(table){var rect=table.getBoundingClientRect(),rule=sheet.ownerDocument.createElement('div'),cell=table.rows[table.rows.length-1].cells[0];rule.className='doc-table-cut-border';rule.setAttribute('aria-hidden','true');rule.style.cssText='position:absolute;pointer-events:none;box-sizing:border-box;left:'+(rect.left-origin.left)+'px;top:'+(d.height-d.bottom)+'px;width:'+rect.width+'px;border-top:'+getComputedStyle(cell).borderBottom+';';sheet.append(rule);});
+    }
+    var fittedTables=new WeakMap();
+    function fitTables(flow,drawingsOnly){
+        flow.querySelectorAll('table').forEach(function(table){if(table.closest('.doc-page-gap,.doc-gap-cap')||drawingsOnly&&!table.closest('.pm-source'))return;
+            var parent=table.parentElement,css=getComputedStyle(parent),host=table.closest('.doc-paginated'),scale=host?Number(host.style.zoom)||1:1,available=parent.clientWidth-(parseFloat(css.paddingLeft)||0)-(parseFloat(css.paddingRight)||0),owners=new Set(),hash=0,walker=document.createTreeWalker(table,NodeFilter.SHOW_TEXT),text;
+            for(var node=table;node;node=node.parentElement)(node.getAttribute('data-md-style')||'').split(/\s+/).filter(Boolean).forEach(function(owner){owners.add(owner);});
+            while((text=walker.nextNode())){if(text.parentElement.closest('.doc-page-gap,.doc-gap-cap'))continue;for(var i=0;i<text.data.length;i++)hash=(hash*31+text.data.charCodeAt(i))|0;}
+            var context=available+'|'+getComputedStyle(table).font+'|'+document.fonts.status+'|'+hash+'|'+Array.from(table.querySelectorAll('img')).map(function(img){return img.src+':'+img.naturalWidth+':'+img.naturalHeight;}).join('|')+'|'+Array.from(document.querySelectorAll('style[data-md-style-owner]')).filter(function(style){return owners.has(style.getAttribute('data-md-style-owner'));}).map(function(style){return style.textContent;}).join('\n');
+            var entry=fittedTables.get(table);if(entry&&entry.context===context)return;
+            if(!entry){entry={width:table.style.getPropertyValue('width'),widthPriority:table.style.getPropertyPriority('width'),layout:table.style.getPropertyValue('table-layout'),layoutPriority:table.style.getPropertyPriority('table-layout')};fittedTables.set(table,entry);}entry.context=context;
+            var old=table.querySelector(':scope > colgroup[data-doc-fit-columns]');if(old){old.remove();table.classList.remove('doc-table-constrained');if(entry.width)table.style.setProperty('width',entry.width,entry.widthPriority);else table.style.removeProperty('width');if(entry.layout)table.style.setProperty('table-layout',entry.layout,entry.layoutPriority);else table.style.removeProperty('table-layout');}
+            if(table.querySelector(':scope > colgroup'))return;
+            var rect=table.getBoundingClientRect();if(rect.width/scale<=available+.5)return;
+            var cells=table.rows[0]&&Array.from(table.rows[0].cells);if(!cells||!cells.length)return;
+            table.classList.add('doc-table-constrained');table.style.width=available+'px';table.style.tableLayout='auto';
+            var widths=cells.map(function(cell){return cell.getBoundingClientRect().width/scale;}),cols=document.createElement('colgroup');cols.setAttribute('data-doc-fit-columns','');widths.forEach(function(width){var col=document.createElement('col');col.style.width=width+'px';cols.append(col);});table.prepend(cols);table.style.tableLayout='fixed';
+        });
+    }
     /* A frame that a page gap runs through is drawn as pieces (docs/host-shortcodes-contract.md, "Long shortcodes across pages"). The frame stays one
        element, marked data-sc-piece="first", with "only" on a frame no gap runs through. Each gap inside it holds two caps, shells cloned from the
        frame with nothing in them and marked "first" or "middle" above the gap and "middle" or "last" below it, which carry the frame's own styling for
@@ -303,6 +324,8 @@
                     head.append(copy);
                 });
                 gap.append(cover, cap('end', index === 0 ? 'first' : 'middle'), head);
+                // The continuation frame encloses the repeated table header as well as its own padding and title.
+                var tableHeader=gap.querySelector('.doc-cell-repeated-header');if(tableHeader){head.style.height=((head.getBoundingClientRect().height+tableHeader.getBoundingClientRect().height)/scale)+'px';}
             });
         });
     }
@@ -313,7 +336,8 @@
         if(gap.header&&block.headerRows.length){
             var space=document.createElement('span');space.className='doc-cell-page-space';space.style.display='block';space.style.height=gap.height+'px';node.style.height='auto';if(!exhausted)node.append(space);
             var header=document.createElement('span');header.className='doc-cell-repeated-header';header.style.height=gap.header+'px';
-            block.headerRows.forEach(function(row){var cell=row.cells[column];if(!cell)return;var copy=cell.cloneNode(true);copy.querySelectorAll('.doc-page-gap,.doc-gap-cap,.doc-gap-cover').forEach(function(item){item.remove();});copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(function(item){item.removeAttribute('id');});copy.querySelectorAll('a,button,input,select,textarea,[tabindex]').forEach(function(item){item.setAttribute('tabindex','-1');if('disabled' in item)item.disabled=true;});header.append.apply(header,Array.from(copy.childNodes));});node.append(header);
+            // Reserve the measured height without putting repeated titles into the row's own text.
+            node.append(header);
         }
         if(exhausted){
             node.style.position='absolute';node.style.top=gap.rowHeaderTop+'px';node.style.left='0';node.style.width='100%';node.style.height=(gap.header||0)+'px';
@@ -334,7 +358,7 @@
     // The editable cells remain whole. Page furniture covers their paint between the last line of a piece and its next repeated header.
     function paintRowBreaks(flow,d){
         var page=flow.closest('.doc-paginated'),scale=Number(page.style.zoom)||1,origin=page.getBoundingClientRect(),groups=new Map();
-        page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();});
+        page.querySelectorAll('.doc-table-gap-cover,.doc-row-header-layer,.doc-table-cut-border').forEach(function(node){node.remove();});
         flow.querySelectorAll('[data-row-header-top]').forEach(function(gap){var key=gap.getAttribute('data-page-gap-key'),group=groups.get(key);if(!group){group=[];groups.set(key,group);}group.push(gap);});
         groups.forEach(function(group){
             var row=group[0].closest('tr'),table=row&&row.closest('table');if(!table)return;
@@ -348,6 +372,20 @@
             var cover=document.createElement('div');cover.className='doc-table-gap-cover';cover.setAttribute('aria-hidden','true');cover.contentEditable='false';
             cover.style.cssText='position:absolute;pointer-events:none;z-index:1;left:'+((rect.left-origin.left)/scale-1)+'px;top:'+top+'px;width:'+(rect.width/scale+2)+'px;height:'+(bottom-top)+'px;background-color:var(--doc-page);background-image:linear-gradient(to bottom,var(--doc-page) 0,var(--doc-page) '+Math.max(0,gutter)+'px,var(--sheet-gutter,var(--surface-alt)) '+Math.max(0,gutter)+'px,var(--sheet-gutter,var(--surface-alt)) '+Math.max(0,gutter+GAP)+'px,var(--doc-page) '+Math.max(0,gutter+GAP)+'px)';
             page.append(cover);
+            // Paint one real header above the frame's covers, with the original table's column boxes and header-cell styling.
+            var layer=document.createElement('div');layer.className='doc-row-header-layer';layer.setAttribute('aria-hidden','true');layer.inert=true;layer.contentEditable='false';
+            layer.style.cssText='position:absolute;pointer-events:none;z-index:2;left:'+((rect.left-origin.left)/scale)+'px;top:'+bottom+'px;width:'+(rect.width/scale)+'px;';
+            var context=document.createElement('div');context.className='doc-page-flow';context.style.cssText='margin:0;padding:0;border:0;font:'+getComputedStyle(flow).font+';';layer.append(context);
+            var chain=[],parent=table.parentElement;while(parent&&parent!==flow){chain.unshift(parent);parent=parent.parentElement;}
+            chain.forEach(function(source){var shell=source.cloneNode(false);shell.removeAttribute('id');shell.removeAttribute('data-sc-frame');shell.removeAttribute('data-sc-piece');shell.style.cssText+=';display:block;margin:0;padding:0;border:0;background:transparent;width:100%;box-sizing:border-box;';context.append(shell);context=shell;});
+            var copy=table.cloneNode(false),body=document.createElement('tbody'),cols=document.createElement('colgroup');copy.removeAttribute('id');copy.style.cssText='table-layout:fixed;width:100%;margin:0;';copy.classList.add('doc-row-repeated-header');copy.setAttribute('data-page-gap-key',group[0].getAttribute('data-page-gap-key'));
+            var sourceRows=[];Array.from(table.rows).some(function(source){if(source.classList.contains('doc-page-gap'))return false;if(!source.cells.length||!Array.from(source.cells).every(function(cell){return cell.tagName==='TH'&&!/^(row|rowgroup)$/.test(cell.getAttribute('scope')||'');}))return true;sourceRows.push(source);return false;});
+            if(!sourceRows.length)return;
+            Array.from(sourceRows[0].cells).forEach(function(cell){var col=document.createElement('col');col.style.width=(cell.getBoundingClientRect().width/scale)+'px';cols.append(col);});
+            sourceRows.forEach(function(source){body.append(source.cloneNode(true));});copy.append(cols,body);copy.querySelectorAll('.doc-page-gap,.doc-gap-cap,.doc-gap-cover').forEach(function(node){node.remove();});copy.querySelectorAll('[id]').forEach(function(node){node.removeAttribute('id');});context.append(copy);page.append(layer);
+            // The blank band hides the live row's border, so give the cut piece its own closing rule at the content foot.
+            var sourceStyle=getComputedStyle(row.cells[0]),foot=Math.floor(top/(d.height+GAP))*(d.height+GAP)+d.height-d.bottom;
+            var rule=document.createElement('div');rule.className='doc-table-cut-border';rule.setAttribute('aria-hidden','true');rule.style.cssText='position:absolute;pointer-events:none;z-index:2;box-sizing:border-box;left:'+((rect.left-origin.left)/scale)+'px;top:'+foot+'px;width:'+(rect.width/scale)+'px;border-top:'+sourceStyle.borderBottom+';';page.append(rule);
         });
     }
     function noteGaps(layout,blocks){
@@ -426,9 +464,14 @@
             holder.className=v.dom.className;holder.setAttribute('aria-hidden','true');holder.style.cssText='position:absolute;visibility:hidden;pointer-events:none;left:-100000px;top:0;width:'+v.dom.clientWidth+'px;';
             copy.querySelectorAll('.doc-page-gap,.doc-gap-cap,.doc-gap-cover,.ProseMirror-separator,.ProseMirror-trailingBreak').forEach(function(node){node.remove();}); /* the editor's own marks for an empty cell come and go with the selection */
             copy.querySelectorAll(':scope > colgroup[data-doc-columns]').forEach(function(node){node.remove();});
+            copy.classList.remove('doc-table-constrained');
             copy.removeAttribute('style');copy.querySelectorAll('td,th').forEach(function(cell){cell.removeAttribute('style');});
-            holder.append(copy);parent.append(holder);
-            try{var row=copy.rows[0];if(!row)return null;return {width:copy.getBoundingClientRect().width/scale,cells:Array.from(row.cells).map(function(cell){return cell.getBoundingClientRect().width/scale;})};}
+            // Keep ancestor widths and selectors, including a frame's content padding, when measuring outside the live table.
+            var ancestors=[],ancestor=table.parentElement,container=holder;while(ancestor&&ancestor!==v.dom){ancestors.unshift(ancestor);ancestor=ancestor.parentElement;}
+            ancestors.forEach(function(source){var shell=source.cloneNode(false);shell.removeAttribute('id');container.append(shell);container=shell;});container.append(copy);parent.append(holder);
+            try{var row=copy.rows[0];if(!row)return null;var css=getComputedStyle(container),available=(container.clientWidth-(parseFloat(css.paddingLeft)||0)-(parseFloat(css.paddingRight)||0)),width=copy.getBoundingClientRect().width/scale,cells=Array.from(row.cells).map(function(cell){return cell.getBoundingClientRect().width/scale;});
+                var constrained=width>available+.5;if(constrained){copy.classList.add('doc-table-constrained');copy.style.width=available+'px';width=copy.getBoundingClientRect().width/scale;cells=Array.from(row.cells).map(function(cell){return cell.getBoundingClientRect().width/scale;});}
+                return {width:width,cells:cells,constrained:constrained};}
             finally{holder.remove();}
         }
         /* The table's column elements, which a fixed layout reads before it reads any row (CSS 2.1, 17.5.2.1), one for each measured column. A table that has
@@ -463,6 +506,7 @@
             document.fonts.ready.then(function(){waiting=false;if(!alive)return;if(rememberLoadedFonts(waitingFonts))tableCache.widths=new WeakMap();waitingFonts.clear();seenDoc=null;schedule(v);});
         }
         function measureTables(v,scale){
+            fitTables(v.dom,true);
             var owners=new Set();for(var ancestor=v.dom;ancestor;ancestor=ancestor.parentElement){(ancestor.getAttribute('data-md-style')||'').split(/\s+/).filter(Boolean).forEach(function(owner){owners.add(owner);});}
             var context=v.dom.clientWidth+'|'+getComputedStyle(v.dom).font+'|'+Array.from(document.querySelectorAll('style[data-md-style-owner]')).filter(function(style){return owners.has(style.getAttribute('data-md-style-owner'));}).map(function(style){return style.textContent;}).join('\n');
             if(tableCache.context!==context){tableCache.context=context;tableCache.widths=new WeakMap();}
@@ -487,7 +531,7 @@
                 var values=measures.get(table);
                 if(!values)return;
                 function range(node){var parent=node.parentNode,index=Array.prototype.indexOf.call(parent.childNodes,node);return [v.posAtDOM(parent,index),v.posAtDOM(parent,index+1)];}
-                var span=range(table);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{style:'table-layout:fixed;width:'+values.width+'px;'}));
+                var span=range(table);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{class:values.constrained?'doc-table-constrained':'',style:'table-layout:fixed;width:'+values.width+'px;'}));
                 Array.from(first.cells).forEach(function(cell,index){var span=range(cell);if(span[1]>span[0])decorations.push(PM.Decoration.node(span[0],span[1],{style:'width:'+values.cells[index]+'px;'}));});
             });return decorations;
         }
@@ -497,7 +541,7 @@
                 raf = 0; if (!alive || v.isDestroyed) { return; }
                 var page = o.pagination && o.pagination();
                 if (!page || !v.dom.isConnected) {
-                    o.page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();});
+                    o.page.querySelectorAll('.doc-table-gap-cover,.doc-row-header-layer,.doc-table-cut-border').forEach(function(node){node.remove();});
                     release();
                     if (signature) { signature = ''; if (o.syncSelection) { o.syncSelection(); } v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
                     return;
@@ -547,11 +591,11 @@
                 /* A change of width is real input. A change of height is the page's own, since the page makes it each time it lays out. */
                 var ro = new ResizeObserver(function (entries) { var width = entries.length ? entries[entries.length - 1].contentRect.width : lastWidth; if (Math.abs(width - lastWidth) > .5) { lastWidth = width; seenDoc = null; } else if (sizeOf(v.dom) === ownSize) { return; } schedule(v); }); ro.observe(v.dom);
                 /* A picture or a font that arrives is real input, and one that the page's own gaps draw again (the copy of a repeated header) is not. It also changes how a table lays out by its content, so the measures of the tables are taken again. */
-                function loaded(e) { if (e && e.target && e.target.closest && e.target.closest('.doc-page-gap')) { return; } if(e&&e.type==='loadingdone'&&!rememberLoadedFonts(e.fontfaces||[]))return;tableCache.widths=new WeakMap();seenDoc=null;schedule(v); }
+                function loaded(e) { if (e && e.target && e.target.closest && e.target.closest('.doc-page-gap')) { return; } if(e&&e.type==='loadingdone'&&!rememberLoadedFonts(e.fontfaces||[]))return;v.dom.querySelectorAll('.pm-source table').forEach(function(table){var fit=fittedTables.get(table);if(fit)fit.context=null;});tableCache.widths=new WeakMap();seenDoc=null;schedule(v); }
                 v.dom.addEventListener('load', loaded, true); document.fonts.addEventListener('loadingdone', loaded); schedule(v);
-                return { update: function () { schedule(v); }, destroy: function () { alive = false; cancelAnimationFrame(raf); raf = 0; ro.disconnect(); o.page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();}); v.dom.removeEventListener('load', loaded, true); document.fonts.removeEventListener('loadingdone', loaded); } };
+                return { update: function () { schedule(v); }, destroy: function () { alive = false; cancelAnimationFrame(raf); raf = 0; ro.disconnect(); o.page.querySelectorAll('.doc-table-gap-cover,.doc-row-header-layer,.doc-table-cut-border').forEach(function(node){node.remove();}); v.dom.removeEventListener('load', loaded, true); document.fonts.removeEventListener('loadingdone', loaded); } };
             }
         });
     }
-    window.yavcDocumentPages = { paper: '--doc-size:11pt;--doc-ink:#202124;--doc-muted:#555555;--doc-accent:#2355a0;--doc-page:#ffffff;--doc-rule:#cfd4da;--doc-code:#e4e7eb;--doc-warning:#b86e1c;--doc-danger:#b42318;--doc-positive:#2e7d4f;', lookup: paper, length: length, settings: settings, properties: properties, dimensions: dimensions, surface: surface, plan: plan, blocks: blocksOf, spacer: spacer,noteFragment:noteFragment,preview: preview, plugin: plugin, tagFrames: tagFrames, printPieces: printPieces };
+    window.yavcDocumentPages = { paper: '--doc-size:11pt;--doc-ink:#202124;--doc-muted:#555555;--doc-accent:#2355a0;--doc-page:#ffffff;--doc-rule:#cfd4da;--doc-code:#e4e7eb;--doc-warning:#b86e1c;--doc-danger:#b42318;--doc-positive:#2e7d4f;', lookup: paper, length: length, settings: settings, properties: properties, dimensions: dimensions, surface: surface, plan: plan, blocks: blocksOf, spacer: spacer,noteFragment:noteFragment,preview: preview, plugin: plugin, tagFrames: tagFrames, printPieces: printPieces,closePrintTables:closePrintTables,fitTables:fitTables };
 })();

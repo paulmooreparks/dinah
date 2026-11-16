@@ -166,6 +166,7 @@
             Array.from(row.cells).forEach(function (cell) { var column = document.createElement('col'); column.style.width = cell.getBoundingClientRect().width / zoom + 'px'; columns.append(column); });
             table.querySelectorAll(':scope > colgroup').forEach(function (group) { group.remove(); });
             table.prepend(columns); table.style.tableLayout = 'fixed'; table.style.width = original.getBoundingClientRect().width / zoom + 'px';
+            if(last&&last.rowNode&&original.contains(last.rowNode)&&last.band)table.setAttribute('data-doc-cut-end','');
         });
         return output;
     }

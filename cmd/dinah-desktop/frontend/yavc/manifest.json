@@ -1,5 +1,5 @@
 {
-  "digest": "7ebe10f4bfde5f867d037ee59e55f02e40cb6314df01aa3b48c8f66b0ddb1bcf",
+  "digest": "e1eb1ac213b7db7001d102563637b89cae71f8411bf64ff844d0c72b7ec3dbf4",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "f9ecc572c31ae62c59383c7275e6ebce054e3a2bea8b9c6e1830abe944308791"
+      "sha256": "cd83f644d36b605f7b0265f7f36b30a7e866974a2248e3ae81f0f8654bb4b225"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "1a5e4dc9c29e9c1c53a951e0d59decfb89ec11d1761637b20c9a61d201ac8e6b"
+      "sha256": "8cb2507b12208fcbe7cc135d0d228125a236f024a4c248ecf220bc7bb6f45eb4"
     },
     {
       "path": "content/editor/editor.css",
@@ -360,8 +360,8 @@
     },
     {
       "path": "content/md-editor/page-lines.js",
-      "bytes": 14950,
-      "sha256": "00b09f4124b2d5f56f9feda9f650e0e7a4dbb7bfea80527c9dcb79ecdac5cdfd"
+      "bytes": 15071,
+      "sha256": "dd08e2447dcd25e2be30d4eb09575c3c4ff4dc0236da675a3bac135880c80b64"
     },
     {
       "path": "content/md-editor/page-setup.js",
@@ -375,8 +375,8 @@
     },
     {
       "path": "content/md-editor/pages.js",
-      "bytes": 59156,
-      "sha256": "e4e987b5acab17a946603e18ae4de2153bbc41b11fa649c85c8c0dcea2693e88"
+      "bytes": 67038,
+      "sha256": "35b0f50d3d84d95238a759c3abce5b6271c6ff2a4076b52086fa003bf0da921b"
     },
     {
       "path": "content/md-editor/paper-sizes.js",
@@ -1285,8 +1285,8 @@
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 23179,
-      "sha256": "99ce9f70eba19b31537e71dc06ef45a79d3e857e178c4d286fee4fcae7364c76"
+      "bytes": 23286,
+      "sha256": "79abbf4cb4b865fe21fb6052327c9dbc02207b9fb908acfd1ec542b3c5a48388"
     },
     {
       "path": "content/md-engine/safe-html.js",
@@ -1415,8 +1415,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 290431,
-      "sha256": "14ba96bf25dbc1c2dea43f37b97b5591e13a6119b22da7cbe837ed0d9718ac8a"
+      "bytes": 290595,
+      "sha256": "601ec74c57a7242cdf3dc777311089c472eadb3054bdfac12d4be8587f8cff9d"
     },
     {
       "path": "go.mod",

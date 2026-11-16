@@ -1471,6 +1471,7 @@
                         Array.from(surface.querySelectorAll('.dinah-src[data-start],.doc-block,.dinah-block')).reverse().forEach(function (node) { node.replaceWith.apply(node, Array.from(node.childNodes)); });
                         flow.append.apply(flow, Array.from(surface.childNodes)); surface.append(flow);
                         await document.fonts.ready;
+                        P.fitTables(flow);
                         var frameTitles = P.tagFrames(flow), blocks = P.blocks(flow), layout = P.plan(blocks, page);
                         if(layout.problem)throw new Error(layout.problem);
                         if (layout.oversized) { throw new Error('A block is taller than the page. Shorten it or enlarge the page before printing.'); }
@@ -1495,6 +1496,7 @@
                         }
                         await Promise.all(Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map(function (link) { return link.sheet ? Promise.resolve() : new Promise(function (resolve, reject) { link.onload = resolve; link.onerror = function () { reject(new Error('A print stylesheet could not load.')); }; }); }));
                         await doc.fonts.ready; await Promise.all(Array.from(doc.images).map(function (img) { return img.decode(); }));
+                        doc.querySelectorAll('.doc-print-sheet').forEach(function(sheet){P.closePrintTables(sheet,d);});
                         if (!unchanged()) { frame.remove(); throw new Error('The document changed during print preparation.'); }
                         printProblem = ''; frame.contentWindow.print(); say('Print uses the document page size and margins. Turn off browser headers and footers and select the matching paper size.');
                     }

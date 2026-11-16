@@ -187,8 +187,9 @@
 .doc-paginated .doc-fragment-open-end { margin-bottom: 0 !important;padding-bottom:0!important;border-bottom-width:0!important; }
 .doc-paginated tr.doc-page-gap > td { padding: 0; border: 0; }
 .doc-paginated .doc-table-repeated-header { margin:0;pointer-events:none; }
-.doc-paginated .doc-cell-repeated-header { display:block;box-sizing:border-box;font-weight:bold;line-height:normal;background:var(--doc-code);padding-block:.2em; }
+.doc-paginated .doc-cell-repeated-header { display:block;box-sizing:border-box;font-weight:bold;line-height:normal;background:var(--doc-code);padding-block:.2em;visibility:hidden; }
 .doc-paginated :is(td,th) { position:relative; }
+.doc-paginated .doc-table-constrained :is(td,th) { min-width:0;overflow-wrap:anywhere; }
 .doc-paginated > .doc-page-flow > .doc-block { display: flow-root; }
 .doc-paginated > .doc-page-flow > .doc-block > :first-child { margin-top: 0; }
 .doc-furniture { position: absolute; inset: 0; pointer-events: none; font-size: 9pt; line-height: 1.25; color: var(--doc-muted); }
