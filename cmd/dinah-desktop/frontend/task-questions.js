@@ -1,6 +1,7 @@
 /* Task questions share one pending state across their reading surfaces. */
 (function () {
   'use strict';
+  var dismissUnavailableReason = "Dismiss isn't built yet. It arrives with the next update; until then, answer the request or leave it open.";
   var entries = new Map(), ended = new Set(), versions = new Map(), listeners = new Set();
   var clock = 0, reads = 0, cards = 0, connected = false, uiReady = false, early = new Map(), app;
   function valid(q) {
@@ -140,9 +141,10 @@
     send.type = check.type = 'button'; send.dataset.taskAnswer = ''; check.dataset.taskCheck = '';
     send.addEventListener('click', function () { answer(key); });
     check.addEventListener('click', function () { refresh().catch(function (error) { if (entries.get(key) === entry) { entry.status = window.dinahHelpers.message(error, 'sentence'); changed(key); } }); });
-    actions.append(send, check); if (!settings.embedded) content.append(status, actions); card.appendChild(content); paint(card, entry);
+    actions.append(send, check); if (!settings.embedded) { var dismiss = node('button', 'btn btn-sm', 'Dismiss'); dismiss.type = 'button'; dismiss.disabled = true; dismiss.title = dismissUnavailableReason; actions.prepend(dismiss); content.append(status, actions, node('p', 'text-muted', dismissUnavailableReason)); } card.appendChild(content); paint(card, entry);
   }
   window.dinahTaskQuestions = {
+    dismissUnavailableReason: dismissUnavailableReason,
     connect: function (adapter) {
       if (connected) return; connected = true; app = adapter.app;
       adapter.on('task:permission', asked); adapter.on('task:answered', finish);

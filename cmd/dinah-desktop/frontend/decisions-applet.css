@@ -84,7 +84,7 @@
 /* The foot. Its height is fixed, its status line has room for two lines,
    and Send keeps its label and width in every state. A change of state
    changes words and the enabled state of a button, never the layout. */
-.decisions-foot { flex: none; display: flex; align-items: center; gap: var(--space-3); height: 4.25rem; box-sizing: border-box; padding: 0 var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
+.decisions-foot { flex: none; display: flex; align-items: center; gap: var(--space-3); height: 6.5rem; box-sizing: border-box; padding: 0 var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
 .decisions-foot-status { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); max-height: 3em; overflow: hidden; margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--text-muted); }
 .decisions-foot-status .glyph { flex: none; --glyph-size: 16px; }
 .decisions-foot-status[data-tone="warn"] { color: var(--text); }
@@ -92,7 +92,7 @@
 .decisions-foot-status[data-tone="danger"] { color: var(--text); }
 .decisions-foot-status[data-tone="danger"] .glyph { color: var(--danger); }
 .decisions-foot-status[data-tone="positive"] .glyph { color: var(--positive); }
-.decisions-foot-actions { flex: none; display: flex; gap: var(--space-2); }
+.decisions-foot-actions { flex: none; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 30rem; }
 .decisions-foot-actions .btn-primary { min-width: 9rem; }
 
 /* Nothing waiting: one empty state across the whole window, with no list
@@ -118,7 +118,7 @@
   /* On a phone the foot has one fixed height in every state: the status line, then room
      for two rows of buttons, since Check Send Result or I Have Read the Change can join
      Dismiss and Send. Nothing above it moves when a third button appears. */
-  .decisions-foot { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: var(--space-2) var(--space-3); gap: var(--space-2); height: 9.75rem; }
+  .decisions-foot { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: var(--space-2) var(--space-3); gap: var(--space-2); height: 13rem; }
   .decisions-foot-status { flex: none; height: 3em; align-items: flex-start; }
   .decisions-foot-actions { flex-wrap: wrap; justify-content: flex-end; align-content: flex-start; }
   .decisions-foot-actions .btn { flex: 1 1 40%; min-width: 0; }
@@ -184,3 +184,5 @@
 
 .decisions-list-notice { flex: none; margin: var(--space-2); }
 .decisions-list-notice[hidden] { display: none; }
+
+.decisions-dismiss-reason { flex: 1 0 100%; order: 1; font-size: var(--text-xs); line-height: 1.2; }

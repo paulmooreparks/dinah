@@ -89,7 +89,7 @@
         send.disabled = blocked || !!draftError || !item || !items.has(selected) || item.kind === 'request' && item.canDismiss || draft.reviewed !== signature(item) || !any;
       }
       var dismissButton = form.querySelector('[data-dismiss-decision]');
-      if (dismissButton) { dismissButton.disabled = true; dismissButton.title = 'Dismiss is not available in this version.'; }
+      if (dismissButton) { dismissButton.disabled = true; dismissButton.title = window.dinahTaskQuestions.dismissUnavailableReason; }
       if (changedLine && !broadcast) {
         var changed = item && draft.reviewed !== signature(item);
         changedLine.textContent = changed ? 'The request or destination changed. Review it before sending.' : !items.has(selected) ? 'This request is not in the list of open requests. Your draft is saved. Refresh or load earlier requests.' : '';
@@ -140,7 +140,7 @@
         { label: 'Open Chat', disabled: task || !!item.dismissalReason, reason: task ? 'A task question comes from a service, not a chat.' : item.dismissalReason, run: function () { return openChat(item); } },
         { label: 'Open Group', disabled: task || !item.group, reason: task ? 'This task question has no group.' : 'This request was asked directly.', run: function () { return window.dinahBus.openGroup(item.group); } },
         { label: 'Open Task', disabled: !task || !q.target.href, reason: task ? q.target.reason : 'This request comes from a chat, not a task.', run: function () { return window.dinahTaskQuestions.open(q.key); } },
-        { label: 'Dismiss ' + (task ? 'Question' : item.kind === 'mention' ? 'Message' : 'Request') + '…', disabled: true, reason: 'Dismiss is not available in this version.' }
+        { label: 'Dismiss ' + (task ? 'Question' : item.kind === 'mention' ? 'Message' : 'Request') + '…', disabled: true, reason: window.dinahTaskQuestions.dismissUnavailableReason }
       ];
       var r = owner.getBoundingClientRect(); window.pudlMenu.openAt(point ? point.x : r.left, point ? point.y : r.bottom, rows, { owner: owner, for: owner });
     }
@@ -222,9 +222,9 @@
     function footer(item) {
       var foot = node('footer', 'decisions-foot'), actions = node('div', 'decisions-foot-actions');
       receiptLine = node('p', 'decisions-receipt decisions-foot-status'); receiptLine.setAttribute('role', 'status'); receiptLine.setAttribute('aria-live', 'polite');
-      var dismissButton = button('Dismiss', function () {}); dismissButton.dataset.dismissDecision = ''; dismissButton.disabled = true; dismissButton.title = 'Dismiss is not available in this version.';
+      var dismissButton = button('Dismiss', function () {}); dismissButton.dataset.dismissDecision = ''; dismissButton.disabled = true; dismissButton.title = window.dinahTaskQuestions.dismissUnavailableReason;
       send = button('Send', item.kind === 'task' ? function () { return window.dinahTaskQuestions.answer(item.taskQuestion.key); } : answer, true);
-      var unavailable = node('span', 'decisions-dismiss-unavailable'), reason = node('small', 'text-muted', 'Not available in this version.'); reason.id = 'dismiss-unavailable-' + item.id.replace(/[^a-zA-Z0-9]/g, '-'); dismissButton.setAttribute('aria-describedby', reason.id); unavailable.append(dismissButton, reason); actions.append(unavailable, send); if (item.kind !== 'task') actions.appendChild(operationActions());
+      var unavailable = node('span', 'decisions-dismiss-unavailable'), reason = node('small', 'text-muted', window.dinahTaskQuestions.dismissUnavailableReason); reason.id = 'dismiss-unavailable-' + item.id.replace(/[^a-zA-Z0-9]/g, '-'); dismissButton.setAttribute('aria-describedby', reason.id); unavailable.append(dismissButton); reason.classList.add('decisions-dismiss-reason'); actions.append(unavailable, send, reason); if (item.kind !== 'task') actions.appendChild(operationActions());
       foot.append(receiptLine, actions); return foot;
     }
     function drawRequest() {

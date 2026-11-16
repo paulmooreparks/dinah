@@ -1,0 +1,5 @@
+# Dismiss explanation
+
+The disabled Dismiss control now explains that it has not been built yet, that it arrives with the next update, and that the request can be answered or left open meanwhile. Decisions uses the same text beneath its controls, in the button title and in each row menu. Notifications task-question cards use the same shared string beside a disabled Dismiss button. Existing report dismissal actions remain available.
+
+The fixed Decisions footer reserves enough space for the full explanation at both widths, so edits and sending do not move the toolbar. All 21 Decisions, Notifications and task-question browser suites pass in 31 seconds. The four-layout matrix checks that the exact explanation fits within the footer and appears in Notifications. The phone-dark capture was inspected. Producer fixtures use invented requests and headless browsers. There were no browser errors. Settlement wiring will remove this temporary explanation. No host or settlement behavior changes, push, install or native-window acceptance are included.
