@@ -167,7 +167,7 @@ func (a *App) stageChatCleanup(id string) error {
 		for _, ws := range s.WorkspaceRecords {
 			for _, pin := range ws.Pins {
 				if pin.Kind == "chat" && slices.Contains(ids, pin.Session) {
-					return refuseChatCleanup("Unpin this chat before deleting it.")
+					return refuseChatCleanup(unpinFirst(ws.Name))
 				}
 			}
 		}

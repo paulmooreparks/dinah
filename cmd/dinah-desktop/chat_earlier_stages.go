@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 
 	"studio/internal/sessionhost"
@@ -35,10 +36,7 @@ func chatWithEarlierStages(s Settings, headers map[string]*sessionhost.Transcrip
 	if err != nil {
 		return result, err
 	}
-	hidden := map[string]bool{}
-	for _, id := range s.Hidden {
-		hidden[id] = true
-	}
+	unfinished := unfinishedTargets(headers, s)
 	children := map[string][]string{}
 	for id, header := range headers {
 		if header != nil && header.ParentSessionID != "" && header.ParentSessionID != id {
@@ -46,11 +44,11 @@ func chatWithEarlierStages(s Settings, headers map[string]*sessionhost.Transcrip
 		}
 	}
 	// A saved conversation goes on as a chat of its own unless it was deleted,
-	// has a removal record, or is the hidden target of a switch that did not
-	// finish.
+	// has a removal record, or is the target of a switch that did not finish
+	// (sessionhost.UnfinishedTargets).
 	goesOn := func(id string) bool {
 		header := headers[id]
-		if header == nil || header.Deleted || hidden[id] {
+		if header == nil || header.Deleted || unfinished[id] {
 			return false
 		}
 		_, reserved := s.RemovedChats[id]
@@ -117,13 +115,55 @@ func chatWithEarlierStages(s Settings, headers map[string]*sessionhost.Transcrip
 		}
 		stages = append(stages, stage)
 	}
-	if len(stages) == 0 {
+	// What a switch that did not finish left on any stage of the chat, and what
+	// an older build's deletion left of a conversation that continued one, has
+	// no chat of its own to be removed with, so it goes with this one.
+	leftovers := []LogicalChatMembers{}
+	stageIDs := []string{}
+	for id := range taken {
+		stageIDs = append(stageIDs, id)
+	}
+	sort.Strings(stageIDs)
+	for _, id := range stageIDs {
+		left := append([]string{}, children[id]...)
+		sort.Strings(left)
+		for _, child := range left {
+			header := headers[child]
+			if taken[child] || header == nil || !(unfinished[child] || header.Deleted) {
+				continue
+			}
+			if _, reserved := s.RemovedChats[child]; reserved {
+				continue
+			}
+			leftover, err := logicalChatMembersFromSettings(s, child)
+			if err != nil {
+				return LogicalChatMembers{}, err
+			}
+			free := true
+			for _, member := range leftover.Members {
+				if _, reserved := s.RemovedChats[member.SessionID]; reserved || taken[member.SessionID] {
+					free = false
+				}
+			}
+			if !free {
+				continue
+			}
+			for _, member := range leftover.Members {
+				taken[member.SessionID] = true
+			}
+			leftovers = append(leftovers, leftover)
+		}
+	}
+	if len(stages) == 0 && len(leftovers) == 0 {
 		return result, nil
 	}
-	// The stages were found nearest first. Members stay oldest first.
+	// The stages were found nearest first. Members stay oldest first, and the
+	// leftovers come before the chat's own members.
 	members := []LogicalChatMember{}
 	generations := []string{result.Generation}
 	ids := []string{}
+	slices.Reverse(leftovers)
+	stages = append(leftovers, stages...)
 	for i := len(stages) - 1; i >= 0; i-- {
 		stage := stages[i]
 		for _, member := range stage.Members {

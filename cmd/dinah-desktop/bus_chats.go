@@ -268,6 +268,7 @@ func (a *App) moveBusSession(from, to, id string) error {
 			s.ChatBindings = map[string]string{}
 		}
 		s.ChatBindings[from] = to
+		repinChat(s, from, to)
 		if s.BusSessions == nil {
 			s.BusSessions = map[string]string{}
 		}

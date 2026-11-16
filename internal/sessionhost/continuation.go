@@ -814,9 +814,33 @@ func (c *Continuations) PendingContext(s *Conversation) (string, error) {
 }
 
 func (c *Continuations) Resolve(id string) (string, error) {
+	hidden := map[string]bool{}
+	if c.host.ListPreferences != nil {
+		hidden, _ = c.host.ListPreferences()
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	links, records := ConversationLinks(c.host.StateDir())
+	_, records := ConversationLinks(c.host.StateDir())
+	// The target of a switch that did not finish is not where the chat goes
+	// on, so it is no link and no branch (UnfinishedTargets). The lists leave
+	// it out by the same rule, so a chat opens as the session it is listed as.
+	unfinished := UnfinishedTargets(records, func(id string) bool { return hidden[id] })
+	for child := range unfinished {
+		delete(records, child)
+	}
+	// A deleted conversation is the link only when nothing else continues the
+	// stage, and the choice among several does not depend on map order.
+	links := map[string]string{}
+	for child, record := range records {
+		parent := record.ParentSessionID
+		if parent == "" {
+			continue
+		}
+		current, taken := links[parent]
+		if !taken || (records[current].Deleted && !record.Deleted) || (records[current].Deleted == record.Deleted && child < current) {
+			links[parent] = child
+		}
+	}
 	bindings := map[string]string{}
 	if c.host.Bindings != nil {
 		bindings = c.host.Bindings()

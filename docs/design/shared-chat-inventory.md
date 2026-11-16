@@ -20,7 +20,21 @@ A chat that is switched to another program, compacted, or continued in another w
 
 This rule was added on 16 November 2026. The inventory had grouped a chat's stages only through the bindings and transfers recorded in settings. Switches made before those records existed have none, so each of their stages was listed as a chat. On one person's state 60 of 103 rows were earlier stages, and one chat that had been switched fourteen times was shown as twelve chats. The parent recorded in the saved conversation is used for this one purpose, which is deciding that a session is no longer a chat of its own. It still establishes no ownership, recipient or chain membership, and the resolver described above is unchanged.
 
-Two cases keep an earlier stage out of the lists or in them on purpose. When the newest stage has been removed or deleted, the earlier stages stay out, because the person deleted that chat. When the only newer stage is hidden without being removed, the earlier stage stays in, because that is how a switch that did not finish leaves its target, and the chat goes on where it was.
+Two cases keep an earlier stage out of the lists or in them on purpose. When the newest stage has been removed or deleted, the earlier stages stay out, because the person deleted that chat. When the only newer session is the target of a switch that did not finish, the earlier stage stays in, and the chat goes on where it was.
+
+## One chat, one newest stage
+
+A chat is all of its stages, and one of them is its newest. The lists, opening a chat, its pins and its removal all use the same answer to which one that is. They did not on 16 November 2026: a chat was listed as its middle stage, opened as a newer stage that an older build had left on the hidden list, refused deletion from that window because a hidden session was in no inventory, and was pinned by its first stage, which the page could not match to the chat.
+
+The newest stage is found by following the committed bindings and, where there is none, the one saved conversation that continues a stage (`sessionhost.NewestStage`, and `Continuations.Resolve` for opening). The target of a switch that did not finish is passed over (`sessionhost.UnfinishedTargets`). A switch hides its new session until it commits, and a failure after the handoff was written leaves that session hidden with the handoff never delivered, so a session that is hidden, was never handed the conversation and is continued by nothing is such a target. Opening used to follow the link into it.
+
+The hidden list no longer keeps a session out of the lists when the session continues a listed stage and was handed the conversation (`hiddenChats` in `saved_chats.go`). Builds before the switch records existed left that mark on the newest stage of some chats, which were then worked in for weeks. A hidden session that continues nothing stays out, and so does one whose older stages are all hidden, removed or gone.
+
+A pin is on the chat's newest stage. The settings write that commits a switch moves the pins of the stage it continues (`repinChat`), and each start moves the pins that older switches left behind (`pinsFollowChats`). The refusal to delete a pinned chat says which workspace the pin is in, because a pin shows only while that workspace is open.
+
+Removing a chat also takes what has no chat of its own to be removed with: the targets that unfinished switches left on its stages, and the conversations an older build's deletion left marked deleted on them.
+
+The Chats list is read again, up to three times, when a chat changed while it was being read (`savedChatsReadAgain`). Each read is still refused whole when it meets a change. The window reads the list while its chats are opening after a start, and the single refusal was shown to the person as an error although the next read succeeded.
 
 Removing a chat by its identity still accepts an earlier stage (`savedChatsWithStages`). A stage from an older build can have its own queue on the bus, and when its messages cannot be routed to the newer stage's queue, the person removes that stage alone from the notice about it.
 

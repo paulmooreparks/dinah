@@ -167,6 +167,77 @@ func TestRemovingAChatTakesWhatIsOlderThanAStageRemovedForGood(t *testing.T) {
 	}
 }
 
+// The case of 16 November 2026: a chat pinned at its first stage, whose newest
+// stage an older build had left marked hidden. The list showed the middle
+// stage, opening it opened the hidden one, deleting from that window said the
+// chat was not in the inventory, and Clean Up Chats asked for a pin to be
+// taken off that the chat did not show.
+func TestAChatLeftMarkedHiddenIsOneChatToListOpenPinAndRemove(t *testing.T) {
+	a, _ := providerTestApp(t)
+	ws := t.TempDir()
+	earlierStageFixture(t, a, "claude:first", "claude", ws, "", "")
+	earlierStageFixture(t, a, "ollama:second", "ollama", ws, "window-second", "claude:first")
+	earlierStageFixture(t, a, "codex:third", "codex", ws, "window-third", "ollama:second")
+	// A switch from the first stage that did not finish left its target too.
+	if err := writeTranscript(&sessionhost.Transcript{SessionID: "codex:never-started", Provider: "codex", Workspace: ws, ParentSessionID: "claude:first", Complete: true, PendingHandoff: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.updateSettings(func(s *Settings) error {
+		s.Hidden = []string{"codex:third", "codex:never-started"}
+		s.WorkspaceRecords = []WorkspaceRecord{{ID: "w", Name: "W", ExecutionPath: ws, Pins: []WorkspacePin{{Kind: "chat", Title: "Invented", Session: "claude:first"}}}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := listedChatIDs(t, a); !slices.Equal(got, []string{"codex:third"}) {
+		t.Fatalf("the chat is listed as %v", got)
+	}
+	if opened, err := a.ResolveSessionContinuation("claude:first"); err != nil || opened != "codex:third" {
+		t.Fatalf("the pin opens %q: %v", opened, err)
+	}
+	// The start moves the pin to the session the chat is listed and opened as.
+	if err := a.repinContinuedChats(); err != nil {
+		t.Fatal(err)
+	}
+	a.mu.Lock()
+	pins := append([]WorkspacePin{}, a.settings.WorkspaceRecords[0].Pins...)
+	a.mu.Unlock()
+	if len(pins) != 1 || pins[0].Session != "codex:third" {
+		t.Fatalf("the pin is on %+v", pins)
+	}
+	if err := a.RemoveChat("codex:third"); err == nil || err.Error() != "This chat is pinned in the workspace W. Unpin it there before deleting it." {
+		t.Fatalf("a pinned chat was not refused for its pin: %v", err)
+	}
+	if _, err := a.UnpinWorkspaceItem("w", "chat:codex:third"); err != nil {
+		t.Fatal(err)
+	}
+	// The window is on the newest stage, and deleting from it takes the chat.
+	if err := a.RemoveChat("codex:third"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"claude:first", "ollama:second", "codex:third", "codex:never-started"} {
+		if record, ok := a.cleanupRecord(id); !ok || record.Group != "codex:third" {
+			t.Fatalf("%s has the removal record %+v", id, record)
+		}
+	}
+	if got := listedChatIDs(t, a); len(got) != 0 {
+		t.Fatalf("the list shows %v", got)
+	}
+}
+
+func TestAPinFollowsItsChatWhenASwitchCommits(t *testing.T) {
+	s := Settings{WorkspaceRecords: []WorkspaceRecord{{ID: "w", Pins: []WorkspacePin{
+		{Kind: "chat", Title: "Moves", Session: "claude:first"},
+		{Kind: "chat", Title: "Stays", Session: "claude:other"},
+		{Kind: "chat", Title: "Already there", Session: "codex:second"},
+	}}}}
+	repinChat(&s, "claude:first", "codex:second")
+	pins := s.WorkspaceRecords[0].Pins
+	if len(pins) != 2 || pins[0].Session != "codex:second" || pins[0].Title != "Moves" || pins[1].Session != "claude:other" {
+		t.Fatalf("the pins are %+v", pins)
+	}
+}
+
 func TestRemovingAnEarlierStageByItselfLeavesTheChat(t *testing.T) {
 	a, _ := providerTestApp(t)
 	ws := t.TempDir()

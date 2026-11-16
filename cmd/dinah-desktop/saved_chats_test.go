@@ -213,10 +213,19 @@ func TestSavedChatsListsAChatSwitchedBetweenProgramsOnce(t *testing.T) {
 	// A chat whose newest stage the person deleted: the chat is gone.
 	stage("claude:deleted-first", "claude", "")
 	stage("claude:deleted-newest", "claude", "claude:deleted-first")
-	// A chat whose switch did not finish: its target is hidden, and the chat
-	// goes on where it was.
+	// A chat whose switch did not finish: its target is hidden and was never
+	// handed the conversation, and the chat goes on where it was.
 	stage("claude:kept", "claude", "")
 	stage("ollama:unfinished", "ollama", "claude:kept")
+	if err := writeTranscript(&sessionhost.Transcript{SessionID: "ollama:unfinished", Provider: "ollama", Workspace: ws, ParentSessionID: "claude:kept", Complete: true, PendingHandoff: true}); err != nil {
+		t.Fatal(err)
+	}
+	// A chat whose newest stage an older build left marked hidden. It was
+	// handed the conversation and worked in, so it is where the chat goes on.
+	stage("claude:marked-first", "claude", "")
+	stage("codex:marked-newest", "codex", "claude:marked-first")
+	// A hidden chat that continues nothing stays hidden.
+	stage("codex:hidden-alone", "codex", "")
 	// A chat that was never switched.
 	stage("claude:alone", "claude", "")
 	// A chat an older build deleted: its saved conversation is marked deleted,
@@ -226,13 +235,19 @@ func TestSavedChatsListsAChatSwitchedBetweenProgramsOnce(t *testing.T) {
 	}
 	if err := a.updateSettings(func(s *Settings) error {
 		s.RemovedChats = map[string]chatRemoval{"claude:deleted-newest": {Stage: "removed"}}
-		s.Hidden = []string{"ollama:unfinished"}
+		s.Hidden = []string{"ollama:unfinished", "codex:marked-newest", "codex:hidden-alone"}
 		s.BusSessions = map[string]string{"ollama:deleted-before": "window-left-behind"}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"claude:alone", "claude:kept", "claude:third"}
+	want := []string{"claude:alone", "claude:kept", "claude:third", "codex:marked-newest"}
+	// Opening any stage of a chat opens the session the chat is listed as.
+	for stage, listed := range map[string]string{"claude:first": "claude:third", "ollama:second": "claude:third", "claude:kept": "claude:kept", "claude:marked-first": "codex:marked-newest", "claude:alone": "claude:alone"} {
+		if opened, err := a.ResolveSessionContinuation(stage); err != nil || opened != listed {
+			t.Fatalf("opening %s opens %q (%v), and the chat is listed as %s", stage, opened, err, listed)
+		}
+	}
 	view, err := a.SavedChats()
 	if err != nil {
 		t.Fatal(err)

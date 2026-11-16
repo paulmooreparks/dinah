@@ -162,6 +162,7 @@ func (a *App) transferChat(source, target, provider, recipient, revision, stage 
 				s.ChatBindings = map[string]string{}
 			}
 			s.ChatBindings[source] = target
+			repinChat(s, source, target)
 			s.Hidden = slices.DeleteFunc(s.Hidden, func(id string) bool { return id == target })
 		}
 		return nil

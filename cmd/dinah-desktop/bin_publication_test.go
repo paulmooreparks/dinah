@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -94,5 +96,42 @@ func TestSavedChatsStillRefusesARealIdentityChangeDuringItsRead(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "Saved chat identities changed") {
 		t.Fatal("the consistency guard no longer refuses changed identities", err)
+	}
+}
+
+func TestSavedChatsReadsAgainAfterAChangeDuringItsRead(t *testing.T) {
+	a, _, _ := orgActionsFixture(t)
+	rename := func(title string) {
+		if err := a.updateSettings(func(s *Settings) error { s.SessionTitles["codex:a"] = title; return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// One change, during the first read: the second read gives the list, with
+	// the change in it.
+	reads := 0
+	view, err := a.savedChatsReadAgain(func(read int) {
+		reads++
+		if read == 0 {
+			rename("Changed during the first read")
+		}
+	})
+	if err != nil || reads != 2 {
+		t.Fatalf("a single change was not read past: %d reads, %v", reads, err)
+	}
+	found := false
+	for _, chat := range view.Chats {
+		found = found || chat.Title == "Changed during the first read"
+	}
+	if !found {
+		t.Fatal("the list read again does not have the change")
+	}
+	// A change during every read is still refused, after a bounded number.
+	reads = 0
+	_, err = a.savedChatsReadAgain(func(read int) {
+		reads++
+		rename(fmt.Sprintf("Changed during read %d", read))
+	})
+	if !errors.Is(err, errSavedChatsChanged) || reads != savedChatsReads {
+		t.Fatalf("a list that keeps changing was not refused: %d reads, %v", reads, err)
 	}
 }

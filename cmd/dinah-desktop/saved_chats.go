@@ -35,7 +35,36 @@ type SavedChatInventory struct {
 // SavedChats observes local ownership and already-present runtimes. Native
 // history discovery remains in the explicit session-list entry points.
 func (a *App) SavedChats() (SavedChatInventory, error) {
-	return a.savedChatsAtBoundary(nil)
+	return a.savedChatsReadAgain(nil)
+}
+
+// errSavedChatsChanged is the refusal of a read during which a chat opened,
+// was renamed or otherwise changed, so that the rows could mix two states.
+var errSavedChatsChanged = errors.New("Saved chat identities changed while the list was read. Refresh the list.")
+
+// savedChatsReads is how many times a list is read before the person is told
+// that it keeps changing.
+const savedChatsReads = 3
+
+// savedChatsReadAgain reads the list again when it changed during the read.
+// The window reads the list while its chats are still opening after a start,
+// and one read then often meets a change; the person was shown the refusal
+// as an error although the next read succeeds. Each read is still refused
+// whole when it meets a change, and the last refusal is returned.
+func (a *App) savedChatsReadAgain(afterSnapshot func(read int)) (SavedChatInventory, error) {
+	var view SavedChatInventory
+	var err error
+	for read := 0; read < savedChatsReads; read++ {
+		var hook func()
+		if afterSnapshot != nil {
+			hook = func() { afterSnapshot(read) }
+		}
+		view, err = a.savedChatsAtBoundary(hook)
+		if !errors.Is(err, errSavedChatsChanged) {
+			break
+		}
+	}
+	return view, err
 }
 
 // The private boundary lets receiving schedule a real publisher after the
@@ -94,6 +123,7 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 		hidden[id] = true
 	}
 	continued := continuedConversations(headers, saved)
+	notListed := hiddenChats(headers, saved)
 	seen := map[string]bool{}
 	for _, reference := range logicalChatReferencesFromSettings(saved) {
 		members, resolveErr := logicalChatMembersFromSettings(saved, reference)
@@ -104,7 +134,7 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 		if metadata.Lifecycle != "" && metadata.Lifecycle != "active" {
 			continue
 		}
-		excluded := hidden[reference] || hidden[members.Head] || sessionhost.NotChat(reference) || sessionhost.NotChat(members.Head)
+		excluded := notListed(reference) || notListed(members.Head) || sessionhost.NotChat(reference) || sessionhost.NotChat(members.Head)
 		if _, reserved := saved.RemovedChats[reference]; reserved {
 			excluded = true
 		}
@@ -211,7 +241,7 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 	}
 	_, currentHeaders := sessionhost.ConversationLinks(configDir())
 	if current != stamp || orgChartTranscriptStamp(currentHeaders) != headerStamp || inventoryRuntimeIdentity(runtimes) != inventoryRuntimeIdentity(currentRuntimes) || inventoryHash(busTitles) != inventoryHash(currentBusTitles) {
-		return SavedChatInventory{}, errors.New("Saved chat identities changed while the list was read. Refresh the list.")
+		return SavedChatInventory{}, errSavedChatsChanged
 	}
 	stable := append([]SavedChatInfo(nil), view.Chats...)
 	for i := range stable {
@@ -233,25 +263,62 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 // (SessionLifecycle.current), so it is part of that chat and never a chat of
 // its own in a list. The stage stays out of the lists when the newer stage
 // was deleted, because the person deleted that chat. It stays in them when
-// the only newer stage is hidden without being removed, which is how a switch
-// that did not finish leaves its target.
+// the only newer session is the target of a switch that did not finish
+// (sessionhost.UnfinishedTargets), which opening the chat passes over by the
+// same rule (Continuations.Resolve): a chat is listed as the session it opens
+// as.
 func continuedConversations(headers map[string]*sessionhost.TranscriptHead, saved Settings) map[string]bool {
-	hidden := map[string]bool{}
-	for _, id := range saved.Hidden {
-		hidden[id] = true
-	}
+	unfinished := unfinishedTargets(headers, saved)
 	continued := map[string]bool{}
 	for id, header := range headers {
-		if header == nil || header.ParentSessionID == "" || header.ParentSessionID == id {
-			continue
-		}
-		_, removed := saved.RemovedChats[id]
-		if hidden[id] && !removed && !header.Deleted {
+		if header == nil || header.ParentSessionID == "" || header.ParentSessionID == id || unfinished[id] {
 			continue
 		}
 		continued[header.ParentSessionID] = true
 	}
 	return continued
+}
+
+func unfinishedTargets(headers map[string]*sessionhost.TranscriptHead, saved Settings) map[string]bool {
+	hidden := map[string]bool{}
+	for _, id := range saved.Hidden {
+		hidden[id] = true
+	}
+	return sessionhost.UnfinishedTargets(headers, func(id string) bool { return hidden[id] })
+}
+
+// hiddenChats says which sessions the hidden list keeps out of the lists. A
+// hidden session that continues a listed stage of its chat is that chat's
+// newest stage and is listed: the mark was left on it by the switch that made
+// it, in a build that did not take the mark off, and the chat was worked in
+// there afterwards. Everything else on the hidden list stays out: a session
+// that continues nothing, the target of a switch that did not finish, and a
+// session whose older stages are all hidden, removed or gone as well.
+func hiddenChats(headers map[string]*sessionhost.TranscriptHead, saved Settings) func(string) bool {
+	hidden := map[string]bool{}
+	for _, id := range saved.Hidden {
+		hidden[id] = true
+	}
+	unfinished := sessionhost.UnfinishedTargets(headers, func(id string) bool { return hidden[id] })
+	return func(id string) bool {
+		seen := map[string]bool{}
+		for hidden[id] && !seen[id] {
+			seen[id] = true
+			header := headers[id]
+			if header == nil || header.Deleted || unfinished[id] || header.ParentSessionID == "" || header.ParentSessionID == id {
+				return true
+			}
+			parent := headers[header.ParentSessionID]
+			if parent == nil || parent.Deleted {
+				return true
+			}
+			if _, removed := saved.RemovedChats[header.ParentSessionID]; removed {
+				return true
+			}
+			id = header.ParentSessionID
+		}
+		return hidden[id]
+	}
 }
 
 func savedChatsSettingsStamp(saved Settings) string {
