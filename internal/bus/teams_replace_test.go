@@ -293,3 +293,32 @@ func TestTeamMembersOutsideTheirGroupAreDroppedWhenGone(t *testing.T) {
 		t.Fatal("a member that is not gone lost its team")
 	}
 }
+
+// A chat that leaves its team's group by itself, and one that the person takes
+// out of it, are both out of the team.
+func TestLeavingOrBeingRemovedFromATeamsGroupLeavesTheTeam(t *testing.T) {
+	ctx := context.Background()
+	b, _, lead, docs, parser, _ := teamBus(t)
+	group, err := b.SetLead(ctx, docs.ID, lead.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SetLead(ctx, parser.ID, lead.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.RemoveFromGroup(ctx, Sender{Session: &docs}, group, docs.ID); err != nil {
+		t.Fatal(err)
+	}
+	if of, _, err := b.LeadOf(ctx, docs.ID); err != nil || of != "" {
+		t.Fatalf("a chat that left the team's group still reports to %q: %v", of, err)
+	}
+	if of, _, _ := b.LeadOf(ctx, parser.ID); of != lead.ID {
+		t.Fatal("the other member lost its team")
+	}
+	if err := b.RemoveFromGroup(ctx, Sender{}, group, parser.ID); err != nil {
+		t.Fatal(err)
+	}
+	if of, _, err := b.LeadOf(ctx, parser.ID); err != nil || of != "" {
+		t.Fatalf("a chat the person took out of the team's group still reports to %q: %v", of, err)
+	}
+}

@@ -708,15 +708,15 @@ func (b *Bus) RemoveFromGroup(ctx context.Context, by Sender, group, member stri
 		if _, err := t.Exec(`DELETE FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, key, c.id); err != nil {
 			return err
 		}
+		// A chat that leaves a team's group, or is taken out of it, is no
+		// longer a member of that team. Its team row used to stay, and the
+		// team then had a member that was in no group and on no chart.
+		if err := leaveTeamOfGroup(t, key, c.id); err != nil {
+			return err
+		}
 		verb := "removed"
 		if by.Session != nil && by.Session.ID == c.id {
 			verb = "left"
-			// A chat that leaves a team's group by itself is no longer a
-			// member of that team. Its team row used to stay, and the team
-			// then had a member that was in no group and on no chart.
-			if err := leaveTeamOfGroup(t, key, c.id); err != nil {
-				return err
-			}
 		}
 		return b.memberLine(t, by, key, title, c, verb)
 	})
