@@ -33,6 +33,7 @@ type requestSettlementFixture struct {
 	artifact string
 	mu       sync.Mutex
 	requests []map[string]any
+	sequence int
 }
 
 func newRequestSettlementFixture(t *testing.T) *requestSettlementFixture {
@@ -54,6 +55,12 @@ func newRequestSettlementFixture(t *testing.T) *requestSettlementFixture {
 		t.Fatal(err)
 	}
 	f.group = group.Name
+	if err := x.f.a.busHost().With(func(b *bus.Bus) error {
+		x.f.a.noticeMentions(context.Background(), b)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 
@@ -116,6 +123,10 @@ func (x *requestSettlementFixture) startQuestion(source string) (string, error) 
 
 func (x *requestSettlementFixture) seed(source string) (any, error) {
 	a := x.typed.f.a
+	x.mu.Lock()
+	x.sequence++
+	sequence := x.sequence
+	x.mu.Unlock()
 	if strings.HasPrefix(source, "task-") {
 		key, err := x.startQuestion(source)
 		if err != nil {
@@ -130,7 +141,7 @@ func (x *requestSettlementFixture) seed(source string) (any, error) {
 			owner = ""
 			kind, severity = "app", "warning"
 		}
-		item, err := a.SaveNotification(Notification{ID: "invented-settlement-report", Kind: kind, Severity: severity, Title: "Invented report", Body: "The result is unknown.", SessionID: owner, Workspace: x.typed.f.workspace})
+		item, err := a.SaveNotification(Notification{ID: fmt.Sprintf("invented-settlement-report-%d", sequence), Kind: kind, Severity: severity, Title: "Invented report", Body: "The result is unknown.", SessionID: owner, Workspace: x.typed.f.workspace})
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +160,10 @@ func (x *requestSettlementFixture) seed(source string) (any, error) {
 		if source == "partial-request" {
 			questions = append(questions, bus.PersonQuestion{Number: 2, Text: "Keep the invented record?", Recommendation: "Keep it."})
 		}
-		decision, err = b.AskPerson(context.Background(), owner, bus.AskPersonInput{OperationID: "seed-request", Questions: questions})
+		decision, err = b.AskPerson(context.Background(), owner, bus.AskPersonInput{OperationID: fmt.Sprintf("seed-request-%d", sequence), Questions: questions})
+		if err == nil {
+			a.noticeMentions(context.Background(), b)
+		}
 		return err
 	})
 	if err != nil {
@@ -183,6 +197,32 @@ func (x *requestSettlementFixture) call(method string, raw json.RawMessage) (any
 			return nil, err
 		}
 		return a.RequestState(in.ID)
+	case "inspect":
+		id, err := decodeSettlementIdentity(raw)
+		if err != nil {
+			return nil, err
+		}
+		return x.inspect(id)
+	case "reconcile":
+		return true, a.flushRequestCompletions()
+	case "wait":
+		id, err := decodeSettlementIdentity(raw)
+		if err != nil {
+			return nil, err
+		}
+		entry := x.typed.entry(id)
+		if entry == nil {
+			return nil, errors.New("there is no actual task waiter")
+		}
+		return true, x.typed.wait(entry)
+	case "lookup":
+		var in requestsettlement.Input
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		return a.RequestOperation(in.ID, in.OperationID)
+	case "restart":
+		return x.typed.call("restart", nil), nil
 	case "dismiss":
 		var in requestsettlement.Input
 		if err := json.Unmarshal(raw, &in); err != nil {
@@ -296,6 +336,9 @@ func TestRequestSettlementReceivingSeedsActualSources(t *testing.T) {
 			if before.Status != "open" {
 				t.Fatal("the real source was not open", before)
 			}
+			if _, err := x.inspect(before.ID); err != nil {
+				t.Fatal("independent committed-row observation failed", err)
+			}
 			r, err := x.typed.f.a.DismissRequest(requestsettlement.Input{ID: before.ID, Revision: before.Revision, OperationID: "positive-dismiss"})
 			if err != nil || r.State != "committed" || r.Outcome != "dismissed" {
 				t.Fatal(r, err)
@@ -323,6 +366,9 @@ func TestRequestSettlementReceivingSeedsActualSources(t *testing.T) {
 				t.Fatal("passive lookup lost the dismissal receipt", lookup, r, err)
 			}
 			x.requireQuiet()
+			if _, err := x.inspect(before.ID); err != nil {
+				t.Fatal("closed source observation failed", err)
+			}
 		})
 	}
 }
