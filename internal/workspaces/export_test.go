@@ -37,7 +37,7 @@ func TestBuildExportHoldsTheStructure(t *testing.T) {
 	home := t.TempDir()
 	main := filepath.Join(home, "OneDrive", "Orchard")
 	notes := filepath.Join(home, "OneDrive", "Notes")
-	mkdirs(t, main, "Concepts/GAP 01", "Concepts/GAP 02", ".devin/skills", "Research")
+	mkdirs(t, main, "Concepts/Topic 01", "Concepts/Topic 02", ".devin/skills", "Research")
 	mkdirs(t, notes)
 	if err := os.WriteFile(filepath.Join(main, "Concepts", "readme.md"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -47,7 +47,7 @@ func TestBuildExportHoldsTheStructure(t *testing.T) {
 		{ID: "b", Kind: "local-folder", Name: "Notes", Path: notes},
 		{ID: "c", Kind: "web-page", Name: "Concepts", Extra: raw(map[string]any{"baseUrl": "https://wiki.example.com", "pageId": "123", "includeChildren": true})},
 	}, Pins: []Pin{
-		{Kind: "resource", Title: "GAP 01", Ref: &Ref{WorkspaceID: "ws_1", SourceID: "a", Path: "Concepts/GAP 01"}, Directory: true},
+		{Kind: "resource", Title: "Topic 01", Ref: &Ref{WorkspaceID: "ws_1", SourceID: "a", Path: "Concepts/Topic 01"}, Directory: true},
 		{Kind: "chat", Title: "A chat", Session: "s1"},
 		{Kind: "flow", Title: "Review", Extra: raw(map[string]any{"flowScope": "workspace", "flowFile": "review.flow.md"})},
 	}}
@@ -60,13 +60,13 @@ func TestBuildExportHoldsTheStructure(t *testing.T) {
 	if !local.Main || local.Local.FromHome != "OneDrive/Orchard" || local.Local.FromFile != "." || local.Local.Absolute != filepath.ToSlash(main) {
 		t.Fatalf("main folder location: %+v %+v", local, local.Local)
 	}
-	if !reflect.DeepEqual(local.Local.Folders, []string{"Concepts", "Concepts/GAP 01", "Concepts/GAP 02", "Research"}) {
+	if !reflect.DeepEqual(local.Local.Folders, []string{"Concepts", "Concepts/Topic 01", "Concepts/Topic 02", "Research"}) {
 		t.Fatalf("folders without hidden folders and files: %v", local.Local.Folders)
 	}
 	if got.Sources[1].Main || got.Sources[1].Local.FromFile != "../Notes" {
 		t.Fatalf("second folder: %+v", got.Sources[1].Local)
 	}
-	if len(got.Pins) != 2 || got.Pins[0].Source != "s1" || got.Pins[0].Path != "Concepts/GAP 01" || got.Pins[1].Kind != "flow" {
+	if len(got.Pins) != 2 || got.Pins[0].Source != "s1" || got.Pins[0].Path != "Concepts/Topic 01" || got.Pins[1].Kind != "flow" {
 		t.Fatalf("pins, without the chat: %+v", got.Pins)
 	}
 	data, _ := json.Marshal(got)

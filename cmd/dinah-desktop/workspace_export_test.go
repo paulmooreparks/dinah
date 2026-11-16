@@ -90,7 +90,7 @@ func exportFromDesktop(t *testing.T) []byte {
 	defer os.RemoveAll(home)
 	main := filepath.Join(home, "OneDrive", "Orchard")
 	notes := filepath.Join(home, "OneDrive", "Notes")
-	makeFolders(t, main, "Concepts/GAP 01")
+	makeFolders(t, main, "Concepts/Topic 01")
 	makeFolders(t, notes, "Meetings/2026", "Research")
 	a := onComputer(t, home)
 	st, err := a.SetWorkspace(main)
@@ -158,7 +158,7 @@ func TestImportWorkspaceOnAnotherComputer(t *testing.T) {
 	data := exportFromDesktop(t)
 	laptopHome := t.TempDir()
 	main := filepath.Join(laptopHome, "OneDrive", "Orchard")
-	makeFolders(t, main, "Concepts/GAP 01")
+	makeFolders(t, main, "Concepts/Topic 01")
 	file := saveExport(t, data, main)
 	a := onComputer(t, laptopHome)
 
@@ -300,7 +300,7 @@ func TestImportWorkspaceWaitsForItsMainFolder(t *testing.T) {
 	if _, err := a.CreateWorkspaceFolders(record.ID, record.PrimarySourceID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.SelectWorkspace(record.ID); err != nil || !folderExists(filepath.Join(workspaces.ExecutionPath(record), "Concepts", "GAP 01")) {
+	if _, err := a.SelectWorkspace(record.ID); err != nil || !folderExists(filepath.Join(workspaces.ExecutionPath(record), "Concepts", "Topic 01")) {
 		t.Fatalf("the created workspace could not be opened: %v", err)
 	}
 }

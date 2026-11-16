@@ -12,13 +12,13 @@ const fs=require('fs'),path=require('path');
  }});
  const {page:p,ok}=t,records=[];
  const referenceRoot=process.env.DINAH_REFERENCE_FRONTEND;
- if(referenceRoot)await t.context.route('http://gkc.test/**',route=>route.fulfill({path:path.join(referenceRoot,new URL(route.request().url()).pathname),headers:{"Access-Control-Allow-Origin":"*"}}));
+ if(referenceRoot)await t.context.route('http://reference.test/**',route=>route.fulfill({path:path.join(referenceRoot,new URL(route.request().url()).pathname),headers:{"Access-Control-Allow-Origin":"*"}}));
  async function reference(skin,mode){
   if(!referenceRoot)return null;
   return p.evaluate(async({skin,mode})=>{
    const frame=document.createElement('iframe');frame.style.cssText='position:fixed;left:-16000px;top:0;width:800px;height:350px';
    const loaded=new Promise(resolve=>frame.onload=resolve);
-   frame.srcdoc='<!doctype html><html data-skin="'+skin+'" data-theme="'+mode+'"><head>'+['pudl/pudl.css','pudl/pudl-windows.css','pudl/pudl-skin-'+skin+'.css','brand.css','app.css'].filter(x=>!x.includes('skin-standard')).map(file=>'<link rel="stylesheet" href="http://gkc.test/'+file+'">').join('')+'</head><body><form class="composer"><div class="composer-row"><textarea class="form-textarea composer-input" rows="2">Matching focus</textarea></div></form></body></html>';
+   frame.srcdoc='<!doctype html><html data-skin="'+skin+'" data-theme="'+mode+'"><head>'+['pudl/pudl.css','pudl/pudl-windows.css','pudl/pudl-skin-'+skin+'.css','brand.css','app.css'].filter(x=>!x.includes('skin-standard')).map(file=>'<link rel="stylesheet" href="http://reference.test/'+file+'">').join('')+'</head><body><form class="composer"><div class="composer-row"><textarea class="form-textarea composer-input" rows="2">Matching focus</textarea></div></form></body></html>';
    document.body.append(frame);await loaded;
    const doc=frame.contentDocument;doc.documentElement.style.cssText=document.documentElement.style.cssText;await doc.fonts.ready;
    const el=doc.querySelector('textarea');el.focus();const css=frame.contentWindow.getComputedStyle(el);
