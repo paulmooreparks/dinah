@@ -81,6 +81,10 @@ func newOrgChartHostFixture(t *testing.T, a *App) *orgChartHostFixture {
 		}
 		t.Cleanup(func() { delete(pageMethods, name) })
 	}
+	if reflect.ValueOf(a).MethodByName("OrgChartHostFixtureMentionTask").IsValid() {
+		pageMethods["OrgChartHostFixtureMentionTask"] = pageWork
+		t.Cleanup(func() { delete(pageMethods, "OrgChartHostFixtureMentionTask") })
+	}
 	t.Cleanup(func() { f.a.shutdown(context.Background()); orgChartReceivingFixtures.Delete(a) })
 	workspaces := []WorkspaceRecord{newWorkspaceRecord(t.TempDir()), newWorkspaceRecord(t.TempDir()), newWorkspaceRecord(t.TempDir())}
 	workspaces[0].Name, workspaces[1].Name = "Invented Alpha", "Invented Beta"

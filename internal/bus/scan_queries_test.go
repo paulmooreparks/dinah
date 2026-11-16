@@ -67,7 +67,9 @@ func TestScanCandidatesPreservePreviousRows(t *testing.T) {
 		}
 		return out
 	}
-	want := ids(`SELECT m.id` + previousDecisionSQL + ` ORDER BY m.id DESC`)
+	// Paul's mention ruling retains the previous structured-request rows while
+	// excluding plain mentions from the Decisions projection.
+	want := ids(`SELECT m.id` + previousDecisionSQL + ` AND p.message_id IS NOT NULL ORDER BY m.id DESC`)
 	got := ids(`SELECT m.id` + openDecisionSQL + ` ORDER BY m.id DESC`)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("decisions: got %v want %v", got, want)
@@ -115,7 +117,7 @@ func TestScanQueriesUseBoundedIndexes(t *testing.T) {
 		{"wake", wakingQuery(), "deliveries_pending", "", nil},
 		{"attention cursor", mentionIDsQuery(false), "deliveries_human_cursor", "message_id>?", []any{0}},
 		{"attention unread", mentionIDsQuery(true), "deliveries_human_unread", "message_id>?", []any{0}},
-		{"decisions", `SELECT m.id` + openDecisionSQL, "deliveries_human_decisions", "message_id>?", nil},
+		{"decisions", `SELECT m.id` + openDecisionSQL, "person_requests_open", "closed=?", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rows, err := b.db.Query(`EXPLAIN QUERY PLAN `+tc.query, tc.args...)
