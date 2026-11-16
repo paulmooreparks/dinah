@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -70,8 +71,12 @@ func (a *App) OrgChartHostFixtureMentionSeed(in MentionReceivingSeed) (map[strin
 			sent, err = b.SendMentioning(ctx, bus.Sender{Session: &sender}, "#"+in.Group, in.Text, nil, 0, []string{bus.Human})
 		case "nonmention":
 			sent, err = b.SendMentioning(ctx, bus.Sender{Session: &sender}, "#"+in.Group, in.Text, nil, 0, nil)
-		case "request":
-			request, err = b.AskPerson(ctx, sender, bus.AskPersonInput{OperationID: fmt.Sprintf("routing-request-%d", len(f.mentionIDs)), Group: "#" + in.Group, Questions: []bus.PersonQuestion{{Number: 1, Text: in.Text, Recommendation: "Keep the request pending."}}})
+		case "request", "two-question-request", "partial-request":
+			questions := []bus.PersonQuestion{{Number: 1, Text: in.Text, Recommendation: "Keep the request pending."}}
+			if in.Kind != "request" {
+				questions = append(questions, bus.PersonQuestion{Number: 2, Text: "Keep the invented record?", Recommendation: "Keep it."})
+			}
+			request, err = b.AskPerson(ctx, sender, bus.AskPersonInput{OperationID: fmt.Sprintf("routing-request-%d", len(f.mentionIDs)), Group: "#" + in.Group, Questions: questions})
 			if err == nil {
 				sent, err = b.Message(ctx, request.MessageID)
 			}
@@ -85,6 +90,20 @@ func (a *App) OrgChartHostFixtureMentionSeed(in MentionReceivingSeed) (map[strin
 	})
 	if err != nil {
 		return nil, err
+	}
+	if in.Kind == "partial-request" {
+		receipt, err := f.a.AnswerDecision(bus.AnswerDecisionInput{ID: request.ID, Revision: request.Revision, OperationID: fmt.Sprintf("routing-partial-%d", sent.ID), Answers: []bus.DecisionAnswer{{Number: 1, Text: "Keep this existing invented answer."}}})
+		if err != nil {
+			return nil, err
+		}
+		if receipt.State != "committed" {
+			return nil, errors.New("partial request seed did not commit its original answer")
+		}
+		detail, err := f.a.DecisionByID(request.ID)
+		if err != nil {
+			return nil, err
+		}
+		request = detail.Decision
 	}
 	f.mentionIDs = append(f.mentionIDs, sent.ID)
 	return map[string]any{"message": sent, "request": request}, nil
@@ -110,7 +129,7 @@ func (a *App) OrgChartHostFixtureMentionCall(name string, args []json.RawMessage
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	allowed := map[string]bool{}
-	for _, method := range []string{"Notifications", "DecisionEntries", "Decisions", "DecisionByID", "AcknowledgeMention", "BusGroup", "BusThread", "BusGroupMessages", "BusGroupMessagesFrom", "BusGroupMessageContext", "BusMarkInboxRead", "BusMarkGroupRead", "BusSend", "BusSendToGroup", "BusReplyInThread", "PendingTaskPermissions", "Sessions", "SavedChats", "BusOverview", "BusInboxMessage", "BusInboxPage"} {
+	for _, method := range []string{"Notifications", "DecisionEntries", "Decisions", "DecisionByID", "AnswerDecision", "ReadUIState", "SaveUIState", "AcknowledgeMention", "BusGroup", "BusThread", "BusGroupMessages", "BusGroupMessagesFrom", "BusGroupMessageContext", "BusMarkInboxRead", "BusMarkGroupRead", "BusSend", "BusSendToGroup", "BusReplyInThread", "PendingTaskPermissions", "Sessions", "SavedChats", "BusOverview", "BusInboxMessage", "BusInboxPage"} {
 		allowed[method] = true
 	}
 	if !allowed[name] {
@@ -232,5 +251,48 @@ func TestMentionReceivingSeedsAndRestartsActualStore(t *testing.T) {
 	forwarded, err := a.OrgChartHostFixtureMentionCall("DecisionEntries", nil)
 	if err != nil || forwarded.(bus.DecisionEntryState).Count != 1 {
 		t.Fatal("forwarding did not reach the restarted actual App", forwarded, err)
+	}
+}
+
+func TestMentionReceivingPreservesActualPartialAnswerAndSavedDraft(t *testing.T) {
+	orgChartForbidProviderStarts(t)
+	a := newFileAccessFixtureApp(t)
+	a.ctx = context.Background()
+	newOrgChartHostFixture(t, a)
+	seed, err := a.OrgChartHostFixtureMentionSeed(MentionReceivingSeed{Kind: "two-question-request"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := seed["request"].(bus.Decision)
+	input, _ := json.Marshal(bus.AnswerDecisionInput{ID: request.ID, Revision: request.Revision, OperationID: "retained-partial", Answers: []bus.DecisionAnswer{{Number: 1, Text: "Keep the existing answer."}}})
+	result, err := a.OrgChartHostFixtureMentionCall("AnswerDecision", []json.RawMessage{input})
+	if err != nil || result.(bus.DecisionReceipt).State != "committed" {
+		t.Fatal("production partial answer failed", result, err)
+	}
+	key := "dinah-decisions:" + url.QueryEscape("request:"+request.ID)
+	saved := UIState{Version: 1, Values: map[string]json.RawMessage{key: json.RawMessage(`{"version":1,"answers":{"2":{"text":"Invented retained draft","asRecommended":false,"ownText":"Invented retained draft","selection":"own"}},"reviewed":"","operation":null}`)}}
+	encoded, _ := json.Marshal(saved)
+	if _, err := a.OrgChartHostFixtureMentionCall("SaveUIState", []json.RawMessage{encoded}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.OrgChartHostFixtureMentionState(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.OrgChartHostFixtureControl(OrgChartFixtureControl{Kind: "restart"}); err != nil {
+		t.Fatal(err)
+	}
+	state, err := a.OrgChartHostFixtureMentionCall("ReadUIState", nil)
+	actualJSON, encodeErr := json.Marshal(state)
+	if err != nil || encodeErr != nil || string(actualJSON) != string(encoded) {
+		t.Fatal("saved nonempty draft changed", state, err)
+	}
+	id, _ := json.Marshal(request.ID)
+	detail, err := a.OrgChartHostFixtureMentionCall("DecisionByID", []json.RawMessage{id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := detail.(bus.DecisionDetail)
+	if actual.Closed || len(actual.Decision.Questions) != 2 || !actual.Decision.Questions[0].Answered || actual.Decision.Questions[0].Answer != "Keep the existing answer." || actual.Decision.Questions[1].Answered {
+		t.Fatal("actual partial answer changed", actual)
 	}
 }
