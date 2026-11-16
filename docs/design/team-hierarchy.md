@@ -46,9 +46,9 @@ The Org Chart groups chats by workspace, and a branch of the tree is drawn insid
 
 A chat that reports to a lead has no input box today, and the person reaches it only through its team room. Every chat gets its input box back, and every team keeps its room.
 
-When the person speaks to a member directly, the member's lead is sent a copy of what the person said, so the lead knows when the person goes around it. The person asked for the copy and not for a bare notice: a lead that only learns that something was said cannot tell whether its own instructions still stand. The member's answer stays in the member's chat.
+When the person speaks to a member directly, the member's lead is sent a copy of what the person said, and a copy of the member's answer, so the lead sees the whole exchange and knows when the person goes around it. The person compared it to an email from a manager's manager to one of the manager's staff, which copies the manager so the manager sees the thread. A bare notice was considered and rejected: a lead that only learns that something was said cannot tell whether its own instructions still stand.
 
-One point is open. The person said the answer stays in the member's chat and that the lead gets its copy "as discussed". That is read here as a copy of the person's message only. Whether the lead is also sent the member's answer is to be confirmed.
+The exchange itself happens in the member's chat. The lead receives the copies; it is not a party to the exchange and does not answer in it.
 
 ## What is to be built
 
@@ -56,4 +56,4 @@ One point is open. The person said the answer stays in the member's chat and tha
 - A team room for every lead at every depth, with direct reports only.
 - Allowances counted up the chain.
 - The Org Chart drawn as a tree of any depth inside each workspace's box, after its mockup is approved.
-- The input box for every chat, with the copy to the member's lead.
+- The input box for every chat, with copies of the person's message and the member's answer to the member's lead.
