@@ -58,6 +58,68 @@ func leadsAvailableMember(t querier, id string) (bool, error) {
 	return n > 0, err
 }
 
+// leaveTeamOfGroup ends a chat's membership of the team whose group it left.
+func leaveTeamOfGroup(t *sql.Tx, group, member string) error {
+	var lead string
+	err := t.QueryRow(`SELECT lead FROM rooms WHERE name = ?`, group).Scan(&lead)
+	if errors.Is(err, sql.ErrNoRows) || lead == "" {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := t.Exec(`DELETE FROM team_members WHERE member = ? AND lead = ?`, member, lead); err != nil {
+		return err
+	}
+	return clearEmptyTeam(t, lead)
+}
+
+// DropTeamMembersOutsideTheirGroup ends the team membership of each chat that
+// is not in its team's group and that gone accepts. A member joins the group
+// when it joins the team, and a chat that left the group by itself used to
+// keep its team row. The caller says which of those chats are gone for it,
+// because a chat can be out of the group for other reasons and still be a
+// member. A team whose lead has no group is not touched. It returns how many
+// memberships it ended.
+func (b *Bus) DropTeamMembersOutsideTheirGroup(ctx context.Context, gone func(member string) bool) (int, error) {
+	dropped := 0
+	err := b.tx(ctx, func(t *sql.Tx) error {
+		rows, err := t.Query(`SELECT tm.member, tm.lead FROM team_members tm JOIN rooms r ON r.lead = tm.lead
+			WHERE NOT EXISTS (SELECT 1 FROM room_members rm WHERE rm.room = r.name AND rm.member_kind = 'session' AND rm.member = tm.member)`)
+		if err != nil {
+			return err
+		}
+		type pair struct{ member, lead string }
+		pairs := []pair{}
+		for rows.Next() {
+			var p pair
+			if err := rows.Scan(&p.member, &p.lead); err != nil {
+				rows.Close()
+				return err
+			}
+			pairs = append(pairs, p)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, p := range pairs {
+			if !gone(p.member) {
+				continue
+			}
+			if _, err := t.Exec(`DELETE FROM team_members WHERE member = ? AND lead = ?`, p.member, p.lead); err != nil {
+				return err
+			}
+			if err := clearEmptyTeam(t, p.lead); err != nil {
+				return err
+			}
+			dropped++
+		}
+		return nil
+	})
+	return dropped, err
+}
+
 func clearEmptyTeam(t *sql.Tx, lead string) error {
 	_, err := t.Exec(`UPDATE rooms SET lead = '' WHERE lead = ? AND NOT EXISTS (SELECT 1 FROM team_members WHERE lead = ?)`, lead, lead)
 	return err

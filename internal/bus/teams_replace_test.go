@@ -266,3 +266,30 @@ func TestCurrentLeadCannotBeRemovedOrBinned(t *testing.T) {
 		t.Fatal("atomic preflight withdrew another recipient", available, err)
 	}
 }
+
+func TestTeamMembersOutsideTheirGroupAreDroppedWhenGone(t *testing.T) {
+	ctx := context.Background()
+	b, _, lead, docs, parser, _ := teamBus(t)
+	group, err := b.SetLead(ctx, docs.ID, lead.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SetLead(ctx, parser.ID, lead.ID); err != nil {
+		t.Fatal(err)
+	}
+	// Both members are out of the team's group, as leaving it used to leave
+	// them. Only the one the caller calls gone loses its membership.
+	if _, err := b.db.Exec(`DELETE FROM room_members WHERE room = ? AND member IN (?, ?)`, group, docs.ID, parser.ID); err != nil {
+		t.Fatal(err)
+	}
+	dropped, err := b.DropTeamMembersOutsideTheirGroup(ctx, func(member string) bool { return member == docs.ID })
+	if err != nil || dropped != 1 {
+		t.Fatalf("dropped %d, %v", dropped, err)
+	}
+	if of, _, _ := b.LeadOf(ctx, docs.ID); of != "" {
+		t.Fatal("the gone member is still in the team")
+	}
+	if of, _, _ := b.LeadOf(ctx, parser.ID); of != lead.ID {
+		t.Fatal("a member that is not gone lost its team")
+	}
+}

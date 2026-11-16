@@ -154,6 +154,26 @@ func (a *App) staleAddresses() ([]staleAddress, error) {
 // is in no list, its queue is kept, and bus.RestoreRecipient brings it back.
 // An address that still leads a team with members is left, and said so.
 func (a *App) retireStaleAddresses() error {
+	// A session from outside the window that left its team's group in an
+	// older build is still on the team's rows, and the chart then shows a
+	// member it has no card for. Only a session that no chat of the window
+	// owns is taken off: a chat of the window can be out of the group and
+	// still be a member.
+	a.mu.Lock()
+	owned := map[string]bool{}
+	for _, recipient := range a.settings.BusSessions {
+		owned[recipient] = true
+	}
+	a.mu.Unlock()
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		dropped, err := b.DropTeamMembersOutsideTheirGroup(context.Background(), func(member string) bool { return !owned[member] })
+		if dropped > 0 {
+			logf("bus", "warning", "ended %d team membership(s) of chats that had left their team's group", dropped)
+		}
+		return err
+	}); err != nil {
+		return err
+	}
 	stale, err := a.staleAddresses()
 	if err != nil {
 		return err
