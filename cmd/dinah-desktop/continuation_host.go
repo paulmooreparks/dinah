@@ -4,6 +4,7 @@ import (
 	"studio/internal/acp"
 	"studio/internal/providers"
 	"studio/internal/sessionhost"
+	"time"
 )
 
 func (a *App) continuations() *sessionhost.Continuations {
@@ -22,6 +23,18 @@ func (a *App) continuations() *sessionhost.Continuations {
 			RenameSession: a.RenameSession, Budget: continuationBudget, Redact: redactAppletContexts,
 			ProviderName: providers.Name, WorkspaceName: a.chatWorkspaceName, ApplyOptions: a.carryOptions,
 			Formatter: a.judgedHandoffFormatter(), InterruptedNote: interruptedTurnNote, SummaryBudget: summaryBudget,
+			// A switch that takes long is on record at the default log level,
+			// with where it waited.
+			SwitchTimed: func(chat, to string, total time.Duration, parts string, err error) {
+				level, outcome := "info", "finished"
+				if total > 10*time.Second {
+					level = "warning"
+				}
+				if err != nil {
+					outcome = "failed"
+				}
+				logf("chat", level, "switching chat %s to %s %s after %s: %s", chat, to, outcome, total.Round(100*time.Millisecond), parts)
+			},
 			HideSession: func(id string) error {
 				return a.updateSettings(func(s *Settings) error { s.Hidden = append(s.Hidden, id); return nil })
 			},

@@ -10,6 +10,7 @@ import (
 	"studio/internal/applet/broker"
 	"studio/internal/layout"
 	"sync"
+	"time"
 )
 
 //go:embed continuation.go
@@ -57,16 +58,19 @@ type ContinuationHost struct {
 	TransferFinished func(source string)
 	RecoveryModel    func(source, target, model string) error
 	HideSession      func(string) error
-	RevokeSession    func(string)
-	Emit             func(string, any)
-	Title            func(string) string
-	RenameSession    func(string, string) (map[string]string, error)
-	ListPreferences  func() (map[string]bool, map[string]string)
-	Budget           func(string, []acp.ConfigOption) int
-	Redact           func(string) string
-	Formatter        HandoffFormatter
-	InterruptedNote  string
-	SummaryBudget    int
+	// SwitchTimed is told how long a switch took and how long each of its
+	// parts took, whether it finished or failed.
+	SwitchTimed     func(chat, to string, total time.Duration, parts string, err error)
+	RevokeSession   func(string)
+	Emit            func(string, any)
+	Title           func(string) string
+	RenameSession   func(string, string) (map[string]string, error)
+	ListPreferences func() (map[string]bool, map[string]string)
+	Budget          func(string, []acp.ConfigOption) int
+	Redact          func(string) string
+	Formatter       HandoffFormatter
+	InterruptedNote string
+	SummaryBudget   int
 }
 
 func NewContinuations(mu, stateMu *sync.Mutex, runtime *Runtime, host ContinuationHost) *Continuations {
@@ -567,6 +571,20 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		}
 		EmitSession(c.host.Emit, s)
 	}()
+	// The parts of a switch are timed, because a slow switch says nothing of
+	// where it waited: reading the history and writing its summary, starting
+	// the new program, handing the conversation over, or opening the new chat.
+	began, partBegan, part, parts := time.Now(), time.Now(), "the summary", []string{}
+	timed := func(next string) {
+		parts = append(parts, fmt.Sprintf("%s %s", part, time.Since(partBegan).Round(10*time.Millisecond)))
+		part, partBegan = next, time.Now()
+	}
+	defer func() {
+		timed("")
+		if c.host.SwitchTimed != nil {
+			c.host.SwitchTimed(id, to, time.Since(began), strings.Join(parts, ", "), err)
+		}
+	}()
 	c.setStage(s, kind, to, StageSummary, "Building the summary of the conversation")
 	if revision == "" && !o.compaction {
 		return SessionContinuationResult{}, errors.New("the chat changed; review the provider switch again")
@@ -583,6 +601,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	if o.cwd != "" {
 		cwd = o.cwd
 	}
+	timed("starting the new program")
 	c.setStage(s, kind, to, StageStarting, startingLabel)
 	if c.host.Transfer != nil {
 		if c.host.TransferFinished != nil {
@@ -649,6 +668,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		carried, _ := splitOptions(preview.options)
 		notCarried = c.host.ApplyOptions(next.ID(), carried)
 	}
+	timed("handing the conversation over")
 	c.setStage(s, kind, to, StageHandover, "Handing the conversation over")
 	latest, err := c.confirmation(s, provider, o.cwd)
 	if err != nil || latest.Revision != revision {
@@ -684,6 +704,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 			return SessionContinuationResult{}, err
 		}
 	}
+	timed("opening the new chat")
 	c.setStage(s, kind, to, StageOpening, "Opening the new chat")
 	c.host.RevokeSession(s.ID())
 	s.SetSuperseded(true)

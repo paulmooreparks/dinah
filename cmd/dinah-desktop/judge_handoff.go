@@ -151,7 +151,13 @@ func (a *App) judgeHandoffDigest(chat string, lines []string, limit int) (string
 	if err != nil {
 		return "", 0, false
 	}
+	asked := time.Now()
 	r := judge.Call(a.bindingContext(), set, handoffKind, handoffIn{Lines: lines[:shown], Limit: limit}, judge.Effect{Kind: "chat", ID: chat})
+	// The judge writes the summary of the messages a handoff leaves out, and a
+	// switch waits for it. A long wait is on record at the default log level.
+	if waited := time.Since(asked); waited > 5*time.Second {
+		logf("chat", "warning", "the summary for switching chat %s took %s from the judge", chat, waited.Round(100*time.Millisecond))
+	}
 	entry := handoffEntry{summary: r.Out, shown: shown, ok: r.Used == judge.UsedJudge}
 	j.mu.Lock()
 	if j.handoffs == nil || len(j.handoffs) >= handoffCacheLimit {
