@@ -177,8 +177,8 @@ func TestDecisionGroupAnswerAndPlainMentionResolution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Items) != 4 {
-		t.Fatalf("read or agent reply resolved attention: %+v", page)
+	if len(page.Items) != 1 || page.Items[0].Kind != "request" {
+		t.Fatalf("plain mentions entered Decisions: %+v", page)
 	}
 	if _, err = b.Send(ctx, Sender{}, "", "The person replied", nil, m1.ID); err != nil {
 		t.Fatal(err)
@@ -249,7 +249,7 @@ func TestDecisionAnswerRollbackAndConcurrentRevision(t *testing.T) {
 	}
 }
 
-func TestDecisionPagingIncludesReadMentions(t *testing.T) {
+func TestDecisionPagingExcludesReadMentions(t *testing.T) {
 	ctx := context.Background()
 	b, s, _ := personRequestFixture(t)
 	// A single transaction keeps this fixture cheap while exercising real inserts.
@@ -266,15 +266,8 @@ func TestDecisionPagingIncludesReadMentions(t *testing.T) {
 		t.Fatal(err)
 	}
 	page, err := b.Decisions(ctx, 0)
-	if err != nil || len(page.Items) != 100 || page.NextBefore == 0 {
+	if err != nil || len(page.Items) != 1 || page.NextBefore != 0 {
 		t.Fatalf("first page %+v %v", page, err)
-	}
-	next, err := b.Decisions(ctx, page.NextBefore)
-	if err != nil || len(next.Items) != 4 || next.NextBefore != 0 {
-		t.Fatalf("next page %+v %v", next, err)
-	}
-	if next.Items[0].MessageID >= page.Items[99].MessageID {
-		t.Fatal("cursor repeated a row")
 	}
 }
 
@@ -388,7 +381,7 @@ func TestDecisionRejectionsPersistAndMalformedInputStaysUnknown(t *testing.T) {
 	}
 	dismiss := DismissDecisionInput{OperationID: "dismiss-once", ID: fmt.Sprintf("mention:%d", mention.ID), Revision: 1}
 	r, err := b.DismissDecision(ctx, dismiss)
-	if err != nil || r.State != "committed" {
+	if err != nil || r.State != "rejected" || r.Reason.Code != "decision_closed" {
 		t.Fatalf("dismiss %+v %v", r, err)
 	}
 	again, err := b.DismissDecision(ctx, dismiss)

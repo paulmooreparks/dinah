@@ -48,6 +48,7 @@ type Notification struct {
 	Group      string       `json:"group,omitempty"`
 	GroupTitle string       `json:"groupTitle,omitempty"`
 	Message    int64        `json:"message,omitempty"`
+	RequestID  string       `json:"requestId,omitempty"`
 	Created    time.Time    `json:"created"`
 	Dismissed  bool         `json:"dismissed"`
 	Chats      []BusChatRef `json:"chats,omitempty"`
@@ -102,6 +103,9 @@ func validateNotification(n Notification) error {
 			return errors.New("invalid durable notification")
 		}
 	case "mention":
+		if n.RequestID != "" && n.RequestID != fmt.Sprintf("request:%d", n.Message) {
+			return errors.New("invalid notification request identity")
+		}
 		if n.Message <= 0 || n.ID != fmt.Sprintf("mention-%d", n.Message) || n.Workspace != "" || n.DraftID != "" || n.RunID != "" {
 			return errors.New("invalid durable notification")
 		}
@@ -221,8 +225,8 @@ func keptAttention(item Notification) bool {
 
 func (a *App) Notifications() ([]Notification, error) {
 	notificationStoreMu.Lock()
-	defer notificationStoreMu.Unlock()
 	store, err := readNotifications()
+	notificationStoreMu.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +246,7 @@ func (a *App) Notifications() ([]Notification, error) {
 			out = append(out, item)
 		}
 	}
-	return out, nil
+	return a.notificationRequestIdentities(out)
 }
 
 // ClearNotifications dismisses every report. Questions are not reports and

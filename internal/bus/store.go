@@ -52,6 +52,10 @@ CREATE TABLE IF NOT EXISTS person_requests (
  questions TEXT NOT NULL,
  UNIQUE (asker, operation_id)
 );
+CREATE TABLE IF NOT EXISTS mention_acknowledgements (
+ message_id INTEGER PRIMARY KEY REFERENCES messages(id),
+ opened_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS decision_operations (
  operation_id TEXT PRIMARY KEY,
  fingerprint TEXT NOT NULL,

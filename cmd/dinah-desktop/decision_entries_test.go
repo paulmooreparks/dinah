@@ -28,22 +28,25 @@ func TestDecisionEntriesReuseDurableAttention(t *testing.T) {
 	if err != nil || entries.Count != 1 || entries.Items[0].ID != request.ID || entries.Items[0].MessageID != cards[0].Message {
 		t.Fatalf("entries %+v %v", entries, err)
 	}
-	// Plain group mentions use the same entry mapping and retained card path.
+	// Plain group mentions retain their card without becoming a request.
 	chatSays(t, a, me, group, "Please review this result", bus.Human)
 	pass(t, a)
 	entries, err = a.DecisionEntries()
-	if err != nil || entries.Count != 2 || len(mentionCards(t, a)) != 2 {
+	if err != nil || entries.Count != 1 || len(mentionCards(t, a)) != 2 {
 		t.Fatalf("plain mention %+v %v", entries, err)
 	}
 	if err := a.DismissNotification(cards[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	entries, err = a.DecisionEntries()
-	if err != nil || entries.Count != 2 {
+	if err != nil || entries.Count != 1 {
 		t.Fatalf("dismissing attention closed a request %+v %v", entries, err)
 	}
-	plain := entries.Items[0]
-	if _, err := a.DismissDecision(bus.DismissDecisionInput{OperationID: "dismiss-plain-entry", ID: plain.ID, Revision: 1}); err != nil {
+	plainCards := mentionCards(t, a)
+	if len(plainCards) != 1 {
+		t.Fatal("plain mention card missing", plainCards)
+	}
+	if err := a.AcknowledgeMention(plainCards[0].Message); err != nil {
 		t.Fatal(err)
 	}
 	entries, err = a.DecisionEntries()
