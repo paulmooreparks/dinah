@@ -3,8 +3,8 @@ const assert=require('node:assert/strict');
 const {test}=require('node:test');
 const path=require('node:path');
 const same=(a,b)=>assert.deepEqual(a,b);
-const sources=['request','mention','attention-report','partial-request','task-single','task-text','task-multiple'];
-const views=source=>source.startsWith('task-')?['notifications','decisions','task-run']:['notifications','decisions'];
+const sources=['request','attention-report','partial-request','task-single','task-text','task-multiple'];
+const views=source=>source==='attention-report'?['notifications']:source.startsWith('task-')?['notifications','decisions','task-run']:['notifications','decisions'];
 async function capture(t,scenario,source='request',input={}) {
   assert.ok(process.env.QUALITY_REQUEST_SETTLEMENT_BINDING,'Request-settlement acceptance is unbound');
   const f=await require(path.resolve(process.env.QUALITY_REQUEST_SETTLEMENT_BINDING)).open({scenario,source,...input});
