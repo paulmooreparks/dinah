@@ -103,6 +103,40 @@ exports.open = async function (spec) {
       otherChatUnaffected: present(afterReply, other.message.id), horizontalOverflow: await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), errors: host.errors.slice()
     };
     fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ result, reached, afterExisting, afterReply, first, ack, rows }, null, 2));
+    return { ...result, raw: { before, reached, afterExisting, afterReply, first, ack, rows, pendingReply, existing, target, other, request } };
+  } };
+};
+
+// Quality owns the assertions over these raw navigation and persisted-state observations.
+exports.openNavigation = async function (spec) {
+  if (spec.scenario === 'open-exact') return exports.open({ ...spec, scenario: 'open-in-chat', product: spec.product || 'dinah', theme: spec.theme || 'light', width: spec.width || 1440 });
+  assert.equal(spec.scenario, 'unavailable');
+  const configs = JSON.parse(fs.readFileSync(process.env.MENTIONS_RECEIVING_CONFIG, 'utf8'));
+  const config = configs.dinah, root = process.env.MENTIONS_RECEIVING_OUT;
+  fs.mkdirSync(root, { recursive: true });
+  const out = path.join(root, String(++serial).padStart(3, '0') + '-unavailable');
+  const host = await open(config, out, { width: 1440, theme: 'light' }), p = host.page;
+  return { close: host.close, run: async function () {
+    const seeded = await host.call('OrgChartHostFixtureMentionSeed', { kind: 'group' });
+    const before = await host.call('OrgChartHostFixtureMentionState');
+    const protectedBefore = await host.call('OrgChartHostFixtureSnapshot');
+    await p.reload();
+    await p.waitForFunction(id => window.dinahHost?.notices?.list(n => n.data.message === id).length, seeded.message.id);
+    await p.evaluate(() => dinahWorkbench.open('needs-you'));
+    const cardId = await p.evaluate(id => dinahHost.notices.list(n => n.data.message === id)[0].id, seeded.message.id);
+    await host.call('OrgChartHostFixtureControl', { kind: 'cleanup-store-unavailable' });
+    await p.locator('#questions [data-notice-id="' + cardId + '"]').getByRole('button', { name: 'Open in Chat', exact: true }).click();
+    const failure = p.locator('.toast').filter({ hasText: /closed|database|unavailable/i }).first();
+    await failure.waitFor();
+    const failureText = await failure.innerText();
+    const windows = await p.locator('.group-window').count();
+    const cardPresent = await p.locator('#questions [data-notice-id="' + cardId + '"]').count();
+    await host.call('OrgChartHostFixtureControl', { kind: 'restart' });
+    const after = await host.call('OrgChartHostFixtureMentionState');
+    const protectedAfter = await host.call('OrgChartHostFixtureSnapshot');
+    const calls = await p.evaluate(() => __orgReceivingCalls);
+    const result = { sourceCommit: config.sourceCommit, hostBinarySha256: crypto.createHash('sha256').update(fs.readFileSync(config.host)).digest('hex'), evidencePath: out, realApp: !!before.sourceMessages.find(m => m.id === seeded.message.id), errors: host.errors.slice(), raw: { seeded, before, after, protectedBefore, protectedAfter, failureText, windows, cardPresent, calls } };
+    fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify(result, null, 2));
     return result;
   } };
 };
