@@ -7,70 +7,105 @@
   <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
   <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
   <style>
+    /* Only what the mockup adds to the shipped chart is styled here: the
+       frame around it, a box for each workspace, the free agents in a
+       workspace, the actions menu and the two stand-in windows. */
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
-    .mock-shell { min-height: 100vh; display: flex; flex-direction: column; }
-    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
-    .mock-header h1 { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+    .mock-shell { height: 100vh; display: flex; flex-direction: column; }
+    .mock-header { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
     .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
-    .mock-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface); }
-    .mock-toolbar label { display: grid; gap: var(--space-1); }
-    .mock-toolbar .search { flex: 1; max-width: 24rem; min-width: 12rem; }
-    .mock-toolbar .form-input, .mock-toolbar .form-select { width: 100%; }
-    .mock-toolbar .mock-tools { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-    .mock-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-2) var(--space-4); font-size: var(--text-sm); background: var(--surface); border-bottom: 1px solid var(--border); }
-    .legend-line { display: inline-block; width: 2rem; margin-inline-end: var(--space-2); vertical-align: middle; border-top: 2px solid var(--text-muted); }
-    .legend-line.dotted { border-top-style: dotted; }
-    .mock-summary { margin-inline-start: auto; color: var(--text-muted); }
-    .mock-drawing { position: relative; margin: var(--space-4); flex: 1; min-width: 0; }
-    .mock-drawing svg { display: block; width: 100%; height: auto; }
-    .mock-menu { display: block; position: absolute; width: 218px; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-dialog); z-index: 2; }
-    .mock-menu h2 { margin: 0; padding: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 500; }
-    .mock-menu button { width: 100%; text-align: left; padding: var(--space-2); border: none; background: transparent; color: var(--text); border-radius: var(--radius); font: inherit; font-size: var(--text-sm); display: flex; gap: var(--space-3); align-items: center; }
-    .mock-menu button:first-of-type { background: var(--accent); color: var(--on-accent); }
-    .mock-menu button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    .mock-menu .danger { color: var(--danger-rest-fg, var(--danger)); }
+    .mock-body { flex: 1; min-height: 0; display: flex; }
+    .mock-body > .org-chart { flex: 1; min-width: 0; }
+    .oc-spaces { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: var(--space-5) var(--oc-gutter); margin: 40px 0 0; }
+    .oc-space { box-sizing: border-box; padding: var(--space-2) var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--text-muted) 6%, var(--bg)); }
+    .oc-space > .oc-ws-name { margin-bottom: var(--space-3); }
+    .oc-space-trees { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4) var(--oc-gutter); }
+    .oc-space-trees > .oc-team { background: var(--bg); }
+    /* The lines from the person run into the workspace boxes to the top of each branch. */
+    .oc-canvas > .oc-lines { z-index: 1; }
+    .oc-canvas > .oc-lines path { fill: none; stroke: var(--text-muted); stroke-width: 2; }
+    .oc-free { margin-top: var(--space-4); }
+    .oc-free > h4 { margin: 0 0 var(--space-2); font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); }
+    .oc-free .oc-ws-boxes { max-width: none; }
+    .oc-chat-title { cursor: pointer; }
+    .mock-menu { position: fixed; z-index: 20; width: 230px; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-dialog); }
+    .mock-menu[hidden] { display: none; }
+    .mock-menu h2 { margin: 0; padding: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-menu button { width: 100%; text-align: left; padding: var(--space-2); border: none; background: transparent; color: var(--text); border-radius: var(--radius); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+    .mock-menu button:hover, .mock-menu button:focus-visible { background: var(--accent); color: var(--on-accent); outline: none; }
     .mock-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1); }
-    .mock-footer { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; padding: var(--space-2) var(--space-4); background: var(--surface); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--text-sm); }
-    @media (max-width: 600px) {
-      .mock-header { padding: var(--space-3); }
-      .mock-header .mock-tag { font-size: var(--text-xs); }
-      .mock-toolbar { padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; }
-      .mock-toolbar .search { max-width: none; min-width: 0; }
-      .mock-toolbar .mock-tools { grid-column: 1 / -1; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); }
-      .mock-legend { padding: var(--space-2) var(--space-3); gap: var(--space-2) var(--space-3); }
-      .mock-summary { margin: 0; width: 100%; }
-      .mock-drawing { margin: var(--space-3); }
-      .mock-menu { width: 198px; }
+    .mock-window { flex: none; width: 440px; display: flex; flex-direction: column; border-inline-start: 1px solid var(--border); background: var(--surface); min-height: 0; }
+    .mock-window[hidden] { display: none; }
+    .mock-window-head { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+    .mock-window-head h2 { flex: 1; min-width: 0; margin: 0; font-size: var(--text-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-window-sub { flex: none; margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .mock-log { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-2); align-content: start; background: var(--bg); }
+    .mock-log .msg { font-size: var(--text-sm); }
+    .mock-copy { border-style: dashed; }
+    .mock-composer { flex: none; padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--border); display: grid; gap: var(--space-2); }
+    .mock-composer textarea { width: 100%; min-height: 4.5rem; resize: vertical; }
+    .mock-composer-row { display: flex; align-items: center; gap: var(--space-2); }
+    .mock-composer-row p { flex: 1; margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+    .mock-composer-row .glyph { --glyph-size: 14px; flex: none; color: var(--accent); }
+    .mock-try { flex: none; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-try strong { color: var(--text); }
+    .reports-help { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+    .reports-change { margin: var(--space-3) 0 0; font-size: var(--text-sm); }
+    @media (max-width: 700px) {
+      .mock-header { padding: var(--space-2) var(--space-3); }
+      .mock-header .mock-tag { display: none; }
+      .mock-window { position: fixed; inset: 0; width: auto; z-index: 15; border: 0; }
+      .oc-spaces { justify-content: flex-start; }
+      .mock-try { display: none; }
     }
   </style>
 </head>
 <body>
   <div class="mock-shell">
-    <header class="mock-header"><span class="glyph" style="--glyph:var(--glyph-subagents)" aria-hidden="true"></span><h1>Org Chart of Chats</h1><span class="mock-tag">Design mockup</span></header>
-    <div class="mock-toolbar" aria-label="Chart Controls">
-      <label class="form-label">Workspace<select class="form-select" aria-label="Workspace"><option>All Workspaces</option><option>Harbor</option><option>Orchard</option></select></label>
-      <label class="form-label search">Find a Chat<input class="form-input" type="search" placeholder="Title or agent program"></label>
-      <div class="mock-tools"><button class="btn btn-sm">Fit Chart</button><button class="btn btn-sm">Expand All Teams</button><button class="btn btn-sm btn-primary">Create a Team…</button><button class="btn btn-sm">Create a Group…</button></div>
+    <header class="mock-header">
+      <span class="glyph" style="--glyph:var(--glyph-subagents)" aria-hidden="true"></span>
+      <h1>Org Chart</h1>
+      <span class="mock-tag">Design mockup: the chats are invented and nothing is saved.</span>
+      <button class="btn btn-sm" type="button" id="theme">Dark Theme</button>
+    </header>
+    <div class="mock-body">
+      <div class="org-chart">
+        <div class="org-chart-toolbar">
+          <span class="form-select-wrap"><select class="form-select" aria-label="Workspace" id="scope"><option value="">All Workspaces</option><option value="harbor">Harbor</option><option value="orchard">Orchard</option></select></span>
+          <input class="form-input" type="search" id="find" placeholder="Find a Chat" aria-label="Find a Chat">
+          <div class="org-chart-legend text-muted"><span><span class="org-chart-legend-line"></span>Reports to</span><span><span class="oc-group-label">Group</span></span></div>
+        </div>
+        <div class="org-chart-scroll" id="scroll">
+          <div class="org-chart-canvas oc-canvas" id="canvas"></div>
+        </div>
+        <div class="org-chart-statusbar"><div class="org-chart-statusbar-message" id="status"><span>Every chat reports to a lead or to you.</span></div><span class="org-chart-statusbar-count" id="count"></span></div>
+      </div>
+      <aside class="mock-window" id="window" hidden aria-labelledby="window-title">
+        <div class="mock-window-head"><h2 id="window-title"></h2><button class="btn btn-sm" type="button" id="window-close">Close</button></div>
+        <p class="mock-window-sub" id="window-sub"></p>
+        <div class="mock-log" id="window-log"></div>
+        <form class="mock-composer" id="composer">
+          <textarea class="form-input" id="composer-text" aria-label="Message" placeholder="Say what you want the agent to do."></textarea>
+          <div class="mock-composer-row"><span class="glyph" style="--glyph:var(--glyph-comments)" aria-hidden="true" id="copy-glyph"></span><p id="copy-note"></p><button class="btn btn-primary btn-sm" type="submit">Send</button></div>
+        </form>
+      </aside>
     </div>
-    <div class="mock-legend"><span><i class="legend-line"></i>Reports to a team lead</span><span><i class="legend-line dotted"></i>Belongs to a group</span><span class="mock-summary">3 teams, 1 group, 2 free agents</span></div>
-    <main class="mock-drawing" aria-label="Chat Organisation">
-      <div id="drawing"></div>
-      <nav class="mock-menu" role="menu" aria-label="Nina's Chat Actions">
-        <h2>Nina, Reviewer</h2>
-        <button role="menuitem"><span aria-hidden="true">↳</span>Assign to a Team…</button>
-        <button role="menuitem"><span aria-hidden="true">☆</span>Make Team Lead</button>
-        <hr>
-        <button role="menuitem"><span aria-hidden="true">＋</span>Create a Team…</button>
-        <button role="menuitem"><span aria-hidden="true">＋</span>Create a Group…</button>
-        <button role="menuitem"><span aria-hidden="true">▹</span>Start a Chat</button>
-        <hr>
-        <button role="menuitem" class="danger"><span class="glyph" style="--glyph:var(--glyph-bin)" aria-hidden="true"></span>Delete Chat…</button>
-      </nav>
-    </main>
-    <footer class="mock-footer"><span>Nina belongs to Platform and the Release Review group.</span><span>The chats are invented. No action changes a chat.</span></footer>
+    <div class="mock-try"><strong>Try:</strong> open a chat's ⋯ menu and choose Reports To… (a chat's own reports are not offered); open a member such as Gap 05 Reviewer and send a message, then open its lead's team room to see the copies; fold a team; switch the theme.</div>
   </div>
-  <script src="../../cmd/dinah-desktop/frontend/yavc/content/diagram-kit/jcanvas.js"></script>
+  <nav class="mock-menu" id="menu" role="menu" hidden></nav>
+  <dialog class="dialog" id="reports" aria-labelledby="reports-title">
+    <form method="dialog" id="reports-form">
+      <h2 class="dialog-title" id="reports-title"></h2>
+      <label class="form-label" for="reports-to">Reports to</label>
+      <span class="form-select-wrap"><select class="form-select" id="reports-to"></select></span>
+      <p class="reports-help">A chat cannot report to itself or to a chat that reports to it, so those are not offered.</p>
+      <p class="reports-change" id="reports-change"></p>
+      <div class="dialog-actions"><button class="btn" value="cancel" type="submit">Cancel</button><button class="btn btn-primary" value="change" type="submit" id="reports-go">Change</button></div>
+    </form>
+  </dialog>
   <script src="org-chart.js"></script>
 </body>
 </html>
