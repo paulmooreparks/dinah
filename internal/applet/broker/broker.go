@@ -862,7 +862,24 @@ func (b *Broker) ids(root string) ([]string, error) {
 
 // Saved reads a workspace's invocations as they are saved, without
 // recovering or timing out any, in no particular order.
+//
+// What it read is kept with the names, sizes and times of the record files it
+// read it from, and is given again while those are the same. A switch of a chat
+// to another program asks for this four times, one workspace had 975 records in
+// 89 MB and another 45,000, and every call read and parsed all of them, which
+// was most of the ten seconds a switch took. The caller must not change what it
+// is given.
 func (b *Broker) Saved(workspace string) ([]Invocation, error) {
+	dir := layout.Layout{State: b.State}.RunDir(b.StoreRoot(workspace))
+	stamp, stampErr := savedStamp(dir)
+	if stampErr == nil {
+		savedRecords.Lock()
+		kept, ok := savedRecords.byDir[dir]
+		savedRecords.Unlock()
+		if ok && kept.stamp == stamp {
+			return slices.Clone(kept.list), nil
+		}
+	}
 	ids, err := b.ids(b.StoreRoot(workspace))
 	if err != nil {
 		return nil, err
@@ -875,6 +892,49 @@ func (b *Broker) Saved(workspace string) ([]Invocation, error) {
 		}
 		out = append(out, v)
 	}
+	// The files are looked at again after the read, so that a record written
+	// during it is not kept under the earlier stamp.
+	if after, err := savedStamp(dir); stampErr == nil && err == nil && after == stamp {
+		savedRecords.Lock()
+		if savedRecords.byDir == nil {
+			savedRecords.byDir = map[string]savedList{}
+		}
+		savedRecords.byDir[dir] = savedList{stamp: stamp, list: slices.Clone(out)}
+		savedRecords.Unlock()
+	}
+	return out, nil
+}
+
+var savedRecords struct {
+	sync.Mutex
+	byDir map[string]savedList
+}
+
+type savedList struct {
+	stamp [32]byte
+	list  []Invocation
+}
+
+// savedStamp is a digest of the names, sizes and modification times of the
+// files in a folder of records.
+func savedStamp(dir string) ([32]byte, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return [32]byte{}, nil
+	}
+	if err != nil {
+		return [32]byte{}, err
+	}
+	hash := sha256.New()
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return [32]byte{}, err
+		}
+		fmt.Fprintf(hash, "%s\x00%d\x00%d\n", entry.Name(), info.Size(), info.ModTime().UnixNano())
+	}
+	var out [32]byte
+	copy(out[:], hash.Sum(nil))
 	return out, nil
 }
 
