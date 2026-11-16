@@ -70,14 +70,11 @@ func ollamaContextBudget(tokens int) int {
 // when the earlier chats and their providers are both unavailable.
 const summaryBudget = 300_000
 
-// judgedHandoffFormatter is the handoff formatter with a judge's summary of the older
-// messages, which the rule's digest replaces only when the judge has one.
-func (a *App) judgedHandoffFormatter() sessionhost.HandoffFormatter {
-	f := handoffFormatter()
-	f.Digest = a.judgeHandoffDigest
-	return f
-}
-
+// handoffFormatter writes a handoff by rule alone. A model used to write the
+// part that stands for the older messages, within ten seconds or not at all,
+// and the switch waited for it: on 16 November 2026 one switch waited the whole
+// ten seconds and then used the rule's text anyway. A switch now has one path,
+// which takes the same time and gives the same text every time.
 func handoffFormatter() sessionhost.HandoffFormatter {
 	return sessionhost.HandoffFormatter{ProductName: product.Name, Speaker: conversationSpeaker}
 }

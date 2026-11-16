@@ -195,8 +195,6 @@ type judging struct {
 	// processes are the provider processes that only judgement calls use, by
 	// provider (judge_process.go).
 	processes map[string]*judgeProcess
-	// handoffs are the judged summaries kept for the run (judge_handoff.go).
-	handoffs map[string]handoffEntry
 
 	// numMu makes a state and its number one step, so an older state never has
 	// the higher number.
@@ -797,7 +795,6 @@ func (a *App) SetJudgementSettings(settings JudgementSettings, revision string) 
 	j.cur, j.rev = settings, judgementRevision(data)
 	j.mu.Unlock()
 	a.applyJudgementSettings(set, settings)
-	a.forgetHandoffs()
 	a.emitJudgementsChanged()
 	return JudgementSettingsSnapshot{Settings: presentJudgementSettings(settings), Revision: judgementRevision(data)}, nil
 }

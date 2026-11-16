@@ -22,7 +22,7 @@ func (a *App) continuations() *sessionhost.Continuations {
 			}, RevokeSession: a.revokeAppletSession, Emit: a.emit,
 			RenameSession: a.RenameSession, Budget: continuationBudget, Redact: redactAppletContexts,
 			ProviderName: providers.Name, WorkspaceName: a.chatWorkspaceName, ApplyOptions: a.carryOptions,
-			Formatter: a.judgedHandoffFormatter(), InterruptedNote: interruptedTurnNote, SummaryBudget: summaryBudget,
+			Formatter: handoffFormatter(), InterruptedNote: interruptedTurnNote, SummaryBudget: summaryBudget,
 			// A switch that takes long is on record at the default log level,
 			// with where it waited.
 			SwitchTimed: func(chat, to string, total time.Duration, parts string, err error) {

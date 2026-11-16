@@ -153,3 +153,18 @@ func TestTheSetAsideCheckIsTheMeasuredCosts(t *testing.T) {
 	var _ = judge.UsedJudge
 	var _ = context.Background
 }
+
+func kindNamed(t *testing.T, a *App, name string) JudgementKind {
+	t.Helper()
+	kinds, err := a.JudgementKinds()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range kinds {
+		if k.Name == name {
+			return k
+		}
+	}
+	t.Fatalf("the kind %s is not listed", name)
+	return JudgementKind{}
+}

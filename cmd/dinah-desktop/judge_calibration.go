@@ -315,7 +315,6 @@ func (a *App) applyCalibrated(model string, automatic bool) {
 	j.cur, j.rev = applied, judgementRevision(data)
 	j.mu.Unlock()
 	a.applyJudgementSettings(set, applied)
-	a.forgetHandoffs()
 	a.emitJudgementsChanged()
 }
 
