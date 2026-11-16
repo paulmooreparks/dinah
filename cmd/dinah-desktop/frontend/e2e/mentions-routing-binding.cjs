@@ -43,6 +43,8 @@ exports.open = async function (spec) {
     await p.reload();
     await p.waitForFunction(() => window.dinahUIState && window.dinahWorkbench && window.dinahHost?.notices);
     await p.evaluate(() => dinahUIState.ready);
+    await p.evaluate(theme => document.documentElement.dataset.theme = theme, spec.theme);
+    await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await p.waitForFunction(id => dinahHost.notices.list(n => n.data.message === id).length > 0, target.message.ID);
     await p.evaluate(() => {
       const app = go.main.App, forward = app.OrgChartHostFixtureMentionCall;
