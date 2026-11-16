@@ -101,6 +101,10 @@ Paul answered the four questions on 16 November 2026, and said yes to each.
 
 He also asked for the changes described above: the menus on every item, Dismiss everywhere with the same controls on every entry, a chat able to withdraw its own request, and About This Request in a pane on the right.
 
+## Mentions are not decisions
+
+Paul ruled on 16 November 2026 that a mention is not a decision: "If I get a mention, provide a way to take me directly to the chat that has the mention, and don't duplicate the message in Decisions. The Decisions window should be about... Decisions!" Decisions therefore lists only requests that ask him to decide: questions put to him with ask_person and questions a task asks. A message that mentions him produces a notification whose button opens the chat it came from at that message, and no Decisions entry. The notification clears when he opens the chat at the message or replies there. Mention entries that already exist leave Decisions without any change to the chats they came from.
+
 ## Product integration
 
 The product keeps each request's draft and the existing operation receipt protocol. Saving an edit does not change Send's enabled state or the footer's position; submitting still flushes the latest draft before contacting the host. The selected radio mode is saved with its text, so an own answer that happens to equal a suggestion remains an own answer.
