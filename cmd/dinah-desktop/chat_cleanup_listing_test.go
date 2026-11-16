@@ -51,3 +51,48 @@ func TestCleanupListingReadsClosedChainsWithoutProviderCalls(t *testing.T) {
 		t.Fatalf("listing policy %+v", listing)
 	}
 }
+
+// Removing one chat reads that chat's row alone. A full read counts the
+// messages of every saved conversation, which on 16 November 2026 took long
+// enough on one person's state that another chat changed during nearly every
+// read, and each removal was refused.
+func TestCleanupRowForOneChatLeavesTheOthersUnread(t *testing.T) {
+	a, _ := providerTestApp(t)
+	ws := t.TempDir()
+	cleanupFixtureChat(t, a, "codex:wanted", "codex", ws, "window-wanted")
+	cleanupFixtureChat(t, a, "claude:other", "claude", ws, "window-other")
+	listing, err := a.cleanupRowFor("codex:wanted")
+	if err != nil || len(listing.Rows) != 1 || listing.Rows[0].SessionID != "codex:wanted" || listing.Rows[0].MessageCount != 2 {
+		t.Fatalf("the one row is %+v, %v", listing.Rows, err)
+	}
+	savedMessageCounts.Lock()
+	_, counted := savedMessageCounts.files[transcriptPath("claude:other")]
+	savedMessageCounts.Unlock()
+	if counted {
+		t.Fatal("the other chat's saved conversation was read")
+	}
+	if err := a.RemoveChat("codex:wanted"); err != nil {
+		t.Fatal(err)
+	}
+	if listing, err = a.cleanupRowFor("codex:wanted"); err != nil || len(listing.Rows) != 0 || len(listing.Removed) != 1 {
+		t.Fatalf("after removal the read gives %+v, %v", listing, err)
+	}
+}
+
+func TestSavedMessageCountFollowsTheFile(t *testing.T) {
+	a, _ := providerTestApp(t)
+	ws := t.TempDir()
+	cleanupFixtureChat(t, a, "codex:counted", "codex", ws, "")
+	if count, known := savedMessageCount("codex:counted"); !known || count != 2 {
+		t.Fatalf("counted %d, %v", count, known)
+	}
+	if err := writeTranscript(&sessionhost.Transcript{SessionID: "codex:counted", Provider: "codex", Workspace: ws, Complete: true, Messages: []ConversationMessage{{Role: "you", Text: "One"}, {Role: "agent", Text: "Two"}, {Role: "you", Text: "A third, longer message"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if count, known := savedMessageCount("codex:counted"); !known || count != 3 {
+		t.Fatalf("after the file changed it counted %d, %v", count, known)
+	}
+	if _, known := savedMessageCount("codex:absent"); known {
+		t.Fatal("a missing conversation has a known count")
+	}
+}

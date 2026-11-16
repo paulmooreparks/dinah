@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"studio/internal/layout"
@@ -16,16 +18,46 @@ const chatCleanupFinalConfirmation = "This permanently deletes the selected chat
 // ListChatCleanup reads local metadata and saved messages. It never discovers
 // provider history, opens a chat or acquires a provider connection.
 func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
-	return a.listChatCleanupAtBoundary(nil)
+	return cleanupReadAgain(func() (ChatCleanupListing, error) { return a.listChatCleanupAtBoundary(nil) })
+}
+
+// errCleanupChanged is the refusal of a cleanup read during which a chat
+// changed, so that its rows could mix two states.
+var errCleanupChanged = errors.New("Chat inventory changed while cleanup was read. Refresh the list.")
+
+// cleanupReadAgain repeats a cleanup read that met a change, a bounded number
+// of times, as the Chats list does (savedChatsReadAgain). Each read is still
+// refused whole, and the last refusal is returned.
+func cleanupReadAgain(read func() (ChatCleanupListing, error)) (ChatCleanupListing, error) {
+	var listing ChatCleanupListing
+	var err error
+	for attempt := 0; attempt < savedChatsReads; attempt++ {
+		listing, err = read()
+		if !errors.Is(err, errCleanupChanged) && !errors.Is(err, errSavedChatsChanged) {
+			break
+		}
+	}
+	return listing, err
 }
 
 func (a *App) listChatCleanupAtBoundary(afterInventory func()) (ChatCleanupListing, error) {
-	return a.listChatCleanupWithStages(afterInventory, false)
+	return a.listChatCleanupWithStages(afterInventory, false, "")
+}
+
+// cleanupRowFor reads the cleanup row of one chat and the Recycle Bin, without
+// the rows of the other chats. Removing a chat and reporting the result need
+// no more, and a full read opens every saved conversation to count its
+// messages. With many long conversations that took long enough for some other
+// chat to change during nearly every read, and the removal was refused with
+// "Chat inventory changed while cleanup was read."
+func (a *App) cleanupRowFor(id string) (ChatCleanupListing, error) {
+	return cleanupReadAgain(func() (ChatCleanupListing, error) { return a.listChatCleanupWithStages(nil, true, id) })
 }
 
 // listChatCleanupWithStages also gives the earlier stages of a chat as rows
 // when stages is set (savedChatsWithStages). The page's listing never does.
-func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (ChatCleanupListing, error) {
+// With only set, the one row built is that of the chat the session is in.
+func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool, only string) (ChatCleanupListing, error) {
 	inventory, err := a.savedChatsWithStages(nil, stages)
 	if err != nil {
 		return ChatCleanupListing{}, err
@@ -88,15 +120,8 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 	}
 	sort.Strings(known)
 	seenReferences, seenChats := map[string]bool{}, map[string]bool{}
-	// A stage is a member of its own row and of the row of every chat that
-	// continues it, so its saved conversation is read once for all of them.
-	type savedMessages struct {
-		count int
-		known bool
-	}
-	messages := map[string]savedMessages{}
 	for _, reference := range known {
-		if reference == "" || seenReferences[reference] {
+		if reference == "" || seenReferences[reference] || (only != "" && reference != only) {
 			continue
 		}
 		seenReferences[reference] = true
@@ -191,20 +216,8 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 			if at := a.recordedActivity(member); cleanupActivityAfter(at, row.LastActivity) {
 				row.LastActivity = at
 			}
-			saved, read := messages[member]
-			if !read {
-				if tr, readErr := readTranscript(member); readErr == nil && !tr.Deleted {
-					saved.known = true
-					for _, m := range tr.Messages {
-						if m.Role == "you" || m.Role == "agent" {
-							saved.count++
-						}
-					}
-				}
-				messages[member] = saved
-			}
-			if saved.known {
-				row.MessageCount += saved.count
+			if count, known := savedMessageCount(member); known {
+				row.MessageCount += count
 			} else {
 				row.MessageCountKnown = false
 			}
@@ -314,6 +327,9 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 	for _, chat := range inventory.Chats {
 		row, ok := byHead[chat.ID]
 		if !ok {
+			if only != "" {
+				continue
+			}
 			row = ChatCleanupRow{SessionID: chat.ID, SessionIDs: []string{chat.ID}, Refusal: "This chat needs ownership repair before cleanup."}
 		}
 		row.Title, row.Workspace, row.Provider = chat.Title, chat.Cwd, chat.Provider
@@ -328,9 +344,60 @@ func (a *App) listChatCleanupWithStages(afterInventory func(), stages bool) (Cha
 		return ChatCleanupListing{}, err
 	}
 	if current.identity != inventory.identity {
-		return ChatCleanupListing{}, errors.New("Chat inventory changed while cleanup was read. Refresh the list.")
+		return ChatCleanupListing{}, errCleanupChanged
 	}
 	return listing, nil
+}
+
+// savedMessageCounts keeps the count of each saved conversation with the size
+// and time of the file it was counted from, as the links between saved
+// conversations are kept (sessionhost.ConversationLinks). Counting means
+// reading the whole conversation, the conversations of one person came to more
+// than a gigabyte, and every cleanup read counted all of them again. A stage
+// is also a member of the row of every chat that continues it.
+var savedMessageCounts struct {
+	sync.Mutex
+	files map[string]countedMessages
+}
+
+type countedMessages struct {
+	size  int64
+	mod   time.Time
+	count int
+	known bool
+}
+
+// savedMessageCount is how many messages the person and the agent wrote in a
+// saved conversation. It is not known for a conversation that is missing,
+// unreadable or marked deleted.
+func savedMessageCount(id string) (int, bool) {
+	path := transcriptPath(id)
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, false
+	}
+	savedMessageCounts.Lock()
+	cached, ok := savedMessageCounts.files[path]
+	savedMessageCounts.Unlock()
+	if ok && cached.size == info.Size() && cached.mod.Equal(info.ModTime()) {
+		return cached.count, cached.known
+	}
+	counted := countedMessages{size: info.Size(), mod: info.ModTime()}
+	if tr, readErr := readTranscript(id); readErr == nil && !tr.Deleted {
+		counted.known = true
+		for _, m := range tr.Messages {
+			if m.Role == "you" || m.Role == "agent" {
+				counted.count++
+			}
+		}
+	}
+	savedMessageCounts.Lock()
+	if savedMessageCounts.files == nil {
+		savedMessageCounts.files = map[string]countedMessages{}
+	}
+	savedMessageCounts.files[path] = counted
+	savedMessageCounts.Unlock()
+	return counted.count, counted.known
 }
 
 // RFC3339 timestamps may have different offsets and fractional precision.

@@ -66,7 +66,7 @@ func (a *App) stageChatCleanup(id string) error {
 	if err != nil {
 		return refuseChatCleanup(err.Error())
 	}
-	listing, err := a.listChatCleanupWithStages(nil, true)
+	listing, err := a.cleanupRowFor(id)
 	if err != nil {
 		return err
 	}
@@ -391,7 +391,7 @@ func (a *App) cleanupResult(id, status string, err error) ChatCleanupResult {
 		}
 		result.Error = err.Error()
 	}
-	if listing, listErr := a.ListChatCleanup(); listErr == nil {
+	if listing, listErr := a.cleanupRowFor(id); listErr == nil {
 		for _, row := range append(listing.Rows, listing.Removed...) {
 			if row.SessionID == id || slices.Contains(row.SessionIDs, id) {
 				v := row
