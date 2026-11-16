@@ -148,6 +148,8 @@
             if ((!node.matches('.pm-source') || flowHost) && !/^(avoid|avoid-page)$/.test(contentCSS.breakInside) && container) {
                 var firstBlock = blocks.length;
                 Array.from(content.children).forEach(function (child) {
+                    // Columns size the table but have no place in its sequence of content blocks.
+                    if(content.matches('table')&&!child.matches('caption,thead,tbody,tfoot,tr'))return;
                     var before = position ? position(child.parentNode, Array.prototype.indexOf.call(child.parentNode.childNodes, child)) : 0;
                     emit(child, before);
                 });
@@ -169,19 +171,21 @@
             }
             var gapNode = node.parentElement && node.parentElement.matches('li') && node.parentElement.firstElementChild === node ? node.parentElement : node;
             if (gapNode !== node && position) suppliedPosition = position(gapNode.parentNode, Array.prototype.indexOf.call(gapNode.parentNode.childNodes, gapNode));
+            var headers=[],table=node.tagName==='TR'&&node.closest('table');
+            if(table)for(var row of Array.from(table.rows)){if(row.classList.contains('host-suggestion-row')||row.classList.contains('doc-page-gap'))continue;if(!row.cells.length||!Array.from(row.cells).every(function(cell){return cell.tagName==='TH'&&!/^(row|rowgroup)$/i.test(cell.getAttribute('scope')||'');}))break;headers.push(row);}
+            var repeatedHeader=headers.indexOf(node)>=0;
             var block = { node: gapNode, pos: suppliedPosition, top: clean(rect.top), row: node.tagName === 'TR', columns: node.classList.contains('host-suggestion-row') ? node.cells[0].colSpan : node.cells ? node.cells.length : 0,
                 height: clean(rect.bottom) - clean(rect.top) + Math.max(0, parseFloat(css.marginBottom) || 0),
                 references:node.matches('aside.doc-footnote')?[]:window.yavcPageFootnotes?window.yavcPageFootnotes.references(node):[],
-                keepNext:/^(avoid|avoid-page)$/.test(css.breakAfter)||/^(avoid|avoid-page)$/.test(contentCSS.breakAfter)||node.tagName==='TR'&&!!node.querySelector('th'),
+                keepNext:/^(avoid|avoid-page)$/.test(css.breakAfter)||/^(avoid|avoid-page)$/.test(contentCSS.breakAfter)||repeatedHeader,
                 breakAfter:/^(page|always)$/.test(css.breakAfter)||/^(page|always)$/.test(contentCSS.breakAfter),
                 control:node.matches('.sc-page-break')||!!node.querySelector('.sc-page-break'),
                 breakBefore: /^(page|always)$/.test(css.breakBefore)||/^(page|always)$/.test(contentCSS.breakBefore)||!!(previous&&(previous.control||previous.breakAfter)) };
-            if(block.row&&!node.querySelector('th')){
-                var table=node.closest('table'),headers=[];
-                if(table)for(var row of Array.from(table.rows)){if(row.classList.contains('host-suggestion-row'))continue;if(row===node||!row.querySelector('th')||row.classList.contains('doc-page-gap'))break;headers.push(row);}
+            if(block.row&&!repeatedHeader){
                 block.headerRows=headers;block.repeatHeader=headers.reduce(function(sum,row){return sum+row.getBoundingClientRect().height/scale;},0);
             }
-            var bands=block.row&&window.yavcPageLines&&window.yavcPageLines.rowBands(content,top,scale,offsets,position);
+            // A repeated header is one unit. Cutting it into bands also copies its gaps into every subsequent header.
+            var bands=block.row&&!repeatedHeader&&window.yavcPageLines&&window.yavcPageLines.rowBands(content,top,scale,offsets,position);
             if(bands){
                 bands.forEach(function(band,index){blocks.push(Object.assign({},block,band,{rowTop:block.top,references:[],pos:index?band.pos:block.pos,breakBefore:!index&&block.breakBefore,breakAfter:index===bands.length-1&&block.breakAfter,keepNext:index===0&&bands.length>1||index===bands.length-2||index===bands.length-1&&block.keepNext}));});
                 content.querySelectorAll('.doc-footnote-ref[data-footnote-ref]').forEach(function(ref){if(ref.closest('.doc-page-gap'))return;var y=clean(ref.getBoundingClientRect().top),index=0;while(index+1<bands.length&&bands[index+1].top<=y)index++;blocks[blocks.length-bands.length+index].references.push(ref.getAttribute('data-footnote-ref'));});
@@ -214,6 +218,7 @@
                 node.style.removeProperty('height');var space=document.createElement('div');space.style.height=height+'px';cell.append(space);
                 var copy=document.createElement('table'),body=document.createElement('tbody');copy.className='doc-table-repeated-header';copy.append(body);
                 block.headerRows.forEach(function(row){body.append(row.cloneNode(true));});
+                copy.querySelectorAll('.doc-page-gap,.doc-gap-cap,.doc-gap-cover').forEach(function(item){item.remove();});
                 copy.querySelectorAll('[id]').forEach(function(item){item.removeAttribute('id');});copy.querySelectorAll('a,button,input,select,textarea,[tabindex]').forEach(function(item){item.setAttribute('tabindex','-1');if('disabled' in item)item.disabled=true;});
                 var original=block.headerRows[0],columns=document.createElement('colgroup'),host=original.closest('.doc-paginated'),zoom=host?Number(host.style.zoom)||1:1;
                 Array.from(original.cells).forEach(function(item){var col=document.createElement('col');col.style.width=item.getBoundingClientRect().width/zoom+'px';columns.append(col);});
@@ -268,7 +273,8 @@
         var scale = Number((host.closest('.doc-paginated') || host).style.zoom) || 1, top = (host.closest('.doc-paginated') || host).getBoundingClientRect().top, period = d.height + GAP;
         host.querySelectorAll('.sc-notice, [data-sc-frame]').forEach(function (frame) {
             if (frame.closest('.doc-page-gap') || frame.closest('.doc-footnote')) { return; }
-            var gaps = Array.from(frame.querySelectorAll('.doc-page-gap')).filter(function (gap) { return /^(DIV|SPAN)$/.test(gap.tagName) && !gap.closest('.doc-gap-cap'); });
+            // An exhausted cell has only an absolute repeated-header marker. It takes no flow space and must not become a frame gap.
+            var gaps = Array.from(frame.querySelectorAll('.doc-page-gap')).filter(function (gap) { return /^(DIV|SPAN)$/.test(gap.tagName) && getComputedStyle(gap).position !== 'absolute' && !gap.closest('.doc-gap-cap'); });
             /* The frame is one element from the first piece to the last, so it draws the box's real top and real bottom; the caps draw the edges that a gap opens. */
             frame.setAttribute('data-sc-piece', 'only');
             var frameLine = getComputedStyle(frame).lineHeight;
@@ -302,15 +308,47 @@
     }
     function rowSpacer(gap,block,column){
         var node=spacer(gap.height,true,null);node.setAttribute('data-page-gap-key','body:'+gap.index);
+        node.setAttribute('data-row-header-top',gap.headerTop);
         var exhausted=block.anchors[column].exhausted;
         if(gap.header&&block.headerRows.length){
-            var space=document.createElement('span');space.style.display='block';space.style.height=gap.height+'px';node.style.height='auto';if(!exhausted)node.append(space);
+            var space=document.createElement('span');space.className='doc-cell-page-space';space.style.display='block';space.style.height=gap.height+'px';node.style.height='auto';if(!exhausted)node.append(space);
             var header=document.createElement('span');header.className='doc-cell-repeated-header';header.style.height=gap.header+'px';
-            block.headerRows.forEach(function(row){var cell=row.cells[column];if(!cell)return;var copy=cell.cloneNode(true);copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(function(item){item.removeAttribute('id');});copy.querySelectorAll('a,button,input,select,textarea,[tabindex]').forEach(function(item){item.setAttribute('tabindex','-1');if('disabled' in item)item.disabled=true;});header.append.apply(header,Array.from(copy.childNodes));});node.append(header);
+            block.headerRows.forEach(function(row){var cell=row.cells[column];if(!cell)return;var copy=cell.cloneNode(true);copy.querySelectorAll('.doc-page-gap,.doc-gap-cap,.doc-gap-cover').forEach(function(item){item.remove();});copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(function(item){item.removeAttribute('id');});copy.querySelectorAll('a,button,input,select,textarea,[tabindex]').forEach(function(item){item.setAttribute('tabindex','-1');if('disabled' in item)item.disabled=true;});header.append.apply(header,Array.from(copy.childNodes));});node.append(header);
         }
         if(exhausted){
             node.style.position='absolute';node.style.top=gap.rowHeaderTop+'px';node.style.left='0';node.style.width='100%';node.style.height=(gap.header||0)+'px';
         }return node;
+    }
+    // A shared cut can precede different lines in its cells. Align each spacer to the planned page top after the browser has placed its anchor.
+    function alignRowHeaders(flow){
+        var page=flow.closest('.doc-paginated'),scale=Number(page.style.zoom)||1,origin=flow.getBoundingClientRect().top;
+        Array.from(flow.querySelectorAll('[data-row-header-top]')).sort(function(a,b){return Number(a.getAttribute('data-row-header-top'))-Number(b.getAttribute('data-row-header-top'));}).forEach(function(gap){
+            var header=gap.querySelector('.doc-cell-repeated-header');if(!header)return;
+            var delta=(origin+Number(gap.getAttribute('data-row-header-top'))*scale-header.getBoundingClientRect().top)/scale;
+            if(Math.abs(delta)<.05)return;
+            var space=gap.querySelector('.doc-cell-page-space');
+            if(space)space.style.height=Math.max(0,parseFloat(space.style.height)+delta)+'px';
+            else gap.style.top=(parseFloat(gap.style.top)||0)+delta+'px';
+        });
+    }
+    // The editable cells remain whole. Page furniture covers their paint between the last line of a piece and its next repeated header.
+    function paintRowBreaks(flow,d){
+        var page=flow.closest('.doc-paginated'),scale=Number(page.style.zoom)||1,origin=page.getBoundingClientRect(),groups=new Map();
+        page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();});
+        flow.querySelectorAll('[data-row-header-top]').forEach(function(gap){var key=gap.getAttribute('data-page-gap-key'),group=groups.get(key);if(!group){group=[];groups.set(key,group);}group.push(gap);});
+        groups.forEach(function(group){
+            var row=group[0].closest('tr'),table=row&&row.closest('table');if(!table)return;
+            var headers=group.map(function(gap){return gap.querySelector('.doc-cell-repeated-header');}).filter(Boolean);if(!headers.length)return;
+            var end=Math.min.apply(null,headers.map(function(header){return header.getBoundingClientRect().top;})),start=-Infinity;
+            var first=Math.min.apply(null,group.filter(function(gap){return getComputedStyle(gap).position!=='absolute';}).map(function(gap){return gap.getBoundingClientRect().top;}));
+            var walker=document.createTreeWalker(row,NodeFilter.SHOW_TEXT),text,range=document.createRange();
+            while((text=walker.nextNode())){if(!text.data.trim()||text.parentElement.closest('.doc-page-gap'))continue;range.selectNodeContents(text);Array.from(range.getClientRects()).forEach(function(rect){if(rect.width>0&&rect.bottom<=first+1)start=Math.max(start,rect.bottom);});}
+            if(!Number.isFinite(start)||end<=start)return;
+            var rect=table.getBoundingClientRect(),top=(start-origin.top)/scale+1,bottom=(end-origin.top)/scale,gutter=Math.floor(top/(d.height+GAP))*(d.height+GAP)+d.height-top;
+            var cover=document.createElement('div');cover.className='doc-table-gap-cover';cover.setAttribute('aria-hidden','true');cover.contentEditable='false';
+            cover.style.cssText='position:absolute;pointer-events:none;z-index:1;left:'+((rect.left-origin.left)/scale-1)+'px;top:'+top+'px;width:'+(rect.width/scale+2)+'px;height:'+(bottom-top)+'px;background-color:var(--doc-page);background-image:linear-gradient(to bottom,var(--doc-page) 0,var(--doc-page) '+Math.max(0,gutter)+'px,var(--sheet-gutter,var(--surface-alt)) '+Math.max(0,gutter)+'px,var(--sheet-gutter,var(--surface-alt)) '+Math.max(0,gutter+GAP)+'px,var(--doc-page) '+Math.max(0,gutter+GAP)+'px)';
+            page.append(cover);
+        });
     }
     function noteGaps(layout,blocks){
         var first=new Map(),added=new Map(),result=[];
@@ -361,8 +399,9 @@
         o.flow.addEventListener('load', schedule, true); document.fonts.addEventListener('loadingdone', schedule); schedule();
         return { refresh: function () { signature = ''; schedule(); }, destroy: function () { alive = false; cancelAnimationFrame(raf); ro.disconnect(); o.flow.removeEventListener('load', schedule, true); document.fonts.removeEventListener('loadingdone', schedule); } };
     }
+    var tableMeasureCaches=new WeakMap();
     function plugin(PM, o) {
-        var key = new PM.PluginKey('document-pages'), signature = '', raf = 0, alive = true,seenDoc=null,tableWidths=new WeakMap(),gapIds=new WeakMap(),gapSerial=0;
+        var key = new PM.PluginKey('document-pages'), signature = '', raf = 0, alive = true,seenDoc=null,tableCache=null,gapIds=new WeakMap(),gapSerial=0;
         /* The arrangements this document has been laid out in since the last real input (an edit, a width, a picture or a font arriving). A layout that
            comes out as one of them again is a cycle, in which each arrangement changes what the next one measures: it is kept as it is and the page
            stops laying out until there is real input, so that a layout that cannot settle ends in a fixed arrangement and not in another pass. The
@@ -404,27 +443,37 @@
         /* The natural columns of each table of the page. A table is measured again when its text or the drawings in it have changed, since a host's drawing
            that arrives after the first layout changes how the table lays out by its content, and the columns are part of the arrangement (so that a table
            measured before its drawings were there is not kept at the columns it had then). */
-        /* The table's own text, as its length and a hash of it, without the page's gaps (the copy of a repeated header in a gap moves with the layout), and its drawings. */
+        /* Hash source text and inline formatting, excluding page furniture and the editor's empty-cell marks. Formatting can change widths without changing text. */
         function fingerprintOf(table){
-            var length=0,hash=0,walker=document.createTreeWalker(table,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{acceptNode:function(node){return node.nodeType===1&&node.classList.contains('doc-page-gap')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
-            while(walker.nextNode()){if(walker.currentNode.nodeType===3){var data=walker.currentNode.data;length+=data.length;for(var i=0;i<data.length;i++){hash=(hash*31+data.charCodeAt(i))|0;}}}
-            return length+'.'+hash+':'+table.querySelectorAll('[data-host-drawn]').length;
+            var length=0,hash=0,walker=document.createTreeWalker(table,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{acceptNode:function(node){return node.nodeType===1&&node.matches('.doc-page-gap,.doc-gap-cap,.doc-gap-cover,colgroup[data-doc-columns],.ProseMirror-separator,.ProseMirror-trailingBreak')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
+            while(walker.nextNode()){var node=walker.currentNode,data=node.nodeType===3?node.data:'<'+node.tagName+(node.matches('td,th,tr,tbody,thead,tfoot')?'':':'+(node.getAttribute('style')||'')+':'+(node.getAttribute('class')||''))+'>';length+=data.length;for(var i=0;i<data.length;i++){hash=(hash*31+data.charCodeAt(i))|0;}}
+            return length+'.'+hash;
         }
         /* A table measured while a font is loading has the columns of the font that stood in for it, so that measure is used for this layout and not kept. The page
            does not rely on the fonts event to hear that the font has arrived (it did not reach the page on WebKit on Linux): the promise `document.fonts.ready` says when
            the fonts have loaded, and the tables are then measured again. */
-        var waiting=false;
+        var waiting=false,waitingFonts=new Set();
+        function rememberLoadedFonts(faces){
+            var changed=false;Array.from(faces).forEach(function(face){if(face.status==='loaded'&&!tableCache.fonts.has(face)){tableCache.fonts.add(face);changed=true;}});
+            return changed;
+        }
         function waitForFonts(v){
+            Array.from(document.fonts).forEach(function(face){if(face.status==='loading')waitingFonts.add(face);});
             if(waiting)return;waiting=true;
-            document.fonts.ready.then(function(){waiting=false;if(!alive)return;tableWidths=new WeakMap();seenDoc=null;schedule(v);});
+            document.fonts.ready.then(function(){waiting=false;if(!alive)return;if(rememberLoadedFonts(waitingFonts))tableCache.widths=new WeakMap();waitingFonts.clear();seenDoc=null;schedule(v);});
         }
         function measureTables(v,scale){
+            var owners=new Set();for(var ancestor=v.dom;ancestor;ancestor=ancestor.parentElement){(ancestor.getAttribute('data-md-style')||'').split(/\s+/).filter(Boolean).forEach(function(owner){owners.add(owner);});}
+            var context=v.dom.clientWidth+'|'+getComputedStyle(v.dom).font+'|'+Array.from(document.querySelectorAll('style[data-md-style-owner]')).filter(function(style){return owners.has(style.getAttribute('data-md-style-owner'));}).map(function(style){return style.textContent;}).join('\n');
+            if(tableCache.context!==context){tableCache.context=context;tableCache.widths=new WeakMap();}
+            if(rememberLoadedFonts(waitingFonts))tableCache.widths=new WeakMap();
+            if(document.fonts.status==='loading')waitForFonts(v);
             var map=new Map();
             v.dom.querySelectorAll('table').forEach(function(table){
                 /* A table that a host drew, or the page's own copy of one, is not the page's to give columns to. */
                 if(table.closest('.doc-page-gap')||table.closest('.doc-gap-cap')||table.closest('.pm-source'))return;
-                var fingerprint=fingerprintOf(table),entry=tableWidths.get(table);
-                if(!entry||entry.fingerprint!==fingerprint){var values=naturalWidths(v,table,scale);if(!values)return;entry={fingerprint:fingerprint,values:values};if(document.fonts.status==='loading'){waitForFonts(v);}else{tableWidths.set(table,entry);}}
+                var fingerprint=fingerprintOf(table),entry=tableCache.widths.get(table);
+                if(!entry||entry.fingerprint!==fingerprint){var values=naturalWidths(v,table,scale);if(!values)return;entry={fingerprint:fingerprint,values:values};if(document.fonts.status==='loading'){waitForFonts(v);}else{tableCache.widths.set(table,entry);}}
                 map.set(table,entry.values);
             });
             return map;
@@ -448,6 +497,7 @@
                 raf = 0; if (!alive || v.isDestroyed) { return; }
                 var page = o.pagination && o.pagination();
                 if (!page || !v.dom.isConnected) {
+                    o.page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();});
                     release();
                     if (signature) { signature = ''; if (o.syncSelection) { o.syncSelection(); } v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
                     return;
@@ -482,7 +532,7 @@
                         v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.create(v.state.doc, widgets)).setMeta('addToHistory', false));
                     }
                     measures.forEach(function (values, table) { columns(table, values.cells); });
-                    if (changed || furniture !== placed(v.dom)) { applyFlowGaps(v.dom, layout, blocks); applyPieces(v.dom, d); furniture = placed(v.dom); }
+                    if (changed || furniture !== placed(v.dom)) { applyFlowGaps(v.dom, layout, blocks); alignRowHeaders(v.dom); applyPieces(v.dom, d); paintRowBreaks(v.dom,d); furniture = placed(v.dom); }
                     ownSize = sizeOf(v.dom);
                 } catch (err) { if (o.paginationProblem) { o.paginationProblem(err.message); } }
             });
@@ -491,13 +541,15 @@
             state: { init: function () { return PM.DecorationSet.empty; }, apply: function (tr, value) { return tr.getMeta(key) || value.map(tr.mapping, tr.doc); } },
             props: { decorations: function (state) { return key.getState(state); } },
             view: function (v) {
+                tableCache=tableMeasureCaches.get(v.dom);
+                if(!tableCache){tableCache={widths:new WeakMap(),fonts:new WeakSet(),context:null};tableMeasureCaches.set(v.dom,tableCache);rememberLoadedFonts(document.fonts);}
                 alive = true; signature = ''; release();
                 /* A change of width is real input. A change of height is the page's own, since the page makes it each time it lays out. */
                 var ro = new ResizeObserver(function (entries) { var width = entries.length ? entries[entries.length - 1].contentRect.width : lastWidth; if (Math.abs(width - lastWidth) > .5) { lastWidth = width; seenDoc = null; } else if (sizeOf(v.dom) === ownSize) { return; } schedule(v); }); ro.observe(v.dom);
                 /* A picture or a font that arrives is real input, and one that the page's own gaps draw again (the copy of a repeated header) is not. It also changes how a table lays out by its content, so the measures of the tables are taken again. */
-                function loaded(e) { if (e && e.target && e.target.closest && e.target.closest('.doc-page-gap')) { return; } seenDoc=null;tableWidths=new WeakMap();schedule(v); }
+                function loaded(e) { if (e && e.target && e.target.closest && e.target.closest('.doc-page-gap')) { return; } if(e&&e.type==='loadingdone'&&!rememberLoadedFonts(e.fontfaces||[]))return;tableCache.widths=new WeakMap();seenDoc=null;schedule(v); }
                 v.dom.addEventListener('load', loaded, true); document.fonts.addEventListener('loadingdone', loaded); schedule(v);
-                return { update: function () { schedule(v); }, destroy: function () { alive = false; cancelAnimationFrame(raf); raf = 0; ro.disconnect(); v.dom.removeEventListener('load', loaded, true); document.fonts.removeEventListener('loadingdone', loaded); } };
+                return { update: function () { schedule(v); }, destroy: function () { alive = false; cancelAnimationFrame(raf); raf = 0; ro.disconnect(); o.page.querySelectorAll('.doc-table-gap-cover').forEach(function(node){node.remove();}); v.dom.removeEventListener('load', loaded, true); document.fonts.removeEventListener('loadingdone', loaded); } };
             }
         });
     }

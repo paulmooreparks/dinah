@@ -1,5 +1,5 @@
 {
-  "digest": "0f454e5b5b2a05e08f1dfbc879c2a7a5075aefff241ca948f6b8bda8b0e57e28",
+  "digest": "7ebe10f4bfde5f867d037ee59e55f02e40cb6314df01aa3b48c8f66b0ddb1bcf",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "901f18144fd1b4efc419e5ce96d4d0da1f8782373e79620d573ea6af1f68071b"
+      "sha256": "f9ecc572c31ae62c59383c7275e6ebce054e3a2bea8b9c6e1830abe944308791"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "082ac22c30b8aa512328dd98493e9512f311980ae4211e8819ec466bd537b399"
+      "sha256": "1a5e4dc9c29e9c1c53a951e0d59decfb89ec11d1761637b20c9a61d201ac8e6b"
     },
     {
       "path": "content/editor/editor.css",
@@ -375,8 +375,8 @@
     },
     {
       "path": "content/md-editor/pages.js",
-      "bytes": 52566,
-      "sha256": "fd4e275cc2674968424ff91e4cd2b6eb3aca25729330b2b054b35dbe069f8e55"
+      "bytes": 59156,
+      "sha256": "e4e987b5acab17a946603e18ae4de2153bbc41b11fa649c85c8c0dcea2693e88"
     },
     {
       "path": "content/md-editor/paper-sizes.js",

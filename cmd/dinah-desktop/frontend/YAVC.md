@@ -5,9 +5,9 @@
 | Item | Value |
 | --- | --- |
 | Producer | https://github.com/paulmooreparks/yavc.app |
-| Release | v0.2.100, commit `daef69cb3676561cc602626f8dfa9db2d740396a`, downloaded from the release's assets (`yavc-content-v0.2.100.zip`, SHA-256 `039634145b40a453528faf68685c7be2708116ffde43d87331824f97924267d4`) |
-| Manifest digest | `0f454e5b5b2a05e08f1dfbc879c2a7a5075aefff241ca948f6b8bda8b0e57e28` |
-| Applets | Editor 46.37.47, Docs 1.37.47, Diagrams 0.46.10, Slides 0.65.4 |
+| Release | v0.2.101, commit `e43b2d8be3ef479a4850a2c112633f9775b8fead`, downloaded from the release's assets (`yavc-content-v0.2.101.zip`, SHA-256 `306e32208aeee9df09b0b1a445f3f10e101c5a8353b90538ef32f989eee94115`) |
+| Manifest digest | `7ebe10f4bfde5f867d037ee59e55f02e40cb6314df01aa3b48c8f66b0ddb1bcf` |
+| Applets | Editor 46.37.49, Docs 1.37.49, Diagrams 0.46.10, Slides 0.65.4 |
 | PUDL | 0.107.1, the same release Dinah ships in `pudl/` |
 
 The release's own `manifest.json` is kept beside it. Dinah ships the release's `content/`, `support/` and `LICENSE`. It leaves out the release's `pudl/`, because Dinah's copy is the same release byte for byte, and its demonstration hosts (`lab/`, `workspace-lab/`) with their `go.mod` and `go.sum`. `yavc_release_test.go` checks the aggregate digest, and the length and SHA-256 of every file, against Dinah's tree and Dinah's PUDL.
