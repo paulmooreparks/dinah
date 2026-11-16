@@ -378,7 +378,7 @@
       var item = window.dinahWorkbench.item(key);
       if (!item) return;
       var ids = Array.from(attentionItems.values()).filter(function (notice) {
-        return !plainMention(notice) && (item.kind === 'chat-session' && notice.sessionId === item.path || item.kind === 'bus-room' && notice.group === item.path || item.kind === 'bus-thread' && notice.message === Number(item.path));
+        return notice.kind !== 'mention' && (item.kind === 'chat-session' && notice.sessionId === item.path || item.kind === 'bus-room' && notice.group === item.path || item.kind === 'bus-thread' && notice.message === Number(item.path));
       }).map(function (notice) { return notice.id; });
       if (ids.length) dismissAttention(ids).catch(fail);
     }

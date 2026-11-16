@@ -111,7 +111,7 @@ exports.open = async function (spec) {
       remainingDecisionCountsCorrect: afterReply.entries.count === 1 && afterReply.entries.items[0].id === request.request.id,
       otherChatUnaffected: present(afterReply, other.message.ID), horizontalOverflow: await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), errors: host.errors.slice()
     };
-    fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ result, reached, afterExisting, afterReply, first, ack, rows }, null, 2));
+    fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ result, before, prelude, reached, afterExisting, afterReply, first, ack, rows, pendingReply, existing, target, other, request }, null, 2));
     return { ...result, raw: { before, prelude, reached, afterExisting, afterReply, first, ack, rows, pendingReply, existing, target, other, request } };
   } };
 };
@@ -135,7 +135,7 @@ exports.openNavigation = async function (spec) {
       catch (error) { refusals.push({ id: source.message.ID, error: String(error) }); }
     }
     const afterRefusals = await state();
-    return { beforeOpen, afterOpenWithoutTarget, wrong, afterWrongMessage, nonmention, refusals, afterRefusals, target };
+    return { beforeOpen, afterOpenWithoutTarget, wrong, afterWrongMessage, nonmention, refusals, afterRefusals, target, calls: await p.evaluate(() => __orgReceivingCalls.slice()) };
   } });
   assert.equal(spec.scenario, 'unavailable');
   const configs = JSON.parse(fs.readFileSync(process.env.MENTIONS_RECEIVING_CONFIG, 'utf8'));

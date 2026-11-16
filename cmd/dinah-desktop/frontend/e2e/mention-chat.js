@@ -43,6 +43,14 @@ const { launch } = require('./lib/page');
       await card.getByRole('button', { name: 'Open in Chat', exact: true }).click();
       await p.waitForFunction(() => __acks.length === 2);
       ok('an existing chat is raised and retargeted without duplication', await p.locator('.group-window').count() === 1 && await p.evaluate(() => __acks[1].id === 4 && __acks[1].visible));
+      await p.evaluate(() => {
+        const request = { id: 'structured-review', kind: 'mention', requestId: 'request:35', title: 'Reviewer asks you', body: 'Should the review proceed?', sessionId: 'reviewer', sessionTitle: 'Reviewer', group: 'harbor-review', groupTitle: 'Review', message: 35, created: '2026-11-16T00:00:00Z' };
+        __mentions.push(request); __emit('notifications:added', request);
+        return dinahWorkbench.open('needs-you');
+      });
+      await p.evaluate(() => dinahBus.openGroup('harbor-review'));
+      await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      ok('opening the source group preserves its structured request card', await p.evaluate(() => dinahHost.notices.list(n => n.id === 'structured-review').length === 1 && __mentions.some(n => n.id === 'structured-review') && !__acks.some(a => a.id === 35)));
       await t.shot('mention-chat-' + theme + '-' + width);
     } finally { await t.close(); }
   }
