@@ -3,10 +3,10 @@ const { setup, makeRequest } = require('./lib/decisions-fixture');
   // The opaque ID deliberately differs from its message number.
   const older = makeRequest('opaque-target', { messageId: 10 });
   const t = await setup([makeRequest('r40'), makeRequest('r30'), makeRequest('r20'), older], { entryPoints: true, noOpen: true }); const { page: p, ok } = t;
-  const emit = (id, message, source = 'review') => p.evaluate(({ id, message, source }) => {
-    const item = { id, kind: 'mention', severity: 'info', title: 'Review asks you', body: 'Please decide.\nA second line.', group: 'review-group', groupTitle: 'Review Group', sessionId: source, sourceId: source, sessionTitle: 'Review', message, created: '2026-11-14T00:00:00Z' };
+  const emit = (id, message, source = 'review', kind = 'attention', requestId = '') => p.evaluate(({ id, message, source, kind, requestId }) => {
+    const item = { id, kind, requestId, severity: 'info', title: 'Review asks you', body: 'Please decide.\nA second line.', group: 'review-group', groupTitle: 'Review Group', sessionId: source, sourceId: source, sessionTitle: 'Review', message, created: '2026-11-14T00:00:00Z' };
     sessionStorage.setItem('attention', JSON.stringify(JSON.parse(sessionStorage.getItem('attention') || '[]').concat(item))); __emit('notifications:added', item);
-  }, { id, message, source });
+  }, { id, message, source, kind, requestId });
   try {
     await p.evaluate(() => { __pageSize = 1; return dinahDecisionEntries.refresh(); });
     await p.evaluate(() => dinahWorkbench.open('needs-you'));
@@ -44,11 +44,20 @@ const { setup, makeRequest } = require('./lib/decisions-fixture');
     await p.waitForFunction(() => (window.__dismissed || []).includes('source-card'));
     ok('a message outside Decisions still opens its group at the message', await p.evaluate(() => __fallback[0] === 'review-group' && __fallback[1] === 999));
     await p.evaluate(() => { __decisionItems.unshift({ ...__decisionItems[0], id: 'plain-mention', messageId: 900, kind: 'mention', questions: [], canDismiss: true }); __emit('bus:changed', {}); });
-    await emit('plain-card', 900, 'plain');
+    await p.evaluate(() => { dinahBus.openMessage = target => { window.__fallback = [target.group, target.message]; return Promise.resolve(true); }; });
+    await emit('plain-card', 900, 'plain', 'mention');
     await p.waitForFunction(() => dinahDecisionEntries.get(900) === 'plain-mention');
-    await p.locator('#questions [data-notice-id="plain-card"]').getByRole('button', { name: 'Open Request in Decisions', exact: true }).click();
-    await p.waitForFunction(() => (window.__dismissed || []).includes('plain-card'));
-    ok('plain group attention opens its Decisions row', await p.locator('.decisions-row[data-request-id="plain-mention"]').count() === 1);
+    await p.locator('#questions [data-notice-id="plain-card"]').getByRole('button', { name: 'Open in Chat', exact: true }).click();
+    await p.waitForFunction(() => __fallback[1] === 900);
+    await p.evaluate(() => { document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: 900, group: 'review-group' } })); });
+    ok('a legacy mention projection never opens a Decisions row', await p.locator('.decisions-row[data-request-id="plain-mention"]').count() === 0);
+    await p.evaluate(() => dinahWorkbench.open('needs-you'));
+    await emit('authoritative-request', 20, 'authoritative', 'mention', 'r20');
+    await p.evaluate(() => { __entriesFailure = true; });
+    await p.locator('#questions [data-notice-id="authoritative-request"]').getByRole('button', { name: 'Open Request in Decisions', exact: true }).click();
+    await p.waitForFunction(() => (window.__dismissed || []).includes('authoritative-request'));
+    ok('an authoritative request opens Decisions despite an unavailable index', await p.locator('.decisions-row[data-request-id="r20"] > a[aria-current="true"]').count() === 1 && await p.evaluate(() => __fallback[1] === 900));
+    await p.evaluate(() => { __entriesFailure = false; });
     await p.evaluate(() => {
       window.__realOpen = dinahDecisions.openRequest;
       dinahDecisions.openRequest = id => new Promise(resolve => { window.__continueOpen = () => resolve(__realOpen(id)); });

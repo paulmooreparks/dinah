@@ -516,17 +516,9 @@
     /* Opens an inbox message where it was said and marks it read once it is
        shown there, the one message alone. */
     function openInboxItem(m) {
-      var done = false, timer = 0;
-      function shown(e) {
-        if (done || !e.detail || e.detail.message !== m.id) return;
-        done = true; clearTimeout(timer); document.removeEventListener('dinah:bus-message-shown', shown);
-        if (m.unread && app().BusMarkInboxRead) Promise.resolve(app().BusMarkInboxRead(m.id)).then(function () { return load(); }).then(function () { readInbox(); }).catch(host().fail);
-      }
-      document.addEventListener('dinah:bus-message-shown', shown);
-      timer = setTimeout(function () { done = true; document.removeEventListener('dinah:bus-message-shown', shown); }, 30000);
-      var opening = m.room ? window.dinahBus.openGroup(m.room, { message: m.id, inbox: true })
-        : window.dinahWorkbench.open({ kind: 'bus-thread', path: String(m.id), title: 'Message From ' + (m.fromPerson ? m.to : m.from) });
-      return Promise.resolve(opening).catch(function (error) { done = true; clearTimeout(timer); document.removeEventListener('dinah:bus-message-shown', shown); host().fail(error); });
+      return openMessage({ message: m.id, group: m.room || '', title: 'Message From ' + (m.fromPerson ? m.to : m.from) }).then(function () {
+        if (m.unread && app().BusMarkInboxRead) return Promise.resolve(app().BusMarkInboxRead(m.id)).then(function () { return load(); }).then(function () { readInbox(); });
+      }).catch(host().fail);
     }
     function field(label, input) { var l = node('label', 'form-field'); l.appendChild(node('span', 'form-label', label)); l.appendChild(input); return l; }
     /* The form for a new message, in the pane above the lists. */
@@ -1230,7 +1222,7 @@
       if (!row) return;
       root.querySelectorAll('.bus-target-message').forEach(function (n) { n.classList.remove('bus-target-message'); });
       targetPending = false; row.classList.add('bus-target-message'); c.navigate(row);
-      document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: targetMessage, group: key } }));
+      document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: targetMessage, group: key, windowKey: root.closest('[data-win]').dataset.win } }));
     }
     function targetSoon() {
       if (targetFrame || !targetMessage || !targetPending) return;
@@ -1896,16 +1888,20 @@
     var c = conversation(root, 'The message and its replies appear here.', function () { return app().BusThread(id); }, box);
     /* The thread starts with its message, which it highlights once drawn,
        saying so for the Inbox, which marks it read then (docs/design/inbox.md). */
-    var shown = false;
-    var watch = new MutationObserver(function () {
-      var row = !shown && root.querySelector('[data-bus-message="' + CSS.escape(String(id)) + '"]');
-      if (!row) return;
-      shown = true; watch.disconnect();
-      row.classList.add('bus-target-message'); c.navigate(row);
-      document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: id, thread: true } }));
-    });
+    var targetFrame = 0, pendingTarget = true;
+    function showTarget() {
+      if (!pendingTarget || targetFrame) return;
+      targetFrame = requestAnimationFrame(function () {
+        targetFrame = 0;
+        var row = root.querySelector('[data-bus-message="' + CSS.escape(String(id)) + '"]');
+        if (!pendingTarget || !row) return;
+        pendingTarget = false; row.classList.add('bus-target-message'); c.navigate(row);
+        document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: id, thread: true, windowKey: root.closest('[data-win]').dataset.win } }));
+      });
+    }
+    var watch = new MutationObserver(showTarget);
     watch.observe(root, { childList: true, subtree: true });
-    return { destroy: function () { watch.disconnect(); c.destroy(); }, commands: function () { return [{ label: 'Refresh', run: c.draw }]; } };
+    return { setState: function () { pendingTarget = true; showTarget(); }, destroy: function () { watch.disconnect(); if (targetFrame) cancelAnimationFrame(targetFrame); c.destroy(); }, commands: function () { return [{ label: 'Refresh', run: c.draw }]; } };
   } });
 
   window.dinahCommands.register({ id: 'bus', glyph: 'inbox', menu: 'view', mnemonic: 'R', label: 'Group Chats', run: function () { return window.dinahWorkbench.open('bus'); } });
@@ -1963,7 +1959,40 @@
     host().on('bus:changed', function () { load().catch(function () {}); });
     host().onResync(function () { return load(); });
   });
-  window.dinahBus = { load: load, overview: function () { return overview; }, chat: chat, startGroup: startGroup, addItems: addItems, addChatToGroup: addChatToGroup, openGroup: function (key, target) {
+  // Resolve navigation only after the target row has been marked and scrolled into view.
+  function openMessage(target) {
+    if (!target || !Number.isSafeInteger(target.message) || target.message <= 0) return Promise.reject(new Error('The message is no longer available.'));
+    return new Promise(function (resolve, reject) {
+      var timer, done = false;
+      function finish(error) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer); document.removeEventListener('dinah:bus-message-shown', shown);
+        if (error) reject(error);
+        else {
+          document.dispatchEvent(new CustomEvent('dinah:bus-message-opened', { detail: { message: target.message, group: target.group || '' } }));
+          resolve(true);
+        }
+      }
+      function shown(event) {
+        var detail = event.detail;
+        if (!detail || detail.message !== target.message || (target.group ? detail.group !== target.group : !detail.thread)) return;
+        var win = detail.windowKey && document.querySelector('.win[data-win="' + CSS.escape(detail.windowKey) + '"]');
+        var row = win && win.querySelector('.bus-target-message[data-bus-message="' + CSS.escape(String(target.message)) + '"]');
+        var log = row && row.closest('.bus-log'), bounds = row && row.getBoundingClientRect(), viewport = log && log.getBoundingClientRect();
+        if (!win || !win.classList.contains('active') || !bounds || !viewport || !bounds.width || bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.bottom <= 0 || bounds.top >= innerHeight) {
+          finish(new Error('The message is not visible. Open the chat and try again.')); return;
+        }
+        finish();
+      }
+      document.addEventListener('dinah:bus-message-shown', shown);
+      timer = setTimeout(function () { finish(new Error('The message could not be shown. Open the chat and try again.')); }, 30000);
+      Promise.resolve().then(function () {
+        return target.group ? window.dinahBus.openGroup(target.group, { message: target.message, inbox: true }) : window.dinahWorkbench.open({ kind: 'bus-thread', path: String(target.message), title: target.title || 'Chat' }, JSON.stringify({ message: target.message }));
+      }).catch(finish);
+    });
+  }
+  window.dinahBus = { openMessage: openMessage, load: load, overview: function () { return overview; }, chat: chat, startGroup: startGroup, addItems: addItems, addChatToGroup: addChatToGroup, openGroup: function (key, target) {
     return Promise.all([window.dinahUIState ? window.dinahUIState.ready : Promise.resolve(), resolveGroup(key)]).then(function (values) {
       var result = values[1];
       if (result.state !== 'resolved') throw new Error(lookupWords(result.state));

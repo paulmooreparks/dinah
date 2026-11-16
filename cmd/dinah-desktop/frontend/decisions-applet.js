@@ -16,11 +16,13 @@
     return JSON.stringify([item.id, item.destination, item.askerSession, item.group, item.messageId, item.text, item.canDismiss, item.dismissalReason,
       item.questions.map(function (q) { return [q.number, q.text, q.recommendation, q.choices]; })]);
   }
-  function validItem(item) {
+  function validWireItem(item) {
     return item && ['text', 'workspace', 'askerSession', 'group', 'groupTitle', 'createdAt'].every(function (key) { return typeof item[key] === 'string'; }) && Number.isFinite(Date.parse(item.createdAt)) && Number.isSafeInteger(item.messageId) && item.messageId > 0 && typeof item.id === 'string' && item.id && Number.isSafeInteger(item.revision) && item.revision > 0 &&
       (item.kind === 'request' || item.kind === 'mention') && typeof item.canDismiss === 'boolean' && typeof item.dismissalReason === 'string' && typeof item.destination === 'string' && item.destination && typeof item.asker === 'string' &&
       Array.isArray(item.questions) && (item.kind === 'mention' ? item.questions.length === 0 : item.questions.length > 0 && item.questions.length <= 20) && new Set(item.questions.map(function (q) { return q.number; })).size === item.questions.length && item.questions.every(function (q) { return Number.isSafeInteger(q.number) && q.number > 0 && typeof q.text === 'string' && typeof q.recommendation === 'string' && Array.isArray(q.choices) && q.choices.every(function (c) { return typeof c === 'string'; }) && typeof q.answered === 'boolean' && typeof q.answer === 'string'; });
   }
+  function validItem(item) { return validWireItem(item) && item.kind !== 'mention'; }
+
   function validReceipt(receipt, op) {
     return receipt && receipt.operationId === op.input.operationId && (receipt.state === 'committed' || receipt.state === 'rejected') && receipt.id === (op.input.id || '') &&
       Number.isSafeInteger(receipt.revision) && receipt.revision >= 0 && typeof receipt.closed === 'boolean' && Array.isArray(receipt.messageIds) && receipt.messageIds.every(Number.isSafeInteger) && (receipt.state === 'committed' ? receipt.reason === null : receipt.reason && typeof receipt.reason.code === 'string' && typeof receipt.reason.message === 'string' && !!receipt.reason.message && receipt.messageIds.length === 0);
@@ -381,8 +383,8 @@
       var collected = [], pages = 0, keepSelection = !append && !!selected && view === 'requests', targetPages = append ? 1 : loadedPages;
       function readPage(cursor) {
         return Promise.resolve().then(function () { return app().Decisions(cursor); }).then(function (page) {
-          if (!page || !Array.isArray(page.items) || !page.items.every(validItem) || !Number.isSafeInteger(page.nextBefore) || page.nextBefore < 0 || cursor && page.nextBefore >= cursor) throw new Error('The request list is invalid.');
-          collected.push.apply(collected, page.items); pages++;
+          if (!page || !Array.isArray(page.items) || !page.items.every(validWireItem) || !Number.isSafeInteger(page.nextBefore) || page.nextBefore < 0 || cursor && page.nextBefore >= cursor) throw new Error('The request list is invalid.');
+          collected.push.apply(collected, page.items.filter(validItem)); pages++;
           if (page.nextBefore && (pages < targetPages || keepSelection && !collected.some(function (item) { return item.id === selected; }))) return readPage(page.nextBefore);
           return { items: collected, nextBefore: page.nextBefore };
         });

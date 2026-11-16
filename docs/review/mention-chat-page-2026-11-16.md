@@ -1,0 +1,9 @@
+# Mention navigation page
+
+Paul's ruling in docs/design/decisions-redesign.md keeps plain mentions out of Decisions. The notification action opens its group or thread at the original message and waits for the marked row in the foreground conversation viewport. Opening a window alone does not acknowledge a mention. Reopening an existing thread retargets its original message without creating another window.
+
+The page calls AcknowledgeMention only after that observed arrival. Other pending mentions remain independent. An authoritative requestId keeps structured request cards linked to Decisions even when the entry index is unavailable. Plain mentions use Open in Chat. Older mention-shaped list rows are excluded from Decisions, including saved request drafts reached through an old address.
+
+The nine-suite producer selection passes in 27 seconds. It covers mention navigation in both themes at 1440 and 390, retained attention, authoritative request routing with an unavailable index, Decisions layout/context/drafts, and Inbox navigation. The first attempt could not load the worktree's browser dependency; its receipt remains retained. A later attempt exposed two obsolete plain-mention Decisions expectations. Those fixtures now use structured requests for their existing layout checks, and the list suite explicitly requires mention exclusion. The corrected selection passes. These tests use the actual page with invented bridge fixtures and do not establish real-host acceptance.
+
+Engine's host child 0e471c49 supplies authoritative requestId and acknowledgement. The combined real-App receiving module and both-product build identities are being prepared separately. Independent receiving, the public guard, full integration and installed-window acceptance remain pending. The cleanup redesign and its recovery work remain saved in their separate worktree.

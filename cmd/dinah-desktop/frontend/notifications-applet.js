@@ -306,9 +306,10 @@
       } }];
       return entry;
     }
+    function plainMention(item) { return item.kind === 'mention' && !item.requestId; }
     var attentionNavigation = 0;
     var attentionItems = new Map(), attentionGroups = new Map(), attentionDismissals = new Map();
-    function attentionSource(item) { return item.sessionId ? 'chat:' + item.sessionId : item.sourceId ? 'bus:' + item.sourceId : 'message:' + item.id; }
+    function attentionSource(item) { return (plainMention(item) ? 'mention:' : '') + (item.sessionId ? 'chat:' + item.sessionId : item.sourceId ? 'bus:' + item.sourceId : 'message:' + item.id); }
     function forgetAttention(id) {
       var item = attentionItems.get(id);
       if (!item) return;
@@ -330,25 +331,28 @@
       items.sort(function (a, b) { return new Date(a.created) - new Date(b.created) || (a.message || 0) - (b.message || 0); });
       var latest = items[items.length - 1], ids = items.map(function (item) { return item.id; });
       var firstLine = String(latest.body || '').trim().split(/\r?\n/)[0];
-      var title = latest.title + (items.length > 1 ? ' (' + items.length + ' requests)' : '');
-      var entries = window.dinahDecisionEntries, decisionId = entries && latest.message ? entries.get(latest.message) : null;
+      var unit = plainMention(latest) ? 'mention' : 'request';
+      var title = latest.title + (items.length > 1 ? ' (' + items.length + ' ' + unit + 's)' : '');
+      var entries = window.dinahDecisionEntries, decisionId = latest.requestId || (!plainMention(latest) && entries && latest.message ? entries.get(latest.message) : null);
       function openSource() {
+        if (plainMention(latest)) return window.dinahBus.openMessage({ message: latest.message, group: latest.group || '', title: latest.groupTitle || latest.sessionTitle || 'Chat' });
         return latest.group ? window.dinahBus.openGroup(latest.group, { message: latest.message || 0 }) : latest.message ?
           window.dinahWorkbench.open({ kind: 'bus-thread', path: String(latest.message), title: 'Message From ' + latest.sessionTitle }) : latest.sessionId ? openSession(latest.sessionId) : Promise.reject(new Error('The requesting chat is no longer available.'));
       }
       function open() {
         attentionNavigation++;
         return Promise.resolve().then(function () {
+          if (latest.requestId) return window.dinahDecisions.openRequest(latest.requestId);
           var index = window.dinahDecisionEntries;
-          if (!latest.message || !index || !index.available()) return openSource();
+          if (plainMention(latest) || !latest.message || !index || !index.available()) return openSource();
           return index.resolve(latest.message).then(function (id) { return id ? window.dinahDecisions.openRequest(id) : openSource(); });
-        }).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return dismissAttention(ids); }).finally(function () { attentionNavigation--; });
+        }).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return plainMention(latest) ? undefined : dismissAttention(ids); }).finally(function () { attentionNavigation--; });
       }
-      var actions = [{ label: decisionId ? 'Open Request in Decisions' : latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
+      var actions = [{ label: plainMention(latest) ? 'Open in Chat' : decisionId ? 'Open Request in Decisions' : latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
       if (latest.kind === 'relay' && latest.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(latest.lead); } });
       notices.add({ id: group.id, type: latest.kind === 'attention' ? 'question' : latest.kind === 'relay' ? 'warning' : 'info', needsPerson: true,
         title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,
-        details: [items.length + (items.length === 1 ? ' request' : ' requests') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')].concat(Array.isArray(latest.details) ? latest.details : []),
+        details: [items.length + ' ' + unit + (items.length === 1 ? '' : 's') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')].concat(Array.isArray(latest.details) ? latest.details : []),
         actions: actions, dismissible: true, dismiss: function () { return dismissAttention(ids); }, announced: true,
         className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, decisionId: decisionId, requestCount: items.length } });
     }
@@ -374,10 +378,21 @@
       var item = window.dinahWorkbench.item(key);
       if (!item) return;
       var ids = Array.from(attentionItems.values()).filter(function (notice) {
-        return item.kind === 'chat-session' && notice.sessionId === item.path || item.kind === 'bus-room' && notice.group === item.path || item.kind === 'bus-thread' && notice.message === Number(item.path);
+        return !plainMention(notice) && (item.kind === 'chat-session' && notice.sessionId === item.path || item.kind === 'bus-room' && notice.group === item.path || item.kind === 'bus-thread' && notice.message === Number(item.path));
       }).map(function (notice) { return notice.id; });
       if (ids.length) dismissAttention(ids).catch(fail);
     }
+    var mentionAcknowledgements = new Map();
+    document.addEventListener('dinah:bus-message-opened', function (event) {
+      var target = event.detail;
+      if (!target || !app().AcknowledgeMention) return;
+      var matches = Array.from(attentionItems.values()).filter(function (notice) { return plainMention(notice) && notice.message === target.message && (notice.group || '') === (target.group || ''); });
+      if (!matches.length || mentionAcknowledgements.has(target.message)) return;
+      var pending = Promise.resolve().then(function () { return app().AcknowledgeMention(target.message); }).then(function () {
+        matches.forEach(function (notice) { forgetAttention(notice.id); });
+      }).catch(fail).finally(function () { mentionAcknowledgements.delete(target.message); });
+      mentionAcknowledgements.set(target.message, pending);
+    });
     document.addEventListener('pudl:windows-change', function (event) {
       var key = event.detail && event.detail.top;
       if (key === lastAttentionWindow) return;

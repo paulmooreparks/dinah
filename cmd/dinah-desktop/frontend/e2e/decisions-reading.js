@@ -1,6 +1,6 @@
 const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
 (async () => {
-  const t = await setup([makeRequest('r1'), makeRequest('r2', { kind: 'mention', questions: [], text: 'Please read this group message.\nIts original wording stays available.' })]);
+  const t = await setup([makeRequest('r1'), makeRequest('r2', { text: 'Please read this group message.\nIts original wording stays available.' })]);
   const { page: p, ok } = t;
   const bounds = () => p.evaluate(() => ['[data-win="decisions"]', '.decisions-toolbar', '.decisions-status', '.decisions-list', '.decisions-detail', '.decisions-row'].map(selector => {
     const r = document.querySelector(selector).getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
@@ -40,9 +40,9 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     ok('unconfirmed delivery and its recovery action stay in view without covering answers', recovery && JSON.stringify(reading) === JSON.stringify(await readingBounds()));
     await t.shot('decisions-reading-error');
     await choose(t, 'r2');
-    ok('selecting a plain mention keeps source, delivery and scrolling question bounds', JSON.stringify(reading) === JSON.stringify(await readingBounds()));
-    ok('the plain mention keeps its origin and original message', await p.locator('.decisions-source').innerText().then(text => text.includes('Review r2') && text.includes('Review r2') && text.includes('Review Group')) && (await p.locator('.decisions-message').innerText()).includes('Its original wording stays available.'));
-    await t.shot('decisions-reading-mention');
+    ok('selecting a request keeps source, delivery and scrolling question bounds', JSON.stringify(reading) === JSON.stringify(await readingBounds()));
+    ok('the request keeps its origin and numbered questions', await p.locator('.decisions-source').innerText().then(text => text.includes('Review r2') && text.includes('Review r2') && text.includes('Review Group')) && await p.locator('.decisions-question').count() === 2);
+    await t.shot('decisions-reading-request');
     await p.evaluate(() => { pudlWindows.dockMode('left', 'open'); pudlWindows.dockMode('right', 'open'); });
     await p.waitForFunction(() => document.querySelector('.decisions').clientWidth <= 740);
     ok('pinned-open docks are respected without horizontal overflow', await p.locator('.decisions-detail').evaluate(el => el.scrollWidth <= el.clientWidth + 1) && await p.locator('.decisions-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1) && await p.evaluate(() => ['left', 'right'].every(edge => pudlWindows.state().docks[edge].mode === 'open')));
