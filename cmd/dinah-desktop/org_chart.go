@@ -56,10 +56,17 @@ type OrgChartGroup struct {
 // OrgChart reads one local ownership snapshot. Its bus and runtime observations
 // confer no authority and never discover history or open a closed conversation.
 func (a *App) OrgChart() (OrgChartView, error) {
+	return a.orgChartAtBoundary(nil)
+}
+
+func (a *App) orgChartAtBoundary(afterInventory func()) (OrgChartView, error) {
 	view := OrgChartView{Chats: []OrgChartChat{}, Teams: []OrgChartTeam{}, Groups: []OrgChartGroup{}}
 	inventory, err := a.SavedChats()
 	if err != nil {
 		return view, err
+	}
+	if afterInventory != nil {
+		afterInventory()
 	}
 	a.mu.Lock()
 	if a.startupErr != nil {
@@ -260,7 +267,7 @@ func (a *App) OrgChart() (OrgChartView, error) {
 	if err != nil {
 		return OrgChartView{}, err
 	}
-	if currentInventory.Generation != inventory.Generation {
+	if currentInventory.identity != inventory.identity {
 		return OrgChartView{}, errors.New("Chat inventory changed while the chart was read. Refresh the chart.")
 	}
 	data, err := json.Marshal([]any{stamp, headerStamp, inventory.Generation, view})
@@ -278,15 +285,5 @@ func orgChartTranscriptStamp(headers map[string]*sessionhost.TranscriptHead) str
 }
 
 func orgChartOwnershipStamp(saved Settings) string {
-	ownership := []any{}
-	for _, reference := range logicalChatReferencesFromSettings(saved) {
-		members, err := logicalChatMembersFromSettings(saved, reference)
-		reason := ""
-		if err != nil {
-			reason = err.Error()
-		}
-		ownership = append(ownership, []string{reference, members.ChatID, members.Generation, reason})
-	}
-	data, _ := json.Marshal([]any{ownership, saved.SessionTitles, saved.SessionProviders, saved.BusSessions, saved.RemovedChats, saved.WorkspaceRecords})
-	return fmt.Sprintf("%x", sha256.Sum256(data))
+	return savedChatsSettingsStamp(saved)
 }

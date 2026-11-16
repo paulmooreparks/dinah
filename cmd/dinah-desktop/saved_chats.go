@@ -12,6 +12,7 @@ import (
 	"studio/internal/bus"
 	"studio/internal/providers"
 	"studio/internal/sessionhost"
+	"studio/internal/workspaces"
 )
 
 type SavedChatInfo struct {
@@ -27,6 +28,8 @@ type SavedChatInfo struct {
 type SavedChatInventory struct {
 	Generation string          `json:"generation"`
 	Chats      []SavedChatInfo `json:"chats"`
+	// identity is local query validation, separate from display freshness.
+	identity string
 }
 
 // SavedChats observes local ownership and already-present runtimes. Native
@@ -191,7 +194,7 @@ func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, er
 		return SavedChatInventory{}, err
 	}
 	_, currentHeaders := sessionhost.ConversationLinks(configDir())
-	if current != stamp || orgChartTranscriptStamp(currentHeaders) != headerStamp || inventoryRuntimeHash(runtimes) != inventoryRuntimeHash(currentRuntimes) || inventoryHash(busTitles) != inventoryHash(currentBusTitles) {
+	if current != stamp || orgChartTranscriptStamp(currentHeaders) != headerStamp || inventoryRuntimeIdentity(runtimes) != inventoryRuntimeIdentity(currentRuntimes) || inventoryHash(busTitles) != inventoryHash(currentBusTitles) {
 		return SavedChatInventory{}, errors.New("Saved chat identities changed while the list was read. Refresh the list.")
 	}
 	stable := append([]SavedChatInfo(nil), view.Chats...)
@@ -203,12 +206,35 @@ func (a *App) savedChatsAtBoundary(afterSnapshot func()) (SavedChatInventory, er
 		return SavedChatInventory{}, err
 	}
 	view.Generation = fmt.Sprintf("%x", sha256.Sum256(data))
+	view.identity = inventoryHash([]any{stamp, headerStamp, busTitles, inventoryRuntimeIdentity(runtimes)})
 	return view, nil
 }
 
 func savedChatsSettingsStamp(saved Settings) string {
-	data, _ := json.Marshal([]any{saved, saved.WorkspaceRecords})
+	// Settings unrelated to chat ownership must not invalidate an observation.
+	// Listing timestamps describe freshness; identity and repair metadata remain
+	// guarded. The returned rows still carry the captured freshness and state.
+	listed := map[string]listedChat{}
+	for id, row := range saved.ListedChats {
+		row.UpdatedAt, row.ObservedAt, row.Freshness, row.Sequence = "", "", "", 0
+		listed[id] = row
+	}
+	spaces := make([][3]string, 0, len(saved.WorkspaceRecords))
+	for _, row := range saved.WorkspaceRecords {
+		spaces = append(spaces, [3]string{row.ID, row.Name, workspaces.ExecutionPath(row)})
+	}
+	data, _ := json.Marshal([]any{listed, saved.SessionProviders, saved.SessionTitles,
+		saved.JudgedTitles, saved.BusSessions, saved.ChatBindings, saved.ChatTransfers,
+		saved.ChatTransferHistory, saved.RemovedChats, saved.Hidden, spaces})
 	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func inventoryRuntimeIdentity(rows map[string]SessionInfo) string {
+	identities := map[string][4]string{}
+	for id, row := range rows {
+		identities[id] = [4]string{row.ID, row.Provider, row.Cwd, row.Title}
+	}
+	return inventoryHash(identities)
 }
 
 func inventoryHash(value any) string {
