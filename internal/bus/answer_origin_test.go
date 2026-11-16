@@ -102,11 +102,14 @@ func TestDecisionOriginPlainMentionsAndLookupEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reply, err := b.Message(ctx, r.MessageIDs[0])
+	if r.State != "rejected" || len(r.MessageIDs) != 0 {
+		t.Fatal("plain mention accepted a Decisions answer", r)
+	}
+	reply, err := b.Send(ctx, Sender{}, "", "Proceed tomorrow.", nil, m.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := &AnswerOrigin{Version: 1, RequestID: identity, MessageID: m.ID, Kind: "mention", Questions: []AnsweredQuestion{{Number: 0, Text: m.Text, Answer: "Proceed tomorrow."}}}
+	var want *AnswerOrigin
 	if !reflect.DeepEqual(reply.AnswerOrigin, want) {
 		t.Fatalf("plain %+v", reply.AnswerOrigin)
 	}
@@ -123,9 +126,8 @@ func TestDecisionOriginPlainMentionsAndLookupEligibility(t *testing.T) {
 	if !found {
 		t.Fatal("group read lost origin")
 	}
-	detail, err := b.DecisionByID(ctx, identity)
-	if err != nil || !detail.Closed || !detail.ReadOnly || detail.Decision.Text != m.Text {
-		t.Fatalf("mention lookup %+v %v", detail, err)
+	if _, err := b.DecisionByID(ctx, identity); err == nil {
+		t.Fatal("mention lookup remained a Decisions request")
 	}
 	plain, err := b.Send(ctx, Sender{}, s.Address(), "Ordinary reply", nil, 0)
 	if err != nil {

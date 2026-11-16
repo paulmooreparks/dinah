@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -69,11 +70,11 @@ func TestDecisionFirstStartAndGroupConversation(t *testing.T) {
 	check(request.MessageID)
 	add("answered", false)
 	add("answered", false)
-	quiet := add("quiet", false)
+	add("quiet", false)
 	add("answered", true) // This is ordinary group conversation, not a reply.
-	check(quiet, request.MessageID)
-	fresh := add("answered", false)
-	check(fresh, quiet, request.MessageID)
+	check(request.MessageID)
+	add("answered", false)
+	check(request.MessageID)
 	again, err := OpenAt(filepath.Join(b.dir, "bus.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +86,7 @@ func TestDecisionFirstStartAndGroupConversation(t *testing.T) {
 	if nextStart != started || nextBoundary != boundary {
 		t.Fatal("first-start boundary moved")
 	}
-	check(fresh, quiet, request.MessageID)
+	check(request.MessageID)
 }
 
 func TestDecisionBacklogIndexedSevenThousand(t *testing.T) {
@@ -128,7 +129,7 @@ func TestDecisionBacklogIndexedSevenThousand(t *testing.T) {
 		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
 			t.Fatal(err)
 		}
-		if detail == "SEARCH messages USING INTEGER PRIMARY KEY (rowid>?)" {
+		if strings.Contains(detail, "person_requests_open") {
 			indexed = true
 		}
 	}

@@ -37,6 +37,7 @@ func mentionIDsQuery(unread bool) string {
 	}
 	return `SELECT m.id FROM deliveries d JOIN messages m ON m.id = d.message_id
 		WHERE d.recipient_kind = 'human' AND d.cancelled_at IS NULL AND m.from_session <> '' AND d.message_id > ?` + readClause + `
+			AND NOT EXISTS(SELECT 1 FROM mention_acknowledgements a WHERE a.message_id=m.id)
 			AND m.kind NOT IN ` + kindsNotMentions + ` ORDER BY d.message_id`
 }
 

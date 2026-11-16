@@ -41,6 +41,7 @@ type orgChartHostFixture struct {
 	cleanupReads   int
 	cleanupWrites  int
 	cleanupChat    string
+	mentionIDs     []int64
 }
 
 type orgChartDocumentPeer struct {
@@ -73,9 +74,9 @@ func newOrgChartHostFixture(t *testing.T, a *App) *orgChartHostFixture {
 	f := &orgChartHostFixture{a: a, protected: map[string]string{}, manifest: map[string]any{}}
 	f.installEvents(a)
 	orgChartReceivingFixtures.Store(a, f)
-	for _, name := range []string{"OrgChartHostFixtureManifest", "OrgChartHostFixtureSnapshot", "OrgChartHostFixtureActions", "OrgChartHostFixtureApply", "OrgChartHostFixtureControl", "OrgChartHostFixtureCleanup"} {
+	for _, name := range []string{"OrgChartHostFixtureManifest", "OrgChartHostFixtureSnapshot", "OrgChartHostFixtureActions", "OrgChartHostFixtureApply", "OrgChartHostFixtureControl", "OrgChartHostFixtureCleanup", "OrgChartHostFixtureMentionSeed", "OrgChartHostFixtureMentionState", "OrgChartHostFixtureAcknowledgeMention", "OrgChartHostFixtureMentionCall"} {
 		pageMethods[name] = pageQuery
-		if name == "OrgChartHostFixtureApply" || name == "OrgChartHostFixtureControl" {
+		if name == "OrgChartHostFixtureApply" || name == "OrgChartHostFixtureControl" || name == "OrgChartHostFixtureMentionSeed" || name == "OrgChartHostFixtureAcknowledgeMention" || name == "OrgChartHostFixtureMentionCall" {
 			pageMethods[name] = pageWork
 		}
 		t.Cleanup(func() { delete(pageMethods, name) })

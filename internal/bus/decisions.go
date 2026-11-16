@@ -172,22 +172,9 @@ func (b *Bus) AskPerson(ctx context.Context, from Session, in AskPersonInput) (D
 	return out, err
 }
 
-// Candidates start with eligible human deliveries, seeking from the first
-// message beyond the unchanged first-use boundary. MIN uses the primary-key
-// range without walking the subsequent message history. Structured requests
-// remain independent of that boundary and of any delivery state.
-// List, entry count and individual resolution all use this predicate.
-const activeDecisionSQL = ` FROM messages m JOIN (
- SELECT message_id AS id FROM person_requests WHERE closed=0
- UNION SELECT message_id FROM deliveries
- WHERE recipient_kind='human' AND cancelled_at IS NULL AND inbox_dismissed_at IS NULL
- AND message_id>=(SELECT MIN(id) FROM messages WHERE id>(SELECT after_message FROM decision_start WHERE id=1))
-) candidates ON candidates.id=m.id LEFT JOIN person_requests p ON p.message_id=m.id
- WHERE ( (p.message_id IS NOT NULL AND p.closed=0) OR
- (p.message_id IS NULL AND m.room<>'' AND m.from_session<>'' AND m.kind='text'
- AND EXISTS (SELECT 1 FROM deliveries d WHERE d.message_id=m.id AND d.recipient_kind='human' AND d.cancelled_at IS NULL AND d.inbox_dismissed_at IS NULL)
- AND NOT EXISTS (SELECT 1 FROM messages later WHERE later.room=m.room AND later.id>m.id AND later.from_session='' AND later.from_name='paul')
- AND NOT EXISTS (SELECT 1 FROM messages reply WHERE reply.reply_to=m.id AND reply.from_session='' AND reply.from_name='paul' AND reply.kind='text'))) `
+// Decisions contains structured requests. Plain mentions remain in their chat
+// and Notifications, independent of delivery read state or the first-use mark.
+const activeDecisionSQL = ` FROM messages m JOIN person_requests p ON p.message_id=m.id WHERE p.closed=0 `
 
 const openDecisionSQL = activeDecisionSQL + ` AND NOT EXISTS (SELECT 1 FROM sessions removed WHERE removed.id=m.from_session AND removed.removed_at IS NOT NULL)`
 

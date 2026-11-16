@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"slices"
+	"strings"
 )
 
 // AnswerOrigin is constructed only by AnswerDecision, alongside its reply.
@@ -43,6 +44,9 @@ type DecisionDetail struct {
 // its delivery, attention or mutation state.
 func (b *Bus) DecisionByID(ctx context.Context, identity string) (DecisionDetail, error) {
 	out := DecisionDetail{ReadOnly: true}
+	if strings.HasPrefix(identity, "mention:") {
+		return out, errors.New("This message belongs to its chat, not to Decisions.")
+	}
 	id, err := decisionMessageID(identity)
 	if err != nil {
 		return out, err

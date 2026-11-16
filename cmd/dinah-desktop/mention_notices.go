@@ -132,7 +132,27 @@ func (a *App) dismissAnsweredMentions(ctx context.Context, b *bus.Bus) {
 		logf("bus", "error", "looking for mentions the person has answered: %v", err)
 		return
 	}
+	// Exact-message navigation and a reply in the source group also handle
+	// plain mentions. Relay and structured-request semantics stay separate.
+	for _, item := range store.Items {
+		if item.Kind != "mention" || item.Dismissed {
+			continue
+		}
+		handled, err := b.MentionAttentionHandled(ctx, item.Message)
+		if err != nil {
+			logf("bus", "error", "checking handled mention %d: %v", item.Message, err)
+			continue
+		}
+		if handled {
+			read = append(read, item.Message)
+		}
+	}
+	seen := map[int64]bool{}
 	for _, id := range read {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		for _, item := range store.Items {
 			if item.Message != id || item.Dismissed || (item.Kind != "mention" && item.Kind != "relay") {
 				continue
