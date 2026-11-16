@@ -28,15 +28,19 @@ var orgChartDocumentPeers sync.Map
 var orgChartDocumentRegistration sync.Once
 
 type orgChartHostFixture struct {
-	mu        sync.Mutex
-	a         *App
-	manifest  map[string]any
-	protected map[string]string
-	document  *orgChartDocumentPeer
-	eventMu   sync.Mutex
-	events    []map[string]any
-	observed  []map[string]any
-	barrier   bool
+	mu             sync.Mutex
+	a              *App
+	manifest       map[string]any
+	protected      map[string]string
+	document       *orgChartDocumentPeer
+	eventMu        sync.Mutex
+	events         []map[string]any
+	observed       []map[string]any
+	barrier        bool
+	cleanupChanges int
+	cleanupReads   int
+	cleanupWrites  int
+	cleanupChat    string
 }
 
 type orgChartDocumentPeer struct {
@@ -69,7 +73,7 @@ func newOrgChartHostFixture(t *testing.T, a *App) *orgChartHostFixture {
 	f := &orgChartHostFixture{a: a, protected: map[string]string{}, manifest: map[string]any{}}
 	f.installEvents(a)
 	orgChartReceivingFixtures.Store(a, f)
-	for _, name := range []string{"OrgChartHostFixtureManifest", "OrgChartHostFixtureSnapshot", "OrgChartHostFixtureActions", "OrgChartHostFixtureApply", "OrgChartHostFixtureControl"} {
+	for _, name := range []string{"OrgChartHostFixtureManifest", "OrgChartHostFixtureSnapshot", "OrgChartHostFixtureActions", "OrgChartHostFixtureApply", "OrgChartHostFixtureControl", "OrgChartHostFixtureCleanup"} {
 		pageMethods[name] = pageQuery
 		if name == "OrgChartHostFixtureApply" || name == "OrgChartHostFixtureControl" {
 			pageMethods[name] = pageWork
@@ -407,6 +411,7 @@ type OrgChartFixtureControl struct {
 	LeadID string   `json:"leadId"`
 	Title  string   `json:"title"`
 	IDs    []string `json:"ids"`
+	Count  int      `json:"count"`
 }
 
 func (a *App) OrgChartHostFixtureControl(r OrgChartFixtureControl) (any, error) {
@@ -417,6 +422,29 @@ func (a *App) OrgChartHostFixtureControl(r OrgChartFixtureControl) (any, error) 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	switch r.Kind {
+	case "cleanup-store-unavailable":
+		// Close the actual isolated database handle without replacing query
+		// results. The existing restart control reopens the persisted store.
+		return nil, f.a.busHost().With(func(b *bus.Bus) error { return b.Close() })
+	case "cleanup-identity-changes":
+		if r.Count < 0 || r.Count > 3 {
+			return nil, errors.New("receiving accepts zero to three identity changes")
+		}
+		ids := f.manifest["chats"].(map[string]string)
+		if r.ChatID == "" {
+			r.ChatID = ids["free-a"]
+		}
+		known := false
+		for _, id := range ids {
+			known = known || id == r.ChatID
+		}
+		if !known {
+			return nil, errors.New("identity control needs a fixture chat")
+		}
+		f.cleanupChanges, f.cleanupReads, f.cleanupChat = r.Count, 0, r.ChatID
+		return map[string]int{"remaining": f.cleanupChanges, "reads": f.cleanupReads, "writes": f.cleanupWrites}, nil
+	case "cleanup-read-observations":
+		return map[string]int{"remaining": f.cleanupChanges, "reads": f.cleanupReads, "writes": f.cleanupWrites}, nil
 	case "observe-swap":
 		f.barrier = true
 		f.observed = nil
@@ -480,6 +508,87 @@ func (a *App) OrgChartHostFixtureControl(r OrgChartFixtureControl) (any, error) 
 		return f.snapshot()
 	default:
 		return nil, errors.New("unknown receiving control")
+	}
+}
+
+// OrgChartHostFixtureCleanup is ListChatCleanup with a deterministic real
+// identity writer inside its validation boundary. It never manufactures a
+// refusal. The page binding forwards its original read to this tagged port.
+func (a *App) OrgChartHostFixtureCleanup() (ChatCleanupListing, error) {
+	f, err := orgChartFixture(a)
+	if err != nil {
+		return ChatCleanupListing{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cleanupReads++
+	var writeErr error
+	listing, err := f.a.listChatCleanupAtBoundary(func() {
+		if f.cleanupChanges == 0 {
+			return
+		}
+		f.cleanupChanges--
+		f.cleanupWrites++
+		_, writeErr = f.a.RenameSession(f.cleanupChat, fmt.Sprintf("Invented concurrent rename %d", f.cleanupWrites))
+	})
+	if writeErr != nil {
+		return ChatCleanupListing{}, writeErr
+	}
+	return listing, err
+}
+
+func TestCleanupReceivingReadsRefuseActualIdentityWrites(t *testing.T) {
+	orgChartForbidProviderStarts(t)
+	a := newFileAccessFixtureApp(t)
+	a.ctx = context.Background()
+	f := newOrgChartHostFixture(t, a)
+	for _, count := range []int{1, 3} {
+		if _, err := a.OrgChartHostFixtureControl(OrgChartFixtureControl{Kind: "cleanup-identity-changes", Count: count}); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < count; i++ {
+			if _, err := a.OrgChartHostFixtureCleanup(); err == nil || err.Error() != "Chat inventory changed while cleanup was read. Refresh the list." {
+				t.Fatal("real rename did not produce the actual consistency refusal", err)
+			}
+		}
+		listing, err := a.OrgChartHostFixtureCleanup()
+		if err != nil || len(listing.Rows) == 0 {
+			t.Fatal("read did not recover after the writes stopped", err)
+		}
+		if f.cleanupReads != count+1 || f.cleanupChanges != 0 {
+			t.Fatal("read counters lost actual attempts")
+		}
+	}
+}
+
+func TestCleanupReceivingInitialStoreFailureAndRestart(t *testing.T) {
+	orgChartForbidProviderStarts(t)
+	a := newFileAccessFixtureApp(t)
+	a.ctx = context.Background()
+	f := newOrgChartHostFixture(t, a)
+	before, err := f.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.OrgChartHostFixtureControl(OrgChartFixtureControl{Kind: "cleanup-store-unavailable"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.OrgChartHostFixtureCleanup(); err == nil || err.Error() != "sql: database is closed" {
+		t.Fatal("closed actual store did not refuse the read", err)
+	}
+	if _, err := a.OrgChartHostFixtureControl(OrgChartFixtureControl{Kind: "restart"}); err != nil {
+		t.Fatal(err)
+	}
+	listing, err := a.OrgChartHostFixtureCleanup()
+	if err != nil || len(listing.Rows) == 0 {
+		t.Fatal("Refresh could not read the reopened store", err)
+	}
+	after, err := f.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(before["protectedRecords"], after["protectedRecords"]) {
+		t.Fatal("store fault changed protected records")
 	}
 }
 

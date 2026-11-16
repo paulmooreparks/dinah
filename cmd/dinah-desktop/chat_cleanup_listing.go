@@ -16,9 +16,16 @@ const chatCleanupFinalConfirmation = "This permanently deletes the selected chat
 // ListChatCleanup reads local metadata and saved messages. It never discovers
 // provider history, opens a chat or acquires a provider connection.
 func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
+	return a.listChatCleanupAtBoundary(nil)
+}
+
+func (a *App) listChatCleanupAtBoundary(afterInventory func()) (ChatCleanupListing, error) {
 	inventory, err := a.SavedChats()
 	if err != nil {
 		return ChatCleanupListing{}, err
+	}
+	if afterInventory != nil {
+		afterInventory()
 	}
 	a.mu.Lock()
 	settings, err := a.settings.clone()
@@ -298,7 +305,7 @@ func (a *App) ListChatCleanup() (ChatCleanupListing, error) {
 	if err != nil {
 		return ChatCleanupListing{}, err
 	}
-	if current.Generation != inventory.Generation {
+	if current.identity != inventory.identity {
 		return ChatCleanupListing{}, errors.New("Chat inventory changed while cleanup was read. Refresh the list.")
 	}
 	return listing, nil
