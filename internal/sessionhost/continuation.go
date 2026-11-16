@@ -260,17 +260,27 @@ func (c *Continuations) PreviewFor(s *Conversation, provider, cwd string) (Sessi
 
 // prepareFor checks an approved revision before reading full message bodies.
 // An empty revision is reserved for internal preparation and compaction.
-func (c *Continuations) prepareFor(s *Conversation, provider, cwd, revision string) (SessionContinuationPreview, error) {
+func (c *Continuations) prepareFor(s *Conversation, provider, cwd, revision string, step ...func(string)) (SessionContinuationPreview, error) {
+	// A switch names the steps it times (continueWith); a preview names none.
+	timed := func(next string) {
+		for _, f := range step {
+			f(next)
+		}
+	}
+	timed("waiting for the chat's saved copy")
 	c.mu.Lock()
+	timed("checking the saved history")
 	confirmation, err := c.confirmationLocked(s, provider, cwd)
 	var p SessionContinuationPreview
 	if err == nil && revision != "" && confirmation.Revision != revision {
 		err = errors.New("the chat changed; review the provider switch again")
 	}
 	if err == nil {
+		timed("reading the history")
 		p, err = c.previewLocked(s, provider, cwd, confirmation.invocations)
 	}
 	c.mu.Unlock()
+	timed("writing the handoff text")
 	if err != nil {
 		return p, err
 	}
@@ -589,7 +599,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	if revision == "" && !o.compaction {
 		return SessionContinuationResult{}, errors.New("the chat changed; review the provider switch again")
 	}
-	preview, err := c.prepareFor(s, provider, o.cwd, revision)
+	preview, err := c.prepareFor(s, provider, o.cwd, revision, timed)
 	if err != nil {
 		return SessionContinuationResult{}, err
 	}
@@ -670,6 +680,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	}
 	timed("handing the conversation over")
 	c.setStage(s, kind, to, StageHandover, "Handing the conversation over")
+	timed("checking the saved history again")
 	latest, err := c.confirmation(s, provider, o.cwd)
 	if err != nil || latest.Revision != revision {
 		cleanup()
@@ -679,6 +690,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		cleanup()
 		return SessionContinuationResult{}, err
 	}
+	timed("saving the new chat's copy")
 	c.mu.Lock()
 	parentHistory := append(append([]ConversationMessage{}, preview.History...), ConversationMessage{Role: "provider_switch", Text: switchNote(kind, provider, o.cwd), Provider: provider, SessionID: info.ID})
 	err = next.HistoryBeginHandoffLocked(c.host.StateDir(), id, s.Cwd(), preview.Context, c.host.Formatter.Summary(preview.History, c.host.SummaryBudget), parentHistory)
@@ -687,6 +699,7 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		cleanup()
 		return SessionContinuationResult{}, err
 	}
+	timed("recording the switch")
 	if c.host.Transfer != nil {
 		if err := c.host.Transfer(id, info.ID, provider, busID, revision, "prepared", o.recovery); err != nil {
 			cleanup()
