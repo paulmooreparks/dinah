@@ -295,11 +295,14 @@ func (a *App) memberUsage(b *bus.Bus, ctx context.Context, session string) []Tea
 	return out
 }
 
-// teamBudgetProviders are the providers whose usage is counted, in order, with each one's own unit.
+// teamBudgetProviders are the providers this build offers whose usage is counted, in order, with each one's own
+// unit. They are the product's providers (product.Providers), which the environment can narrow, and not every
+// provider the program knows of: a product that offers one provider listed four in Team Allowances, three of
+// which no chat of it could use (17 November 2026).
 func teamBudgetProviders() []TeamBudgetProvider {
 	var out []TeamBudgetProvider
-	for id, p := range providers.Registry {
-		if p.BudgetUnit != "" {
+	for _, id := range product.Providers {
+		if p, ok := providers.Registry[id]; ok && p.BudgetUnit != "" {
 			out = append(out, TeamBudgetProvider{Provider: id, Name: providerName(id), Unit: p.BudgetUnit})
 		}
 	}

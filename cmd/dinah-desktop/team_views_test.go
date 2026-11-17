@@ -520,4 +520,13 @@ func TestStartingAMemberLeavesALineAndTheBudgetListsEveryProvider(t *testing.T) 
 	if !slices.Contains(names, "claude:tokens") || !slices.Contains(names, "devin:acu") || !slices.Contains(view.Budget.Unmeasured, "claude") || slices.Contains(view.Budget.Unmeasured, "codex") {
 		t.Fatalf("the budget's providers %v, unmeasured %v", names, view.Budget.Unmeasured)
 	}
+	// A build that offers fewer providers, as one narrowed by the environment does, lists only those for allowances,
+	// and counts only those among the unmeasured.
+	all := product.Providers
+	product.Providers = []string{"devin"}
+	t.Cleanup(func() { product.Providers = all })
+	view, _ = a.Team(lead.ID())
+	if len(view.Budget.Providers) != 1 || view.Budget.Providers[0].Provider != "devin" || slices.Contains(view.Budget.Unmeasured, "claude") {
+		t.Fatalf("a build that offers Devin alone lists %+v for allowances, unmeasured %v", view.Budget.Providers, view.Budget.Unmeasured)
+	}
 }
