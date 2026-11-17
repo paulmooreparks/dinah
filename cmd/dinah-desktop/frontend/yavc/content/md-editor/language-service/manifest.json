@@ -1,7 +1,7 @@
 {
   "version": 1,
   "inputs": {
-    "build.mjs": "38fe1af7680dc9a54edfbfe91604e9b15476e21b97fb896a46dba479d0e08105",
+    "build.mjs": "529b1510dfb425db776c3691bd913d158aef267480ab1b028b142bd5a5df149d",
     "package.json": "d4bdfa45fdef860a29c8de8437bdef23dbb05b93d4608fe1f4cd6d39649db9b0",
     "../vendor/codemirror-6.43/entry.js": "109c8a3e23f00a8244aeb072154ac8a053b1234def206cf24b66706acb6e1dd9",
     "canvas-schema.mjs": "64ab38651728eb8bc0118ed860069b982a769d38c11a1c4bac0e6a28457d3db3",
@@ -12,7 +12,7 @@
     "licenses/vscode-l10n-LICENSE.txt": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
   },
   "outputs": {
-    "../vendor/codemirror-6.43/codemirror.js": "4690bc823880e58da440c42b0917be983ef839625ccce88285233dcc7168c405",
+    "../vendor/codemirror-6.43/codemirror.js": "29c4ca4f8fb4ae74c8e975cb0965b289245fc5defa5a234402445019a5686764",
     "../vendor/codemirror-6.43/LICENSE.txt": "7e4b4c8b2cdd3c3f7aaf5fd1b397464d5b603d342f0192d986c49b091bcafb00",
     "worker.js": "9dd32c2cedde6611bfa5feba3dff0df6a10f981a20ca9d7cfeed7255e70dc65b",
     "WORKER-LICENSES.txt": "60a80ec288d9da001c4bc8a76aca116823e0aaa5bf94c19e9cbf9bf6260637fc",

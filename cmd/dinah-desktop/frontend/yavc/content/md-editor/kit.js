@@ -95,7 +95,7 @@
         ];
     }
 
-    var cmReady = null, pvReady = null, mmReady = null;
+    var cmReady = null, cmLibrary = null, pvReady = null, mmReady = null;
     /* The table of languages the editor colours comes with CodeMirror, and each grammar loads later, when a file or a code block of its language appears. A table that cannot load leaves every file plain, as before. */
     var languagesReady = null;
     function languages() {
@@ -103,13 +103,8 @@
         return languagesReady;
     }
     function libs() {
-        var CM;
-        if (window.CM && window.CM.EditorView) { CM = Promise.resolve(window.CM); }
-        else {
-            if (!cmReady) { cmReady = loadScript(HERE + 'vendor/codemirror-6.43/codemirror.js?v=10').then(function () { return window.CM; }).catch(function (e) { cmReady = null; throw e; }); }
-            CM = cmReady;
-        }
-        return CM.then(function (lib) { return languages().then(function () { return lib; }); });
+        if (!cmReady) { cmReady = loadScript(HERE + 'vendor/codemirror-6.43/codemirror.js?v=11').then(function () { cmLibrary = window.yavcCodeMirror; return cmLibrary; }).catch(function (e) { cmReady = null; throw e; }); }
+        return cmReady.then(function (lib) { return languages().then(function () { return lib; }); });
     }
     var pagesReady = null;
     function pages() {
@@ -571,9 +566,9 @@
             var doc = source.state.doc, sel = source.state.selection;
             function current() { return owns() && ctx.source() === source && source.state.doc === doc && source.state.selection.eq(sel); }
             return { text: sel.ranges.map(function (r) { return doc.sliceString(r.from, r.to); }).join('\n'), empty: sel.ranges.every(function (r) { return r.empty; }), current: current,
-                remove: function () { if (current()) source.dispatch(Object.assign(source.state.replaceSelection(''), { userEvent: 'delete.cut', annotations: window.CM.isolateHistory.of('full'), scrollIntoView: true })); },
+                remove: function () { if (current()) source.dispatch(Object.assign(source.state.replaceSelection(''), { userEvent: 'delete.cut', annotations: cmLibrary.isolateHistory.of('full'), scrollIntoView: true })); },
                 select: function () { source.dispatch({ selection: { anchor: 0, head: doc.length } }); source.focus(); },
-                paste: function (data) { source.dispatch(Object.assign(source.state.replaceSelection(data.text || ''), { userEvent: 'input.paste', annotations: window.CM.isolateHistory.of('full'), scrollIntoView: true })); source.focus(); } };
+                paste: function (data) { source.dispatch(Object.assign(source.state.replaceSelection(data.text || ''), { userEvent: 'input.paste', annotations: cmLibrary.isolateHistory.of('full'), scrollIntoView: true })); source.focus(); } };
         }
         async function clipboard(name) {
             var t = target();
@@ -622,7 +617,7 @@
             if (ctx.unified) {
                 if (page && page.active() && page.pending()) return name === 'undo';
             } else if (ctx.rich() && page) return page.historyAvailable(name);
-            return !!(source && (ctx.sourceHistory ? ctx.sourceHistory.can(name,source.state) : window.CM && window.CM[name + 'Depth'](source.state)));
+            return !!(source && (ctx.sourceHistory ? ctx.sourceHistory.can(name,source.state) : cmLibrary && cmLibrary[name + 'Depth'](source.state)));
         }
         async function history(name) {
             if (!canHistory(name)) return;
@@ -632,7 +627,7 @@
                 if (!ctx.alive() || (ctx.historyReadOnly ? ctx.historyReadOnly() : ctx.readOnly()) || ctx.identity() !== identity || ctx.source() !== source) return;
                 if (!ctx.unified && rich) { if (ctx.page() === page && page.active()) { page.run(name); await page.sync(); } }
                 else if(ctx.sourceHistory)ctx.sourceHistory.run(name,source);
-                else window.CM[name](source);
+                else cmLibrary[name](source);
                 ctx.changed();
             } catch (err) { if (ctx.alive()) ctx.say(err.message || String(err), true); }
         }

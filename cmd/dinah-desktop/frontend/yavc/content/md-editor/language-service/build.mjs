@@ -19,8 +19,9 @@ const manifest = { version: 1, inputs: {}, outputs: {}, packages: {} };
 for (const name of ['build.mjs', 'package.json', '../vendor/codemirror-6.43/entry.js', 'canvas-schema.mjs', 'json-server.mjs', 'worker-entry.mjs', 'bridge.js', 'package-lock.json', 'licenses/vscode-l10n-LICENSE.txt']) {
     manifest.inputs[name] = digest(fs.readFileSync(path.resolve(here, name)));
 }
-for (const [entry, target, globalName] of [['../vendor/codemirror-6.43/entry.js', '../vendor/codemirror-6.43/codemirror.js', 'CM'], ['worker-entry.mjs', 'worker.js', undefined]]) {
-    const result = await build({ absWorkingDir: here, entryPoints: [entry], bundle: true, format: 'iife', globalName, minify: true, legalComments: 'eof', platform: 'browser', target: ['es2020'], write: false, metafile: true, nodePaths: [path.join(dependencies, 'node_modules')] });
+for (const [entry, target, globalName] of [['../vendor/codemirror-6.43/entry.js', '../vendor/codemirror-6.43/codemirror.js', 'yavcCodeMirror'], ['worker-entry.mjs', 'worker.js', undefined]]) {
+    const footer = globalName ? { js: 'if (typeof globalThis.CM === "undefined") globalThis.CM = yavcCodeMirror;' } : undefined;
+    const result = await build({ absWorkingDir: here, entryPoints: [entry], bundle: true, format: 'iife', globalName, footer, minify: true, legalComments: 'eof', platform: 'browser', target: ['es2020'], write: false, metafile: true, nodePaths: [path.join(dependencies, 'node_modules')] });
     const bytes = result.outputFiles[0].contents; output(target, bytes); manifest.outputs[target] = digest(bytes);
     const packages = new Set();
     for (const input of Object.keys(result.metafile.inputs)) {

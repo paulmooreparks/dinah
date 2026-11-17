@@ -17,7 +17,7 @@ node apps/md-editor/language-service/build.mjs --check
 node --test apps/md-editor/test/language-service.test.mjs
 ```
 
-The build writes the shared CodeMirror bundle, `worker.js`, their complete license inventories and `manifest.json`. The manifest records source and output SHA-256 hashes and the packages actually included by esbuild. The module test checks those hashes without npm dependencies; `--check` also reproduces both bundles and license inventories byte for byte.
+The build writes the shared CodeMirror bundle, `worker.js`, their complete license inventories and `manifest.json`. The editor bundle exports `yavcCodeMirror`; the kit retains this object and never uses the host's `CM` global. The bundle also supplies the historical `CM` alias when that name is undefined. The manifest records source and output SHA-256 hashes and the packages actually included by esbuild. The module test checks those hashes without npm dependencies; `--check` also reproduces both bundles and license inventories byte for byte.
 
 The npm archive for `@vscode/l10n` 0.0.18 omits its license file. `licenses/vscode-l10n-LICENSE.txt` is the MIT license from Microsoft's matching `l10n/v0.0.18` release tag, Git blob `9e841e7a26e4eb057b24511e7b92d42b257a80e5`. Its upstream location is [microsoft/vscode-l10n LICENSE](https://github.com/microsoft/vscode-l10n/blob/l10n/v0.0.18/LICENSE).
 
