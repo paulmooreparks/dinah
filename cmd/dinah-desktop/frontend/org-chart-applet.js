@@ -597,5 +597,6 @@
     return window.dinahWorkbench.open("org-chart");
   }
   window.dinahWorkbench.register("org-chart", { applet: { id: "dinah.org-chart", title: "Org Chart", glyph: "subagents", workspace: false }, launcher: { run: open }, singleton: true, title: "Org Chart", glyph: "subagents", mode: "maximized", init });
-  window.dinahCommands.register({ id: "org-chart", menu: "view", label: "Org Chart", glyph: "subagents", run: open });
+  // Each row of the View menu has a letter of its own; a row without one took the first free letter of its label, which was the letter Themes asks for.
+  window.dinahCommands.register({ id: "org-chart", menu: "view", mnemonic: "A", label: "Org Chart", glyph: "subagents", run: open });
 })();

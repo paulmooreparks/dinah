@@ -434,7 +434,8 @@
     launcher: { title: 'Decisions', run: function () { return window.dinahWorkbench.open('decisions'); } } });
   window.dinahDecisions = { openRequest: function (id) { return window.dinahWorkbench.open('decisions', new URLSearchParams({ request: id }).toString()).then(function () { if (!page) throw new Error('Decisions could not be opened.'); return page.ensureRequest(id); }); } };
   function open(state) { return window.dinahWorkbench.open('decisions', state || '').catch(window.dinahHost.fail); }
-  window.dinahCommands.register({ id: 'decisions', menu: 'view', label: 'Decisions', visible: available, run: function () { return open(); } });
-  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'view', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
+  // The three rows have letters of their own in the View menu; without them Broadcast to All took the letter Show the Agent's Thinking asks for.
+  window.dinahCommands.register({ id: 'decisions', menu: 'view', mnemonic: 'D', label: 'Decisions', visible: available, run: function () { return open(); } });
+  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'view', mnemonic: scope === 'active' ? 'V' : 'B', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
     enabled: function () { return !!(app().PreviewDecisionBroadcast && app().ConfirmDecisionBroadcast); }, run: function () { return open('view=broadcast-' + scope); } }); });
 }());
