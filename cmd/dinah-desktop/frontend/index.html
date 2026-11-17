@@ -452,7 +452,11 @@
       </section>
       </div>
       <main class="shell-main" id="main" tabindex="-1">
-       <div class="split launcher-workspace" id="launcher-workspace">
+       <!-- The launcher's pane starts closed (data-split-pane, PUDL's
+            RESPONSIVE-WORKSPACES.md), and title-launcher.js opens it for a
+            person who keeps the launcher pinned. Written open, it stood
+            empty beside the windows until that script closed it. -->
+       <div class="split launcher-workspace" id="launcher-workspace" data-split-pane="second">
        <div class="split-pane" id="launcher-slot"></div>
        <div class="split-handle" aria-label="Resize launcher" data-split-min="220" data-split-max="60%"></div>
        <div class="split-pane dinah-window-space win-host">

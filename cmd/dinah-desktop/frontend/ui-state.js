@@ -103,13 +103,50 @@
       : Promise.resolve();
     return parsed.then(function () { return window.dinahProductApplets ? window.dinahProductApplets.ready : null; }).catch(function () {});
   }
-  var layoutRestore = null;
+  var layoutRestore = null, layoutDrawn = null;
   function restoreLayout() {
     if (!layoutRestore) layoutRestore = productAppletsLoaded().then(restoreLayoutNow);
     return layoutRestore;
   }
+  /* The page keeps its contents out of sight until the saved layout is in
+     place (app.css, body[aria-busy]). Before this, the page was shown as
+     soon as it was parsed, with the default windows in the default docks,
+     and about a second later everything moved to where the saved layout
+     has it (Paul, 17 November 2026).
+
+     The layout is in place once PUDL has announced the arrangement that
+     restoreLayoutNow put in the address (pudl:windows-change, which PUDL's
+     CONTRACT.md says follows every change to the windows) and the frames
+     that follow it have been drawn: the taskbar folds its tray one frame
+     after its buttons arrive. An arrangement that changes nothing is
+     announced by nothing, so the wait is bounded; the page is then already
+     as the address has it. */
+  var SETTLE_LIMIT = 2000, FRAME_LIMIT = 500;
+  function frames(count) {
+    return new Promise(function (resolve) {
+      var timer = setTimeout(resolve, FRAME_LIMIT); // a window out of sight draws no frames
+      (function next() {
+        if (count-- <= 0) { clearTimeout(timer); resolve(); return; }
+        requestAnimationFrame(next);
+      })();
+    });
+  }
+  function awaitArrangement() {
+    return new Promise(function (resolve) {
+      var timer = setTimeout(done, SETTLE_LIMIT);
+      function done() { clearTimeout(timer); document.removeEventListener('pudl:windows-change', done); resolve(); }
+      document.addEventListener('pudl:windows-change', done);
+    }).then(function () { return frames(2); });
+  }
+  /* Resolves when the layout the page starts with has been drawn. A page
+     whose layout was never restored, because its state could not be read,
+     is shown as it is. */
+  function layoutSettled() {
+    return Promise.resolve(layoutRestore).then(function () { return layoutDrawn; }).catch(function () {});
+  }
   function restoreLayoutNow() {
     var saved = get('dinah-workbench-layout');
+    layoutDrawn = frames(2);
     if (!originalSearch && typeof saved === 'string') {
       try {
         var query = new URLSearchParams(saved), opened = (query.get('open') || '').split(',');
@@ -121,6 +158,7 @@
           saved = '?' + query.toString();
         }
         history.replaceState(history.state, '', location.pathname + saved + location.hash);
+        layoutDrawn = awaitArrangement(); // listening before PUDL is told of the address
         window.dispatchEvent(new PopStateEvent('popstate'));
       } catch (error) { report(error); }
     }
@@ -219,7 +257,7 @@
     scrolls.forEach(function (entry) { if (entry.key.startsWith(oldPrefix)) entry.key = newPrefix + entry.key.slice(oldPrefix.length); });
   }
   window.dinahUIState = {
-    ready: ready, initialize: initialize, get: get, set: set, flush: flush, restoreLayout: restoreLayout,
+    ready: ready, initialize: initialize, get: get, set: set, flush: flush, restoreLayout: restoreLayout, layoutSettled: layoutSettled,
     initializationError: function () { return initializationError; },
     setNewWindowMode: function (value) { mode = value === 'maximized' ? value : 'floating'; },
     newWindowMode: function () { return mode; },

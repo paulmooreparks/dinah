@@ -909,6 +909,15 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
 .live-work .activity-row > :not(.activity-time) { grid-column: 1 / -1; }
 
+/* While the page starts (body[aria-busy], which app.js takes off once the
+   saved layout has been drawn), its contents are out of sight and take no
+   pointer: the bars are empty but for the line that says the program is
+   starting, and the work area is blank. Everything is laid out and built as
+   ever, and it is all first seen where the saved layout has it. Shown from
+   the first paint, the
+   default windows stood in the default docks until the saved layout arrived
+   about a second later, and everything then moved (17 November 2026). */
+body[aria-busy="true"] :is(.topbar > *, .launcher-workspace, .win-bar > :not(.status-area), .status-area > :not(.status-starting)) { opacity: 0; pointer-events: none; }
 .launcher-workspace { flex: 1; min-height: 0; min-width: 0; --split-a: 300px; }
 .launcher-workspace > .dinah-window-space { min-width: 0; }
 #launcher-slot { min-width: 0; overflow: hidden; }

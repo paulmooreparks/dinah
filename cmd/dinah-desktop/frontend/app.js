@@ -321,11 +321,16 @@
       chats.restoreView();
       refreshSessions();
       return settings.declaredProviders();
-    }).catch(fail).then(function () { setStarted(); });
+    }).catch(fail).then(function () {
+      // The page is shown once the layout it starts with has been drawn (ui-state.js, layoutSettled).
+      return window.dinahUIState && window.dinahUIState.layoutSettled ? window.dinahUIState.layoutSettled() : null;
+    }).then(setStarted, setStarted);
   }
   /* Until the layout and the app's state have been read, the status area
      says Dinah is starting, and commands that need the workspace say
-     so rather than that there is no workspace. */
+     so rather than that there is no workspace. The page's other contents
+     are out of sight until then (app.css, body[aria-busy]), so that they
+     are first seen where the saved layout has them. */
   var started = false;
   function setStarted() {
     started = true;
