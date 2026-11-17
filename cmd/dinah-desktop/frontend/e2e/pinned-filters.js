@@ -11,7 +11,8 @@ const { launch } = require('./lib/page');
       for (const mode of ['dock', 'floating']) {
         await p.evaluate(({ key, mode }) => mode === 'dock' ? pudlWindows.dock(key, 'right') : pudlWindows.snap(key, null), { key, mode });
         const result = await bar.evaluate(bar => {
-          const results = bar.parentElement.querySelector('.bus-results, .skills-results');
+          // Notifications scrolls its list (#questions) below the filters since 14 November 2026, as Group Chats and Skills scroll their results.
+          const results = bar.parentElement.querySelector('.bus-results, .skills-results, #questions');
           let scroller = results || bar.parentElement;
           while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
           if (!scroller) return { error: 'No scroll container' };

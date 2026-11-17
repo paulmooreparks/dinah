@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { launch } = require('./lib/page');
+const { launch, OUT } = require('./lib/page');
 (async () => {
   const t = await launch({ viewport: { width: 1440, height: 900 }, app: () => ({ Team: async () => window.__auditTeam,
     BusOverview: async () => ({ inbox: [], unread: 0, rooms: window.__auditRooms || [], workspaces: [], links: [] }) }) });
@@ -25,7 +25,8 @@ const { launch } = require('./lib/page');
         };
         for (let i = 0; i < 5; i++) {
           drawMs = 0;
-          const sample = await measure(busRoot, () => document.dispatchEvent(new Event('dinah:execution-state')));
+          // The event is sent as chat-state.js sends it when no chat's state has changed; its listeners read the detail.
+          const sample = await measure(busRoot, () => document.dispatchEvent(new CustomEvent('dinah:execution-state', { detail: { changed: [], groupsChanged: false, chats: [], groups: [] } })));
           groupSamples.push({ drawMs, mutations: sample.mutations });
         }
         dinahRender.enqueue = enqueue;
@@ -49,7 +50,8 @@ const { launch } = require('./lib/page');
       return results;
     });
     console.log('AUDIT ' + JSON.stringify(results));
-    fs.writeFileSync(path.join(process.env.E2E_OUT || process.argv[3], 'list-render-audit.json'), JSON.stringify(results, null, 2));
+    // A run by hand gives no output folder, and the file then goes where the harness puts such a run's files.
+    fs.writeFileSync(path.join(process.env.E2E_OUT || OUT, 'list-render-audit.json'), JSON.stringify(results, null, 2));
     t.ok('group, team and notification audit completed at each catalog size', results.length === 9);
     t.ok('unchanged lists perform no DOM writes', results.every(r => r.samples.every(s => s.mutations === 0)));
   } finally { await t.close(); }

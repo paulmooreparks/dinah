@@ -11,7 +11,9 @@ const { launch } = require('./lib/page');
     await p.reload();
     await guide.waitFor();
     await guide.locator('article').waitFor();
-    ok('reloading the guide address restores its content', await guide.locator('h3').count() === 6);
+    // The guide has seven sections since Clean Up Chats gained one on 15 November 2026.
+    const sections = (await guide.locator('h3').allTextContents()).join(' | ');
+    ok('reloading the guide address restores its content', sections === 'Decisions | Clean Up Chats | Broadcast | Pause Chats and Restart | Kept Attention Cards | Background Chats | Updates', sections);
     await p.evaluate(() => dinahCommands.run('help-chats'));
     ok('opening the guide again raises the same window', await guide.count() === 1);
     const changes = (await t.calls()).filter(c => /^(AnswerDecision|DismissDecision|ConfirmDecisionBroadcast|PauseAndRestart|RestartToUpdate|CancelRestart|SetBackgroundChatLimit|CallService|InstallPackages)$/.test(c[0]));

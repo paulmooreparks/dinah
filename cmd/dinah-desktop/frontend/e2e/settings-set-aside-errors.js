@@ -8,7 +8,7 @@ const { start, copy, check, removals, ready, finish } = require('./lib/set-aside
     await check(t, 1).check();
     await p.evaluate(() => { __asideLostResponse = true; });
     await p.locator('#set-aside-remove').click(); await p.locator('#ask-yes').click();
-    await p.waitForFunction(() => document.querySelector('#set-aside-results').textContent.includes('completion is unconfirmed')); await ready(t);
+    await p.waitForFunction(() => document.querySelector('#set-aside-results').textContent.includes('Removal has not been confirmed')); await ready(t);
     ok('a lost response refreshes without retrying or claiming removal', (await removals(t)).length === 1 && await check(t, 1).isDisabled() && (await p.locator('#set-aside-total').innerText()).startsWith('0 selected'));
     await p.evaluate(item => { __asideItems.push(item); __asideLostResponse = false; __asideMalformedRemoval = true; }, copy(4));
     await p.locator('#set-aside-refresh').click(); await ready(t); await check(t, 4).check();
@@ -16,7 +16,7 @@ const { start, copy, check, removals, ready, finish } = require('./lib/set-aside
     await p.waitForFunction(() => document.querySelector('#set-aside-results').textContent.includes('result is invalid')); await ready(t);
     ok('a malformed result also stays unconfirmed', (await removals(t)).length === 2 && await check(t, 4).isDisabled());
     await p.evaluate(() => { __asideMalformedList = true; }); await p.locator('#set-aside-refresh').click(); await ready(t);
-    ok('malformed inventory fails closed with the prior rows retained', (await p.locator('#set-aside-status').innerText()).includes('inventory is invalid') && await p.locator('#set-aside-remove').getAttribute('aria-disabled') === 'true' && await p.locator('#set-aside-list > div').count() === 4);
+    ok('malformed inventory fails closed with the prior rows retained', (await p.locator('#set-aside-status').innerText()).includes('The list of program copies could not be read') && await p.locator('#set-aside-remove').getAttribute('aria-disabled') === 'true' && await p.locator('#set-aside-list > div').count() === 4);
     await p.evaluate(() => { __asideMalformedList = false; __asideFail.list = true; }); await p.locator('#set-aside-refresh').click(); await ready(t);
     ok('service failure stays visible and gated', (await p.locator('#set-aside-status').innerText()).includes('Synthetic inventory failure') && await check(t, 2).isDisabled());
   } finally { await finish(t, 'set-aside-errors'); }
