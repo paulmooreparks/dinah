@@ -28,12 +28,13 @@ func (a *App) builtinAppletBundles() ([]applet.Bundle, error) {
 	bundles = append(bundles, product...)
 	makers := []func() (applet.Bundle, error){a.workspaceAppletBundle, a.chatAppletBundle, a.settingsAppletBundle, a.filesAppletBundle, a.terminalAppletBundle, a.skillsAppletBundle, a.windowsAppletBundle, a.teamAppletBundle, a.diagnosticsAppletBundle, a.documentsAppletBundle, a.documentThreadsAppletBundle}
 	makers = append(makers, a.standaloneAppletBundle)
-	// a.requestSettlementBundle is not registered. Its two actions,
-	// dinah.requests/withdraw@1 and dinah.requests/withdrawal-outcome@1, are a
-	// second way for a chat to withdraw what it asked, beside the bus tools
-	// withdraw_request and request_operation. They are held back until it is
-	// decided whether agents need a second way to withdraw (17 November 2026).
-	// The bundle's code and its tests are kept.
+	// The bundle's two actions, dinah.requests/withdraw@1 and
+	// dinah.requests/withdrawal-outcome@1, let a chat withdraw what it asked
+	// through the applet actions as well as through the bus tools
+	// withdraw_request and request_operation. Paul ruled on 17 November 2026
+	// that agents have both; the actions are the only way an agent can
+	// withdraw a task question or a report.
+	makers = append(makers, a.requestSettlementBundle)
 	for _, app := range contentApps {
 		app := app
 		makers = append(makers, func() (applet.Bundle, error) { return a.contentAppletBundle(app) })
