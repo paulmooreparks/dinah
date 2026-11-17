@@ -83,7 +83,14 @@ async function setup(items, extra = {}) {
         if (!receipt) return { operationId: operation, id: '', revision: 0, state: 'unknown' };
         return receipt.id === id ? copy(receipt) : refuse({ operationId: operation, id }, 'not_authorized', 'This operation belongs to another request.');
       },
-      DecisionByID: async id => { if (!__closedRecords[id]) throw new Error('This request is no longer available.'); return copy(__closedRecords[id]); },
+      // The host reads an open request by its identity as well as a closed one (internal/bus/answer_origin.go). A
+      // notification's card reads the request this way before it asks whether to dismiss it.
+      DecisionByID: async id => {
+        if (__closedRecords[id]) return copy(__closedRecords[id]);
+        const open = __decisionItems.find(i => i.id === id);
+        if (!open) throw new Error('This request is no longer available.');
+        return { decision: Object.assign(copy(open), { status: 'open' }), closed: false, readOnly: true };
+      },
       DecisionOperation: async operation => copy(__operations[operation] || { operationId: operation, state: 'unknown', id: '', revision: 0, closed: false, messageIds: [], reason: null }),
       PreviewDecisionBroadcast: async (scope, text) => {
         const preview = { token: 'preview-' + scope, scope, text, count: 2, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + (window.__expiredPreview ? -1000 : 300000)).toISOString(), targets: [
@@ -105,7 +112,9 @@ async function setup(items, extra = {}) {
         if (window.__entriesFailure) throw new Error('Entry service unavailable');
         return window.__malformedEntries ? { count: 1, items: [] } : snapshot;
       };
-      api.Notifications = async () => JSON.parse(sessionStorage.getItem('attention') || '[]');
+      // The host leaves out the notification of a request that is closed, each time it reads the list
+      // (cmd/dinah-desktop/notification_projection.go).
+      api.Notifications = async () => JSON.parse(sessionStorage.getItem('attention') || '[]').filter(n => !n.requestId || !__closedRecords[n.requestId]);
       api.DismissNotification = async id => {
         window.__dismissed = (window.__dismissed || []).concat(id);
         sessionStorage.setItem('attention', JSON.stringify(JSON.parse(sessionStorage.getItem('attention') || '[]').filter(n => n.id !== id)));

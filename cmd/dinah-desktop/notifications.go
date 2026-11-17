@@ -259,22 +259,32 @@ func (a *App) Notifications() ([]Notification, error) {
 }
 
 // ClearNotifications dismisses every report. Questions are not reports and
-// are not touched.
+// are not touched. Like DismissNotification it removes notices only. It
+// settles no request, question or report and tells no chat anything.
 func (a *App) ClearNotifications() error {
-	items, err := a.Notifications()
+	notificationStoreMu.Lock()
+	defer notificationStoreMu.Unlock()
+	store, err := readNotifications()
 	if err != nil {
 		return err
 	}
-	var failures []error
-	for _, item := range items {
-		if item.PermissionKey != "" && a.pendingPermission(item.PermissionKey) {
-			continue
-		}
-		if err := a.DismissNotification(item.ID); err != nil {
-			failures = append(failures, err)
+	store.Items = pruned(store.Items)
+	incidents, err := a.recoveryNotifications()
+	if err != nil {
+		return err
+	}
+	if store.RecoveryDismissals == nil {
+		store.RecoveryDismissals = map[string]string{}
+	}
+	for _, item := range incidents {
+		if item.IncidentVersion != "" {
+			store.RecoveryDismissals[item.ID] = item.IncidentVersion
 		}
 	}
-	return errors.Join(failures...)
+	for i := range store.Items {
+		store.Items[i].Dismissed = true
+	}
+	return writeNotifications(store)
 }
 func (a *App) SaveNotification(item Notification) (Notification, error) {
 	saved, _, err := a.saveNotification(item)
@@ -332,7 +342,14 @@ type notificationOperation struct {
 	Receipt requestsettlement.Receipt `json:"receipt"`
 }
 
-func (a *App) dismissNotificationProjection(id string) error {
+// DismissNotification removes one notice from Notifications and does nothing
+// else. It never settles the request, the question or the report the notice is
+// about, and it tells no chat anything. An ask_person request stays open in
+// Decisions and a task question keeps waiting until the person answers it or
+// dismisses it, in Decisions or with the card's Dismiss Request command, which
+// calls DismissRequest. The person decided this on 17 November 2026, and it is
+// the rule the main branch had before request settlement was merged.
+func (a *App) DismissNotification(id string) error {
 	if !notificationID.MatchString(id) {
 		return errors.New("invalid notification identity")
 	}

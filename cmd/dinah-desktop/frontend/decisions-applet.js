@@ -38,11 +38,164 @@
     if (receipt.state === 'refused' && typeof receipt.code === 'string' && receipt.code && typeof receipt.text === 'string' && receipt.text) return Object.assign(kept, { state: 'rejected', closed: receipt.code === 'request_closed', reason: { code: receipt.code, message: receipt.text } });
     return null;
   }
+  function workingOp(value) { return value && value.operation && !['committed', 'rejected'].includes(value.operation.status); }
+  function unconfirmed(op, still) { return (dismisses(op) ? 'Dismissing has ' : 'Sending has ') + (still ? 'still ' : '') + 'not been confirmed. '; }
+  // The sentences the window and a notification's card both say about a dismissal.
+  var noDismissBuild = 'This build cannot dismiss requests.', resultUnchecked = 'The last send or dismissal has not been confirmed. Check its result first.';
+  var badDismissResult = 'The dismissal result could not be confirmed.', notWaiting = 'This request is no longer waiting.', draftsUnread = 'Saved drafts could not be read. Sending is disabled.';
+  // What the host and the request's saved draft allow, for the window and for a notification's card. Each adds
+  // what it is itself in the middle of. saved reads the draft, and is asked only when the host allows the dismissal.
+  function requestDismissal(item, saved) {
+    if (!app().DismissRequest || !app().RequestOperation) return { enabled: false, reason: noDismissBuild };
+    if (!item.canDismiss) return { enabled: false, reason: 'This request cannot be dismissed.' };
+    var draft;
+    try { draft = saved(); } catch (error) { return { enabled: false, reason: errorText(error) }; }
+    if (workingOp(draft)) return { enabled: false, reason: resultUnchecked };
+    return { enabled: true, reason: '' };
+  }
+  // How a request that left the open requests ended, from its record: its chat withdrew it, or the person dismissed it.
+  // Nothing is said of a request that was answered, or whose record does not say.
+  function endingWords(item) {
+    if (item.status === 'withdrawn') return { text: item.asker + ' withdrew its request, so it no longer needs an answer. Anything you had typed for it is gone.', link: 'Show What Was Withdrawn' };
+    if (item.status === 'dismissed') return { text: 'You dismissed the request from ' + item.asker + '. No answer was sent.', link: 'Show the Request', glyph: 'check' };
+    return null;
+  }
+  // Dismiss asks first and says who is told. The wording is the approved mockup's, except where the host does
+  // otherwise: its reason for an answer that cannot be delivered also covers a chat that only left its group,
+  // and such a chat is still told, so the dialog says nobody can be told only of a chat that is gone.
+  function askDismiss(item) {
+    var partly = item.questions.some(function (q) { return q.answered; });
+    var told = item.dismissalReason ? item.dismissalReason + ' If the chat itself is gone, nobody can be told.' : item.asker + ' is told you dismissed it, so it does not wait for you.';
+    var body = (partly ? 'No more answers are sent, and it leaves Decisions. The answers you already sent are kept. ' : 'No answer is sent, and it leaves Decisions. ') + told + ' Use this when you have dealt with it elsewhere, or it can no longer be answered.';
+    // The last argument makes the committing button the danger button, with Cancel first and focused and no primary button, as PUDL asks of a destructive action.
+    return window.dinahHost.ask('Dismiss This Request?', body, 'Dismiss', true);
+  }
+  // What is said of a dismissal that has been saved and has no result yet.
+  function dismissProgress(op, isChecking, isSending) {
+    return isChecking ? 'Checking whether this request was dismissed.' : op.status === 'prepared' || isSending ? 'Dismissing this request.' : 'Dismissing has not been confirmed. Check the result before trying again.';
+  }
+
+  /* ---- Dismiss Request on a notification's card -----------------------------
+     A card in Notifications dismisses the request behind it without opening this window. It asks with the
+     window's dialog, and the dismissal is the request's saved operation, the one the window keeps in the
+     request's draft (decision-drafts.js). A result that is lost is therefore looked up under its own operation,
+     from the card or from the window, and is never sent under a second identity. cards maps a request to what
+     its card is in the middle of and to the last thing it has to say. */
+  var cards = new Map(), cardsChecked = new Set();
+  // The operations being sent or checked now, by the window or by a card, so that neither sends what the other has on its way.
+  var pending = new Set();
+  // about is the operation an unconfirmed result's words are about. Once that operation has a result, from the window's check for one, the words go.
+  function cardState(id) { var s = cards.get(id); if (!s) { s = { busy: '', status: '', tone: '', about: '' }; cards.set(id, s); } return s; }
+  // The cards hear through the document that a request's saved operation changed, or that the request is closed.
+  // said is what a card that goes for another reason than its own dismissal leaves behind.
+  function cardsTold(id, closed, said) { document.dispatchEvent(new CustomEvent('dinah:request-dismissal', { detail: { id: id, closed: !!closed, said: said || '' } })); }
+  // A change made from a card reaches the cards and the open window.
+  function requestChanged(id, closed, said) {
+    cardsTold(id, closed, said);
+    if (page) page.operationChanged(id, !!closed);
+  }
+  function savedDraft(id) { return window.dinahDecisionDrafts.read('request:' + id); }
+  // The card changes only the draft's operation, and the request it belongs to, so an answer being written in the window is never replaced.
+  function saveOperation(id, op, item) {
+    var draft = savedDraft(id); draft.operation = op; if (item) draft.request = item;
+    return window.dinahDecisionDrafts.write('request:' + id, draft);
+  }
+  // What a card shows: whether Dismiss Request can be used and the reason when not, the line under its buttons,
+  // and whether a dismissal sent from a card or from the window still waits to have its result checked.
+  function cardDismissal(id) {
+    var s = cardState(id), out = { enabled: false, reason: '', status: s.status, tone: s.tone, check: false };
+    if (!app() || !app().DismissRequest || !app().RequestOperation || !app().DecisionByID) { out.reason = noDismissBuild; return out; }
+    // A dismissal is saved before it is sent, which a saved state that could not be read does not allow.
+    if (window.dinahUIState.initializationError()) { out.reason = draftsUnread; return out; }
+    var saved;
+    try { saved = savedDraft(id); } catch (error) { out.reason = errorText(error); return out; }
+    if (s.about && !s.busy && !(workingOp(saved) && saved.operation.input.operationId === s.about)) { s.about = ''; s.status = out.status = ''; s.tone = out.tone = ''; }
+    if (!workingOp(saved)) { out.enabled = true; return out; }
+    out.reason = resultUnchecked;
+    var op = saved.operation;
+    // While the window or a card is sending or checking the operation there is nothing to press.
+    var sending = pending.has(op.input.operationId);
+    if (op.method === 'DismissRequest') { out.check = !s.busy && !sending; if (!s.status) out.status = dismissProgress(op, s.busy === 'checking', sending); }
+    return out;
+  }
+  // A card drawn for a request whose saved dismissal has no result, as after the window was closed with one on its
+  // way, checks that operation once, as the window does when it opens such a request.
+  function cardShown(id) {
+    if (cardsChecked.has(id)) return;
+    cardsChecked.add(id);
+    var state = cardDismissal(id);
+    if (state.check) checkFromCard(id);
+  }
+  function cardFailed(id, text, about) { var s = cardState(id); s.busy = ''; s.status = text; s.tone = 'danger'; s.about = about || ''; requestChanged(id); }
+  function dismissFromCard(id) {
+    var s = cardState(id);
+    if (s.busy) return Promise.resolve();
+    if (!cardDismissal(id).enabled) { requestChanged(id); return Promise.resolve(); }
+    s.busy = 'reading';
+    // The request is read now, so that the dialog describes it as it is and the dismissal is sent with its current revision.
+    return Promise.resolve().then(function () { return app().DecisionByID(id); }).then(function (value) {
+      if (!value || typeof value.closed !== 'boolean' || !validItem(value.decision) || value.decision.id !== id) throw new Error('The request could not be read.');
+      var item = value.decision;
+      // A request that ended another way has no open request behind its card any more, and the card goes with a word on how it ended.
+      if (value.closed) { cards.delete(id); requestChanged(id, true, (endingWords(item) || { text: notWaiting }).text); return; }
+      var can = requestDismissal(item, function () { return savedDraft(id); });
+      if (!can.enabled) { cardFailed(id, can.reason); return; }
+      s.busy = 'asking';
+      return askDismiss(item).then(function (yes) {
+        if (!yes) { s.busy = ''; return; }
+        // The window may have sent something for this request while the dialog was open.
+        if (workingOp(savedDraft(id))) { s.busy = ''; requestChanged(id); return; }
+        var op = { method: 'DismissRequest', input: { operationId: operationId(), id: item.id, revision: item.revision }, status: 'prepared', destination: item.destination };
+        s.busy = 'sending'; s.status = ''; s.tone = '';
+        // The operation is saved before it is sent, so that a result lost with the window can still be checked.
+        return saveOperation(id, op, item).then(function () { requestChanged(id); return sendFromCard(id, op); }, function (error) {
+          // It was never sent, so it is taken back.
+          try { var draft = savedDraft(id); draft.operation = null; window.dinahDecisionDrafts.write('request:' + id, draft).catch(function () {}); } catch (unreadable) { /* The draft's own failure is the card's reason from now on. */ }
+          cardFailed(id, 'This request was not dismissed. ' + errorText(error));
+        });
+      });
+    }).catch(function (error) { cardFailed(id, 'This request was not dismissed. ' + errorText(error)); });
+  }
+  function sendFromCard(id, op) {
+    var s = cardState(id);
+    s.busy = 'sending'; s.status = ''; s.tone = ''; s.about = ''; op.status = 'submitted'; pending.add(op.input.operationId);
+    return saveOperation(id, op).then(function () { requestChanged(id); return app().DismissRequest(op.input); }).then(function (receipt) { return settleFromCard(id, op, receipt); }).catch(function (error) {
+      // Whether the host dismissed the request is not known. The saved operation stays, and its result is checked under the same identity.
+      pending.delete(op.input.operationId); cardFailed(id, unconfirmed(op) + errorText(error), op.input.operationId);
+    });
+  }
+  // A lost result is looked up by its operation. The host has no result for an operation it never finished, and
+  // then the same operation is sent again, which cannot dismiss the request twice.
+  function checkFromCard(id) {
+    var s = cardState(id), saved;
+    if (s.busy) return Promise.resolve();
+    try { saved = savedDraft(id); } catch (error) { requestChanged(id); return Promise.resolve(); }
+    var op = saved.operation;
+    // An operation the window is sending or checking now is left to the window.
+    if (!workingOp(saved) || op.method !== 'DismissRequest' || pending.has(op.input.operationId)) { requestChanged(id); return Promise.resolve(); }
+    s.busy = 'checking'; s.status = ''; s.tone = ''; s.about = ''; pending.add(op.input.operationId); requestChanged(id);
+    return Promise.resolve().then(function () { return app().RequestOperation(op.input.id, op.input.operationId); }).then(function (receipt) {
+      if (receipt && receipt.operationId === op.input.operationId && receipt.state === 'unknown') return sendFromCard(id, op);
+      return settleFromCard(id, op, receipt);
+    }).catch(function (error) { pending.delete(op.input.operationId); cardFailed(id, unconfirmed(op, true) + errorText(error), op.input.operationId); });
+  }
+  function settleFromCard(id, op, receipt) {
+    var kept = settlementReceipt(receipt, { input: op.input });
+    if (!kept) throw new Error(badDismissResult);
+    op.status = kept.state; op.receipt = kept; pending.delete(op.input.operationId);
+    var s = cardState(id), closed = kept.state === 'committed' || kept.closed;
+    s.busy = '';
+    // A refusal leaves the request open, and the card says the host's reason. A dismissal ends the card's part, and so
+    // does a request the host says is already closed, of which the host's reason is said as the card goes.
+    if (closed) cards.delete(id); else { s.status = kept.reason.message; s.tone = 'danger'; }
+    // The host's result stands whether or not it could be kept on this computer.
+    return Promise.resolve().then(function () { return saveOperation(id, op); }).catch(function () {}).then(function () { requestChanged(id, closed, closed && kept.state === 'rejected' ? kept.reason.message : ''); });
+  }
   function init(root, opts) {
     var disposed = false, ready = false, readNumber = 0, refreshing = false, refreshAgain = false, moreBefore = 0, loadedPages = 1, readPromise = null, readValid = false;
     var items = new Map(), order = [], selected = '', selectedCopy = null, filter = '', view = 'requests';
     var pane = 'request', lastFinished = null, quoteWatch = null;
-    var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', pending = new Set(), checking = new Set();
+    var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', checking = new Set();
     root.classList.add('decisions');
     // PUDL temporarily makes automatic docks rails while this window needs room.
     root.closest('[data-win]').setAttribute('data-win-room', '84rem');
@@ -83,18 +236,12 @@
       }).finally(function () { saving--; controls(); });
     }
     function saveEdited() { say(''); if (draft.operation && !workingOp(draft)) draft.operation = null; persist().catch(function () {}); }
-    function workingOp(value) { return value && value.operation && !['committed', 'rejected'].includes(value.operation.status); }
     // Whether the person can dismiss an entry now, and the reason when not. The host allows it: canDismiss on a
     // request, the Dismiss command on a task question. The page adds only what it is itself in the middle of.
     function dismissal(item) {
       if (!item || !items.has(item.id)) return { enabled: false, reason: 'This request is not in the list of open requests.' };
       if (item.kind === 'task') return window.dinahTaskQuestions.dismissal(item.taskQuestion.key);
-      if (!app().DismissRequest || !app().RequestOperation) return { enabled: false, reason: 'This build cannot dismiss requests.' };
-      if (!item.canDismiss) return { enabled: false, reason: 'This request cannot be dismissed.' };
-      var saved;
-      try { saved = draftKey === 'request:' + item.id ? draft : draftFor('request:' + item.id); } catch (error) { return { enabled: false, reason: errorText(error) }; }
-      if (workingOp(saved)) return { enabled: false, reason: 'The last send or dismissal has not been confirmed. Check its result first.' };
-      return { enabled: true, reason: '' };
+      return requestDismissal(item, function () { return draftKey === 'request:' + item.id ? draft : draftFor('request:' + item.id); });
     }
     // The line the last finished entry left behind, with the way to its record. A task question has no record.
     function finishedLine(line) {
@@ -152,13 +299,12 @@
         detail.querySelectorAll('[data-operation]').forEach(function (el) { el.hidden = !workingOp(draft); el.disabled = !workingOp(draft) || pending.has(op.input.operationId); if (workingOp(draft)) el.textContent = dismisses(op) ? 'Check Dismiss Result' : 'Check Send Result'; });
       }
     }
-    function unconfirmed(op, still) { return (dismisses(op) ? 'Dismissing has ' : 'Sending has ') + (still ? 'still ' : '') + 'not been confirmed. '; }
     function deliveryStatus() {
       if (draftError) return draftError;
       var op = draft.operation;
       if (!op) return send && send.disabled ? 'Choose or write an answer to send it.' : 'Your answer is ready to send.';
       if (op.status === 'rejected') return op.receipt.reason.message;
-      if (op.status !== 'committed' && dismisses(op)) return checking.has(op.input.operationId) ? 'Checking whether this request was dismissed.' : op.status === 'prepared' || pending.has(op.input.operationId) ? 'Dismissing this request.' : 'Dismissing has not been confirmed. Check the result before trying again.';
+      if (op.status !== 'committed' && dismisses(op)) return dismissProgress(op, checking.has(op.input.operationId), pending.has(op.input.operationId));
       if (op.status !== 'committed') return 'Sending has not been confirmed. Check the result before sending again.';
       if (dismisses(op)) return 'This request was dismissed. No answer was sent.';
       if (op.method === 'ConfirmDecisionBroadcast') return 'Your message is waiting for the chats in the preview.';
@@ -315,19 +461,13 @@
       var answers = fields.filter(function (q) { var a = draft.answers[q.number]; return !q.answered && a && (a.asRecommended || a.text.trim()); }).map(function (q) { var a = draft.answers[q.number]; return { number: q.number, text: a.asRecommended ? '' : a.text, asRecommended: !!a.asRecommended }; });
       return begin('AnswerDecision', { operationId: operationId(), id: item.id, revision: item.revision, answers: answers });
     }
-    // Dismiss asks first and says who is told. The wording is the approved mockup's, except where the host does
-    // otherwise: its reason for an answer that cannot be delivered also covers a chat that only left its group,
-    // and such a chat is still told, so the dialog says nobody can be told only of a chat that is gone.
+    // Dismiss asks first and says who is told (askDismiss, which a notification's card uses as well).
     function dismiss(id) {
       var item = items.get(id);
       if (!item || !dismissal(item).enabled) return;
       // A question dismissed from its row is opened once the person has confirmed, so that its result is said in its own foot.
       if (item.kind === 'task') return window.dinahTaskQuestions.dismiss(item.taskQuestion.key, function () { if (!disposed && items.has(id) && (view !== 'requests' || selected !== id)) { selectedCopy = items.get(id); navigate('requests', id); } });
-      var partly = item.questions.some(function (q) { return q.answered; });
-      var told = item.dismissalReason ? item.dismissalReason + ' If the chat itself is gone, nobody can be told.' : item.asker + ' is told you dismissed it, so it does not wait for you.';
-      var body = (partly ? 'No more answers are sent, and it leaves Decisions. The answers you already sent are kept. ' : 'No answer is sent, and it leaves Decisions. ') + told + ' Use this when you have dealt with it elsewhere, or it can no longer be answered.';
-      // The last argument makes the committing button the danger button, with Cancel first and focused and no primary button, as PUDL asks of a destructive action.
-      return window.dinahHost.ask('Dismiss This Request?', body, 'Dismiss', true).then(function (yes) {
+      return askDismiss(item).then(function (yes) {
         var now = items.get(id);
         if (!yes || disposed || !now || !dismissal(now).enabled) return;
         // The dismissal is the open request's saved operation, so a request dismissed from its row is opened first.
@@ -340,12 +480,15 @@
       var key = draftKey, value = draft;
       draft.operation = { method: method, input: input, status: 'prepared' };
       if (method !== 'ConfirmDecisionBroadcast') draft.operation.destination = current().destination;
-      return persist().then(function () { return execute(key, value); }).catch(function (error) { say(errorText(error)); });
+      return persist().then(function () { tellCard(key); return execute(key, value); }).catch(function (error) { say(errorText(error)); });
     }
+    // A notification's card shows whether its request has a send or a dismissal without a result, so it hears when one begins or ends here.
+    // closed is true when the host's result closed the request, and then its notifications go as well.
+    function tellCard(key, closed) { if (key.startsWith('request:')) cardsTold(key.slice(8), closed); }
     function accept(key, value, receipt) {
       var op = value.operation;
       if (op.method === 'DismissRequest') receipt = settlementReceipt(receipt, op);
-      if (!validReceipt(receipt, op)) throw new Error(dismisses(op) ? 'The dismissal result could not be confirmed.' : 'The send result could not be confirmed.');
+      if (!validReceipt(receipt, op)) throw new Error(dismisses(op) ? badDismissResult : 'The send result could not be confirmed.');
       var item = items.get(receipt.id) || selectedCopy;
       if (item && item.id !== receipt.id) item = null;
       var destination = op.destination || (item ? item.destination : 'the asking chat');
@@ -364,7 +507,7 @@
       return store(key, value).then(function () { return app()[op.method](op.input); }).then(function (receipt) { return accept(key, value, receipt); }).catch(function (error) {
         if (!['committed', 'rejected'].includes(op.status)) { op.status = 'submitted'; return store(key, value).then(function () { say(unconfirmed(op) + errorText(error)); }); }
         say('The result was confirmed, but could not be saved on this computer. ' + errorText(error));
-      }).finally(function () { pending.delete(op.input.operationId); controls(); });
+      }).finally(function () { pending.delete(op.input.operationId); controls(); tellCard(key, op.status === 'committed' && !!op.receipt && op.receipt.closed); });
     }
     function reconcile() {
       if (!draft || !workingOp(draft)) return Promise.resolve();
@@ -378,7 +521,7 @@
         var unknown = receipt && receipt.operationId === op.input.operationId && receipt.state === 'unknown' && (settlement || receipt.id === '' && receipt.revision === 0 && receipt.closed === false && Array.isArray(receipt.messageIds) && receipt.messageIds.length === 0 && receipt.reason === null);
         if (unknown) { op.status = 'unknown'; pending.delete(op.input.operationId); checking.delete(op.input.operationId); return execute(key, value); }
         return accept(key, value, receipt);
-      }).catch(function (error) { say(unconfirmed(op, true) + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); checking.delete(op.input.operationId); if (key === draftKey) controls(); });
+      }).catch(function (error) { say(unconfirmed(op, true) + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); checking.delete(op.input.operationId); if (key === draftKey) controls(); tellCard(key, op.status === 'committed' && !!op.receipt && op.receipt.closed); });
     }
     function drawBroadcast() {
       var scope = view === 'broadcast-active' ? 'active' : 'all', key = 'broadcast-' + scope;
@@ -451,9 +594,9 @@
       Promise.resolve().then(function () { return app().DecisionByID(finished.id); }).then(function (value) {
         var item = value && value.decision;
         if (disposed || lastFinished !== finished || !item || item.id !== finished.id || typeof item.asker !== 'string') return;
-        if (item.status === 'withdrawn') { finished.text = item.asker + ' withdrew its request, so it no longer needs an answer. Anything you had typed for it is gone.'; finished.link = 'Show What Was Withdrawn'; }
-        else if (item.status === 'dismissed') { finished.text = 'You dismissed the request from ' + item.asker + '. No answer was sent.'; finished.link = 'Show the Request'; finished.glyph = 'check'; }
-        else return;
+        var ending = endingWords(item);
+        if (!ending) return;
+        Object.assign(finished, ending);
         draw();
       }).catch(function () { /* The line already says that the request is no longer waiting. */ });
     }
@@ -488,7 +631,7 @@
         var previouslyOpen = items.has(selected);
         if (!append) { if (items.has(selected)) selectedCopy = items.get(selected); items.clear(); }
         result.items.forEach(function (item) { items.set(item.id, item); if (!order.includes(item.id)) order.push(item.id); });
-        order = order.filter(function (id) { return items.has(id); }); syncTasks(); if (view === 'requests' && previouslyOpen && selected && !items.has(selected) && !workingOp(draft)) { lastFinished = { id: selected, text: 'This request is no longer waiting.' }; readEnding(lastFinished); selected = ''; selectedCopy = null; rendered = ''; } if (lastFinished && !selected && order.length) { selected = order[0]; opts.changed(address()); } moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
+        order = order.filter(function (id) { return items.has(id); }); syncTasks(); if (view === 'requests' && previouslyOpen && selected && !items.has(selected) && !workingOp(draft)) { lastFinished = { id: selected, text: notWaiting }; readEnding(lastFinished); selected = ''; selectedCopy = null; rendered = ''; } if (lastFinished && !selected && order.length) { selected = order[0]; opts.changed(address()); } moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
         listNotice.hidden = true; listNoticeText.textContent = ''; say(''); draw(); readValid = true;
       }).catch(function (error) { if (disposed) return; listNoticeText.textContent = errorText(error); listNotice.hidden = false; say('Requests could not be read. ' + errorText(error)); }).finally(function () {
         refreshing = false; if (!disposed) { refresh.disabled = false; retryRead.disabled = false; more.disabled = !moreBefore; }
@@ -509,7 +652,7 @@
     var unresync = window.dinahHost.onResync(function () { return load(false); });
     window.dinahUIState.ready.then(function () {
       if (disposed) return;
-      if (window.dinahUIState.initializationError()) { say('Saved drafts could not be read. Sending is disabled.'); return; }
+      if (window.dinahUIState.initializationError()) { say(draftsUnread); return; }
       ready = true; draw(); load(false);
     });
     function ensureRequest(id) {
@@ -521,13 +664,24 @@
         return true;
       });
     }
-    return { ensureRequest: ensureRequest, state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; if (quoteWatch) quoteWatch.disconnect(); unsubscribe(); unresync(); unTask(); }, commands: function () {
+    // A notification's card changed this request's saved operation, or its request closed. The open request takes
+    // the operation from the saved draft and keeps everything else it has, and a closed request is read out of the list.
+    function operationChanged(id, closed) {
+      if (disposed || !ready) return;
+      if (draft && draftKey === 'request:' + id) { try { draft.operation = draftFor(draftKey).operation; } catch (error) { draftError = errorText(error); } controls(); }
+      if (closed) load(false);
+    }
+    return { ensureRequest: ensureRequest, operationChanged: operationChanged, state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; if (quoteWatch) quoteWatch.disconnect(); unsubscribe(); unresync(); unTask(); }, commands: function () {
       return [{ label: 'Refresh Requests', disabled: !available(), run: function () { if (view === 'record') { rendered = ''; draw(); } return load(false); } }, { label: 'Broadcast to Active…', run: function () { navigate('broadcast-active'); } }, { label: 'Broadcast to All…', run: function () { navigate('broadcast-all'); } }];
     } };
   }
   window.dinahWorkbench.register('decisions', { applet: { id: 'dinah.decisions', title: 'Decisions', glyph: 'comments', workspace: false }, singleton: true, title: 'Decisions', glyph: 'comments', mode: 'maximized', init: function (root, opts) { var instance = init(root, opts); page = instance; var destroy = instance.destroy; instance.destroy = function () { destroy(); if (page === instance) page = null; }; return instance; },
     launcher: { title: 'Decisions', run: function () { return window.dinahWorkbench.open('decisions'); } } });
-  window.dinahDecisions = { openRequest: function (id) { return window.dinahWorkbench.open('decisions', new URLSearchParams({ request: id }).toString()).then(function () { if (!page) throw new Error('Decisions could not be opened.'); return page.ensureRequest(id); }); } };
+  window.dinahDecisions = { openRequest: function (id) { return window.dinahWorkbench.open('decisions', new URLSearchParams({ request: id }).toString()).then(function () { if (!page) throw new Error('Decisions could not be opened.'); return page.ensureRequest(id); }); },
+    // For the card of a notification that belongs to an open request (notifications-applet.js). dismissal says what the
+    // card shows, dismissRequest asks and then dismisses, checkDismissal looks up a result that was lost, and shown is
+    // called when a card is drawn. Each change is announced on the document as dinah:request-dismissal.
+    dismissal: cardDismissal, dismissRequest: dismissFromCard, checkDismissal: checkFromCard, shown: cardShown };
   function open(state) { return window.dinahWorkbench.open('decisions', state || '').catch(window.dinahHost.fail); }
   // The three rows have letters of their own in the View menu; without them Broadcast to All took the letter Show the Agent's Thinking asks for.
   window.dinahCommands.register({ id: 'decisions', menu: 'view', mnemonic: 'D', label: 'Decisions', visible: available, run: function () { return open(); } });

@@ -39,12 +39,8 @@ func TestDecisionEntriesReuseDurableAttention(t *testing.T) {
 		t.Fatal(err)
 	}
 	entries, err = a.DecisionEntries()
-	if err != nil || entries.Count != 0 {
-		t.Fatalf("dismissing attention did not settle its source request %+v %v", entries, err)
-	}
-	closed, err := a.DecisionByID(request.ID)
-	if err != nil || !closed.Closed || closed.Decision.Status != "dismissed" || closed.Decision.Questions[0].Answered {
-		t.Fatalf("notification dismissal lost the source or supplied an answer %+v %v", closed, err)
+	if err != nil || entries.Count != 1 {
+		t.Fatalf("dismissing attention closed a request %+v %v", entries, err)
 	}
 	plainCards := mentionCards(t, a)
 	if len(plainCards) != 1 {
@@ -54,7 +50,7 @@ func TestDecisionEntriesReuseDurableAttention(t *testing.T) {
 		t.Fatal(err)
 	}
 	entries, err = a.DecisionEntries()
-	if err != nil || entries.Count != 0 {
+	if err != nil || entries.Count != 1 || entries.Items[0].ID != request.ID {
 		t.Fatalf("dismissed mention remained indexed %+v %v", entries, err)
 	}
 }

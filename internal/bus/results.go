@@ -57,6 +57,18 @@ func (b *Bus) FindResult(ctx context.Context, key, recipient, text string) (int6
 	return id, nil
 }
 
+// signHostReport records the host as the sender of a report the bus makes
+// itself. A host report must never be attributed to the person. It has no
+// agent hop chain, since it completes an already accepted operation. The
+// sender's name is stored with the message, which makes it wire, so it stays
+// Dinah's whatever the product's profile says. A reader is shown the build's
+// product name instead, which Describe and the page take from the profile.
+// Every report of the bus's own is signed here, so the name is written once.
+func signHostReport(t *sql.Tx, id int64) error {
+	_, err := t.Exec(`UPDATE messages SET from_name = 'Dinah' WHERE id = ?`, id)
+	return err
+}
+
 // EnqueueResult records a host result and its delivery in one transaction.
 // The stable key makes reconciliation safe after a restart or a lost reply.
 // It addresses a session ID even when that session is currently closed,
@@ -91,11 +103,7 @@ func (b *Bus) EnqueueResult(ctx context.Context, key, sessionID, text string) (M
 		if err != nil {
 			return err
 		}
-		// A host report must never be attributed to the person. It has no
-		// agent hop chain, since it completes an already accepted operation.
-		// The sender's name is stored with the message, which makes it
-		// wire, so it stays Dinah's whatever the product's profile says.
-		if _, err := t.Exec(`UPDATE messages SET from_name = 'Dinah' WHERE id = ?`, id); err != nil {
+		if err := signHostReport(t, id); err != nil {
 			return err
 		}
 		_, err = t.Exec(`INSERT INTO host_results (key, recipient, message_id) VALUES (?, ?, ?)`, key, sessionID, id)

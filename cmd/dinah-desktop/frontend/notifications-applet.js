@@ -324,6 +324,60 @@
       if (!item) return;
       attentionItems.delete(id); drawAttention(attentionSource(item));
     }
+    /* The request behind an attention item: the one the host says the notification belongs to, or the one the
+       open requests list for its message. A plain mention has none. */
+    function requestOf(item) {
+      var entries = window.dinahDecisionEntries;
+      return item.requestId || (!plainMention(item) && entries && item.message ? entries.get(item.message) : null);
+    }
+    /* Dismiss Request…, on the card of a notification that belongs to an open request. Dismissing the card, Clear
+       All and opening the request remove the notification only (DismissNotification), and never the request. This
+       button dismisses the request itself: it asks with the Decisions window's dialog and sends the dismissal the
+       way that window does (decisions-applet.js, which keeps the state the card shows). The line under the
+       buttons says why the button cannot be used, or what the host said. It is always there with one height, so
+       words that come and go move nothing. */
+    var requestLines = 0, requestsReady = false;
+    function requestControls(card, id) {
+      var actions = card.querySelector('.notice-actions');
+      var button = document.createElement('button'), line = document.createElement('p'), words = document.createElement('span'), check = document.createElement('button');
+      button.type = check.type = 'button'; button.className = check.className = 'btn btn-sm';
+      button.textContent = 'Dismiss Request…'; button.dataset.requestDismiss = id;
+      check.textContent = 'Check Dismiss Result'; check.dataset.requestCheck = ''; check.hidden = true;
+      line.className = 'request-dismiss-status'; line.id = 'request-dismiss-status-' + (++requestLines); line.setAttribute('role', 'status'); line.setAttribute('aria-live', 'polite');
+      button.setAttribute('aria-describedby', line.id); line.append(words, check);
+      button.addEventListener('click', function () { if (requestsReady) Promise.resolve().then(function () { return window.dinahDecisions.dismissRequest(id); }).catch(fail); });
+      check.addEventListener('click', function () { if (requestsReady) Promise.resolve().then(function () { return window.dinahDecisions.checkDismissal(id); }).catch(fail); });
+      actions.insertBefore(button, actions.querySelector('.notices-dismiss'));
+      actions.after(line);
+      paintRequestControls(button);
+    }
+    function paintRequestControls(button) {
+      if (!requestsReady) return;
+      var id = button.dataset.requestDismiss, state = window.dinahDecisions.dismissal(id), line = button.closest('.notices-card').querySelector('.request-dismiss-status');
+      button.disabled = !state.enabled; button.title = state.reason;
+      line.firstChild.textContent = state.status || state.reason;
+      line.dataset.tone = state.status && state.tone === 'danger' ? 'danger' : '';
+      line.lastChild.hidden = !state.check;
+      // A dismissal saved earlier and left without a result is checked once, when its card is first drawn.
+      window.dinahDecisions.shown(id);
+    }
+    function paintRequests(id) {
+      document.querySelectorAll('#questions [data-request-dismiss]').forEach(function (button) { if (!id || button.dataset.requestDismiss === id) paintRequestControls(button); });
+    }
+    /* The Decisions scripts load after this one, and a saved dismissal is in the saved UI state, so the cards drawn
+       before both are there are painted once they are. */
+    function requestsLoaded() {
+      window.dinahUIState.ready.then(function () { requestsReady = !!window.dinahDecisions; paintRequests(''); }).catch(function () { /* The saved state's own failure is reported by its reader. */ });
+    }
+    if (window.dinahDecisions) requestsLoaded(); else document.addEventListener('DOMContentLoaded', requestsLoaded, { once: true });
+    document.addEventListener('dinah:request-dismissal', function (event) {
+      var change = event.detail;
+      if (!change || !change.id) return;
+      if (!change.closed) { paintRequests(change.id); return; }
+      // The request is closed, so the notifications that belong to it go. The host takes them out of its own list when it next reads the request.
+      Array.from(attentionItems.values()).filter(function (item) { return requestOf(item) === change.id; }).forEach(function (item) { forgetAttention(item.id); });
+      if (change.said) toast(change.said, 'info', { noted: true });
+    });
     function dismissAttention(ids) {
       return Promise.all(ids.map(function (id) {
         if (attentionDismissals.has(id)) return attentionDismissals.get(id);
@@ -342,7 +396,7 @@
       var firstLine = String(latest.body || '').trim().split(/\r?\n/)[0];
       var unit = plainMention(latest) ? 'mention' : 'request';
       var title = latest.title + (items.length > 1 ? ' (' + items.length + ' ' + unit + 's)' : '');
-      var entries = window.dinahDecisionEntries, decisionId = latest.requestId || (!plainMention(latest) && entries && latest.message ? entries.get(latest.message) : null);
+      var decisionId = requestOf(latest);
       function openSource() {
         if (plainMention(latest)) return window.dinahBus.openMessage({ message: latest.message, group: latest.group || '', title: latest.groupTitle || latest.sessionTitle || 'Chat' });
         return latest.group ? window.dinahBus.openGroup(latest.group, { message: latest.message || 0 }) : latest.message ?
@@ -363,7 +417,9 @@
         title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,
         details: [items.length + ' ' + unit + (items.length === 1 ? '' : 's') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')].concat(Array.isArray(latest.details) ? latest.details : []),
         actions: actions, dismissible: true, dismiss: function () { return dismissAttention(ids); }, announced: true,
-        className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, decisionId: decisionId, requestCount: items.length } });
+        // A card with an open request behind it has Dismiss Request…, always shown. A card with none has no such button.
+        extend: decisionId ? function (card) { requestControls(card, decisionId); } : null,
+        className: 'question heads-up attention-kept' + (decisionId ? ' attention-request' : ''), data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, decisionId: decisionId, requestCount: items.length } });
     }
     function keepAttention(item) {
       if (!item || item.dismissed) return;

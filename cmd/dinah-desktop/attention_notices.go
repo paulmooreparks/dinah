@@ -44,7 +44,7 @@ func (a *App) keepQuestion(session, key string, toolCall json.RawMessage) {
 
 func (a *App) answerAttention(key string) {
 	id := permissionNoticeID(key)
-	if err := a.dismissNotificationProjection(id); err == nil {
+	if err := a.DismissNotification(id); err == nil {
 		a.emit("notifications:dismissed", map[string]string{"id": id})
 	}
 }

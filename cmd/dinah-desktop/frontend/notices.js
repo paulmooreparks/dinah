@@ -62,6 +62,7 @@
         dismissible: !!input.dismissible, dismiss: typeof input.dismiss === 'function' ? input.dismiss : null,
         clearable: input.clearable != null ? !!input.clearable : type !== 'question',
         render: typeof input.render === 'function' ? input.render : null,
+        extend: typeof input.extend === 'function' ? input.extend : null,
         className: input.className || '', data: Object.assign({}, input.data || {}),
         announced: !!input.announced
       };
@@ -190,7 +191,8 @@
 
     /* The full card of an entry: a PUDL notice with its glyph and colour.
        A producer's renderer fills it; otherwise its title, body, details,
-       time and source. Then its actions, Open for its source, and Dismiss. */
+       time and source. Then its actions, Open for its source, and Dismiss,
+       and last whatever the producer's extend adds. */
     function card(entry) {
       var c = el('div', 'notice notices-card' + (entry.className ? ' ' + entry.className : ''));
       decorate(c, entry);
@@ -232,6 +234,10 @@
       }
       if (adapter.context) { var context = adapter.context(entry); if (context) (c.querySelector('.notice-content') || c).appendChild(context); }
       if (entry.dismissible) actions.appendChild(button('Dismiss', (entry.actions.some(function (a) { return a.primary; }) ? '' : 'btn-primary ') + 'notices-dismiss', function () { return dismiss(entry.id); }));
+      /* A producer adds a control of its own to the finished card here, one
+         whose state it keeps itself, such as a button that is disabled with
+         a reason. */
+      if (entry.extend) entry.extend(c, entry, api);
       return c;
     }
 

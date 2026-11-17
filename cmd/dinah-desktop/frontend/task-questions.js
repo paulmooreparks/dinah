@@ -1,8 +1,6 @@
 /* Task questions share one pending state across their reading surfaces. */
 (function () {
   'use strict';
-  // A Notifications card has no Dismiss of its own yet; Decisions dismisses the question, and the card says so.
-  var cardDismissReason = 'This card cannot dismiss the question yet. Open Decisions to dismiss it.';
   var checkingDismissal = 'Dinah is checking whether this question can be dismissed.';
   // The ways the host says a question ended (taskhost's question record).
   var dispositions = ['answered', 'dismissed', 'withdrawn', 'cancelled'];
@@ -244,7 +242,10 @@
       count.textContent = (over ? '▲ ' : '') + (q.answerType === 'text' ? n + ' of ' + q.maxLength + ' characters (minimum ' + q.minLength + ')' : n + ' selected; choose ' + q.minSelections + ' to ' + q.maxSelections);
       count.dataset.tone = over ? 'danger' : ''; if (text) text.setAttribute('aria-invalid', String(over));
     }
-    var status = card.querySelector('[data-task-status]'); if (status) status.textContent = entry.status || entry.draftError || '';
+    var status = card.querySelector('[data-task-status]'); if (status) { status.textContent = entry.status || entry.draftError || ''; status.dataset.tone = entry.status && entry.tone === 'danger' ? 'danger' : ''; }
+    // The card's own Dismiss Question keeps its place in every state. When it cannot be used it is disabled, and the line under the buttons says why.
+    var dismissButton = card.querySelector('[data-task-dismiss]');
+    if (dismissButton) { var can = dismissal(entry); dismissButton.disabled = !can.enabled; dismissButton.title = can.reason; card.querySelector('[data-task-dismiss-reason]').textContent = can.reason; }
   }
   function render(card, key, settings) {
     settings = settings || {};
@@ -278,7 +279,17 @@
     send.type = check.type = 'button'; send.dataset.taskAnswer = ''; check.dataset.taskCheck = '';
     send.addEventListener('click', function () { answer(key); });
     check.addEventListener('click', function () { refresh().catch(function (error) { if (entries.get(key) === entry) { entry.status = window.dinahHelpers.message(error, 'sentence'); changed(key); } }); });
-    actions.append(send, check); if (!settings.embedded) { var dismissButton = node('button', 'btn btn-sm', 'Dismiss'); dismissButton.type = 'button'; dismissButton.disabled = true; dismissButton.title = cardDismissReason; actions.prepend(dismissButton); content.append(status, actions, node('p', 'text-muted', cardDismissReason)); } card.appendChild(content); paint(card, entry);
+    actions.append(send, check);
+    if (!settings.embedded) {
+      // A card in Notifications dismisses its question itself, with the confirmation Decisions asks. The reason
+      // line is always there with one height, so a reason that appears or goes moves nothing.
+      var dismissButton = node('button', 'btn btn-sm', 'Dismiss Question…'), reason = node('p', 'text-muted task-question-dismiss-reason');
+      dismissButton.type = 'button'; dismissButton.dataset.taskDismiss = ''; reason.dataset.taskDismissReason = '';
+      reason.id = 'task-dismiss-reason-' + cards; dismissButton.setAttribute('aria-describedby', reason.id);
+      dismissButton.addEventListener('click', function () { Promise.resolve().then(function () { return dismiss(key); }).catch(window.dinahHost.fail); });
+      actions.prepend(dismissButton); content.append(status, actions, reason);
+    }
+    card.appendChild(content); paint(card, entry);
   }
   window.dinahTaskQuestions = {
     connect: function (adapter) {

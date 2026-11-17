@@ -178,7 +178,10 @@ for(const point of ['before-authoritative-commit','unknown-commit-result','lost-
   assert.ok(e.commitSnapshots.some(x=>!x.sourceClosed));assert.ok(e.commitSnapshots.some(x=>x.sourceClosed));
   assert.equal(e.reconciledByOriginalOperationId,true);
 });
-for(const adapter of ['DismissDecision','DismissNotification']) test(`${adapter}: settle source before projecting dismissal`,async t=>{
+// DismissNotification was one of these two until 17 November 2026, when the person ruled that dismissing a
+// notification removes the notice and settles nothing. The Go test TestDismissingARequestNoticeLeavesTheRequestOpen
+// checks that rule; a request is dismissed from its notification by the card's own Dismiss Request command.
+for(const adapter of ['DismissDecision']) test(`${adapter}: settle source before projecting dismissal`,async t=>{
   const e=await capture(t,'legacy-dismiss-adapter','task-single',{adapter});
   assert.equal(e.sourceReceipt.outcome,'dismissed');assert.equal(e.waiter.released,true);
   assert.equal(e.waiter.hasAnswer,false);assert.equal(e.pendingAfter.length,0);

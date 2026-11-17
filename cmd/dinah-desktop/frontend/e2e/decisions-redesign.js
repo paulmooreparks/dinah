@@ -88,7 +88,8 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
       await p.evaluate(() => dinahWorkbench.open('needs-you'));
       const notification = p.locator('#questions [data-task-question-key="text-q"] textarea');
       await notification.waitFor({ state: 'visible' });
-      ok('Notifications explains the disabled Dismiss control', await p.locator('#questions [data-task-question-key="text-q"]').getByRole('button', { name: 'Dismiss', exact: true }).isDisabled() && (await p.locator('#questions [data-task-question-key="text-q"]').innerText()).includes('This card cannot dismiss the question yet. Open Decisions to dismiss it.'));
+      // This stubbed host has no RequestState, so the card's Dismiss Question is disabled, and the card says that this build cannot dismiss.
+      ok('Notifications explains the disabled Dismiss Question control', await p.locator('#questions [data-task-question-key="text-q"]').getByRole('button', { name: 'Dismiss Question…', exact: true }).isDisabled() && await p.locator('#questions [data-task-question-key="text-q"] .task-question-dismiss-reason').innerText() === 'This build cannot dismiss task questions.' && await p.locator('#questions [data-task-question-key="text-q"]').getByRole('button', { name: 'Dismiss Question…', exact: true }).getAttribute('title') === 'This build cannot dismiss task questions.');
       ok('Notifications shares the Decisions draft', await notification.inputValue() === '😀ab');
       await notification.fill('Yes');
       await p.evaluate(() => dinahWorkbench.open('decisions'));

@@ -203,7 +203,7 @@ func (b *Bus) DispatchRequestCompletions(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			if _, err = t.Exec(`UPDATE messages SET from_name='Dinah' WHERE id=?`, id); err != nil {
+			if err = signHostReport(t, id); err != nil {
 				return err
 			}
 			if _, err = t.Exec(`UPDATE request_completion_obligations SET message_id=? WHERE request_id=? AND message_id=0`, id, n.id); err != nil {

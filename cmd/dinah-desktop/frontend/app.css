@@ -687,6 +687,8 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 #needs-empty { height: 1.5em; min-height: 1.5em; margin: 0; overflow: hidden; }
 #questions { flex: 1 1 auto; min-height: 0; overflow: auto; overflow-anchor: none; scrollbar-gutter: stable; }
 #questions > .attention-kept { flex: none; box-sizing: border-box; height: 14rem; overflow: auto; }
+/* A request's card also has Dismiss Request and the line under its buttons, so it is taller, by one amount in every state. */
+#questions > .attention-kept.attention-request { height: 18rem; }
 .needs-you h2 { margin: 0; font-size: var(--text-base); }
 /* The filter above the entries: the kind, the text, and Clear All. */
 .needs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
@@ -715,6 +717,18 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .task-question-choices label { display: flex; align-items: baseline; gap: .5rem; margin-block: .5rem; }
 .task-question-choices input { flex: 0 0 auto; }
 .task-question-result { block-size: 4.5em; overflow: auto; overflow-wrap: anywhere; margin-block: .5rem; }
+/* What the host said of a dismissal it refused, or of one without a result, is marked with the warning glyph
+   as well as its colour, on a task question's card and on a request's. */
+:is(.task-question-result, .request-dismiss-status)[data-tone="danger"]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: var(--space-1); vertical-align: -0.1em; background: var(--danger); mask: var(--glyph-warning) no-repeat center / contain; }
+/* Why Dismiss Question cannot be used, under the card's buttons. The line has one height whether or not there is
+   a reason, so a reason that appears or goes moves nothing. */
+.task-question-dismiss-reason { block-size: 3.6em; margin: var(--space-1) 0 0; overflow: auto; overflow-wrap: anywhere; font-size: var(--text-xs); line-height: 1.2; }
+/* Under the buttons of a request's card: why Dismiss Request cannot be used, what the host said, and Check
+   Dismiss Result under the words when a dismissal has no result. The line has one height in every state, with
+   room for two lines of words and the button under them in a narrow pane. */
+.request-dismiss-status { block-size: 4rem; margin: var(--space-1) 0 0; overflow: auto; overflow-wrap: anywhere; font-size: var(--text-xs); line-height: 1.3; color: var(--text-muted); }
+.request-dismiss-status > button { display: block; margin-top: var(--space-1); }
+.request-dismiss-status > button[hidden] { display: none; }
 .question code { overflow-wrap: anywhere; }
 .applet-artifact { padding: 1rem; overflow: auto; height: 100%; }
 .applet-artifact img { max-width: 100%; background: white; }

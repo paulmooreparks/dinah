@@ -25,6 +25,7 @@ Until this change the list of notifications existed only as cards in the pane's 
 | `dismissible`, `dismiss` | Whether the card has Dismiss, and an optional function that dismisses this entry where it is kept. |
 | `clearable` | Whether Clear All takes it; by default everything but a question. |
 | `render` | For an entry whose full form is rich, the producer's function that fills the full card. |
+| `extend` | An optional function called with the finished full card, with which the producer adds a control whose state it keeps itself, such as a button that can be disabled with a reason. |
 | `className`, `data` | Extra classes and `data-` attributes for the full card. |
 | `announced` | True when the producer has already announced the entry, as a toast does. |
 
@@ -62,6 +63,7 @@ Every producer adds entries to the store and none builds into the pane.
 - An applet's request is a `question` entry whose renderer draws its form. Its result is an entry of the result's severity, and its Dismiss dismisses the result in Go.
 - Every toast is kept as a report, an entry of the toast's severity that is saved through `SaveNotification` and dismissed through `DismissNotification`, as before. A report repeated while an earlier copy is still listed is not added again.
 - A failed turn is an `error` entry about its chat, saved as a `turn-failure` and restored at start.
+- The card of a notification that belongs to an open `ask_person` request has Dismiss Request…, and a task question's card has Dismiss Question…. Each asks first with the Decisions window's dialog and then dismisses the request itself through `DismissRequest`, as `docs/design/request-settlement.md` describes. Dismiss on a card, Clear All and opening a request from its card remove the notification only and never dismiss the request (Paul, 17 November 2026). A request's card is taller than other attention cards by a fixed amount, which gives the line under its buttons one height in every state.
 
 ## Counts and Attention
 
