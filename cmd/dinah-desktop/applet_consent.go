@@ -6,6 +6,7 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"strings"
 
 	"studio/internal/acp"
 	"studio/internal/applet"
@@ -98,10 +99,14 @@ func (a *App) appletConsent(ctx context.Context, v broker.Invocation, action app
 }
 
 // AppletGrant is an applet action the person allowed always in a workspace.
+// Applet is the title of the applet the action belongs to, which tells apart
+// two applets' actions of one title, such as Open a File; it is empty for an
+// action whose applet is no longer installed.
 type AppletGrant struct {
 	Workspace string `json:"workspace"`
 	Action    string `json:"action"`
 	Title     string `json:"title"`
+	Applet    string `json:"applet"`
 }
 
 // AppletGrants lists the applet actions allowed always, for Settings.
@@ -114,6 +119,12 @@ func (a *App) AppletGrants() []AppletGrant {
 	a.mu.Unlock()
 	out := []AppletGrant{}
 	registry, _ := a.appletRegistry()
+	applets := map[string]string{}
+	if registry != nil {
+		for _, manifest := range registry.Catalog() {
+			applets[manifest.ID] = manifest.Title
+		}
+	}
 	for _, ws := range slices.Sorted(maps.Keys(grants)) {
 		for _, ref := range grants[ws] {
 			title := ref
@@ -122,7 +133,9 @@ func (a *App) AppletGrants() []AppletGrant {
 					title = action.Title
 				}
 			}
-			out = append(out, AppletGrant{Workspace: ws, Action: ref, Title: title})
+			// An action's reference is its applet's ID, a slash and the action's own name.
+			id, _, _ := strings.Cut(ref, "/")
+			out = append(out, AppletGrant{Workspace: ws, Action: ref, Title: title, Applet: applets[id]})
 		}
 	}
 	return out

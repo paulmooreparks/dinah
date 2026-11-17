@@ -75,7 +75,7 @@ func TestAppletConsent(t *testing.T) {
 	}
 	a.Answer(q["key"].(string), consentAlways)
 	awaitApplet(t, a, ws, "chat", "chat-1", v.ID, "done")
-	if grants := a.AppletGrants(); len(grants) != 1 || grants[0].Workspace != ws || grants[0].Action != "dinah.settings/update@1" {
+	if grants := a.AppletGrants(); len(grants) != 1 || grants[0].Workspace != ws || grants[0].Action != "dinah.settings/update@1" || grants[0].Applet == "" || grants[0].Applet == grants[0].Title {
 		t.Fatalf("the grant is %+v", grants)
 	}
 	// Allowed always: the next update runs without asking.

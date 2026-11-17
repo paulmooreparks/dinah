@@ -132,35 +132,67 @@
     /* Settings â€º Agents: the applet actions allowed always, each with Forget
        (applet_consent.go). */
     function drawAppletGrants() {
-      var list = $('applet-grants');
+      var list = $('applet-grants'), node = window.dinahHelpers.node;
       if (!list || !app().AppletGrants) return;
       Promise.resolve(app().AppletGrants()).then(function (grants) {
         list.replaceChildren();
         if (!grants || !grants.length) {
-          var none = document.createElement('li');
-          none.className = 'form-help';
-          none.textContent = 'No applet action is allowed always.';
+          var none = node('div', 'empty-state');
+          none.append(node('p', 'empty-state-title', 'No Action Is Allowed Always'), node('p', 'empty-state-body', 'An action appears here when you choose Allow Always for it in a chat.'));
           list.append(none);
           return;
         }
-        grants.forEach(function (g) {
-          var row = document.createElement('li'), text = document.createElement('span'), forget = document.createElement('button');
-          row.className = 'hstack gap-3 align-center';
-          text.textContent = g.title + ' in ' + g.workspace;
-          forget.type = 'button'; forget.className = 'btn btn-sm'; forget.textContent = 'Forget';
-          forget.setAttribute('aria-label', 'Forget ' + g.title + ' in ' + g.workspace);
-          forget.addEventListener('click', function () {
-            forget.disabled = true;
-            Promise.resolve(app().ForgetAppletGrant(g.workspace, g.action)).then(function () {
-              settingsStatus('applet-grants-status', g.title + ' will be asked about again.');
-              drawAppletGrants();
-            }, function (error) {
-              forget.disabled = false;
-              settingsStatus('applet-grants-status', 'It could not be forgotten: ' + error, true);
-            });
+        /* One group for each workspace: its name and its folder, then its
+           actions as a table of one line each, with the applet each belongs
+           to. They were lines of "action in folder" with a button after each,
+           which broke wherever the folder's length put the break (Paul, 17
+           November 2026). */
+        var groups = new Map();
+        grants.forEach(function (g) { if (!groups.has(g.workspace)) groups.set(g.workspace, []); groups.get(g.workspace).push(g); });
+        groups.forEach(function (actions, workspace) {
+          var name = window.dinahHost.workspaceLabel ? window.dinahHost.workspaceLabel(workspace) : workspace;
+          var section = node('section', 'grants-group'), head = node('div', 'grants-head'), place = node('div', 'grants-place');
+          var title = node('h4', 'grants-name'), glyph = node('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-folder)'); glyph.setAttribute('aria-hidden', 'true');
+          title.append(glyph, document.createTextNode(name), node('span', 'badge', String(actions.length)));
+          var folder = node('span', 'grants-folder'), path = node('bdi', '', workspace); folder.title = workspace; folder.append(path);
+          place.append(title, folder);
+          var all = node('button', 'btn btn-sm', 'Forget All…'); all.type = 'button'; all.setAttribute('aria-label', 'Forget all actions in ' + name);
+          all.addEventListener('click', function () {
+            ask('Forget All ' + actions.length + (actions.length === 1 ? ' Action in ' : ' Actions in ') + name + '?',
+              'You will be asked in the chat the next time a chat in this workspace wants one of them. Nothing else changes.', 'Forget All').then(function (yes) {
+              if (!yes) return;
+              all.disabled = true;
+              // One at a time, so that a failure leaves the rest as they were and the list says which are left.
+              return actions.reduce(function (done, g) { return done.then(function () { return app().ForgetAppletGrant(g.workspace, g.action); }); }, Promise.resolve()).then(function () {
+                settingsStatus('applet-grants-status', (actions.length === 1 ? 'The action in ' : 'The ' + actions.length + ' actions in ') + name + ' will be asked about again.');
+              }, function (error) {
+                settingsStatus('applet-grants-status', 'Not all of them could be forgotten: ' + error, true);
+              }).then(drawAppletGrants);
+            }).catch(fail);
           });
-          row.append(text, forget);
-          list.append(row);
+          head.append(place, all);
+          var wrap = node('div', 'data-table-wrap'), table = node('table', 'data-table'), thead = node('thead'), headRow = node('tr'), body = node('tbody');
+          table.setAttribute('aria-label', 'Actions allowed always in ' + name);
+          ['Action', 'Applet'].forEach(function (words) { var th = node('th', '', words); th.scope = 'col'; headRow.append(th); });
+          var last = node('th'); last.scope = 'col'; last.append(node('span', 'visually-hidden', 'Forget')); headRow.append(last); thead.append(headRow);
+          actions.forEach(function (g) {
+            var row = node('tr'), cell = node('td'), forget = node('button', 'btn btn-sm', 'Forget'); forget.type = 'button';
+            forget.setAttribute('aria-label', 'Forget ' + g.title + (g.applet ? ' of ' + g.applet : '') + ' in ' + name);
+            forget.addEventListener('click', function () {
+              forget.disabled = true;
+              Promise.resolve(app().ForgetAppletGrant(g.workspace, g.action)).then(function () {
+                settingsStatus('applet-grants-status', g.title + ' will be asked about again in ' + name + '.');
+                drawAppletGrants();
+              }, function (error) {
+                forget.disabled = false;
+                settingsStatus('applet-grants-status', 'It could not be forgotten: ' + error, true);
+              });
+            });
+            cell.append(forget);
+            row.append(node('td', '', g.title), node('td', 'grants-applet', g.applet || ''), cell);
+            body.append(row);
+          });
+          table.append(thead, body); wrap.append(table); section.append(head, wrap); list.append(section);
         });
       }).catch(function (error) { settingsStatus('applet-grants-status', 'The allowed actions could not be read: ' + error, true); });
     }

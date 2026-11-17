@@ -950,8 +950,11 @@
         <div class="vstack gap-3" id="provider-modules"></div>
         <section class="card vstack gap-3" aria-labelledby="set-applet-grants">
           <h3 class="card-title" id="set-applet-grants">Applet Actions Allowed Always</h3>
-          <p class="form-help">Before a chat's applet action writes files, changes settings, runs a window's command or asks another chat, <span data-product-name>Dinah</span> asks you in the chat. These are the actions you allowed always in a workspace; forget one to be asked again.</p>
-          <ul class="row-list" id="applet-grants" aria-labelledby="set-applet-grants"></ul>
+          <p class="card-desc">Before a chat's applet action writes files, changes settings, runs a window's command or asks another chat, <span data-product-name>Dinah</span> asks you in the chat. These are the actions you chose to allow always. Forget one to be asked again.</p>
+          <!-- One group for each workspace, filled by settings-applet.js. The
+               approved mockup is docs/mockups/applet-actions-allowed.html
+               (17 November 2026). -->
+          <div class="grants" id="applet-grants"></div>
           <p class="settings-status" id="applet-grants-status" role="status"></p>
         </section>
         </div>

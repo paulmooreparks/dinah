@@ -913,6 +913,26 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
 .live-work .activity-row > :not(.activity-time) { grid-column: 1 / -1; }
 
+/* Settings, Applet Actions Allowed Always: one group for each workspace, its
+   name first and its folder under it, then that workspace's actions as a
+   table of one line each (settings-applet.js). */
+.grants { display: flex; flex-direction: column; gap: var(--space-4); }
+.grants-group { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.grants-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
+.grants-place { flex: 1; min-width: 0; }
+.grants-name { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-base); font-weight: 600; }
+.grants-name .badge { font-variant-numeric: tabular-nums; }
+/* A long folder is cut at its start, so that its last parts, which tell folders apart, stay in sight. */
+.grants-folder { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: var(--text-xs); color: var(--text-muted); }
+.grants-folder bdi { direction: ltr; }
+.grants-group .data-table-wrap { border: 0; border-radius: 0; }
+.grants-group table { width: 100%; }
+.grants-group td { vertical-align: middle; }
+/* A long name, or an action with no title that shows its reference, breaks where it must, so the Forget button stays in the card. */
+.grants-group td:first-child { overflow-wrap: anywhere; }
+.grants-group td:last-child, .grants-group th:last-child { width: 1%; white-space: nowrap; text-align: end; }
+.grants-applet { color: var(--text-muted); white-space: nowrap; }
+
 /* The start screen fills the window while the page starts (body[aria-busy],
    which app.js takes off once the saved layout has been drawn), in front of
    everything but dialogs and toasts, and is gone in one step. Behind it the
