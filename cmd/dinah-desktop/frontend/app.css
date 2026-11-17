@@ -69,6 +69,10 @@
 .browser-toolbar .browser-scope { flex: 1 1 12rem; min-width: 0; }
 .browser-toolbar .browser-scope .form-select { width: 100%; }
 .browser-commands { display: flex; align-items: center; gap: var(--space-1); flex: none; margin-inline-start: auto; }
+/* The Chats pane's field and its scope share a row, and the scope goes under the field when the pane is too narrow for both. */
+.chat-find { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chat-find > .browser-search, .chat-find > .browser-scope { flex: 1 1 11rem; min-width: 0; }
+.chat-find .form-select { width: 100%; }
 .browser-group { padding-block-end: var(--space-1); }
 .browser-group + .browser-group, .browser-toolbar + .browser-group { border-top: 1px solid var(--surface-alt); }
 .browser-group-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-1) 10px; }
