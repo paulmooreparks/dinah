@@ -47,6 +47,39 @@
   var scopes = new Map();   // element -> function returning the commands
   var frame = 0, uid = 0;
 
+  /* The page's command controls and its open popovers, followed as they
+     come and go (0.108.0), so that drawing the controls, which happens
+     whenever the commands change, searches no more than the controls
+     themselves; a page-wide search costs milliseconds on a large page.
+     Controls are added as they are inserted or marked, and one that has
+     left the page or lost its mark is dropped when the controls are next
+     drawn. A popover is added as it opens, from its beforetoggle event,
+     which is fired before it shows, and dropped as it closes or once it is
+     found closed or gone. */
+  var CONTROL = '[data-command], [data-command-choice]';
+  var controls = new Set(), openPopovers = new Set();
+  function track(n) {
+    if (n.nodeType !== 1) return false;
+    var found = false;
+    if (n.matches(CONTROL)) { controls.add(n); found = true; }
+    n.querySelectorAll(CONTROL).forEach(function (c) { controls.add(c); found = true; });
+    return found;
+  }
+  function liveControls() {
+    var out = [];
+    controls.forEach(function (c) { if (c.isConnected && c.matches(CONTROL)) out.push(c); else controls.delete(c); });
+    return out;
+  }
+  function seed() {
+    track(document.documentElement);
+    document.querySelectorAll('[popover]').forEach(function (p) { if (p.matches(':popover-open')) openPopovers.add(p); });
+  }
+  document.addEventListener('beforetoggle', function (e) {
+    var p = e.target;
+    if (!p || p.nodeType !== 1 || !p.hasAttribute('popover')) return;
+    if (e.newState === 'open') openPopovers.add(p); else openPopovers.delete(p);
+  }, true);
+
   function val(cmd, field) {
     var v = cmd[field];
     return typeof v === 'function' && field !== 'run' ? v.call(cmd) : v;
@@ -118,6 +151,35 @@
   }
 
   function shown(s) { return String(s || '').split('+').map(function (p) { return p === 'Mod' ? (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl') : p; }).join('+'); }
+
+  /* Describe shortcuts accepted by the dispatcher. */
+  function rowShortcuts(shortcut) {
+    var parts = normal(shortcut).split('+'), key = parts.pop();
+    if (key === ' ') key = 'Space';
+    else if (!(Array.from(key).length === 1 && !/[\s\p{C}]/u.test(key)) &&
+        !/^(Enter|Tab|Escape|Backspace|Delete|Insert|Home|End|PageUp|PageDown|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|F(?:[1-9]|[12][0-9]|3[0-5]))$/.test(key)) return null;
+    /* spelling() treats Control, Meta and their combination as Mod. */
+    var mod = parts[0] === 'Mod';
+    if (mod) parts.shift();
+    var tail = parts.concat(key).join('+');
+    return mod ? ['Control+', 'Meta+', 'Control+Meta+'].map(function (prefix) { return prefix + tail; }).join(' ') : tail;
+  }
+
+  /* Host-owned bindings declare their own standard ARIA chords. */
+  function hostRowShortcuts(shortcut) {
+    var chords = String(shortcut).trim().split(/\s+/);
+    if (!chords[0]) return null;
+    var valid = chords.every(function (chord) {
+      var parts = chord.split('+'), key = parts.pop(), seen = new Set();
+      if (!(Array.from(key).length === 1 && !/[\s\p{C}]/u.test(key)) &&
+          !/^(Space|Plus|Enter|Tab|Escape|Backspace|Delete|Insert|Home|End|PageUp|PageDown|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|F(?:[1-9]|[12][0-9]|3[0-5]))$/.test(key)) return false;
+      return parts.every(function (part) {
+        if (!/^(Control|Meta|Alt|Shift|AltGraph)$/.test(part) || seen.has(part)) return false;
+        seen.add(part); return true;
+      });
+    });
+    return valid ? chords.join(' ') : null;
+  }
 
   function glyphEl(name) {
     var g = document.createElement('span');
@@ -347,7 +409,12 @@
       b.appendChild(box);
     } else b.appendChild(words);
     var key = val(c, 'shortcut');
-    if (key) { var k = document.createElement('span'); k.className = 'menu-row-key'; k.textContent = shown(key); b.appendChild(k); }
+    if (key) {
+      var k = document.createElement('span'); k.className = 'menu-row-key'; k.textContent = shown(key);
+      k.setAttribute('aria-hidden', 'true'); b.appendChild(k);
+      var shortcuts = val(c, 'bind') === false ? hostRowShortcuts(key) : rowShortcuts(key);
+      if (shortcuts) b.setAttribute('aria-keyshortcuts', shortcuts);
+    }
     if (val(c, 'danger')) b.classList.add('danger');
     if (val(c, 'disabled')) b.setAttribute('aria-disabled', 'true');
     /* The row runs its command as it is now: a menu kept open through an
@@ -412,8 +479,12 @@
      comes back when one of them shows (0.68.1), so the folding counts only
      what is there. A group in hand-written markup with no command in it
      is left alone. */
-  function emptyGroups(root) {
-    (root || document).querySelectorAll('.toolbar-group').forEach(function (g) {
+  /* all, when given, is the page's controls; a group with none of them has
+     nothing to hide, so only the groups holding one are looked at. */
+  function emptyGroups(root, all) {
+    var groups = (root || !all) ? (root || document).querySelectorAll('.toolbar-group') : new Set();
+    if (all && !root) all.forEach(function (c) { for (var g = c.closest('.toolbar-group'); g && !groups.has(g); g = g.parentElement && g.parentElement.closest('.toolbar-group')) groups.add(g); });
+    groups.forEach(function (g) {
       var parts = Array.prototype.filter.call(g.querySelectorAll('[data-command], [data-command-choice]'), function (c) {
         return !c.closest('.toolbar-fold') && !(c.parentElement && c.parentElement.closest('[data-command-choice]'));
       });
@@ -515,8 +586,9 @@
      it then. */
   function refreshOtherRows() {
     var mine = new Set(commandMenus.map(function (m) { return m.panel; }));
-    Array.prototype.forEach.call(document.querySelectorAll('[popover]'), function (pop) {
-      if (mine.has(pop) || !pop.matches(':popover-open')) return;
+    Array.from(openPopovers).forEach(function (pop) {
+      if (!pop.isConnected || !pop.matches(':popover-open')) { openPopovers.delete(pop); return; }
+      if (mine.has(pop)) return;
       var rs = Array.prototype.filter.call(pop.querySelectorAll(':scope > .menu-action'), function (r) { return r._pudlCommand && r._pudlCommand.id; });
       if (!rs.length) return;
       var a = document.activeElement, had = pop.contains(a), changed = false;
@@ -586,9 +658,10 @@
 
   function draw(root) {
     touched = false;
-    (root || document).querySelectorAll('[data-command-choice]').forEach(fillChoice);
-    (root || document).querySelectorAll('[data-command]').forEach(function (c) { if (!c.closest('[data-command-choice]')) fill(c); });
-    emptyGroups(root);
+    var all = root ? null : liveControls();
+    (root ? root.querySelectorAll('[data-command-choice]') : all.filter(function (c) { return c.hasAttribute('data-command-choice'); })).forEach(fillChoice);
+    (root ? root.querySelectorAll('[data-command]') : all.filter(function (c) { return c.hasAttribute('data-command'); })).forEach(function (c) { if (!c.closest('[data-command-choice]')) fill(c); });
+    emptyGroups(root, all);
     redrawOpenMenus();
     document.dispatchEvent(new CustomEvent('pudl:commands-change', { detail: { changed: touched } }));
   }
@@ -640,7 +713,7 @@
   }
 
   document.addEventListener('keydown', function (e) {
-    if (e.defaultPrevented || e.repeat || document.querySelector('dialog:modal')) return;
+    if (e.defaultPrevented || e.repeat) return;
     var pressed = spelling(e), el = document.activeElement || document.body;
     var list = chain(el);
     if (el === document.body || el === document.documentElement) list = unfocusedScopes().concat(list);
@@ -650,6 +723,10 @@
         var key = val(cmds[j], 'shortcut');
         /* bind: false shows a key that something else binds (0.69.0). */
         if (key && normal(key) === pressed && !val(cmds[j], 'hidden') && val(cmds[j], 'bind') !== false) {
+          /* A modal dialog takes every key. It is looked for only once a
+             key would run a command (0.108.0), since a page-wide search on
+             every key cost a large page milliseconds a keystroke. */
+          if (document.querySelector('dialog:modal')) return;
           e.preventDefault();
           runCmd(cmds[j]).catch(function () {});
           return;
@@ -796,8 +873,14 @@
 
   window.pudlCommands = { register: register, changed: changed, list: list, run: run, rows: rows, menuRows: menuRows, find: function (id, el) { var f = find(id, el); return f ? f.cmd : null; }, value: val };
 
+  seed();
   new MutationObserver(function (records) {
-    if (records.some(function (r) { return Array.prototype.some.call(r.addedNodes, function (n) { return n.nodeType === 1 && (n.matches('[data-command], [data-command-choice]') || n.querySelector('[data-command], [data-command-choice]')); }); })) changed();
-  }).observe(document.documentElement, { childList: true, subtree: true });
+    var found = false;
+    records.forEach(function (r) {
+      if (r.type === 'attributes') { if (track(r.target)) found = true; return; }
+      Array.prototype.forEach.call(r.addedNodes, function (n) { if (track(n)) found = true; });
+    });
+    if (found) changed();
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-command', 'data-command-choice'] });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', changed); else changed();
 })();

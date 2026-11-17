@@ -92,3 +92,13 @@ PUDL published this release with one limitation Paul accepted: a single automate
 Seven headless suites passed on it: menubar-fold, menudim, menus-through-updates, wsmenu, documents-menu, chat-menu-stale and title-launcher. The stand-alone page, run against a headless document service in Chromium, drew one bar with those titles and no warning in its console, and edit, save, a refused save, recovery and the web root behaved as before. The real window was not seen, and Firefox, WebKit, the ribbon, the collapsed bar and keyboard use were not checked here. The full suite was not run.
 
 This adoption and yavc.app v0.2.68, which is v0.2.67 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
+
+## Published 0.108.0 adoption, 17 November 2026
+
+Both bundles contain all 196 distribution files of the published release v0.108.0, tag commit 5e77a445fb774012be16f9fb75c6c989242cddf2. The archive `pudl-0.108.0.zip` has SHA-256 `982519da8242175b0ba029d62d21faf01ad7327d25c4ebd26d63d9fb39004d72` and its distribution manifest `10e42f32616106454284dd471ba13bc221468f23adc53652c54596b6f8298ce4`, and every file was checked against that manifest before it replaced the copy here. Twenty-one files differ from 0.107.1: `pudl.css` and the scripts for windows, commands, menus, the toolbar, the combo box and the date field, each with its minified copy and map. 0.107.2 was never taken.
+
+The release is PUDL's answer to the scaling findings Dinah sent on 17 November (docs/review/pudl-scaling-brief-2026-11-17.md). A page with many windows open does less work for each small change: the window layer reads its size once until a resize observer says it changed, a change to one window's marks redraws that window's title state and tabs alone, and four stylesheet rules no longer ask an ancestor what it holds. Nothing in a project's markup changes. `pudlWindows.top()` and `pudlWindows.isOpen(key)` are new, for a page that called `state()` only for those; Dinah does not use them yet.
+
+Every headless suite was run on it, 318 in all. Twenty-eight failed, and each of them failed in the same way on 0.107.1 or reads a window that was redrawn the same day; none failed because of this release. The real window was not seen, and Firefox and WebKit were not checked here.
+
+This adoption and yavc.app v0.2.103, which is v0.2.102 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
