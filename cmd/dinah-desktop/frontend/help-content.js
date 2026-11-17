@@ -17,9 +17,9 @@
     { label: 'Broadcast to All\u2026', where: 'View menu', key: 'Use the menu' }
   ], 'chat-decisions');
   commands.addHelp('Decisions', [
-    { label: 'As Recommended', where: 'Beside an unanswered question', key: 'Tab to the button; press Enter or Space' },
-    { label: 'Send Answers', where: 'Below the questions and reply destination', key: 'Tab to the button; press Enter or Space' },
-    { label: 'Earlier Requests', where: 'Requests toolbar', key: 'Tab to the button; press Enter or Space' },
+    { label: 'As recommended', where: 'Among the choices under an unanswered question', key: 'Tab to the choices; press Space' },
+    { label: 'Send', where: 'At the foot of the open request', key: 'Tab to the button; press Enter or Space' },
+    { label: 'Show More Requests', where: 'At the end of the request list, when more requests exist', key: 'Tab to the button; press Enter or Space' },
     { label: 'Preview Recipients', where: 'Broadcast composition', key: 'Tab to the button; press Enter or Space' },
     { label: 'Confirm Broadcast\u2026', where: 'After reviewing the recipient preview', key: 'Tab to the button; press Enter or Space' }
   ], 'decision-actions');
