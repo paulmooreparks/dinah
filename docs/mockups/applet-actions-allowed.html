@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Applet Actions Allowed Always: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame is the mockup's. The rules marked "card" are what the
+       Settings card would add; the card, the table, the buttons and the
+       dialog are PUDL's as shipped. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-stage { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5); padding: var(--space-5); }
+    .mock-stage figure { margin: 0; min-width: 0; }
+    .mock-stage figcaption { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 600; }
+    .mock-settings { resize: horizontal; overflow: auto; min-width: 300px; max-width: 100%; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); }
+    .mock-now li { margin-bottom: var(--space-1); flex-wrap: wrap; }
+
+    /* card: one group for each workspace, its name first and its folder under
+       it, then that workspace's actions as a table of one line each. */
+    .grants { display: flex; flex-direction: column; gap: var(--space-4); }
+    .grants-group { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    .grants-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
+    .grants-place { flex: 1; min-width: 0; }
+    .grants-name { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-base); font-weight: 600; }
+    .grants-name .badge { font-variant-numeric: tabular-nums; }
+    /* A long folder is cut at its start, so that its last parts, which tell folders apart, stay in sight. */
+    .grants-folder { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: var(--text-xs); color: var(--text-muted); }
+    .grants-folder bdi { direction: ltr; }
+    .grants-group .data-table-wrap { border: 0; border-radius: 0; }
+    .grants-group table { width: 100%; }
+    .grants-group td { vertical-align: middle; }
+    .grants-group td:last-child, .grants-group th:last-child { width: 1%; white-space: nowrap; text-align: end; }
+    .grants-applet { color: var(--text-muted); white-space: nowrap; }
+    .grants-status { min-height: 1.5em; margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Applet Actions Allowed Always</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
+    <span class="mock-tag">Mockup, 17 November 2026. Settings › Agents. Drag a panel's lower right corner to change its width.</span>
+  </header>
+  <main class="mock-stage">
+    <figure>
+      <figcaption>Proposed</figcaption>
+      <div class="mock-settings settings-panel" style="width: 560px">
+        <section class="card vstack gap-3" aria-labelledby="grants-title">
+          <h3 class="card-title" id="grants-title">Applet Actions Allowed Always</h3>
+          <p class="card-desc">Before a chat's applet action writes files, changes settings, runs a window's command or asks another chat, Dinah asks you in the chat. These are the actions you chose to allow always. Forget one to be asked again.</p>
+          <div class="grants" id="grants"></div>
+          <p class="grants-status" id="grants-status" role="status"></p>
+        </section>
+      </div>
+    </figure>
+    <figure>
+      <figcaption>Now</figcaption>
+      <div class="mock-settings settings-panel mock-now" style="width: 560px">
+        <section class="card vstack gap-3">
+          <h3 class="card-title">Applet Actions Allowed Always</h3>
+          <p class="form-help">Before a chat's applet action writes files, changes settings, runs a window's command or asks another chat, Dinah asks you in the chat. These are the actions you allowed always in a workspace; forget one to be asked again.</p>
+          <ul class="row-list" id="grants-now"></ul>
+        </section>
+      </div>
+    </figure>
+  </main>
+
+  <dialog class="dialog" id="confirm" aria-labelledby="confirm-title" style="max-width: 30rem">
+    <h2 class="dialog-title" id="confirm-title"></h2>
+    <p class="dialog-body" id="confirm-body"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="confirm-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirm-accept">Forget All</button>
+    </div>
+  </dialog>
+
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-tooltip.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-dialog.js" defer></script>
+  <script>
+    (function () {
+      'use strict';
+      function sample() {
+        var parser = 'C:\\Users\\sam\\Documents\\Work\\customers\\parser', site = 'C:\\Users\\sam\\source\\repos\\website';
+        var actions = [['Load a Deck', 'Slides'], ['Save the Deck', 'Slides'], ['Replace a Slide\'s Markdown', 'Slides'], ['Go to a Slide', 'Slides'], ['Open a Deck in Slides', 'Slides'],
+          ['Start a Diagram', 'Diagrams'], ['Open in Diagrams', 'Diagrams'], ['Export a Diagram as a Picture', 'Diagrams'], ['Save a Diagram', 'Diagrams'], ['Open a Diagram File', 'Diagrams'],
+          ['Open a File', 'Files'], ['Ask Another Chat', 'Chats'], ['Open a Tool Window', 'Workbench'], ['Edit a Canvas', 'Diagrams'], ['Open in the Editor', 'Editor'], ['Open a File', 'Editor'], ['Set the View', 'Docs']];
+        return [
+          { name: 'parser', folder: parser, actions: actions.map(function (a) { return { title: a[0], applet: a[1] }; }) },
+          { name: 'website', folder: site, actions: [{ title: 'Open a File', applet: 'Files' }, { title: 'Ask Another Chat', applet: 'Chats' }] }
+        ];
+      }
+      var groups;
+      var $ = function (id) { return document.getElementById(id); };
+      function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+      function say(words) { $('grants-status').textContent = words; }
+      function draw() {
+        var host = $('grants'); host.replaceChildren();
+        groups = groups.filter(function (g) { return g.actions.length; });
+        if (!groups.length) { var none = el('div', 'empty-state'); none.append(el('p', 'empty-state-title', 'No Action Is Allowed Always'), el('p', 'empty-state-body', 'An action appears here when you choose Allow Always for it in a chat.')); host.append(none); }
+        groups.forEach(function (group) {
+          var section = el('section', 'grants-group'), head = el('div', 'grants-head'), place = el('div', 'grants-place');
+          var name = el('h4', 'grants-name'), glyph = el('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-folder)'); glyph.setAttribute('aria-hidden', 'true');
+          name.append(glyph, document.createTextNode(group.name), el('span', 'badge', String(group.actions.length)));
+          var folder = el('span', 'grants-folder'), path = el('bdi', '', group.folder); folder.title = group.folder; folder.append(path);
+          place.append(name, folder);
+          var all = el('button', 'btn btn-sm', 'Forget All…'); all.type = 'button'; all.setAttribute('aria-label', 'Forget all actions in ' + group.name);
+          all.addEventListener('click', function () {
+            $('confirm-title').textContent = 'Forget All ' + group.actions.length + ' Actions in ' + group.name + '?';
+            $('confirm-body').textContent = 'You will be asked in the chat the next time a chat in this workspace wants one of them. Nothing else changes.';
+            $('confirm-accept').onclick = function () { $('confirm').close(); var n = group.actions.length; group.actions = []; draw(); say('The ' + n + ' actions in ' + group.name + ' will be asked about again.'); };
+            $('confirm').showModal(); $('confirm-cancel').focus();
+          });
+          head.append(place, all);
+          var wrap = el('div', 'data-table-wrap'), table = el('table', 'data-table'), thead = el('thead'), row = el('tr'), body = el('tbody');
+          table.setAttribute('aria-label', 'Actions allowed always in ' + group.name);
+          ['Action', 'Applet'].forEach(function (words) { var th = el('th', '', words); th.scope = 'col'; row.append(th); });
+          var last = el('th'); last.scope = 'col'; last.append(el('span', 'visually-hidden', 'Forget')); row.append(last); thead.append(row);
+          group.actions.forEach(function (action) {
+            var tr = el('tr'), cell = el('td'), forget = el('button', 'btn btn-sm', 'Forget'); forget.type = 'button';
+            forget.setAttribute('aria-label', 'Forget ' + action.title + ' of ' + action.applet + ' in ' + group.name);
+            forget.addEventListener('click', function () { group.actions = group.actions.filter(function (a) { return a !== action; }); draw(); say(action.title + ' will be asked about again in ' + group.name + '.'); });
+            cell.append(forget); tr.append(el('td', '', action.title), el('td', 'grants-applet', action.applet), cell); body.append(tr);
+          });
+          table.append(thead, body); wrap.append(table); section.append(head, wrap); host.append(section);
+        });
+      }
+      function drawNow() {
+        var list = $('grants-now'); list.replaceChildren();
+        sample().forEach(function (group) { group.actions.forEach(function (action) {
+          var row = el('li', 'hstack gap-3 align-center'), forget = el('button', 'btn btn-sm', 'Forget'); forget.type = 'button'; forget.disabled = true;
+          row.append(el('span', '', action.title + ' in ' + group.folder), forget); list.append(row);
+        }); });
+      }
+      $('confirm-cancel').addEventListener('click', function () { $('confirm').close(); });
+      $('mock-theme').addEventListener('click', function () { var dark = document.documentElement.dataset.theme !== 'dark'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Light Theme' : 'Dark Theme'; });
+      function start() { groups = sample(); say(''); draw(); }
+      $('mock-reset').addEventListener('click', start);
+      start(); drawNow();
+    })();
+  </script>
+</body>
+</html>
