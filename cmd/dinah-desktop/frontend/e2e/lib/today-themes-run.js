@@ -13,7 +13,10 @@ async function decisions(){const t=await setup([makeRequest('request:101'),makeR
 try{await p.evaluate(()=>{__contextMessages=[{id:99,room:'#Review',from:'Design Review',text:'The candidate is ready.\nThe checks passed.\nThe third line stays collapsed.',createdAt:'2026-11-13T23:50:00Z'}];pudlWindows.snap('decisions','maximized');});
  await matrix(t,'decisions-list','.decisions');await p.setViewportSize({width:1440,height:1000});await choose(t,'request:101');await p.locator('.decisions-context-message').waitFor();
  await matrix(t,'decisions-context','.decisions');
- await p.evaluate(()=>dinahWorkbench.open('decisions','request=mention%3A102'));await p.locator('.decisions-detail h2').waitFor();await matrix(t,'decisions-mention','.decisions');
+ // A plain mention is kept out of Decisions since 16 November 2026, so its address shows the list without it and a notice in place of the request.
+ await p.evaluate(()=>dinahWorkbench.open('decisions','request=mention%3A102'));await p.locator('.decisions-detail').getByText('The selected request is not in this list.').waitFor();
+ t.ok('a plain mention is not listed in Decisions and its address opens no request',await p.locator('.decisions-row[data-request-id="mention:102"]').count()===0&&await p.locator('.decisions-row').count()===2&&await p.locator('.decisions-detail h2').count()===0);
+ await matrix(t,'decisions-mention-excluded','.decisions');
  await p.evaluate(()=>dinahCommands.run('broadcast-all'));await p.getByLabel('Broadcast Message',{exact:true}).fill('Please pause after the current task.');await p.getByRole('button',{name:'Preview Recipients',exact:true}).click();await p.locator('.decisions-preview li').last().waitFor();
  await matrix(t,'broadcast-preview','.decisions');
  await matrix(t,'broadcast-confirm','#ask',async()=>{if(!await p.locator('#ask').evaluate(el=>el.open)){await p.getByRole('button',{name:'Confirm Broadcast…',exact:true}).click();await p.locator('#ask[open]').waitFor();}});

@@ -18,8 +18,14 @@ const { launch } = require('./lib/page');
   await p.evaluate(() => window.addEventListener('keydown', e => { window.__taken = e.defaultPrevented; }));
   const renaming = () => p.evaluate(() => !!document.querySelector('.win.active input.session-rename, .win.active .chat-rename input, .win.active input[data-view-id="rename"]') || !!document.activeElement && document.activeElement.matches('input') && /rename/i.test(document.activeElement.className + document.activeElement.getAttribute('aria-label')));
   try {
-    for (const id of ['one', 'two']) await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', path: id, workspace: 'w1' }), id);
+    const keys = [];
+    for (const id of ['one', 'two']) keys.push(await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', path: id, workspace: 'w1' }), id));
     await p.waitForTimeout(800);
+    // The two chats stand side by side, so the second, which is in front, does
+    // not cover the first one's title bar. Where a new window opens depends on
+    // how many windows are open already, and New Chat is no longer one of them.
+    await p.evaluate(([one, two]) => { pudlWindows.snap(one, 'left'); pudlWindows.snap(two, 'right'); }, keys);
+    ok('the second chat is in front before the first is chosen', await p.evaluate(two => pudlWindows.state().top === two, keys[1]));
     // Activate the first chat by its title bar, leaving nothing focused.
     const first = p.locator('.win[data-win-kind="chat-session"]').filter({ hasText: 'Chat one' }).first();
     await first.locator('.win-title').click();

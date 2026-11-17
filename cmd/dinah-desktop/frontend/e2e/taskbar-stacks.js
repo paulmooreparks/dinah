@@ -76,7 +76,11 @@ const { launch, PAGE } = require('./lib/page');
 
     const a1 = await chatKey('C:/Alpha', 'alpha-1'), a2 = await chatKey('C:/Alpha', 'alpha-2');
     const b1 = await chatKey('C:/Beta', 'beta-1'), b2 = await chatKey('C:/Beta', 'beta-2'), g1 = await chatKey('C:/Gamma', 'gamma-1');
-    for (const [ws, id] of [['C:/Alpha', 'alpha-1'], ['C:/Alpha', 'alpha-2'], ['C:/Beta', 'beta-1'], ['C:/Beta', 'beta-2'], ['C:/Gamma', 'gamma-1']]) await openChat(ws, id);
+    // New Chat is not among the windows open at start since 15 November 2026,
+    // so it is opened here, as the person opens it.
+    await page.evaluate(() => dinahWorkbench.open('chat'));
+    await page.locator('.win[data-win="chat"]').waitFor();
+    for(const [ws, id] of [['C:/Alpha', 'alpha-1'], ['C:/Alpha', 'alpha-2'], ['C:/Beta', 'beta-1'], ['C:/Beta', 'beta-2'], ['C:/Gamma', 'gamma-1']]) await openChat(ws, id);
     await page.evaluate(() => dinahWorkbench.open('settings'));
     await counts('ws_BETA', 2);
     await counts('ws_ALPHA', 3);
@@ -134,7 +138,12 @@ const { launch, PAGE } = require('./lib/page');
 
     // Starting again: the address has no layout, so the windows come back
     // from the saved layout, as they do when the program starts, and they
-    // are stacked with no workspace chosen first.
+    // are stacked with no workspace chosen first. A blank New Chat window is
+    // not restored (ui-state.js), so Alpha is given a second chat to come
+    // back with the first.
+    const a3 = await chatKey('C:/Alpha', 'alpha-3');
+    await openChat('C:/Alpha', 'alpha-3');
+    await counts('ws_ALPHA', 3);
     await page.evaluate(() => dinahUIState.flush());
     await page.goto(PAGE);
     await t.waitReady();
@@ -145,6 +154,8 @@ const { launch, PAGE } = require('./lib/page');
     ok('windows restored at start are stacked with no workspace change', restored >= 9 && betaBack && alphaBack && (await t.calls('SelectWorkspace')).length === 0 &&
       (await stackName('ws_BETA')).startsWith('Beta Release (Chats), 3 windows') && (await stackName('ws_ALPHA')).startsWith('Alpha (Chats), 2 windows') &&
       await button(g1).count() === 1 && await button('settings').count() === 1, JSON.stringify({ restored, betaBack, alphaBack, beta: await attrs(b1) }));
+    ok('the Alpha stack restored at start is its two chats, and New Chat is not restored', (await attrs(a1)).group === chatGroup('ws_ALPHA') && (await attrs(a3)).group === chatGroup('ws_ALPHA') &&
+      await button(a1).count() === 0 && await button(a3).count() === 0 && await page.locator('.win[data-win="chat"]').count() === 0);
     const extra = await page.evaluate(async () => {
       const editor = await dinahWorkbench.open({ kind: 'editor', workspace: 'ws_BETA', path: 'pending-document' });
       const terminals = [];

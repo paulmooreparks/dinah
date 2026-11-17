@@ -41,6 +41,11 @@ const path = require('path');
       await p.locator('[data-win="' + key + '"] .cm-content').waitFor();
       return key;
     };
+    // New Chat is not among the windows open at start since 15 November 2026,
+    // so it is opened first, as the person opens it, and is the oldest of the
+    // undocked windows in the list below.
+    await p.evaluate(() => dinahWorkbench.open('chat'));
+    await p.locator('.win[data-win="chat"]').waitFor();
     const a = await open('alpha.md');
     const b = await open('beta.md');
     const c = await open('gamma.md');
