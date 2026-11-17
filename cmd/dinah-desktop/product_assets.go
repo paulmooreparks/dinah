@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"io"
 	"io/fs"
-	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 // A build of another product brings its own branding files: the mark the
@@ -33,32 +35,133 @@ func productFrontend() (fs.FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	page, err := fs.ReadFile(overlayFS{over: over, base: base}, "index.html")
+	// Every page at the root is rendered for the product: the main window's,
+	// a document window's and the slide show's.
+	plain := overlayFS{over: over, base: base}
+	entries, err := fs.ReadDir(plain, ".")
 	if err != nil {
 		return nil, err
 	}
-	return overlayFS{over: over, base: base, page: renderPage(page)}, nil
+	pages := map[string][]byte{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".html") {
+			continue
+		}
+		page, err := fs.ReadFile(plain, entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		rendered, err := renderPage(page, product.Name, product.DefaultTheme)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", entry.Name(), err)
+		}
+		if !bytes.Equal(rendered, page) {
+			pages[entry.Name()] = rendered
+		}
+	}
+	return overlayFS{over: over, base: base, pages: pages}, nil
 }
 
 /*
-The page's markup is written as Dinah's, with Dinah's name and default
+renderPage writes a product's name and default theme into a page before it is
+served. The markup is written as Dinah's: its html element has Dinah's name and
+default theme, its title has the name, an element marked data-product-name has
+the name as its text, and an element with data-product-attrs has the name
+inside each attribute listed there. A product's build serves all of these with
+its own name, so the page is the product's from its first paint.
 
-	theme on its html element (product.js reads them first) and in its title.
-	A product's build serves the page with its own in their place, so the
-	page is the product's from its first paint and nothing is drawn as Dinah
-	first. The spans marked data-product-name are filled by product.js from
-	the html element, so they need no rewriting here.
+product.js makes the same replacements when the engine reports the product,
+which is some time after the page is drawn. Until 17 November 2026 only the
+html element and the title were rendered here, so a product's About box and
+menu bar said Dinah for that time, and the listed attributes kept Dinah's name
+for good, because product.js looks in them for the name on the html element,
+which was already the product's.
+
+The markup is read as HTML, so an attribute's value may hold any character.
+What is not changed is written out as it was read.
 */
-var pageProduct = regexp.MustCompile(`(<html[^>]*data-product-name=")[^"]*(")`)
-var pageTheme = regexp.MustCompile(`(<html[^>]*data-product-theme=")[^"]*(")`)
-var pageTitle = regexp.MustCompile(`(<title>)[^<]*(</title>)`)
-
-func renderPage(page []byte) []byte {
-	name := []byte(product.Name)
-	page = pageProduct.ReplaceAll(page, append(append([]byte("${1}"), bytes.ReplaceAll(name, []byte("$"), []byte("$$"))...), []byte("${2}")...))
-	page = pageTheme.ReplaceAll(page, append(append([]byte("${1}"), []byte(product.DefaultTheme)...), []byte("${2}")...))
-	page = pageTitle.ReplaceAll(page, append(append([]byte("${1}"), bytes.ReplaceAll(name, []byte("$"), []byte("$$"))...), []byte("${2}")...))
-	return page
+func renderPage(page []byte, name, theme string) ([]byte, error) {
+	z := html.NewTokenizer(bytes.NewReader(page))
+	var out bytes.Buffer
+	// own is the name the markup was written with, known from the html element on.
+	own := ""
+	// marked says the element just opened shows the name as its text.
+	marked, inTitle := false, false
+	for {
+		kind := z.Next()
+		if kind == html.ErrorToken {
+			if err := z.Err(); err != io.EOF {
+				return nil, err
+			}
+			return out.Bytes(), nil
+		}
+		// Token reuses the buffer Raw returns.
+		raw := append([]byte(nil), z.Raw()...)
+		token := z.Token()
+		wasMarked := marked
+		marked = false
+		switch kind {
+		case html.StartTagToken, html.SelfClosingTagToken:
+			changed := false
+			if token.Data == "html" {
+				for i, attr := range token.Attr {
+					switch attr.Key {
+					case "data-product-name":
+						own = attr.Val
+						changed = changed || attr.Val != name
+						token.Attr[i].Val = name
+					case "data-product-theme":
+						changed = changed || attr.Val != theme
+						token.Attr[i].Val = theme
+					}
+				}
+			} else {
+				listed := ""
+				for _, attr := range token.Attr {
+					switch attr.Key {
+					case "data-product-name":
+						marked = kind == html.StartTagToken
+					case "data-product-attrs":
+						listed = attr.Val
+					}
+				}
+				if own != "" && own != name {
+					for _, key := range strings.Fields(listed) {
+						for i, attr := range token.Attr {
+							if attr.Key == key && strings.Contains(attr.Val, own) {
+								token.Attr[i].Val = strings.ReplaceAll(attr.Val, own, name)
+								changed = true
+							}
+						}
+					}
+				}
+			}
+			inTitle = token.Data == "title" && kind == html.StartTagToken
+			if changed {
+				out.WriteString(token.String())
+			} else {
+				out.Write(raw)
+			}
+		case html.TextToken:
+			switch {
+			case wasMarked && token.Data != name:
+				out.WriteString(html.EscapeString(name))
+			case inTitle && own != "" && own != name && strings.Contains(token.Data, own):
+				out.WriteString(html.EscapeString(strings.ReplaceAll(token.Data, own, name)))
+			default:
+				out.Write(raw)
+			}
+		case html.EndTagToken:
+			// A marked element written empty is given the name.
+			if wasMarked {
+				out.WriteString(html.EscapeString(name))
+			}
+			inTitle = false
+			out.Write(raw)
+		default:
+			out.Write(raw)
+		}
+	}
 }
 
 // memFile is a file held in memory: the rendered page.
@@ -88,14 +191,14 @@ var _ io.ReadSeeker = memFile{}
 // The root directory is base's, so that listing it lists the page's files.
 type overlayFS struct {
 	over, base fs.FS
-	// page is the rendered index.html, when the product's name and theme
-	// have been written into it (renderPage); nil serves the page as it is.
-	page []byte
+	// pages are the pages rendered for the product, by name (renderPage). A
+	// page that needed no change is not among them and is served as it is.
+	pages map[string][]byte
 }
 
 func (o overlayFS) Open(name string) (fs.File, error) {
-	if name == "index.html" && o.page != nil {
-		return memFile{Reader: bytes.NewReader(o.page), name: name}, nil
+	if page, ok := o.pages[name]; ok {
+		return memFile{Reader: bytes.NewReader(page), name: name}, nil
 	}
 	// The product directory's Go files and README are not page files.
 	if name != "." && !strings.HasSuffix(name, ".go") && name != "README.md" {

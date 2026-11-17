@@ -1,7 +1,9 @@
 /* The product this build is, as the page shows it: its name and its default
-   theme, which the build's profile gives (internal/profile). The page starts
-   with the values written on its html element, so nothing changes while it
-   loads, and app.js puts in the ones State reports through apply.
+   theme, which the build's profile gives (internal/profile). The window
+   program serves the page with the product's name already in every place
+   described below (product_assets.go, renderPage), so nothing changes while
+   it loads; app.js puts in the values State reports through apply, which
+   are the same ones unless the engine is another build.
 
    An element marked data-product-name shows the name as its text. An
    element with data-product-attrs="title aria-label" has the name put into

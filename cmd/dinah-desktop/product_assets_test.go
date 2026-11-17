@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"golang.org/x/net/html"
 )
 
 // A product's file is served over Dinah's of the same path; a path the
@@ -30,22 +32,171 @@ func TestProductFilesAreServedOverDinahs(t *testing.T) {
 	}
 }
 
-// The served page carries the build's product on its html element and in
-// its title, whatever the markup was written with.
+// The served page has the build's product wherever the markup has Dinah's:
+// on its html element, in its title, as the text of each element marked
+// data-product-name and inside each attribute an element lists in
+// data-product-attrs. Nothing else is changed, and a name is written so that
+// the page reads it back as it is.
 func TestTheServedPageIsTheProducts(t *testing.T) {
-	page := []byte(`<!doctype html><html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime"><head><title>Dinah</title></head><body><span data-product-name>Dinah</span></body></html>`)
-	out := string(renderPage(page))
-	want := `data-product-name="` + product.Name + `" data-product-theme="` + product.DefaultTheme + `"`
-	if !strings.Contains(out, want) || !strings.Contains(out, "<title>"+product.Name+"</title>") || !strings.Contains(out, `<span data-product-name>Dinah</span>`) {
-		t.Fatalf("the page was not rendered for the product: %s", out)
+	page := []byte(`<!doctype html><html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime"><head><title>Dinah Documents</title><script>var words = "Dinah <b>";</script></head>` +
+		`<body><nav aria-label="Dinah" title="Dinah's bar > all" data-product-attrs="aria-label">About <span data-product-name>Dinah</span> and <b data-product-name></b>.</nav>` +
+		`<button hidden title="A newer build of Dinah is installed" aria-label="Dinah is newer" data-product-attrs="aria-label title">Update Dinah</button><img alt="Dinah" data-product-attrs="alt"></body></html>`)
+	const name = `Parks & "Sons"`
+	rendered, err := renderPage(page, name, "night")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(rendered)
+	for _, want := range []string{
+		`data-product-name="Parks &amp; &#34;Sons&#34;" data-product-theme="night"`,
+		`<title>Parks &amp; &#34;Sons&#34; Documents</title>`,
+		`<span data-product-name>Parks &amp; &#34;Sons&#34;</span>`,
+		`<b data-product-name>Parks &amp; &#34;Sons&#34;</b>`,
+		`aria-label="Parks &amp; &#34;Sons&#34;"`,
+		`title="A newer build of Parks &amp; &#34;Sons&#34; is installed"`,
+		`aria-label="Parks &amp; &#34;Sons&#34; is newer"`,
+		`alt="Parks &amp; &#34;Sons&#34;"`,
+		// What is not marked stays Dinah's: an attribute not listed, a script and ordinary text.
+		// A tag with a changed attribute is written again, with the same values.
+		`title="Dinah&#39;s bar &gt; all"`,
+		`<script>var words = "Dinah <b>";</script>`,
+		`>Update Dinah</button>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the rendered page lacks %s:\n%s", want, out)
+		}
+	}
+	// A page rendered with the name it was written with is the page as
+	// written, but for the marked element written empty, which is given the name.
+	page = []byte(strings.Replace(string(page), `<b data-product-name></b>`, `<b data-product-name>Dinah</b>`, 1))
+	same, err := renderPage(page, "Dinah", "clear-chime")
+	if err != nil || string(same) != string(page) {
+		t.Fatalf("rendering for the markup's own product changed the page: %v\n%s", err, same)
 	}
 	f, err := productFrontend()
 	if err != nil {
 		t.Fatal(err)
 	}
 	served, err := fs.ReadFile(f, "index.html")
+	want := `data-product-name="` + html.EscapeString(product.Name) + `" data-product-theme="` + html.EscapeString(product.DefaultTheme) + `"`
 	if err != nil || !strings.Contains(string(served), want) {
 		t.Fatalf("the served page is not the product's: %v", err)
+	}
+}
+
+// Every page the window program serves, rendered for another product, has no
+// place left where the page's own script would have to put the name in
+// later: read as a browser reads it, each marked element's text is the name,
+// no listed attribute has Dinah's name, and neither has the title.
+func TestEveryServedPageIsRenderedWhole(t *testing.T) {
+	base, err := fs.Sub(assets, "frontend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages, err := fs.Glob(base, "*.html")
+	if err != nil || len(pages) == 0 {
+		t.Fatalf("no pages: %v", err)
+	}
+	const name = "Another Product"
+	marks := 0
+	for _, path := range pages {
+		page, err := fs.ReadFile(base, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rendered, err := renderPage(page, name, "night")
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		doc, err := html.Parse(strings.NewReader(string(rendered)))
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		was, err := html.Parse(strings.NewReader(string(page)))
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		own := ""
+		var text func(n *html.Node) string
+		text = func(n *html.Node) string {
+			if n.Type == html.TextNode {
+				return n.Data
+			}
+			out := ""
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				out += text(c)
+			}
+			return out
+		}
+		attr := func(n *html.Node, key string) (string, bool) {
+			for _, a := range n.Attr {
+				if a.Key == key {
+					return a.Val, true
+				}
+			}
+			return "", false
+		}
+		var find func(n *html.Node)
+		find = func(n *html.Node) {
+			if n.Type == html.ElementNode && n.Data == "html" {
+				own, _ = attr(n, "data-product-name")
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				find(c)
+			}
+		}
+		find(was)
+		if own == "" {
+			continue // not a page that shows the product
+		}
+		var walk func(n *html.Node)
+		walk = func(n *html.Node) {
+			if n.Type == html.ElementNode {
+				if value, ok := attr(n, "data-product-name"); ok {
+					marks++
+					if n.Data == "html" {
+						if theme, _ := attr(n, "data-product-theme"); value != name || theme != "night" {
+							t.Errorf("%s: the html element has %q and %q", path, value, theme)
+						}
+					} else if text(n) != name {
+						t.Errorf("%s: a marked %s shows %q", path, n.Data, text(n))
+					}
+				}
+				if listed, ok := attr(n, "data-product-attrs"); ok {
+					for _, key := range strings.Fields(listed) {
+						marks++
+						if value, _ := attr(n, key); strings.Contains(value, own) || !strings.Contains(value, name) {
+							t.Errorf("%s: %s's %s is %q", path, n.Data, key, value)
+						}
+					}
+				}
+				if n.Data == "title" && strings.Contains(text(n), own) {
+					t.Errorf("%s: the title is %q", path, text(n))
+				}
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				walk(c)
+			}
+		}
+		walk(doc)
+		// The page rendered for its own product is the page as written.
+		theme := ""
+		var ownTheme func(n *html.Node)
+		ownTheme = func(n *html.Node) {
+			if n.Type == html.ElementNode && n.Data == "html" {
+				theme, _ = attr(n, "data-product-theme")
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				ownTheme(c)
+			}
+		}
+		ownTheme(was)
+		if same, err := renderPage(page, own, theme); err != nil || string(same) != string(page) {
+			t.Errorf("%s: rendering for the markup's own product changed the page (%v)", path, err)
+		}
+	}
+	if marks < 20 {
+		t.Fatalf("only %d places for the product's name were found; the pages' marks have changed", marks)
 	}
 }
 
