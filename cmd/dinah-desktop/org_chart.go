@@ -32,6 +32,7 @@ type OrgChartChat struct {
 	WorkspaceName string     `json:"workspaceName"`
 	Provider      string     `json:"provider"`
 	ProviderName  string     `json:"providerName"`
+	Model         string     `json:"model,omitempty"`
 	State         *ChatState `json:"state"`
 	Resolution    string     `json:"resolution"`
 	Reason        string     `json:"reason"`
@@ -111,7 +112,7 @@ func (a *App) orgChartAtBoundary(afterInventory func()) (OrgChartView, error) {
 	view.Chats = []OrgChartChat{}
 	aliases, byChat = map[string]string{}, map[string]int{}
 	for _, row := range inventory.Chats {
-		chat := OrgChartChat{ChatID: row.ChatID, Head: row.ID, Title: row.Title, UpdatedAt: row.UpdatedAt, Workspace: row.Cwd, Provider: row.Provider, ProviderName: providerName(row.Provider), State: row.State, Resolution: row.Resolution, Reason: row.Reason}
+		chat := OrgChartChat{ChatID: row.ChatID, Head: row.ID, Title: row.Title, UpdatedAt: row.UpdatedAt, Workspace: row.Cwd, Provider: row.Provider, ProviderName: providerName(row.Provider), Model: row.Model, State: row.State, Resolution: row.Resolution, Reason: row.Reason}
 		if row.Resolution != "resolved" {
 			chat.Head = ""
 		}

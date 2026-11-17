@@ -168,7 +168,7 @@
         listed = (inventory.chats || []).map(function (row) {
           return row.resolution === 'repair' && !row.sessionId ? Object.assign({}, row, { sessionId: row.chatId }) : row;
         });
-        listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); if (Object.prototype.hasOwnProperty.call(x, 'title')) s.titleKnown = true; if (s.view) s.view.refresh(); });
+        listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); if (!x.model) delete s.info.model; if (Object.prototype.hasOwnProperty.call(x, 'title')) s.titleKnown = true; if (s.view) s.view.refresh(); });
         clearInventoryError();
         drawSessions();
       }).catch(function (error) { if (generation !== sessionListGeneration) return; clearInventoryError(); inventoryErrorToast = toast(String(error), 'danger'); });
@@ -215,7 +215,7 @@
       inventory: function () {
         return visibleChatIds('all', '').map(function (id) {
           var session = sessions[id];
-          return Object.assign({}, session.info, { sessionId: id, title: title(session), state: window.dinahChatState.read(session.info), workspaceName: session.info.cwd ? workspaceLabel(session.info.cwd) : '', providerName: providerName(sessionProvider(session)) });
+          return Object.assign({}, session.info, { sessionId: id, title: title(session), state: window.dinahChatState.read(session.info), workspaceName: session.info.cwd ? workspaceLabel(session.info.cwd) : '', providerName: providerName(sessionProvider(session)), model: session.info.model || '' });
         });
       },
       created: function (info) {
@@ -352,7 +352,7 @@
         var earlier = earlierSubagents(s).length;
         // Cache displayed values, including locale-dependent text and live
         // chat state. Unchanged rows retain their badges, focus and DOM nodes.
-        var rowSignature = JSON.stringify([title(s), providerName(sessionProvider(s)), when(s.info.updatedAt),
+        var rowSignature = JSON.stringify([title(s), providerName(sessionProvider(s)), s.info.model || '', when(s.info.updatedAt),
           scope === 'all' ? workspaceLabel(s.info.cwd) : '', state, window.dinahChatState.describe(s.info),
           needsCount(id), earlier, id === adapter.active(), s.info.resolution, s.info.reason]);
         if (!groups[groupName]) groups[groupName] = [];
@@ -383,9 +383,11 @@
           delete a.dataset.session; a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true');
         } else { a.href = '#'; a.removeAttribute('aria-disabled'); }
         a.querySelector('.session-title').textContent = title(s);
-        // The second line says which agent, when and, across workspaces, where;
-        // the badge says what the chat is doing.
+        // The second line says which agent and model, when and, across workspaces, where;
+        // the badge says what the chat is doing. The model is the name the host reports
+        // (Info.Model), absent when the agent offers no choice or gives it no name.
         var meta = s.info.resolution === 'repair' && !s.info.provider ? [] : [providerName(sessionProvider(s))];
+        if (meta.length && s.info.model) meta.push(s.info.model);
         if (s.info.updatedAt) meta.push(when(s.info.updatedAt));
         if (scope === 'all' && s.info.cwd) meta.push(workspaceLabel(s.info.cwd));
         if (window.dinahChatState.read(s.info).life === 'open' && window.dinahChatState.read(s.info).window === false) meta.push('No window');

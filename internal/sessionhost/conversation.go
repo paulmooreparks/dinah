@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"studio/internal/agents"
 	"studio/internal/bus"
 	"studio/internal/profile"
 )
@@ -218,6 +219,12 @@ type Info struct {
 	// counts of the members the chat leads, present for a lead.
 	State *ChatState   `json:"chatState,omitempty"`
 	Team  *StateCounts `json:"team,omitempty"`
+	// Model is the name the agent gives the model the chat uses: the one its
+	// options select now for an open chat, the one saved for it for a closed
+	// one (saved_chats.go). It is empty when the agent offers no choice of
+	// model or gives the value no name (agents.ModelName). The Chats list and
+	// the Org Chart show it after the program's name.
+	Model string `json:"model,omitempty"`
 }
 
 // LeadRef is a chat's lead: its session on the bus, its chat's ID in the window, its title and the team's group key.
@@ -266,5 +273,5 @@ func (c *Conversation) infoLocked() Info {
 	provider := profile.ProviderOrLegacy(c.Provider())
 	// The log's mutex is a leaf, so it may be taken under mu.
 	gen, head := c.log.position()
-	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, HistoryLoading: c.details.ReplayingLocked() || c.details.RestoringLocked(), Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked(), State: copyState(c.state), Team: copyCounts(c.team)}
+	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, HistoryLoading: c.details.ReplayingLocked() || c.details.RestoringLocked(), Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked(), State: copyState(c.state), Team: copyCounts(c.team), Model: agents.ModelName(c.details.OptionsLocked())}
 }

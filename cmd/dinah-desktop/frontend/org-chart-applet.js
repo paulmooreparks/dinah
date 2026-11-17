@@ -4,6 +4,8 @@
   var node = window.dinahHelpers.node, app = window.dinahHelpers.app;
   function init(root, opts) {
     var disposed = false, snapshot = null, relations = null, pending = null, again = false, geometry = "", elements = new Map(), folded = new Set();
+    // homes: each drawn chat's id and the workspace of the box it is drawn in.
+    var homes = new Map();
     var workspace = "", find = "", readingState = false, failed = false, lineFrame = 0;
     root.classList.add("org-chart");
     var toolbar = node("div", "org-chart-toolbar");
@@ -148,10 +150,11 @@
       if (!readingState) opts.changed(address());
       render();
     }
+    /* One spelling of a workspace's folder, for comparing two of them. */
+    function normalize(value) {
+      return value.toLowerCase().replace(/[\\/]+/g, "/").replace(/\/$/, "");
+    }
     function wanted(chat) {
-      var normalize = function(value) {
-        return value.toLowerCase().replace(/[\\/]+$/, "");
-      };
       return (!workspace || !chat.workspace || normalize(chat.workspace) === normalize(workspace)) && (!find.trim() || chat.title.toLowerCase().includes(find.trim().toLowerCase()));
     }
     function actionButton(box, id, title) {
@@ -169,14 +172,20 @@
       var box = node("article", "org-chart-chat oc-chat");
       box.dataset.orgChat = chat.chatId;
       box.tabIndex = 0;
+      /* The name row has the chat's title and, only for a chat drawn in another
+         workspace's box, that chat's own workspace after a dot (Paul, 17
+         November 2026). */
+      var nameRow = node("div", "oc-chat-name"), where = node("span", "oc-chat-where");
+      where.hidden = true;
       var title = node("span", "org-chart-title oc-chat-title");
       if (chat.resolution === "resolved" && chat.head) title = link("", "org-chart-title oc-chat-title", { kind: "chat-session", workspace: chat.workspace, path: chat.head }, function() {
         return openChat(chat.chatId);
       });
       var role = node("span", "oc-chat-role"), meta = node("span", "org-chart-meta oc-chat-role"), stateRow = node("div", "oc-chat-state"), state = node("span", "org-chart-state"), groups = node("div", "oc-chat-groups");
       stateRow.append(state);
-      box.append(title, role, meta, stateRow, groups);
-      elements.set(chat.chatId, { box, title, role, meta, state, groups });
+      nameRow.append(title, where);
+      box.append(nameRow, role, meta, stateRow, groups);
+      elements.set(chat.chatId, { box, title, where, role, meta, state, groups });
       if (chat.resolution === "resolved") actionButton(box, chat.chatId, chat.title);
       box.addEventListener("pudl:contextmenu", function(event) {
         event.stopPropagation();
@@ -205,9 +214,17 @@
         el.title.title = el.title.textContent;
         el.role.textContent = roleOf(chat);
         el.role.title = el.role.textContent;
-        el.meta.textContent = [chat.workspaceName || chat.workspace, chat.providerName || chat.provider || "Unknown program"].filter(Boolean).join(" / ");
+        /* The workspace is said only where the card is not in its own
+           workspace's box: a member of a team led from another workspace. */
+        var home = homes.get(chat.chatId), elsewhere = !!chat.workspace && home !== undefined && normalize(home) !== normalize(chat.workspace);
+        el.where.hidden = !elsewhere;
+        el.where.textContent = elsewhere ? " · " + (chat.workspaceName || chat.workspace) : "";
+        el.where.title = elsewhere ? "This chat is in the workspace " + (chat.workspaceName || chat.workspace) + "." : "";
+        /* The program and the model it uses, as the host names it; no model
+           when the program offers no choice or gives it no name. */
+        el.meta.textContent = [chat.providerName || chat.provider || "Unknown program", chat.model].filter(Boolean).join(", ");
         el.meta.title = el.meta.textContent;
-        el.box.setAttribute("aria-label", el.title.textContent + ". " + el.role.textContent + ". " + el.meta.textContent + (chat.resolution !== "resolved" ? ". Needs attention. " + chat.reason : ""));
+        el.box.setAttribute("aria-label", el.title.textContent + (elsewhere ? ", in " + (chat.workspaceName || chat.workspace) : "") + ". " + el.role.textContent + ". " + el.meta.textContent + (chat.resolution !== "resolved" ? ". Needs attention. " + chat.reason : ""));
         el.state.replaceChildren(chat.resolution === "resolved" ? window.dinahChatState.badge(chat.state) : node("span", "org-chart-repair", chat.reason.includes("not in Chats") ? "⚠ Not in Chats" : "⚠ Needs attention"));
         el.state.title = chat.reason || "";
         var priorTime = el.state.parentElement.querySelector("time");
@@ -251,6 +268,7 @@
       var focusId = focused && focused.dataset.orgChat;
       var focusControl = document.activeElement.matches(".org-chart-actions-button") ? ".org-chart-actions-button" : document.activeElement.matches(".oc-chat-title") ? ".oc-chat-title" : "";
       elements.clear();
+      homes.clear();
       canvas.replaceChildren();
       var personRow = node("div", "oc-person-row"), person = node("div", "oc-person");
       person.append(node("p", "oc-person-name", "You"), node("p", "oc-person-role", "In charge. Every chat at the top of a branch reports to you."));
@@ -359,7 +377,7 @@
         return wanted(c) && !teamIds.has(c.chatId);
       });
       free.forEach(function(c) { spaceOf(c).free.push(c); });
-      spaces.forEach(function(space) {
+      spaces.forEach(function(space, key) {
         var box = node("section", "oc-space");
         box.append(node("h3", "oc-ws-name", space.name));
         if (space.trees.length) {
@@ -374,6 +392,7 @@
           freeBox.append(boxes);
           box.append(freeBox);
         }
+        if (key) box.querySelectorAll("[data-org-chat]").forEach(function(card) { homes.set(card.dataset.orgChat, key); });
         spacesRow.append(box);
       });
       if (spacesRow.childNodes.length) canvas.append(spacesRow);

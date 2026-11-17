@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model in Chats and Org Chart: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/chat-state.css">
+  <style>
+    /* Only the frame around the examples is styled here. The rows and the
+       cards use the shipped classes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
+    .mock-stage { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5); padding: var(--space-5); }
+    .mock-stage figure { margin: 0; }
+    .mock-stage figcaption { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 600; }
+    .mock-pane { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; resize: horizontal; min-width: 180px; width: 380px; max-width: 100%; padding: var(--space-2) var(--space-3); }
+    .mock-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--surface-alt); }
+    .mock-row strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mock-row .mock-reason, .mock-row small { grid-column: 1 / -1; color: var(--text-muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mock-cards { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+    .mock-cards .org-chart-chat { width: 11.5rem; }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-notes { margin: 0 var(--space-5) var(--space-5); max-width: 52rem; font-size: var(--text-sm); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>The model in Chats and the Org Chart</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 17 November 2026. Drag the Chats pane's lower right corner to change its width.</span>
+  </header>
+
+  <div class="mock-controls">
+    <button type="button" class="btn btn-sm" id="mock-change">Change Checkout Lead to Adaptive</button>
+    <button type="button" class="btn btn-sm" id="mock-close">Close Keyboard Review</button>
+  </div>
+  <p class="mock-said" id="mock-said" role="status"></p>
+
+  <div class="mock-stage">
+    <figure>
+      <figcaption>Chats list</figcaption>
+      <div class="mock-pane" id="mock-chats"></div>
+    </figure>
+    <figure>
+      <figcaption>Org Chart cards</figcaption>
+      <div class="org-chart"><div class="mock-cards" id="mock-cards"></div></div>
+    </figure>
+  </div>
+
+  <ul class="mock-notes">
+    <li>The model goes on the line that already shows the program, straight after the program's name, so no row and no card grows a line.</li>
+    <li>The name is the one the program itself gives the model, as in the chat's own model menu. Devin's "Adaptive" is shown as Adaptive, because that is what Devin reports; Dinah does not guess which model Adaptive picked.</li>
+    <li>An open chat shows the model it is running now and changes in place when the model is changed. A closed chat shows the model saved for it, which it gets back when it opens.</li>
+    <li>When the program offers no choice of model, or the saved choice has no name the program still lists, the model is left out rather than shown as a raw code.</li>
+    <li>The line is cut with an ellipsis in a narrow pane, as today, and its tooltip and the row's spoken label give the whole line.</li>
+  </ul>
+
+  <script>
+    var chats = [
+      { title: 'Checkout Lead', state: 'Idle', program: 'Devin', model: 'Claude Opus 5.5', when: 'Today 23:00', ws: 'Harbor', role: 'Reports to Customer Lead' },
+      { title: 'Checkout Research', state: 'Idle', program: 'Devin', model: 'SWE-2', when: 'Today 23:00', ws: 'Harbor', role: 'Reports to Checkout Lead' },
+      { title: 'Keyboard Review', state: 'Idle', program: 'Devin', model: 'Claude Sonnet 5.5', when: 'Today 21:21', ws: 'Harbor', role: 'Reports to Keyboard Lead' },
+      { title: 'Docs Author', state: 'Idle', program: 'Devin', model: 'Adaptive', when: 'Today 14:01', ws: 'Docs', role: 'Free agent, reports to you' },
+      { title: 'Docs Helper', state: 'Idle', program: 'Ollama', model: '', when: 'Today 09:12', ws: 'Docs', role: 'Free agent, reports to you' }
+    ];
+    var said = document.getElementById('mock-said');
+    function programLine(c) { return c.model ? c.program + ', ' + c.model : c.program; }
+    function draw() {
+      var pane = document.getElementById('mock-chats'), cards = document.getElementById('mock-cards');
+      pane.textContent = ''; cards.textContent = '';
+      chats.forEach(function(c) {
+        var row = document.createElement('div'); row.className = 'mock-row';
+        var t = document.createElement('strong'); t.textContent = c.title;
+        var s = document.createElement('span'); s.className = 'badge'; s.textContent = c.state;
+        var r = document.createElement('span'); r.className = 'mock-reason'; r.textContent = c.state === 'Closed' ? '' : 'No work in progress';
+        var m = document.createElement('small');
+        m.textContent = [c.model ? c.program + ' · ' + c.model : c.program, c.when, c.ws].join(' · ');
+        m.title = m.textContent;
+        row.setAttribute('aria-label', c.title + '. ' + c.state + '. ' + m.textContent);
+        row.append(t, s, r, m); pane.append(row);
+
+        var box = document.createElement('article'); box.className = 'org-chart-chat oc-chat';
+        var bt = document.createElement('span'); bt.className = 'org-chart-title oc-chat-title'; bt.textContent = c.title;
+        var role = document.createElement('span'); role.className = 'oc-chat-role'; role.textContent = c.role; role.title = c.role;
+        var meta = document.createElement('span'); meta.className = 'org-chart-meta oc-chat-role';
+        meta.textContent = c.ws + ' / ' + programLine(c); meta.title = meta.textContent;
+        var stateRow = document.createElement('div'); stateRow.className = 'oc-chat-state';
+        var st = document.createElement('span'); st.className = 'org-chart-state'; st.textContent = c.state + ' · 17/11/2026, ' + c.when.replace('Today ', '');
+        stateRow.append(st); box.append(bt, role, meta, stateRow); cards.append(box);
+      });
+    }
+    function sizes() { return [].map.call(document.querySelectorAll('.mock-row, .org-chart-chat'), function(el) { return Math.round(el.getBoundingClientRect().height); }).join(','); }
+    document.getElementById('mock-change').addEventListener('click', function() {
+      var before = sizes(), c = chats[0];
+      c.model = c.model === 'Adaptive' ? 'Claude Opus 5.5' : 'Adaptive';
+      this.textContent = 'Change Checkout Lead to ' + (c.model === 'Adaptive' ? 'Claude Opus 5.5' : 'Adaptive');
+      draw();
+      said.textContent = 'Checkout Lead now shows ' + c.model + '. Row and card heights ' + (before === sizes() ? 'did not change.' : 'changed.');
+    });
+    document.getElementById('mock-close').addEventListener('click', function() {
+      var c = chats[2]; c.state = c.state === 'Closed' ? 'Idle' : 'Closed';
+      this.textContent = (c.state === 'Closed' ? 'Open' : 'Close') + ' Keyboard Review';
+      draw();
+      said.textContent = c.state === 'Closed' ? 'Keyboard Review is closed and still shows Claude Sonnet 5.5, the model it gets back when it opens.' : 'Keyboard Review is open again on Claude Sonnet 5.5.';
+    });
+    document.getElementById('mock-theme').addEventListener('click', function() {
+      var dark = document.documentElement.dataset.theme !== 'dark';
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+    });
+    draw();
+  </script>
+</body>
+</html>
