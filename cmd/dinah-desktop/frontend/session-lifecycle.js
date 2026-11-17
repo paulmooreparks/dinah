@@ -93,11 +93,23 @@
        another chat, reopens as before. */
     function restoreChat(s) {
       if (s.recoveryReview) { s.restoring = false; return Promise.resolve(s); }
-      if (s.loading) return s.displayBuild ? s.displayBuild.then(function () { return s; }) : Promise.resolve(s);
       if (s.restorePromise) return s.restorePromise;
+      /* A window that starts marks its chat as restoring before it calls
+         this (chat-applet.js, init), so that its first drawing says so. Only
+         the restore below takes that mark off again, so each way out that
+         does not start one takes it off here; the opening it joins shows its
+         own progress (s.loading). Left on, the mark kept the window at
+         Loading, with its team membership unread and no message box, for as
+         long as the window stayed open (17 November 2026). */
+      if (s.loading) { s.restoring = false; return s.displayBuild ? s.displayBuild.then(function () { return s; }) : Promise.resolve(s); }
       // A bus wake can admit the engine's open before this window mounts.
       // Join that operation so its replay stays behind the saved display.
-      if (s.info.historyLoading) return reconnectChat(s.id, false);
+      if (s.info.historyLoading) {
+        s.restoring = false;
+        var joined = reconnectChat(s.id, false);
+        if (s.view) s.view.refresh();
+        return joined;
+      }
       var id = s.id;
       s.restoring = true; if (s.view) s.view.refresh();
       return s.restorePromise = Promise.resolve(app().ResolveSessionContinuation ? app().ResolveSessionContinuation(id) : id).then(function (head) {
