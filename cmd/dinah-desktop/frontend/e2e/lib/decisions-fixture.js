@@ -83,13 +83,25 @@ async function setup(items, extra = {}) {
         if (!receipt) return { operationId: operation, id: '', revision: 0, state: 'unknown' };
         return receipt.id === id ? copy(receipt) : refuse({ operationId: operation, id }, 'not_authorized', 'This operation belongs to another request.');
       },
-      // The host reads an open request by its identity as well as a closed one (internal/bus/answer_origin.go). A
-      // notification's card reads the request this way before it asks whether to dismiss it.
+      // The host reads an open request by its identity as well as a closed one (internal/bus/answer_origin.go), as a
+      // read-only record with no commands: it always clears canDismiss and dismissalReason. A notification's card
+      // reads the request this way before it asks whether to dismiss it, and asks RequestState whether it may.
       DecisionByID: async id => {
         if (__closedRecords[id]) return copy(__closedRecords[id]);
         const open = __decisionItems.find(i => i.id === id);
         if (!open) throw new Error('This request is no longer available.');
-        return { decision: Object.assign(copy(open), { status: 'open' }), closed: false, readOnly: true };
+        return { decision: Object.assign(copy(open), { status: 'open', canDismiss: false, dismissalReason: '' }), closed: false, readOnly: true };
+      },
+      // The host's state of a chat's request (request_state.go): Dismiss for every open request, and Answer disabled
+      // with the reason when an answer cannot be delivered. window.__requestOff refuses Dismiss with a reason.
+      RequestState: async id => {
+        if (window.__stateFailure) throw new Error('Request state unavailable');
+        const closed = __closedRecords[id], open = __decisionItems.find(i => i.id === id);
+        if (!closed && !open) throw new Error('This request is no longer available.');
+        const d = closed ? closed.decision : open, off = closed ? 'This request is no longer open.' : (window.__requestOff || {})[id] || '';
+        const dismiss = off ? { name: 'Dismiss', enabled: false, reason: off } : { name: 'Dismiss', enabled: true, invocation: 'DismissRequest' };
+        const answer = closed ? { name: 'Answer', enabled: false, reason: off } : d.dismissalReason ? { name: 'Answer', enabled: false, reason: d.dismissalReason } : { name: 'Answer', enabled: true, invocation: 'AnswerDecision' };
+        return { id, revision: d.revision, kind: d.kind || 'request', status: closed ? d.status : 'open', commands: [dismiss, { name: 'Withdraw', enabled: false, reason: 'Only the asking chat can withdraw this request.' }, answer], request: copy(d) };
       },
       DecisionOperation: async operation => copy(__operations[operation] || { operationId: operation, state: 'unknown', id: '', revision: 0, closed: false, messageIds: [], reason: null }),
       PreviewDecisionBroadcast: async (scope, text) => {
@@ -130,7 +142,9 @@ async function setup(items, extra = {}) {
       window.__endTask = (key, status, announce) => { const r = end(key, status, status === 'withdrawn' ? 'owner' : status === 'cancelled' ? 'host' : 'person'); if (announce) __emit('task:answered', { key, disposition: status, revision: r.revision, service: 'fixture.flow', workspace: 'ws-a', task: 'task-a', generation: 'g1' }); };
       api.PendingTaskPermissions = async () => copy(__taskPending);
       api.TaskQuestionStatus = async key => Object.assign({ key }, record(key));
+      const requestState = api.RequestState;
       api.RequestState = async id => {
+        if (!args.tasks.some(q => q.key === id)) return requestState(id);
         if (window.__stateFailure) throw new Error('Question state unavailable');
         const r = record(id), open = r.status === 'open' && __taskPending.some(q => q.key === id), off = !open ? 'This request is no longer open.' : __taskOff[id] || '';
         const command = name => off ? { name, enabled: false, reason: off } : { name, enabled: true, invocation: name === 'Dismiss' ? 'DismissRequest' : 'Answer' };
@@ -168,6 +182,8 @@ async function setup(items, extra = {}) {
       api.BusGroupMessagesFrom = async () => copy(args.contextRoom);
       api.BusMarkGroupRead = async () => {};
     }
+    // A suite about a build with no request state at all, in which nothing can be dismissed, asks for it with noRequestState.
+    if (args.noRequestState) delete api.RequestState;
     return api;
   }});
   if (!extra.noOpen) {

@@ -61,7 +61,8 @@ async function requests() {
     await d.button('card-r1').focus();
     const asked = await d.ask(d.button('card-r1'));
     ok('the card asks with the Decisions window\'s dialog and wording', asked.title === 'Dismiss This Request?' && asked.body === 'No answer is sent, and it leaves Decisions. Review r1 is told you dismissed it, so it does not wait for you.' + USE && await p.evaluate(() => { const no = document.getElementById('ask-no'), yes = document.getElementById('ask-yes'); return document.activeElement === no && yes.className === 'btn btn-danger' && yes.textContent === 'Dismiss' && !document.querySelector('#ask .btn-primary'); }), JSON.stringify(asked));
-    ok('the request is read before the dialog, and nothing is sent until it is confirmed', JSON.stringify((await t.calls('DecisionByID')).map(call => call[1])) === '["r1"]' && (await t.calls('DismissRequest')).length === 0);
+    // The request's record has no commands, as the real host gives it, so whether it may be dismissed is read from its state.
+    ok('the request and its state are read before the dialog, and nothing is sent until it is confirmed', JSON.stringify((await t.calls('DecisionByID')).map(call => call[1])) === '["r1"]' && JSON.stringify((await t.calls('RequestState')).map(call => call[1])) === '["r1"]' && (await t.calls('DismissRequest')).length === 0);
     await d.answer(false);
     const cancelled = [(await t.calls('DismissRequest')).length === 0, (await t.calls('DismissNotification')).length === 1, await d.card('card-r1').count() === 1, await d.button('card-r1').isEnabled(), await d.words('card-r1') === '', await d.saved('r1') === null, await d.geometry('card-r1') === still, await p.evaluate(() => __decisionItems.some(item => item.id === 'r1'))];
     ok('Cancel changes nothing', cancelled.every(Boolean), JSON.stringify(cancelled));
@@ -88,6 +89,18 @@ async function requests() {
     ok('the reason moves nothing on the card', await d.geometry('card-r2') === before, await d.geometry('card-r2') + ' ' + before);
     await t.shot('notifications-dismiss-request-refused');
     await p.evaluate(() => { window.__refuseDismiss = null; });
+
+    // The host's state says Dismiss cannot be used now: nothing is asked or sent, and the card says the host's reason.
+    await p.evaluate(() => { window.__requestOff = { r6: 'The host cannot dismiss this request now.' }; });
+    await d.button('card-r6').click();
+    await d.says('card-r6', 'The host cannot dismiss this request now.');
+    ok('a request whose state does not allow Dismiss is not asked about or sent, and the card says why', await p.locator('#ask[open]').count() === 0 && (await t.calls('DismissRequest')).length === 2 && await p.evaluate(() => __decisionItems.some(item => item.id === 'r6')));
+    await p.evaluate(() => { window.__requestOff = null; });
+    // An answer that cannot be delivered: the host disables Answer with its reason, and the dialog says it.
+    await p.evaluate(() => { __decisionItems.find(item => item.id === 'r6').dismissalReason = 'The asking chat or group is no longer available.'; });
+    const undeliverable = await d.ask(d.button('card-r6'));
+    ok('the dialog says when the asking chat cannot be told', undeliverable.body.includes('The asking chat or group is no longer available. If the chat itself is gone, nobody can be told.'), JSON.stringify(undeliverable));
+    await d.answer(false);
 
     // A result that never arrives. The same operation is checked and, when the host has no result, sent again.
     await p.evaluate(() => { window.__dismissBeforeFailure = true; });

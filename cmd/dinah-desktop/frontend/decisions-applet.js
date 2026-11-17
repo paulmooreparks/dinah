@@ -104,7 +104,7 @@
   // and whether a dismissal sent from a card or from the window still waits to have its result checked.
   function cardDismissal(id) {
     var s = cardState(id), out = { enabled: false, reason: '', status: s.status, tone: s.tone, check: false };
-    if (!app() || !app().DismissRequest || !app().RequestOperation || !app().DecisionByID) { out.reason = noDismissBuild; return out; }
+    if (!app() || !app().DismissRequest || !app().RequestOperation || !app().DecisionByID || !app().RequestState) { out.reason = noDismissBuild; return out; }
     // A dismissal is saved before it is sent, which a saved state that could not be read does not allow.
     if (window.dinahUIState.initializationError()) { out.reason = draftsUnread; return out; }
     var saved;
@@ -132,12 +132,22 @@
     if (s.busy) return Promise.resolve();
     if (!cardDismissal(id).enabled) { requestChanged(id); return Promise.resolve(); }
     s.busy = 'reading';
-    // The request is read now, so that the dialog describes it as it is and the dismissal is sent with its current revision.
-    return Promise.resolve().then(function () { return app().DecisionByID(id); }).then(function (value) {
+    // The request is read now, so that the dialog describes it as it is and the dismissal is sent with its current
+    // revision. DecisionByID gives the request as a read-only record, with no commands, so whether it may be
+    // dismissed now is read from RequestState, the host's word on what may be done with a request; the window has
+    // the same from the open list. A real run found the card refusing every request when it read DecisionByID alone.
+    return Promise.resolve().then(function () { return Promise.all([app().DecisionByID(id), app().RequestState(id)]); }).then(function (values) {
+      var value = values[0], state = values[1];
       if (!value || typeof value.closed !== 'boolean' || !validItem(value.decision) || value.decision.id !== id) throw new Error('The request could not be read.');
-      var item = value.decision;
       // A request that ended another way has no open request behind its card any more, and the card goes with a word on how it ended.
-      if (value.closed) { cards.delete(id); requestChanged(id, true, (endingWords(item) || { text: notWaiting }).text); return; }
+      if (value.closed) { cards.delete(id); requestChanged(id, true, (endingWords(value.decision) || { text: notWaiting }).text); return; }
+      var command = function (name) { return state && Array.isArray(state.commands) ? state.commands.find(function (c) { return c && c.name === name; }) : null; };
+      var dismiss = command('Dismiss'), answer = command('Answer');
+      if (!state || state.id !== id || !Number.isSafeInteger(state.revision) || !dismiss || typeof dismiss.enabled !== 'boolean') throw new Error('The request could not be read.');
+      if (state.revision !== value.decision.revision || state.status !== 'open') throw new Error('The request changed while it was read. Try again.');
+      // The host disables Answer with the reason an answer cannot be delivered (request_state.go), which the dialog says.
+      var item = Object.assign({}, value.decision, { canDismiss: dismiss.enabled, dismissalReason: answer && answer.enabled === false && answer.reason || '' });
+      if (!dismiss.enabled) { cardFailed(id, dismiss.reason || 'This request cannot be dismissed.'); return; }
       var can = requestDismissal(item, function () { return savedDraft(id); });
       if (!can.enabled) { cardFailed(id, can.reason); return; }
       s.busy = 'asking';

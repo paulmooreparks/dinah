@@ -4,7 +4,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     const t = await setup([
       makeRequest('r2', { createdAt: '2026-11-14T02:00:00Z', text: Array.from({ length: 30 }, (_, n) => 'Message line ' + n).join('\n') }),
       makeRequest('r1', { createdAt: '2026-11-14T01:00:00Z', questions: [{ number: 1, text: 'Which release?', recommendation: 'Use the reviewed release.', choices: ['Reviewed', 'Wait'], answered: false, answer: '' }] })
-    ]);
+    ], { noRequestState: true });
     const { page: p, ok } = t;
     try {
       await p.setViewportSize({ width, height: 1000 });
