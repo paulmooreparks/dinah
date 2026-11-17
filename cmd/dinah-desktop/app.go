@@ -127,6 +127,8 @@ type App struct {
 	chatStates chatStateSender
 	// teamSendAfter is the number of the newest bus message already looked at for the sends of team chats, and
 	// teamSendSet says the first pass, which only finds where the bus is, has been made.
+	// relaySweep marks handled, once as the window starts, the relays their leads took before it started (team_relays.go).
+	relaySweep    sync.Once
 	teamSendMu    sync.Mutex
 	teamSendAfter int64
 	teamSendSet   bool

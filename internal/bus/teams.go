@@ -547,8 +547,8 @@ func (b *Bus) LastAssignment(ctx context.Context, lead, member string) (Assignme
 	return a, err == nil, err
 }
 
-// PendingRelayFrom says a member has a relay the lead has not yet answered: pending, and no later message of
-// the lead's in the team's group.
+// PendingRelayFrom says a member has a relay its lead has not yet dealt with: pending, which it stays until the
+// lead's turn on it ends (RelaysHandledIn), and no later message of the lead's, which says so sooner.
 func (b *Bus) PendingRelayFrom(ctx context.Context, member string) (int64, bool, error) {
 	var id int64
 	err := b.db.QueryRowContext(ctx, `SELECT r.message_id FROM relays r WHERE r.member = ? AND r.state = 'pending'

@@ -344,6 +344,40 @@ func TestARelayThatFailsIsMarkedAndReportedOnce(t *testing.T) {
 	if r, _, _ := b.RelayOf(ctx, five.ID); r.State != RelayPending {
 		t.Fatalf("a relay the lead took was marked failed: %+v", r)
 	}
+	// Its member waits for the lead until the lead's turn on it ends, though the lead sends nothing on the bus.
+	if id, waiting, err := b.PendingRelayFrom(ctx, parser.ID); err != nil || !waiting || id != five.ID {
+		t.Fatalf("the member of a relay its lead has taken is not waiting: %d %v %v", id, waiting, err)
+	}
+	// A turn that ended well handles the relays it was given, and only those of that lead that were pending.
+	handled, err := b.RelaysHandledIn(ctx, lead.ID, []int64{four.ID, five.ID})
+	if err != nil || !slices.Equal(handled, []int64{five.ID}) {
+		t.Fatalf("RelaysHandledIn %v %v", handled, err)
+	}
+	if r, _, _ := b.RelayOf(ctx, five.ID); r.State != RelayHandled {
+		t.Fatalf("the relay of a turn that ended well is %+v", r)
+	}
+	if r, _, _ := b.RelayOf(ctx, four.ID); r.State != RelayFailed {
+		t.Fatalf("a failed relay was marked handled: %+v", r)
+	}
+	if _, waiting, _ := b.PendingRelayFrom(ctx, parser.ID); waiting {
+		t.Fatal("the member still waits for a lead that has dealt with its message")
+	}
+	// A window that starts settles the relays their leads took before it started, but for those of turns still running.
+	six := sendTo(t, b, docs, review.Name, "Six.", "paul")
+	seven := sendTo(t, b, parser, review.Name, "Seven.", "paul")
+	if none, err := b.HandleTakenRelays(ctx, nil); err != nil || len(none) != 0 {
+		t.Fatalf("relays their lead has not taken were settled: %v %v", none, err)
+	}
+	if _, _, err := b.Deliver(ctx, lead.ID, DoorbellTurn); err != nil {
+		t.Fatal(err)
+	}
+	settled, err := b.HandleTakenRelays(ctx, []int64{seven.ID})
+	if err != nil || !slices.Equal(settled, []int64{six.ID}) {
+		t.Fatalf("HandleTakenRelays %v %v", settled, err)
+	}
+	if r, _, _ := b.RelayOf(ctx, seven.ID); r.State != RelayPending {
+		t.Fatalf("the relay of a turn still running was settled: %+v", r)
+	}
 }
 
 // The group of a deleted lead keeps a line that says its members now reach the person directly.

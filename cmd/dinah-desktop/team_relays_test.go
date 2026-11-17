@@ -119,20 +119,40 @@ func TestARelayThatFailsNotifiesThePersonOnceWithTheReason(t *testing.T) {
 	if len(cards) != 2 || cards[1].Message != two.ID || !strings.Contains(strings.Join(cards[1].Details, " "), "usage limit reached") {
 		t.Fatalf("the turn failure: %+v", cards)
 	}
-	// A turn that ended well fails nothing.
+	// A turn that ended well fails nothing, and its relay is handled: the member no longer waits for its lead,
+	// though the lead sent nothing on the bus.
 	three := mention("Third question.")
 	p = sessionhost.NewPrompt("x", nil).WithDelivery("From a chat", []ConversationMessage{{Role: "delivered", Delivered: &sessionhost.DeliveredMessage{ID: three.ID}}}, nil)
 	a.noteRelayTurnStart(lead, &p)
+	waiting := func() bool {
+		var is bool
+		if err := a.busHost().With(func(b *bus.Bus) error {
+			var err error
+			_, is, err = b.PendingRelayFrom(context.Background(), three.FromSession)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return is
+	}
+	if !waiting() {
+		t.Fatal("the member does not wait while its lead's turn on its message runs")
+	}
 	a.relayTurnEnded(lead, nil)
 	checkRelaysNow(t, a)
 	if got := relayCards(t, a); len(got) != 2 {
 		t.Fatalf("a turn that ended well made a card: %d", len(got))
 	}
-	// The lead cannot run: its context window is full and a send is held.
+	if waiting() {
+		t.Fatal("the member still waits for a lead whose turn on its message ended well")
+	}
+	// The lead cannot run: its context window is full and a send is held. The message is a new one, since the
+	// third was handled by the turn above (until 17 November 2026 it stayed pending, and this step failed it).
+	four := mention("Fourth question.")
 	lead.SetHold(&sessionhost.ContextHold{Kind: "context", Used: 1900, Size: 2048, Actions: []string{sessionhost.HoldCompact}})
 	checkRelaysNow(t, a)
 	cards = relayCards(t, a)
-	if len(cards) != 3 || cards[2].Message != three.ID || !strings.Contains(strings.Join(cards[2].Details, " "), "context window is full") {
+	if len(cards) != 3 || cards[2].Message != four.ID || !strings.Contains(strings.Join(cards[2].Details, " "), "context window is full") {
 		t.Fatalf("a lead that cannot run: %+v", cards)
 	}
 	_ = leadBus
