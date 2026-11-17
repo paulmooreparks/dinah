@@ -17,6 +17,16 @@ The npm audit queries the registry and requires network access. Offline, the gua
 
 The rules these guards protect are in `docs/design/invariants.md`, and a change is reviewed against that list. A new guard is added to `scripts/guards.json` in the same change that adds its test. A guard that only means something on some operating systems is listed under `onlyOn` with those systems, and on any other system the runner requires it to skip.
 
+## Third-party notices
+
+`THIRD-PARTY-NOTICES.md` lists every open-source component that is built into the programs or served by them, with its licence texts. It is written by a tool from what the programs link and what the page bundles, and is never edited by hand. After adding, removing or updating a Go module or a vendored library, write it again and commit the result:
+
+```powershell
+go run ./tools/notices
+```
+
+`go test ./tools/notices` fails while the committed file is out of date, and the tool refuses to write when a vendored library has no licence file beside it, since such a library could not be listed.
+
 ## The full suites
 
 ```powershell
