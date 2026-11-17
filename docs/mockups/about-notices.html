@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open-Source Notices: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* Only what the mockup adds is styled here: the frame around the two
+       pieces, and the notices window's two panes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-stage { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: var(--space-5); padding: var(--space-5); align-items: start; }
+    .mock-stage h2 { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 600; }
+    /* The About box as it is, drawn in place rather than over the page. */
+    .mock-about { position: static; display: block; margin: 0; width: 100%; }
+    .mock-about .about-logo { margin-top: var(--space-2); }
+    .about-notices { margin: 0 0 var(--space-4); }
+    /* The notices window: a list of components and the chosen one's notices.
+       Both panes keep their size whatever is chosen, so nothing moves. */
+    .mock-window { position: static; width: 100%; height: 620px; display: flex; flex-direction: column; }
+    .mock-window > .win-body { flex: 1; min-height: 0; display: flex; padding: 0; }
+    .notices { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--space-3); padding: var(--space-3); }
+    .notices-list { min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+    .notices-list .form-input { flex: none; }
+    .notices-count { flex: none; margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+    .notices-rows { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .notices-rows table { width: 100%; }
+    .notices-rows th { position: sticky; top: 0; background: var(--surface); }
+    .notices-rows tr[hidden] { display: none; }
+    .notices-rows td:first-child { overflow-wrap: anywhere; }
+    .notices-open { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-align: start; cursor: pointer; text-decoration: underline; }
+    .notices-detail { min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+    .notices-detail h3 { flex: none; margin: 0; font-size: var(--text-md); overflow-wrap: anywhere; }
+    .notices-meta { flex: none; margin: 0; font-size: var(--text-sm); color: var(--text-muted); min-height: 1.5em; }
+    .notices-text { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; }
+    .notices-actions { flex: none; display: flex; gap: var(--space-2); justify-content: flex-end; }
+    /* The button keeps one width while its words change to Copied and back. */
+    #notices-copy { min-width: 11em; }
+    @media (max-width: 900px) { .mock-stage { grid-template-columns: minmax(0, 1fr); } .notices { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); } }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Open-Source Notices</h1>
+    <span class="mock-tag">Mockup, 17 November 2026. The component list is a sample of the real one.</span>
+  </header>
+  <main class="mock-stage">
+    <section>
+      <h2>1. Help › About, with one new button</h2>
+      <dialog class="dialog mock-about" open aria-labelledby="about-title">
+        <img src="../../cmd/dinah-desktop/frontend/product-logo.svg" alt="" class="about-logo">
+        <h2 class="dialog-title" id="about-title">About Dinah</h2>
+        <p class="dialog-body">Dinah 0.107.0 connects your workspace and applets to supported agents. Choose an agent in Settings or when starting a chat.</p>
+        <p class="dialog-body about-notices">Dinah includes open-source software.</p>
+        <form class="dialog-actions" method="dialog" onsubmit="return false">
+          <button type="button" class="btn" id="open-notices">Open-Source Notices…</button>
+          <button type="button" class="btn btn-primary">Close</button>
+        </form>
+      </dialog>
+    </section>
+    <section>
+      <h2>2. The window the button opens</h2>
+      <section class="win dinah-window mock-window active" aria-labelledby="notices-title">
+        <header class="win-head">
+          <span class="win-title" id="notices-title">Open-Source Notices</span>
+        </header>
+        <div class="win-body">
+          <div class="notices">
+            <div class="notices-list">
+              <input class="form-input" id="notices-filter" type="search" placeholder="Filter by Name or Licence" aria-label="Filter by name or licence">
+              <p class="notices-count" id="notices-count" role="status"></p>
+              <div class="notices-rows">
+                <table class="data-table" aria-label="Open-source components">
+                  <thead><tr><th scope="col">Component</th><th scope="col">Version</th><th scope="col">Licence</th></tr></thead>
+                  <tbody id="notices-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="notices-detail" aria-live="polite">
+              <h3 id="notices-name"></h3>
+              <p class="notices-meta" id="notices-meta"></p>
+              <pre class="notices-text" id="notices-text" tabindex="0"></pre>
+              <div class="notices-actions">
+                <button type="button" class="btn" id="notices-copy">Copy This Notice</button>
+                <button type="button" class="btn" id="notices-save">Save All Notices…</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    // A sample of the real list (THIRD-PARTY-NOTICES.md), with each notice cut short.
+    var components = [
+      { name: 'The Go runtime and standard library', version: '1.26.10', licence: 'BSD-3-Clause', kind: 'Built into the programs', text: 'Copyright 2009 The Go Authors.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are\nmet:\n\n   * Redistributions of source code must retain the above copyright\nnotice, this list of conditions and the following disclaimer.\n   …' },
+      { name: 'github.com/wailsapp/wails/v2', version: 'v2.11.0', licence: 'MIT', kind: 'Built into the programs', text: 'MIT License\n\nCopyright (c) 2018-Present Lea Anthony\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, …' },
+      { name: 'github.com/yuin/goldmark', version: 'v1.8.6', licence: 'MIT', kind: 'Built into the programs', text: 'MIT License\n\nCopyright (c) 2019 Yusuke Inuzuka\n\nPermission is hereby granted, free of charge, to any person obtaining a copy …' },
+      { name: 'github.com/golang/freetype', version: 'v0.0.0-20170609003504', licence: 'See its notices', kind: 'Built into the programs. It is offered under a choice of the FreeType License and the GNU General Public License, and is used here under the FreeType License', text: 'Use of the Freetype-Go software is subject to your choice of exactly one of\nthe following two licenses:\n  * The FreeType License, which is similar to the original BSD license with\n    an advertising clause, or\n  * The GNU General Public License (GPL), version 2 or later.\n…' },
+      { name: 'modernc.org/sqlite', version: 'v1.50.1', licence: 'BSD-3-Clause', kind: 'Built into the programs', text: 'Copyright (c) 2017 The Sqlite Authors. All rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met: …' },
+      { name: 'oss.terrastruct.com/d2', version: 'v0.7.1', licence: 'MPL-2.0', kind: 'Built into the programs', text: 'Mozilla Public License Version 2.0\n==================================\n\n1. Definitions\n--------------\n\n1.1. "Contributor"\n    means each individual or legal entity that creates, contributes to\n    the creation of, or owns Covered Software. …' },
+      { name: 'pudl', version: 'as bundled', licence: 'Apache-2.0', kind: 'Bundled with the page', text: '                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION …' },
+      { name: 'pudl/fonts', version: 'as bundled', licence: 'OFL-1.1', kind: 'Bundled with the page', text: 'Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1. …' },
+      { name: 'vendor/codemirror', version: '6.43', licence: 'MIT', kind: 'Bundled with the page', text: 'MIT License\n\nCopyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others\n\nPermission is hereby granted, free of charge, to any person obtaining a copy …' },
+      { name: 'vendor/katex', version: '0.19.1', licence: 'MIT', kind: 'Bundled with the page', text: 'The MIT License (MIT)\n\nCopyright (c) 2013-2020 Khan Academy and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy …' },
+      { name: 'vendor/mermaid', version: 'as bundled', licence: 'MIT', kind: 'Bundled with the page', text: 'The MIT License (MIT)\n\nCopyright (c) 2014 - 2022 Knut Sveidqvist\n\nPermission is hereby granted, free of charge, to any person obtaining a copy …' },
+      { name: 'vendor/xterm', version: '6.0.0', licence: 'MIT', kind: 'Bundled with the page', text: 'Copyright (c) 2017-2019, The xterm.js authors (https://github.com/xtermjs/xterm.js)\nCopyright (c) 2014-2016, SourceLair Private Company (https://www.sourcelair.com)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy …' }
+    ];
+    var body = document.getElementById('notices-body'), chosen = 0;
+    function show(i) {
+      chosen = i;
+      var c = components[i];
+      document.getElementById('notices-name').textContent = c.name;
+      document.getElementById('notices-meta').textContent = (c.version === 'as bundled' ? 'As bundled' : 'Version ' + c.version) + ' · ' + c.licence + ' · ' + c.kind + '.';
+      document.getElementById('notices-text').textContent = c.text;
+      Array.prototype.forEach.call(body.rows, function (row, n) { row.setAttribute('aria-selected', String(Number(row.dataset.index) === i)); });
+    }
+    components.forEach(function (c, i) {
+      var row = body.insertRow(); row.dataset.index = i;
+      var name = row.insertCell(), open = document.createElement('button');
+      open.type = 'button'; open.className = 'notices-open'; open.textContent = c.name;
+      open.addEventListener('click', function () { show(i); });
+      name.appendChild(open);
+      row.insertCell().textContent = c.version;
+      row.insertCell().textContent = c.licence;
+    });
+    function filter() {
+      var words = document.getElementById('notices-filter').value.trim().toLowerCase(), shown = 0;
+      Array.prototype.forEach.call(body.rows, function (row) {
+        var c = components[row.dataset.index], match = !words || (c.name + ' ' + c.licence).toLowerCase().indexOf(words) >= 0;
+        row.hidden = !match; if (match) shown++;
+      });
+      document.getElementById('notices-count').textContent = shown === components.length ? components.length + ' components' : shown + ' of ' + components.length + ' components';
+    }
+    document.getElementById('notices-filter').addEventListener('input', filter);
+    document.getElementById('open-notices').addEventListener('click', function () { document.getElementById('notices-filter').focus(); });
+    document.getElementById('notices-copy').addEventListener('click', function () { var b = this; b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy This Notice'; }, 1200); });
+    filter(); show(0);
+  </script>
+</body>
+</html>
