@@ -132,6 +132,9 @@ const { openMenu } = require('./lib/commands');
     const attach = room.locator('.group-add');
     await attach.click();
     const groupMenu = p.locator('.menu-panel:popover-open');
+    // A menu is hidden from the moment it opens until it has been placed, and
+    // a hidden menu has no words to read, so the menu is read once it is shown.
+    await groupMenu.waitFor();
     ok('Add remains available at the file limit', await attach.isEnabled());
     ok('the file item is disabled with the member limit', await groupMenu.locator('.menu-action', {hasText:'Files From This Computer'}).getAttribute('aria-disabled') === 'true' && (await groupMenu.innerText()).includes('Docs Pass uses Codex'));
     await p.keyboard.press('Escape');

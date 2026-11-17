@@ -23,7 +23,8 @@ const { choose, shows, rowsOf } = require('./lib/commands');
       return {
         State: async () => state(),
         AgentProviders: async () => ['devin', 'codex', 'claude', 'ollama'].map(id => window.__provider(id)),
-        Sessions: async () => (listed[ws] || []).filter(x => hidden.indexOf(x.sessionId) < 0),
+        // The page reads the saved chats of every workspace once and shows those of the workspace in front; it does not read them again when the workspace changes.
+        SavedChats: async () => ({ generation: 'fixture', chats: Object.values(listed).flat().filter(x => hidden.indexOf(x.sessionId) < 0) }),
         NewSessionAt: async () => { const id = 'new-' + (++n); const model = defaults.model || 'swe-1-6'; opts[id] = mkOpts(model); setTimeout(() => emit('agent:options', { sessionId: id, options: opts[id] }), 0); return { sessionId: id, provider: 'devin', cwd: ws, title: '', open: true, working: false, queued: [] }; },
         OpenSessionAt: async (workspace, id) => { opts[id] = mkOpts('swe-1-6');
           emit('agent:update', { sessionId: id, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Draft the Note 14 design doc.' } } });
@@ -47,6 +48,12 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   });
   const p = require('./lib/windows')(t.page);
   const { ok } = t;
+  /* A fresh layout has had no New Chat window since 15 November 2026, and in
+     its right dock Notifications is the tab in front, so the Chats list behind
+     it is not drawn. This suite reads the Chats list and works in New Chat, so
+     it brings Chats to the front and opens New Chat first, as the person does. */
+  await p.evaluate(() => window.dinahWorkbench.open('chat-browser'));
+  await p.openNewChat();
   ok('sidebar shows the workspace name', (await p.$eval('#ws-select', s => s.selectedOptions[0].textContent)).trim() === 'Parser Workspace');
   // Launch waits for UI state, but the session fetch and scheduled list render
   // can still be pending. This assertion needs the expected row to arrive.

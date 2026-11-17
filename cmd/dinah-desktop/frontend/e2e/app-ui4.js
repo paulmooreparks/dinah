@@ -47,6 +47,7 @@ const { choose, shows } = require('./lib/commands');
     init: () => { window.__calls = []; },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const { ok } = t;
   // No session yet: the bar shows what the next session starts with.
   // A command's control is drawn shown or hidden in the next frame; folded,

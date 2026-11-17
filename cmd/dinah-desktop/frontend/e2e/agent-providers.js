@@ -181,8 +181,14 @@ const { choose, shows } = require('./lib/commands');
     });
     await front().getByText('Codex finished its turn.', { exact: true }).waitFor();
     ok('chat output identifies the actual provider', (await front().locator('[data-view-id="logs"]').textContent()).includes('Codex'));
+    // Since 15 November 2026 a Codex chat is deleted like any other: it goes to
+    // the Recycle Bin, and the question does not promise that Codex's own
+    // history is deleted. Hiding is no longer offered in its place.
     await page.evaluate(() => dinahCommands.run('remove-session'));
-    ok('Codex sessions offer hiding without promising deletion', await page.locator('#remove-hide').isVisible() && await page.locator('#remove-go').isHidden() && (await page.locator('#remove-body').textContent()).includes('Codex keeps'));
+    await page.locator('#remove').waitFor();
+    const removeBody = await page.locator('#remove-body').textContent();
+    ok('deleting a Codex chat offers the Recycle Bin without promising to delete Codex\'s own history', await page.locator('#remove-go').isVisible() && await page.locator('#remove-go').textContent() === 'Delete' &&
+      await page.locator('#remove-hide').count() === 0 && removeBody.includes('"Codex Chat" will move to the Recycle Bin') && removeBody.includes('agent program\'s history is untouched at this step'), removeBody);
     await page.locator('#remove').press('Escape');
     await t.shot('agent-providers-chat');
     await page.evaluate(() => { __installDevin(); return dinahWorkbench.open('settings'); });
