@@ -160,13 +160,16 @@ function stub({ state, app, init, args }) {
   if (init) init(args);
 }
 
-// The page is ready when: 'ui-state', the saved UI state has been read and
-// the layout restored (the usual choice, since boxes read their drafts and
-// windows their places only then); 'workbench', the workbench and menu bar
+// The page is ready when: 'ui-state', the saved UI state has been read, the
+// layout restored and the start screen gone (the usual choice, since boxes
+// read their drafts and windows their places only then, and the page can be
+// seen and pressed only then); 'workbench', the workbench and menu bar
 // exist; 'chat', a chat window exists; or a function run in the page until
 // it is true.
 const READY = {
-  'ui-state': () => document.documentElement.dataset.uiStateReady === 'true',
+  // The start screen is in front of the page until the restored layout has been drawn (app.js, showPage), and
+  // nothing under it can be seen or pressed until then, so a page still under it is not ready.
+  'ui-state': () => document.documentElement.dataset.uiStateReady === 'true' && (!document.getElementById('start-screen') || document.getElementById('start-screen').hidden),
   workbench: () => window.dinahWorkbench && window.dinahHost && document.querySelector('.menubar-ready'),
   chat: () => window.dinahWorkbench && document.querySelector('.chat-instance'),
 };
