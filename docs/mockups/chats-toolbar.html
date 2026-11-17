@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chats pane toolbar: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/chat-state.css">
+  <style>
+    /* Only the frame around the panes is styled here. The toolbar, the
+       field, the select and the rows are the shipped ones. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-stage { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5); padding: var(--space-5); }
+    .mock-stage figure { margin: 0; }
+    .mock-stage figcaption { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 600; }
+    .mock-pane { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; resize: horizontal; min-width: 150px; max-width: 100%; }
+    .mock-pane .session-list { padding: var(--space-2) var(--space-3); }
+    .mock-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--surface-alt); }
+    .mock-row strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mock-row small { grid-column: 1 / -1; color: var(--text-muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The proposal's one new rule: the field and the scope share a row, and
+       the scope goes under the field when the pane is too narrow for both. */
+    .chat-find { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .chat-find > .browser-search { flex: 1 1 11rem; min-width: 0; }
+    .chat-find > .browser-scope { flex: 1 1 11rem; min-width: 0; }
+    .chat-find .form-select { width: 100%; }
+    .mock-said { margin: var(--space-3) var(--space-5) 0; min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Chats pane toolbar</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 17 November 2026. Drag a pane's lower right corner to change its width.</span>
+  </header>
+  <p class="mock-said" id="mock-said" role="status">Press a button to see what it would do.</p>
+  <main class="mock-stage">
+    <figure>
+      <figcaption>Now</figcaption>
+      <section class="mock-pane browser-applet" style="width: 410px" aria-label="Chats pane as it is">
+        <div class="browser-toolbar">
+          <button type="button" class="btn btn-sm" data-says="Org Chart opens.">Org Chart</button>
+          <button type="button" class="btn btn-sm" data-says="Clean Up Chats opens.">Clean Up Chats</button>
+          <input class="form-input browser-search" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
+          <div class="browser-toolbar-row">
+            <span class="form-select-wrap browser-scope"><select class="form-select" aria-label="Chat Scope"><option>This Workspace</option><option selected>All Open Workspaces</option></select></span>
+            <span class="browser-commands"><button type="button" class="btn btn-sm" data-says="A new chat starts in this workspace.">New Chat</button></span>
+          </div>
+        </div>
+        <div class="session-list" role="list">
+          <div class="mock-row" role="listitem"><strong>AI Documentation</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 14:01 · aitools</small></div>
+          <div class="mock-row" role="listitem"><strong>Checkout Author</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 13:57 · Harbor</small></div>
+        </div>
+      </section>
+    </figure>
+
+    <figure>
+      <figcaption>Proposed, at the same width</figcaption>
+      <section class="mock-pane browser-applet" style="width: 410px" aria-label="Chats pane as proposed">
+        <div class="browser-toolbar">
+          <div class="toolbar" role="toolbar" aria-label="Chat Commands" data-toolbar-fold data-toolbar-captions="none">
+            <div class="toolbar-group" role="group" aria-label="Chats" data-toolbar-group="Chats" data-toolbar-glyph="comments" data-toolbar-priority="20">
+              <button type="button" class="btn btn-sm" title="Show every chat and its team as a chart" data-says="Org Chart opens."><span class="glyph" style="--glyph: var(--glyph-subagents)" aria-hidden="true"></span><span class="toolbar-words">Org Chart</span></button>
+              <button type="button" class="btn btn-sm" title="Delete chats you no longer need, and restore deleted ones" data-says="Clean Up Chats opens."><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span><span class="toolbar-words">Clean Up Chats</span></button>
+            </div>
+            <div class="toolbar-group" role="group" aria-label="New" data-toolbar-group="New" data-toolbar-glyph="comments" data-toolbar-priority="30" data-toolbar-end>
+              <button type="button" class="btn btn-sm" title="Start a New Chat in This Workspace" data-says="A new chat starts in this workspace."><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
+            </div>
+          </div>
+          <div class="chat-find">
+            <input class="form-input browser-search" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
+            <span class="form-select-wrap browser-scope"><select class="form-select" aria-label="Chat Scope"><option>This Workspace</option><option selected>All Open Workspaces</option></select></span>
+          </div>
+        </div>
+        <div class="session-list" role="list">
+          <div class="mock-row" role="listitem"><strong>AI Documentation</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 14:01 · aitools</small></div>
+          <div class="mock-row" role="listitem"><strong>Checkout Author</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 13:57 · Harbor</small></div>
+        </div>
+      </section>
+    </figure>
+
+    <figure>
+      <figcaption>Proposed, in a narrow dock</figcaption>
+      <section class="mock-pane browser-applet" style="width: 230px" aria-label="Chats pane as proposed, narrow">
+        <div class="browser-toolbar">
+          <div class="toolbar" role="toolbar" aria-label="Chat Commands" data-toolbar-fold data-toolbar-captions="none">
+            <div class="toolbar-group" role="group" aria-label="Chats" data-toolbar-group="Chats" data-toolbar-glyph="comments" data-toolbar-priority="20">
+              <button type="button" class="btn btn-sm" title="Show every chat and its team as a chart" data-says="Org Chart opens."><span class="glyph" style="--glyph: var(--glyph-subagents)" aria-hidden="true"></span><span class="toolbar-words">Org Chart</span></button>
+              <button type="button" class="btn btn-sm" title="Delete chats you no longer need, and restore deleted ones" data-says="Clean Up Chats opens."><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span><span class="toolbar-words">Clean Up Chats</span></button>
+            </div>
+            <div class="toolbar-group" role="group" aria-label="New" data-toolbar-group="New" data-toolbar-glyph="comments" data-toolbar-priority="30" data-toolbar-end>
+              <button type="button" class="btn btn-sm" title="Start a New Chat in This Workspace" data-says="A new chat starts in this workspace."><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
+            </div>
+          </div>
+          <div class="chat-find">
+            <input class="form-input browser-search" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
+            <span class="form-select-wrap browser-scope"><select class="form-select" aria-label="Chat Scope"><option>This Workspace</option><option selected>All Open Workspaces</option></select></span>
+          </div>
+        </div>
+        <div class="session-list" role="list">
+          <div class="mock-row" role="listitem"><strong>AI Documentation</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 14:01 · aitools</small></div>
+          <div class="mock-row" role="listitem"><strong>Checkout Author</strong><span class="chat-state" data-chat-state="idle">Idle</span><small>Devin · Today 13:57 · Harbor</small></div>
+        </div>
+      </section>
+    </figure>
+  </main>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-tooltip.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-menu.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-toolbar.js" defer></script>
+  <script>
+    document.getElementById('mock-theme').addEventListener('click', function () {
+      var dark = document.documentElement.dataset.theme !== 'dark';
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+    });
+    document.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-says]');
+      if (button) document.getElementById('mock-said').textContent = button.dataset.says;
+    });
+  </script>
+</body>
+</html>

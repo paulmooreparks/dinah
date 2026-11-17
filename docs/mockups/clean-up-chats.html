@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clean Up Chats: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame around the window is the mockup's. The rules marked
+       "window" are what the window itself would add to the shipped
+       stylesheet; everything else is PUDL's tabs, toolbar, table, switch,
+       badge, empty state and dialog as shipped. */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; flex-direction: column; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-stage { flex: 1; min-height: 0; padding: var(--space-4); display: flex; flex-direction: column; }
+    .mock-window { position: static; flex: 1; min-height: 0; width: 100%; max-width: none; max-height: none; display: flex; flex-direction: column; }
+    .mock-window > .win-body { flex: 1; min-height: 0; padding: 0; display: flex; flex-direction: column; }
+    .mock-window .tabs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .mock-window [role="tabpanel"] { flex: 1; min-height: 0; padding: 0; }
+    .mock-window [role="tabpanel"][hidden] { display: none; }
+
+    /* window: each view is a bar of controls, the table, and a line that says what is shown. */
+    .cleanup-view { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+    .cleanup-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+    .cleanup-bar .browser-search { flex: 1 1 14rem; min-width: 10rem; }
+    .cleanup-bar .form-select-wrap { flex: 1 1 11rem; max-width: 16rem; min-width: 9rem; }
+    .cleanup-bar .form-select { width: 100%; }
+    .cleanup-bar .switch { flex: none; }
+    .cleanup-actions { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+    .cleanup-actions .toolbar { flex: 1 1 auto; min-width: 0; }
+    .cleanup-actions .cleanup-note { flex: 1 1 20rem; }
+    /* The count and the button keep one width whatever number they say. */
+    .cleanup-selected { flex: none; width: 13ch; font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+    .cleanup-delete { min-width: 17ch; justify-content: center; font-variant-numeric: tabular-nums; }
+    .cleanup-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+    .cleanup-table { flex: 1; min-height: 0; overflow: auto; border: 0; border-radius: 0; scrollbar-gutter: stable; }
+    .cleanup-table table { width: 100%; }
+    .cleanup-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+    .cleanup-table td { vertical-align: top; }
+    .cleanup-table .cleanup-chat { min-width: 16rem; }
+    .cleanup-title { display: block; font-weight: 600; overflow-wrap: anywhere; }
+    /* Why a chat cannot be deleted, under its title, with the warning glyph as well as the colour. */
+    .cleanup-reason { display: flex; align-items: flex-start; gap: var(--space-1); margin-top: 2px; font-size: var(--text-sm); color: var(--text-muted); }
+    .cleanup-reason .glyph { flex: none; margin-top: 2px; --glyph-size: 14px; color: var(--warn); }
+    .cleanup-when { white-space: nowrap; }
+    .cleanup-when small { display: block; color: var(--text-muted); font-size: var(--text-xs); }
+    .cleanup-row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; white-space: nowrap; }
+    .cleanup-foot { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-muted); min-height: 2.5rem; }
+    .cleanup-foot .btn { margin-inline-start: auto; }
+    .cleanup-foot [data-tone="positive"] { color: var(--text); }
+    .cleanup-tab-count { margin-inline-start: var(--space-1); font-variant-numeric: tabular-nums; }
+    .cleanup-confirm { max-width: 34rem; }
+    @media (max-width: 640px) { .mock-tag { display: none; } .mock-stage { padding: var(--space-2); } .cleanup-bar .form-select-wrap { max-width: none; flex-basis: 100%; } }
+    .cleanup-confirm ul { margin: var(--space-2) 0 0; padding-inline-start: 1.25rem; max-height: 9rem; overflow: auto; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Clean Up Chats</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
+    <span class="mock-tag">Mockup, 17 November 2026. The chats are made up; the controls work.</span>
+  </header>
+  <main class="mock-stage">
+    <section class="win mock-window" role="dialog" aria-labelledby="win-title">
+      <header class="win-head"><h2 class="win-title" id="win-title">Clean Up Chats</h2></header>
+      <div class="win-body">
+        <div class="tabs">
+          <div class="tablist" role="tablist" aria-label="Clean Up Chats">
+            <button type="button" role="tab" id="tab-chats" aria-controls="panel-chats" aria-selected="true">Chats <span class="badge cleanup-tab-count" id="count-chats">0</span></button>
+            <button type="button" role="tab" id="tab-bin" aria-controls="panel-bin" aria-selected="false"><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span> Recycle Bin <span class="badge cleanup-tab-count" id="count-bin">0</span></button>
+          </div>
+
+          <section role="tabpanel" id="panel-chats" aria-labelledby="tab-chats">
+            <div class="cleanup-view">
+              <div class="cleanup-bar" role="search" aria-label="Which chats are shown">
+                <input class="form-input browser-search" id="find" type="search" placeholder="Find a Chat by Title" aria-label="Find a chat by title">
+                <span class="form-select-wrap"><select class="form-select" id="f-workspace" aria-label="Workspace"><option value="">All Workspaces</option></select></span>
+                <span class="form-select-wrap"><select class="form-select" id="f-program" aria-label="Agent program"><option value="">All Agent Programs</option></select></span>
+                <span class="form-select-wrap"><select class="form-select" id="f-age" aria-label="Last activity">
+                  <option value="">Any Last Activity</option><option value="7">Older Than 7 Days</option><option value="30">Older Than 30 Days</option><option value="90">Older Than 90 Days</option><option value="180">Older Than 180 Days</option><option value="365">Older Than 1 Year</option>
+                </select></span>
+                <button type="button" class="switch" role="switch" aria-checked="false" id="f-closed"><span class="switch-track"><span class="switch-thumb"></span></span> Closed Only</button>
+              </div>
+              <div class="cleanup-actions">
+                <span class="cleanup-selected" id="selected" role="status">None selected</span>
+                <div class="toolbar" role="toolbar" aria-label="Selected chats">
+                  <div class="toolbar-group" role="group" aria-label="Selection">
+                    <button type="button" class="btn btn-sm btn-primary cleanup-delete" id="delete" disabled><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span><span id="delete-words">Delete Chats…</span></button>
+                    <button type="button" class="btn btn-sm" id="clear" disabled>Clear Selection</button>
+                  </div>
+                </div>
+                <button type="button" class="icon-btn" id="refresh" aria-label="Refresh" data-tooltip="Read the chats again"><span class="glyph" style="--glyph: var(--glyph-reload)" aria-hidden="true"></span></button>
+              </div>
+              <div class="data-table-wrap cleanup-table">
+                <table class="data-table" aria-label="Chats">
+                  <thead><tr>
+                    <th scope="col" class="data-table-check"><input type="checkbox" id="check-all" aria-label="Select every chat shown"></th>
+                    <th scope="col" aria-sort="none" data-sort="title"><button type="button">Chat</button></th>
+                    <th scope="col" aria-sort="none" data-sort="workspace"><button type="button">Workspace</button></th>
+                    <th scope="col" aria-sort="none" data-sort="programs"><button type="button">Agent Programs</button></th>
+                    <th scope="col" aria-sort="ascending" data-sort="last"><button type="button">Last Activity</button></th>
+                    <th scope="col" class="num" aria-sort="none" data-sort="messages"><button type="button">Messages</button></th>
+                    <th scope="col" aria-sort="none" data-sort="state"><button type="button">State</button></th>
+                  </tr></thead>
+                  <tbody id="rows-chats"></tbody>
+                </table>
+              </div>
+              <div class="cleanup-foot"><span id="foot-chats" role="status"></span></div>
+            </div>
+          </section>
+
+          <section role="tabpanel" id="panel-bin" aria-labelledby="tab-bin" hidden>
+            <div class="cleanup-view">
+              <div class="cleanup-actions">
+                <p class="cleanup-note">A deleted chat stays here for 30 days and can be restored until then. It uses nothing meanwhile: it is not loaded and receives no messages.</p>
+                <div class="toolbar" role="toolbar" aria-label="Recycle Bin"></div>
+                <button type="button" class="btn btn-sm btn-danger" id="empty-bin">Empty Recycle Bin…</button>
+              </div>
+              <div class="data-table-wrap cleanup-table">
+                <table class="data-table" aria-label="Recycle Bin">
+                  <thead><tr>
+                    <th scope="col">Chat</th><th scope="col">Workspace</th><th scope="col">Agent Programs</th><th scope="col" class="num">Messages</th><th scope="col">Deleted</th><th scope="col">Deleted for Good</th><th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr></thead>
+                  <tbody id="rows-bin"></tbody>
+                </table>
+              </div>
+              <div class="cleanup-foot"><span id="foot-bin" role="status"></span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="dialog cleanup-confirm" id="confirm" aria-labelledby="confirm-title">
+    <h2 class="dialog-title" id="confirm-title"></h2>
+    <p class="dialog-body" id="confirm-body"></p>
+    <ul id="confirm-list"></ul>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="confirm-cancel">Cancel</button>
+      <button type="button" class="btn" id="confirm-accept"></button>
+    </div>
+  </dialog>
+
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-tooltip.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-menu.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-toolbar.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-tabs.js" defer></script>
+  <script src="../../cmd/dinah-desktop/frontend/pudl/pudl-dialog.js" defer></script>
+  <script>
+    (function () {
+      'use strict';
+      var DAY = 86400000, NOW = new Date(2026, 10, 17, 16, 30).getTime();
+      function ago(days, hour, minute) { var d = new Date(NOW - days * DAY); d.setHours(hour, minute, 0, 0); return d.getTime(); }
+      function sample() {
+        return {
+          chats: [
+            { id: 'c1', title: 'Parser Lead', workspace: 'parser', programs: ['Devin', 'Claude'], last: ago(0, 13, 25), messages: 645, state: 'Idle', refusal: 'This chat leads Parser Team. Reassign its members, or make one of them the lead, first.' },
+            { id: 'c2', title: 'Parser Author', workspace: 'parser', programs: ['Devin', 'Claude'], last: ago(0, 13, 57), messages: 136, state: 'Idle' },
+            { id: 'c3', title: 'Parser Verifier', workspace: 'parser', programs: ['Devin', 'Claude', 'Codex'], last: ago(0, 13, 25), messages: 169, state: 'Working', refusal: 'This chat is working. Stop its turn, or wait for it to end, first.' },
+            { id: 'c4', title: 'Website Documentation', workspace: 'website', programs: ['Devin'], last: ago(0, 14, 1), messages: 65, state: 'Idle' },
+            { id: 'c5', title: 'Customer Notes', workspace: 'parser', programs: ['Devin'], last: ago(0, 13, 30), messages: 4, state: 'Idle' },
+            { id: 'c6', title: 'Release Checklist for the Spring Build', workspace: 'website', programs: ['Codex'], last: ago(9, 10, 12), messages: 58, state: 'Closed' },
+            { id: 'c7', title: 'Feature Testing', workspace: 'parser', programs: ['Devin'], last: ago(21, 0, 45), messages: 212, state: 'Closed' },
+            { id: 'c8', title: 'Untitled Chat', workspace: 'scratch', programs: ['Claude'], last: ago(43, 9, 5), messages: 2, state: 'Closed' },
+            { id: 'c9', title: 'Untitled Chat', workspace: 'scratch', programs: ['Claude'], last: ago(44, 17, 40), messages: 0, state: 'Closed' },
+            { id: 'c10', title: 'Import of the Old Price Lists', workspace: 'parser', programs: ['Devin'], last: ago(120, 11, 20), messages: 1204, state: 'Closed' },
+            { id: 'c11', title: 'First Look at the Grammar', workspace: 'parser', programs: ['Codex'], last: ago(400, 15, 0), messages: 31, state: 'Closed' }
+          ],
+          bin: [
+            { id: 'b1', title: 'charmed-knife', workspace: 'parser', programs: ['Devin'], messages: 2, deleted: ago(2, 20, 4) },
+            { id: 'b2', title: 'garnet-armchair', workspace: 'parser', programs: ['Devin'], messages: 3, deleted: ago(2, 20, 5) },
+            { id: 'b3', title: 'Old Notes on Tickets', workspace: 'website', programs: ['Codex'], messages: 204, deleted: ago(27, 20, 8), note: 'Codex has no way to delete its own copy, so that copy stays when this chat is deleted for good.' }
+          ]
+        };
+      }
+      var data, selected, sort = { key: 'last', dir: 'ascending' };
+      var $ = function (id) { return document.getElementById(id); };
+      function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+      var dateFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      var timeFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+      var numberFormat = new Intl.NumberFormat();
+      function dayOf(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+      function daysBetween(from, to) { return Math.round((dayOf(to) - dayOf(from)) / DAY); }
+      function daysAgo(t) { var days = daysBetween(t, NOW); return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days + ' days ago'; }
+      function when(t) { var cell = el('td', 'cleanup-when'); cell.append(document.createTextNode(dateFormat.format(t) + ', ' + timeFormat.format(t)), el('small', '', daysAgo(t))); return cell; }
+      function stateBadge(state) {
+        var badge = el('span', 'badge' + (state === 'Working' ? ' accent' : '')), glyph = el('span', 'glyph');
+        glyph.style.setProperty('--glyph', 'var(--glyph-' + (state === 'Working' ? 'working' : state === 'Closed' ? 'minus' : 'square') + ')'); glyph.setAttribute('aria-hidden', 'true');
+        badge.append(glyph, document.createTextNode(' ' + state)); return badge;
+      }
+      function shown(chat) {
+        var words = $('find').value.trim().toLowerCase(), age = Number($('f-age').value || 0);
+        return (!words || chat.title.toLowerCase().indexOf(words) >= 0) && (!$('f-workspace').value || chat.workspace === $('f-workspace').value) &&
+          (!$('f-program').value || chat.programs.indexOf($('f-program').value) >= 0) && (!age || chat.last < NOW - age * DAY) &&
+          ($('f-closed').getAttribute('aria-checked') !== 'true' || chat.state === 'Closed');
+      }
+      function sorted(list) {
+        var key = sort.key, sign = sort.dir === 'ascending' ? 1 : -1;
+        return list.slice().sort(function (a, b) {
+          var x = key === 'programs' ? a.programs.join(', ') : a[key], y = key === 'programs' ? b.programs.join(', ') : b[key];
+          return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { sensitivity: 'base' })) * sign || a.title.localeCompare(b.title);
+        });
+      }
+      function choices(select, values) {
+        var keep = select.value; while (select.options.length > 1) select.remove(1);
+        Array.from(new Set(values)).sort().forEach(function (v) { var o = el('option', '', v); o.value = v; select.append(o); });
+        select.value = Array.from(select.options).some(function (o) { return o.value === keep; }) ? keep : '';
+      }
+      function drawChats() {
+        var body = $('rows-chats'), list = sorted(data.chats.filter(shown)); body.replaceChildren();
+        selected.forEach(function (id) { if (!list.some(function (c) { return c.id === id; })) selected.delete(id); });
+        list.forEach(function (chat) {
+          var row = el('tr'), check = el('td', 'data-table-check'), box = el('input'); box.type = 'checkbox'; box.setAttribute('aria-label', 'Select ' + chat.title);
+          box.checked = selected.has(chat.id); box.disabled = !!chat.refusal;
+          box.addEventListener('change', function () { if (box.checked) selected.add(chat.id); else selected.delete(chat.id); controls(); });
+          check.append(box);
+          var name = el('td', 'cleanup-chat'); name.append(el('span', 'cleanup-title', chat.title));
+          if (chat.refusal) { var reason = el('span', 'cleanup-reason'), glyph = el('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-warning)'); glyph.setAttribute('aria-hidden', 'true'); reason.append(glyph, el('span', '', chat.refusal)); name.append(reason); }
+          var messages = el('td', 'num', numberFormat.format(chat.messages)), state = el('td'); state.append(stateBadge(chat.state));
+          row.append(check, name, el('td', '', chat.workspace), el('td', '', chat.programs.join(', ')), when(chat.last), messages, state);
+          body.append(row);
+        });
+        if (!list.length) {
+          var empty = el('tr', 'data-table-empty'), cell = el('td', '', data.chats.length ? 'No chat matches. Change what is shown above.' : 'There are no chats.'); cell.colSpan = 7; empty.append(cell); body.append(empty);
+        }
+        document.querySelectorAll('#panel-chats th[data-sort]').forEach(function (th) { th.setAttribute('aria-sort', th.dataset.sort === sort.key ? sort.dir : 'none'); });
+        $('foot-chats').textContent = (list.length === data.chats.length ? data.chats.length + ' chats.' : list.length + ' of ' + data.chats.length + ' chats shown.') + ' A deleted chat goes to the Recycle Bin and can be restored for 30 days.';
+        $('count-chats').textContent = data.chats.length;
+        controls();
+      }
+      function controls() {
+        var boxes = Array.from(document.querySelectorAll('#rows-chats input[type=checkbox]')).filter(function (b) { return !b.disabled; });
+        var n = selected.size;
+        $('selected').textContent = n ? n + ' selected' : 'None selected';
+        $('delete-words').textContent = n === 1 ? 'Delete 1 Chat…' : n ? 'Delete ' + n + ' Chats…' : 'Delete Chats…';
+        $('delete').disabled = !n; $('clear').disabled = !n;
+        var all = $('check-all'); all.disabled = !boxes.length; all.checked = !!boxes.length && boxes.every(function (b) { return b.checked; }); all.indeterminate = !all.checked && boxes.some(function (b) { return b.checked; });
+      }
+      function drawBin() {
+        var body = $('rows-bin'); body.replaceChildren();
+        data.bin.slice().sort(function (a, b) { return a.deleted - b.deleted; }).forEach(function (chat) {
+          var row = el('tr'), name = el('td', 'cleanup-chat'); name.append(el('span', 'cleanup-title', chat.title));
+          if (chat.note) { var reason = el('span', 'cleanup-reason'), glyph = el('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-info)'); glyph.setAttribute('aria-hidden', 'true'); reason.append(glyph, el('span', '', chat.note)); name.append(reason); }
+          var expires = chat.deleted + 30 * DAY, left = Math.max(0, daysBetween(NOW, expires));
+          var until = el('td', 'cleanup-when'); until.append(document.createTextNode(dateFormat.format(expires)), el('small', '', left === 1 ? 'In 1 day' : 'In ' + left + ' days'));
+          var actions = el('td'), wrap = el('div', 'cleanup-row-actions');
+          var restore = el('button', 'btn btn-sm', 'Restore'); restore.type = 'button'; restore.setAttribute('aria-label', 'Restore ' + chat.title);
+          restore.addEventListener('click', function () { data.bin = data.bin.filter(function (c) { return c !== chat; }); data.chats.push({ id: chat.id, title: chat.title, workspace: chat.workspace, programs: chat.programs, last: chat.last || chat.deleted, messages: chat.messages, state: 'Closed' }); draw(); say('foot-bin', '"' + chat.title + '" was restored as a closed chat.'); });
+          var erase = el('button', 'btn btn-sm', 'Delete Now…'); erase.type = 'button'; erase.setAttribute('aria-label', 'Delete ' + chat.title + ' now');
+          erase.addEventListener('click', function () { confirm('Delete This Chat for Good?', 'This deletes the chat from this application now. Each agent program is asked to delete its own copy, where it has a way to. It cannot be undone.', [chat.title], 'Delete for Good', true, function () { data.bin = data.bin.filter(function (c) { return c !== chat; }); draw(); say('foot-bin', '"' + chat.title + '" was deleted for good.'); }); });
+          wrap.append(restore, erase); actions.append(wrap);
+          row.append(name, el('td', '', chat.workspace), el('td', '', chat.programs.join(', ')), el('td', 'num', numberFormat.format(chat.messages)), when(chat.deleted), until, actions);
+          body.append(row);
+        });
+        if (!data.bin.length) { var empty = el('tr', 'data-table-empty'), cell = el('td', '', 'The Recycle Bin is empty.'); cell.colSpan = 7; empty.append(cell); body.append(empty); }
+        $('count-bin').textContent = data.bin.length; $('empty-bin').disabled = !data.bin.length;
+        $('foot-bin').textContent = data.bin.length === 1 ? '1 deleted chat.' : data.bin.length + ' deleted chats.';
+      }
+      function say(id, words) { var foot = $(id); foot.textContent = words; foot.dataset.tone = 'positive'; }
+      function draw() { choices($('f-workspace'), data.chats.map(function (c) { return c.workspace; })); choices($('f-program'), data.chats.flatMap(function (c) { return c.programs; })); drawChats(); drawBin(); delete $('foot-chats').dataset.tone; delete $('foot-bin').dataset.tone; }
+      function confirm(title, body, names, accept, danger, action) {
+        $('confirm-title').textContent = title; $('confirm-body').textContent = body;
+        $('confirm-list').replaceChildren.apply($('confirm-list'), names.map(function (name) { return el('li', '', name); }));
+        var button = $('confirm-accept'); button.textContent = accept; button.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+        button.onclick = function () { $('confirm').close(); action(); };
+        $('confirm').showModal(); $('confirm-cancel').focus();
+      }
+      $('confirm-cancel').addEventListener('click', function () { $('confirm').close(); });
+      ['find', 'f-workspace', 'f-program', 'f-age'].forEach(function (id) { $(id).addEventListener('input', drawChats); });
+      $('f-closed').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); drawChats(); });
+      $('check-all').addEventListener('change', function () { var on = this.checked; data.chats.filter(shown).forEach(function (c) { if (c.refusal) return; if (on) selected.add(c.id); else selected.delete(c.id); }); drawChats(); });
+      $('clear').addEventListener('click', function () { selected.clear(); drawChats(); });
+      $('refresh').addEventListener('click', function () { drawChats(); say('foot-chats', 'The chats were read again.'); });
+      document.querySelectorAll('#panel-chats th[data-sort] > button').forEach(function (button) {
+        button.addEventListener('click', function () { var key = button.parentNode.dataset.sort; sort = { key: key, dir: sort.key === key && sort.dir === 'ascending' ? 'descending' : 'ascending' }; drawChats(); });
+      });
+      $('delete').addEventListener('click', function () {
+        var chosen = data.chats.filter(function (c) { return selected.has(c.id); });
+        confirm(chosen.length === 1 ? 'Delete 1 Chat?' : 'Delete ' + chosen.length + ' Chats?', 'These chats go to the Recycle Bin now and can be restored for 30 days. They receive no further messages. The agent programs\' own copies are left alone until a chat is deleted for good.', chosen.map(function (c) { return c.title; }), 'Delete', false, function () {
+          chosen.forEach(function (c) { data.chats = data.chats.filter(function (x) { return x !== c; }); data.bin.push({ id: c.id, title: c.title, workspace: c.workspace, programs: c.programs, messages: c.messages, deleted: NOW, last: c.last }); });
+          selected.clear(); draw();
+          var foot = $('foot-chats'); say('foot-chats', (chosen.length === 1 ? '1 chat was' : chosen.length + ' chats were') + ' moved to the Recycle Bin.');
+          var show = el('button', 'btn btn-sm', 'Show Recycle Bin'); show.type = 'button'; show.addEventListener('click', function () { $('tab-bin').click(); }); foot.parentNode.querySelectorAll('.btn').forEach(function (b) { b.remove(); }); foot.after(show);
+        });
+      });
+      $('empty-bin').addEventListener('click', function () {
+        confirm('Empty the Recycle Bin?', 'This deletes every chat in the Recycle Bin from this application now. Each agent program is asked to delete its own copy, where it has a way to. It cannot be undone.', data.bin.map(function (c) { return c.title; }), 'Delete All for Good', true, function () { data.bin = []; draw(); say('foot-bin', 'The Recycle Bin was emptied.'); });
+      });
+      $('mock-theme').addEventListener('click', function () { var dark = document.documentElement.dataset.theme !== 'dark'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Light Theme' : 'Dark Theme'; });
+      function start() { data = sample(); selected = new Set(); sort = { key: 'last', dir: 'ascending' }; ['find', 'f-age'].forEach(function (id) { $(id).value = ''; }); $('f-closed').setAttribute('aria-checked', 'false'); document.querySelectorAll('.cleanup-foot .btn').forEach(function (b) { b.remove(); }); draw(); }
+      $('mock-reset').addEventListener('click', start);
+      start();
+    })();
+  </script>
+</body>
+</html>
