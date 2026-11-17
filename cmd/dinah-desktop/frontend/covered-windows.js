@@ -162,8 +162,16 @@
   function start() {
     layer = document.querySelector('[data-win-layer]');
     if (!layer || !window.CSS || !CSS.supports('content-visibility', 'hidden')) { layer = null; return; }
+    /* A window's attributes that say what its chat is doing change with
+       every turn and move nothing, so they are passed over. They are named
+       here one by one: an attribute this list does not know is taken to
+       move the window, which costs a look and can never leave a window
+       wrongly undrawn. */
+    var still = new Set([MARK, 'data-win-state', 'data-win-state-label', 'data-win-state-detail', 'data-win-lifecycle', 'data-win-running',
+      'data-win-attention', 'data-win-progress', 'data-win-detail', 'data-win-glyph', 'data-win-icon', 'data-chat-current',
+      'data-dinah-title', 'data-dinah-title-detail', 'aria-label', 'title']);
     attributes = new MutationObserver(function (records) {
-      if (records.some(function (r) { return r.attributeName !== MARK; })) soon();
+      if (records.some(function (r) { return !still.has(r.attributeName); })) soon();
     });
     children = new MutationObserver(soon);
     children.observe(layer, { childList: true });

@@ -122,7 +122,8 @@ const { launch } = require('./lib/page');
 
     // The Glass skin leaves a window's frame clear, so only its content area covers.
     const glass = async on => {
-      await p.evaluate(on => { if (on) document.documentElement.dataset.skin = 'glass'; else delete document.documentElement.dataset.skin; }, on);
+      // The skin is chosen through the library's own setter. Written by hand, the mark is sometimes written back by the library.
+      await p.evaluate(on => window.pudlSkins.select(on ? 'glass' : 'standard'), on);
       await p.waitForFunction(([k, on]) => (getComputedStyle(document.querySelector('[data-win="' + k + '"]')).backgroundColor === 'rgba(0, 0, 0, 0)') === on, [over, on]);
       await frames();
     };
