@@ -11,11 +11,18 @@ import (
 // delivery to the lead fails, when the lead's turn on it ends in an error, or when the lead cannot
 // run. The window observes each where it happens and marks the relay failed with the reason, and
 // then tells the person directly (teams.md, Paul's answers).
+//
+// A relay is handled once the lead's turn on it has ended without an error: the lead has had the
+// message and has done with it what it judged right, which may be to pass it on over the bus, to
+// answer the person in its own chat, or to do nothing. Until 17 November 2026 a relay stayed
+// pending for good, and its member counted as waiting until its lead next sent a message on the
+// bus, so a member whose lead answered the person in its own chat waited for ever.
 
 // Relay states.
 const (
 	RelayPending = "pending"
 	RelayFailed  = "failed"
+	RelayHandled = "handled"
 )
 
 // Relay is the record of a rerouted message.
@@ -114,6 +121,64 @@ func (b *Bus) FailRelaysIn(ctx context.Context, lead string, messages []int64, r
 		return nil
 	})
 	return failed, err
+}
+
+// RelaysHandledIn marks handled the pending relays among the messages a lead's turn was given, for a turn that
+// ended without an error. It returns their message numbers.
+func (b *Bus) RelaysHandledIn(ctx context.Context, lead string, messages []int64) ([]int64, error) {
+	var handled []int64
+	err := b.tx(ctx, func(t *sql.Tx) error {
+		for _, id := range messages {
+			res, err := t.Exec(`UPDATE relays SET state = 'handled' WHERE message_id = ? AND lead = ? AND state = 'pending'`, id, lead)
+			if err != nil {
+				return err
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				handled = append(handled, id)
+			}
+		}
+		return nil
+	})
+	return handled, err
+}
+
+// HandleTakenRelays marks handled the pending relays whose delivery the lead has taken, but for the ones
+// given: the relays of turns still running, which end by themselves. A window calls it once as it starts,
+// when a relay taken before it started belongs to a turn that is over. It returns their message numbers.
+func (b *Bus) HandleTakenRelays(ctx context.Context, running []int64) ([]int64, error) {
+	skip := map[int64]bool{}
+	for _, id := range running {
+		skip[id] = true
+	}
+	var handled []int64
+	err := b.tx(ctx, func(t *sql.Tx) error {
+		rows, err := t.Query(`SELECT r.message_id FROM relays r WHERE r.state = 'pending' AND EXISTS
+			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NOT NULL)`)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			if !skip[id] {
+				handled = append(handled, id)
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, id := range handled {
+			if _, err := t.Exec(`UPDATE relays SET state = 'handled' WHERE message_id = ? AND state = 'pending'`, id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return handled, err
 }
 
 // UnreportedFailures are the failed relays the person has not been told of, with their messages.

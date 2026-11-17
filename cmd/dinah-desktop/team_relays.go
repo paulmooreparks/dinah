@@ -41,16 +41,20 @@ func (a *App) noteRelayTurnStart(s *Session, p *prompt) {
 	relayTurns.byChat[s.ID()] = ids
 }
 
-// relayTurnEnded fails the relays a chat's turn was given when the turn ended in an error.
+// relayTurnEnded settles the relays a chat's turn was given. A turn that ended in an error fails them, and the
+// person is told. A turn that ended well has handled them: the lead has had each message and done with it what
+// it judged right, so its member no longer waits for it, whether or not the lead sent anything on the bus.
 func (a *App) relayTurnEnded(s *Session, err error) {
 	noteTurnResult(s.ID(), err)
 	a.recordTurnUsage(s)
-	a.teamsChanged()
+	// The strips and the chats' own states are worked out again once the relays are settled, since a member's
+	// state says whether it still waits for its lead.
+	defer func() { a.teamsChanged(); a.chatStatesChanged() }()
 	relayTurns.Lock()
 	ids := relayTurns.byChat[s.ID()]
 	delete(relayTurns.byChat, s.ID())
 	relayTurns.Unlock()
-	if err == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return
 	}
 	if !a.teamsOpen() {
@@ -58,6 +62,13 @@ func (a *App) relayTurnEnded(s *Session, err error) {
 	}
 	busID := a.knownBusID(s.ID())
 	if busID == "" {
+		return
+	}
+	if err == nil {
+		_ = a.withTeamBus(func(b *bus.Bus) error {
+			_, herr := b.RelaysHandledIn(context.Background(), busID, ids)
+			return herr
+		})
 		return
 	}
 	reason := fmt.Sprintf("%s's turn on it ended in an error: %v", a.relayLeadName(s.ID()), err)
@@ -127,6 +138,24 @@ func (a *App) leadCannotRun(b *bus.Bus, ctx context.Context, chat string, m bus.
 // checkRelays marks failed the relays whose lead cannot run, and tells the person of every failed relay once. It
 // runs with each pass over the bus, beside the mentions of the person.
 func (a *App) checkRelays(ctx context.Context, b *bus.Bus) {
+	// A relay its lead took before this window started belongs to a turn that is over, and no turn of this
+	// window will end it; left pending, its member counted as waiting for its lead until the lead next sent
+	// a message. The relays of the turns running now end with those turns.
+	a.relaySweep.Do(func() {
+		relayTurns.Lock()
+		var running []int64
+		for _, ids := range relayTurns.byChat {
+			running = append(running, ids...)
+		}
+		relayTurns.Unlock()
+		if handled, err := b.HandleTakenRelays(ctx, running); err != nil {
+			logf("bus", "error", "settling the relays taken before this window started: %v", err)
+		} else if len(handled) > 0 {
+			logf("bus", "info", "%d relays their leads took before this window started are settled", len(handled))
+			a.teamsChanged()
+			a.chatStatesChanged()
+		}
+	})
 	pending, err := b.PendingRelays(ctx)
 	if err != nil {
 		logf("bus", "error", "looking for relays that wait for their lead: %v", err)
