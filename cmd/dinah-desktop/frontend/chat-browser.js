@@ -430,8 +430,20 @@
         row._chatRowSignature = rowSignature;
       });
       var sections = [], flat = [], active = document.activeElement;
-      var scrolls = [], ancestor = host;
-      while (ancestor) { scrolls.push([ancestor, ancestor.scrollTop, ancestor.scrollLeft]); ancestor = ancestor.parentElement; }
+      /* The scroll positions around the list are kept across a rearrangement
+         and put back after it. Reading them makes the browser lay the page
+         out, so they are read only when rows are about to move: most draws
+         change a row's words or nothing, and each used to lay the whole page
+         out, twice for every change of a chat's state, once for each list
+         (17 November 2026, docs/design/scaling.md). */
+      var scrolls = null;
+      function place(container, elements) {
+        var same = container.childElementCount === elements.length, child = container.firstElementChild;
+        for (var i = 0; same && i < elements.length; i++, child = child.nextElementSibling) same = child === elements[i];
+        if (same) return;
+        if (!scrolls) { scrolls = []; for (var ancestor = host; ancestor; ancestor = ancestor.parentElement) scrolls.push([ancestor, ancestor.scrollTop, ancestor.scrollLeft]); }
+        arrange(container, elements);
+      }
       ['Needs You', 'Working', 'Chats'].forEach(function (name) {
         var wanted = groups[name] || [];
         var section = Array.from(host.children).find(function (el) { return el.dataset.section === prefix + 'chats-' + name; });
@@ -445,13 +457,13 @@
         }
         if (!section.classList.contains('session-browser-group')) section.classList.add('session-browser-group');
         groupCount(section, wanted.filter(function (row) { return !row.classList.contains('browser-row-part'); }).length);
-        arrange(section.querySelector('.browser-group-body'), wanted); sections.push(section);
+        place(section.querySelector('.browser-group-body'), wanted); sections.push(section);
       });
       view.pending = hold;
       if (!hold) {
-        arrange(host, prefix === 'workspace-' ? flat : sections);
+        place(host, prefix === 'workspace-' ? flat : sections);
         if (host.contains(active) && document.activeElement !== active) active.focus({ preventScroll: true });
-        scrolls.forEach(function (saved) { saved[0].scrollTop = saved[1]; saved[0].scrollLeft = saved[2]; });
+        if (scrolls) scrolls.forEach(function (saved) { saved[0].scrollTop = saved[1]; saved[0].scrollLeft = saved[2]; });
       }
       if (prefix === 'workspace-') {
         var workspaceGroup = host.closest('.browser-group');

@@ -435,19 +435,24 @@
     function drawAgentState() {
       var id = frontProvider(), name = providerName(id), st = providerStates[id] || { state: 'stopped', detail: name + ' is not started' };
       var b = $('status-agent-badge'), v = BADGE[st.state] || ['', st.state];
-      b.className = 'badge ' + v[0]; b.textContent = v[1];
-      $('status-agent').querySelector('.status-words').textContent = name;
-      $('status-agent').dataset.statusState = st.state === 'failed' ? 'stuck' : st.state === 'starting' ? 'working' : 'idle';
-      $('status-agent').dataset.statusText = v[1];
-      $('status-agent').dataset.statusGlyph = st.state === 'failed' ? 'warning' : st.state === 'starting' ? 'chat-working' : st.state === 'ready' ? 'tick' : 'ring';
-      $('status-agent').dataset.statusColour = st.state === 'failed' ? 'danger' : st.state === 'starting' ? 'accent' : st.state === 'ready' ? 'positive' : 'text-muted';
-      $('status-agent').title = name + ': ' + st.detail;
-      $('status-agent').setAttribute('aria-label', name + ': ' + st.detail);
-      $('agent-state').textContent = st.detail + '.';
-      $('agent-menu').setAttribute('aria-label', name);
-      $('agent-menu').querySelector('[data-cmd="sign-in"] .md-meta').textContent = 'Opens ' + name + '\'s sign-in page in your browser';
-      document.querySelectorAll('[data-cmd="restart"]').forEach(function (b) { (b.querySelector('span') || b).textContent = 'Restart ' + name; });
-      document.querySelectorAll('[data-cmd="sign-in"]').forEach(function (b) { (b.querySelector('span') || b).textContent = 'Sign In to ' + name + '…'; });
+      /* This runs for every change of any chat's state. Each mark is written
+         only when it changes, and the controls it words are taken from the
+         commands' own list rather than looked for across the page
+         (17 November 2026, docs/design/scaling.md). */
+      var put = window.dinahHelpers.setAttr, words = window.dinahHelpers.setText, item = $('status-agent');
+      put(b, 'class', 'badge ' + v[0]); words(b, v[1]);
+      words(item.querySelector('.status-words'), name);
+      put(item, 'data-status-state', st.state === 'failed' ? 'stuck' : st.state === 'starting' ? 'working' : 'idle');
+      put(item, 'data-status-text', v[1]);
+      put(item, 'data-status-glyph', st.state === 'failed' ? 'warning' : st.state === 'starting' ? 'chat-working' : st.state === 'ready' ? 'tick' : 'ring');
+      put(item, 'data-status-colour', st.state === 'failed' ? 'danger' : st.state === 'starting' ? 'accent' : st.state === 'ready' ? 'positive' : 'text-muted');
+      put(item, 'title', name + ': ' + st.detail);
+      put(item, 'aria-label', name + ': ' + st.detail);
+      words($('agent-state'), st.detail + '.');
+      put($('agent-menu'), 'aria-label', name);
+      words($('agent-menu').querySelector('[data-cmd="sign-in"] .md-meta'), 'Opens ' + name + '\'s sign-in page in your browser');
+      window.dinahCommands.controlsFor('restart').forEach(function (b) { words(b.querySelector('span') || b, 'Restart ' + name); });
+      window.dinahCommands.controlsFor('sign-in').forEach(function (b) { words(b.querySelector('span') || b, 'Sign In to ' + name + '…'); });
     }
     function restartAgent() {
       if (restarting) return;
@@ -1845,6 +1850,8 @@
       var m = s && s.lastYou;
       // A row not laid out, in a log still being drawn behind its saved
       // copy, has no place on the screen and has not scrolled anywhere.
+      // A covered window is not laid out, and measuring in it would lay it out; the pin is looked at again when the window shows.
+      if (window.dinahCovered && window.dinahCovered.is(pin)) return;
       if (!m || !m.li.isConnected || s.loading || !m.li.getClientRects().length) { pin.hidden = true; return; }
       var body = $('activity'), top = body.getBoundingClientRect().top;
       var gone = m.li.getBoundingClientRect().bottom < top + 4;
@@ -3973,7 +3980,8 @@
       return controller;
     }
     function markCurrentChat() {
-      document.querySelectorAll('.win[data-win-kind="chat"], .win[data-win-kind="chat-session"]').forEach(function (win) {
+      window.dinahHelpers.windows().forEach(function (win) {
+        if (win.dataset.winKind !== 'chat' && win.dataset.winKind !== 'chat-session') return;
         var item = window.dinahWorkbench.item(win.dataset.win);
         win.toggleAttribute('data-chat-current', active ? !!item && item.path === active : win.dataset.win === 'chat');
       });

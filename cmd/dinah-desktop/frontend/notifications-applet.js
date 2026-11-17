@@ -65,6 +65,8 @@
     }
     // Historical notification tone stays separate from the chat's current state.
     function refreshLiveStates(event) {
+      // Most changes of a chat's state concern no notice, and then the page is not searched for one.
+      if (event.detail.id && !notices.list(function (entry) { return entry.target && entry.target.chat === event.detail.id; }).length) return;
       document.querySelectorAll('[data-notice-id]').forEach(function (element) {
         var entry = notices.get(element.dataset.noticeId);
         if (!entry || !entry.target || event.detail.id && entry.target.chat !== event.detail.id) return;
@@ -126,37 +128,44 @@
     function drawNoticeCounts() {
       noticeCountsQueued = false;
       var n = notices.count().needsPerson, clearable = notices.list(function (e) { return e.clearable; }).length > 0;
-      $('needs-clear').disabled = !clearable;
+      /* Each mark below is written only when it changes, and the windows are
+         taken from the window layer rather than looked for across the page:
+         this runs whenever a notification changes, and a write of a value
+         already there still costs a restyle (17 November 2026,
+         docs/design/scaling.md). */
+      var put = window.dinahHelpers.setAttr;
+      if ($('needs-clear').disabled !== !clearable) $('needs-clear').disabled = !clearable;
       window.dinahCommands.changed();
-      var win = document.querySelector('[data-win="needs-you"]');
-      if (win) win.dataset.winAttention = String(n);
+      var win = window.dinahHelpers.windowOf('needs-you');
+      if (win) put(win, 'data-win-attention', n);
       var st = $('status-needs'), b = st.querySelector('.badge');
       var errors = notices.list(function (entry) { return entry.needsPerson && entry.type === 'error'; }).length;
-      st.dataset.statusState = errors ? 'stuck' : n ? 'waiting' : 'idle';
+      put(st, 'data-status-state', errors ? 'stuck' : n ? 'waiting' : 'idle');
       // An error waiting is stuck, which the warning badge does not say, so
       // the item gives PUDL's folded Status item that tone (0.97.2).
-      if (errors) st.setAttribute('data-status-tone', 'stuck'); else st.removeAttribute('data-status-tone');
-      st.dataset.statusText = n ? 'Needs you' : 'Nothing waiting';
-      st.dataset.statusGlyph = errors ? 'stop' : n ? 'comments' : 'ring';
-      st.dataset.statusColour = errors ? 'danger' : n ? 'warn' : 'text-muted';
-      st.dataset.statusCount = n;
+      put(st, 'data-status-tone', errors ? 'stuck' : null);
+      put(st, 'data-status-text', n ? 'Needs you' : 'Nothing waiting');
+      put(st, 'data-status-glyph', errors ? 'stop' : n ? 'comments' : 'ring');
+      put(st, 'data-status-colour', errors ? 'danger' : n ? 'warn' : 'text-muted');
+      put(st, 'data-status-count', n);
       /* Once the stored notifications are read, none waiting shows as a
          neutral 0; before then the badge stays empty, never a false 0. A
          count above 0 keeps its warning badge. */
-      if (noticesKnown) st.dataset.statusCountKnown = ''; else delete st.dataset.statusCountKnown;
-      b.hidden = n === 0 && !noticesKnown;
+      put(st, 'data-status-count-known', noticesKnown ? '' : null);
+      if (b.hidden !== (n === 0 && !noticesKnown)) b.hidden = n === 0 && !noticesKnown;
       // A count not read yet is pending, so PUDL's folded Status total waits
       // for it (0.97.1).
-      b.toggleAttribute('data-status-pending', !noticesKnown);
-      b.classList.toggle('warn', n > 0);
-      b.textContent = n ? (n > 99 ? '99+' : String(n)) : noticesKnown ? '0' : '';
-      if (n) st.removeAttribute('data-empty'); else st.setAttribute('data-empty', '');
+      put(b, 'data-status-pending', noticesKnown ? null : '');
+      if (b.classList.contains('warn') !== n > 0) b.classList.toggle('warn', n > 0);
+      window.dinahHelpers.setText(b, n ? (n > 99 ? '99+' : String(n)) : noticesKnown ? '0' : '');
+      put(st, 'data-empty', n ? null : '');
       var words = n ? n + ' unread' : 'none';
-      st.setAttribute('aria-label', 'Notifications: ' + words);
-      st.title = 'Notifications: ' + words;
-      document.querySelectorAll('.win[data-win-kind="chat-session"]').forEach(function (chat) {
+      put(st, 'aria-label', 'Notifications: ' + words);
+      put(st, 'title', 'Notifications: ' + words);
+      window.dinahHelpers.windows().forEach(function (chat) {
+        if (chat.dataset.winKind !== 'chat-session') return;
         var item = window.dinahWorkbench.item(chat.dataset.win);
-        chat.dataset.winAttention = String(item ? needsCount(item.path) : 0);
+        put(chat, 'data-win-attention', item ? needsCount(item.path) : 0);
       });
       drawSessions();
     }

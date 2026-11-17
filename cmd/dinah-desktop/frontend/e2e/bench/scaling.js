@@ -150,6 +150,8 @@ async function run(count, last) {
       'typing': { per: 40, run: async () => { await p.evaluate(() => document.querySelector('.win.active [data-view-id="prompt"]').focus()); for (const key of 'The quick brown fox jumps over the lazy d') { await p.keyboard.press(key === ' ' ? 'Space' : key); } } },
       // The person scrolls the transcript in front: twenty wheel steps up, then back to the end.
       'scroll-transcript': { per: 40, run: async () => { const box = await p.evaluate(() => { const r = document.querySelector('.win.active [data-view-id="activity"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); await p.mouse.move(box[0], box[1]); for (let i = 0; i < 20; i++) { await p.mouse.wheel(0, -120); await p.evaluate(() => new Promise(r => requestAnimationFrame(r))); } for (let i = 0; i < 20; i++) { await p.mouse.wheel(0, 240); await p.evaluate(() => new Promise(r => requestAnimationFrame(r))); } await p.waitForTimeout(400); } },
+      // One more chat is opened, with its history replayed, and the page is left to settle.
+      'open-chat': { per: 1, run: async () => { await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'codex:extra' })); await p.waitForFunction(n => { const w = document.querySelector('.win.active'); return w && w.querySelectorAll('.msg-text').length >= n; }, MESSAGES); await p.waitForTimeout(600); } },
       // A team's state event, which names no chat.
       'team-state': { per: 10, run: () => p.evaluate(async () => { for (let i = 0; i < 10; i++) { document.dispatchEvent(new Event('dinah:team-state')); await new Promise(r => requestAnimationFrame(r)); } }) },
       // The bus says its overview changed.
@@ -199,6 +201,23 @@ async function run(count, last) {
         profile.samples.forEach((id, i) => { const n = byId.get(id), f = n.callFrame, file = (f.url || '').split('/').pop().split('?')[0] || '(native)', key = (f.functionName || '(anonymous)') + ' ' + file + ':' + (f.lineNumber + 1), d = (profile.timeDeltas[i] || 0) / 1000; self[key] = (self[key] || 0) + d; files[file] = (files[file] || 0) + d; });
         console.log('PROFILE ' + name + ' at ' + count + ' chats: self ms by function');
         for (const [k, v] of Object.entries(self).filter(e => !/^\((idle|program)\)/.test(e[0])).sort((a, b) => b[1] - a[1]).slice(0, 22)) console.log('  ' + v.toFixed(1).padStart(9) + '  ' + k);
+        // The browser's own functions (querySelector, layout reads) charged to the page function that called them.
+        const parent = new Map(); profile.nodes.forEach(n => (n.children || []).forEach(c => parent.set(c, n.id)));
+        const owner = id => { let n = byId.get(id); while (n && !n.callFrame.url && parent.has(n.id)) n = byId.get(parent.get(n.id)); return n; };
+        const charged = {};
+        profile.samples.forEach((id, i) => { const n = byId.get(id); if (n.callFrame.url) return; const o = owner(id); if (!o || !o.callFrame.url) return; const f = o.callFrame, key = n.callFrame.functionName + ' <- ' + (f.functionName || '(anonymous)') + ' ' + f.url.split('/').pop().split('?')[0] + ':' + (f.lineNumber + 1); charged[key] = (charged[key] || 0) + (profile.timeDeltas[i] || 0) / 1000; });
+        console.log('  browser functions by caller:');
+        for (const [k, v] of Object.entries(charged).sort((a, b) => b[1] - a[1]).slice(0, 16)) console.log('  ' + v.toFixed(1).padStart(9) + '  ' + k);
+        // Time spent inside the vendored library, charged to the application function that called into it.
+        const lib = n => n.callFrame.url.includes('/pudl/');
+        const entered = {};
+        profile.samples.forEach((id, i) => {
+          let n = byId.get(id), inLib = false, top = null;
+          for (let at = n; at; at = parent.has(at.id) ? byId.get(parent.get(at.id)) : null) { if (!at.callFrame.url) continue; if (lib(at)) { inLib = true; top = at; continue; } if (inLib) { const f = at.callFrame, key = (top.callFrame.functionName || '(anonymous)') + ' ' + top.callFrame.url.split('/').pop() + ':' + (top.callFrame.lineNumber + 1) + ' <- ' + (f.functionName || '(anonymous)') + ' ' + f.url.split('/').pop().split('?')[0] + ':' + (f.lineNumber + 1); entered[key] = (entered[key] || 0) + (profile.timeDeltas[i] || 0) / 1000; } return; }
+          if (inLib && top) { const key = (top.callFrame.functionName || '(anonymous)') + ' ' + top.callFrame.url.split('/').pop() + ':' + (top.callFrame.lineNumber + 1) + ' <- (the library itself: an event, a timer or an observer)'; entered[key] = (entered[key] || 0) + (profile.timeDeltas[i] || 0) / 1000; }
+        });
+        console.log('  time inside the vendored library, by how it was entered:');
+        for (const [k, v] of Object.entries(entered).sort((a, b) => b[1] - a[1]).slice(0, 14)) console.log('  ' + v.toFixed(1).padStart(9) + '  ' + k);
         console.log('  by file: ' + Object.entries(files).sort((a, b) => b[1] - a[1]).slice(0, 12).map(e => e[0] + ' ' + e[1].toFixed(0)).join(', '));
       }
       const calls = await p.evaluate(n => { const out = {}; __bridgeCalls.slice(n).forEach(c => { out[c[0]] = (out[c[0]] || 0) + 1; }); return out; }, callsBefore);

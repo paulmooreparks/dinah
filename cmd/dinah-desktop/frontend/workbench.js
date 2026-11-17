@@ -52,7 +52,7 @@
     var mode = dinahUIState.windowMode(item ? item.kind : event.detail.key);
     var template = document.getElementById('win-source-' + event.detail.key);
     if (template) template.content.querySelector('[data-win]').dataset.winMode = mode;
-    var win = document.querySelector('[data-win="' + CSS.escape(event.detail.key) + '"]');
+    var win = window.dinahHelpers.windowOf(event.detail.key);
     if (win) win.dataset.winMode = mode;
   }, true);
 
@@ -270,7 +270,7 @@
     if (!window.pudlWindows || window.pudlWindows.retitle.__dinahGuarded) return;
     var pudlRetitle = window.pudlWindows.retitle;
     window.pudlWindows.retitle = function (key, title, detail) {
-      var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), t = win && win.querySelector('.win-title');
+      var win = window.dinahHelpers.windowOf(key), t = win && win.querySelector('.win-title');
       /* A document window's title is Dinah's (content-windows.js): the
          document's name and its workspace. The content applets' tab strip
          retitles the window itself, with a mark for unsaved typing and the
@@ -309,7 +309,7 @@
     }
   });
   function retitle(key, title, detail) {
-    var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]');
+    var win = window.dinahHelpers.windowOf(key);
     if (!win) return;
     if (detail === undefined) detail = win.dataset.dinahTitleDetail || '';
     win.dataset.dinahTitle = title;
@@ -328,7 +328,7 @@
       if (!window.dinahUIState || !window.pudlWindows) return;
       var out = {};
       window.pudlWindows.state().open.forEach(function (key) {
-        var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), t = win && win.querySelector('.win-title');
+        var win = window.dinahHelpers.windowOf(key), t = win && win.querySelector('.win-title');
         if (t && t.textContent.trim()) out[key] = { title: win.dataset.dinahTitle || t.textContent.trim(), detail: win.dataset.dinahTitleDetail || '' };
       });
       try { window.dinahUIState.set(TITLES_KEY, out); } catch (err) { /* A view preference is optional. */ }
@@ -493,7 +493,7 @@
       if (provider === 'applets') { if (!cfg.singleton && !cfg.launcher) return null; }
       else if (!ref || ref.id !== id || ref.provider !== provider) return null;
       var kept = savedTitles()[id];
-      var live = document.querySelector('.win[data-win="' + CSS.escape(id) + '"]');
+      var live = window.dinahHelpers.windowOf(id);
       if (live && live.dataset.dinahTitle) kept = {title:live.dataset.dinahTitle,detail:live.dataset.dinahTitleDetail || ''};
       /* A pinned thing whose window is closed has no kept title, so its
          kind is asked for one before its placeholder is used: a pinned chat
@@ -507,7 +507,7 @@
     ready: async function (key) {
       if (typeof key !== 'string') throw new Error('The destination did not return an opened window');
       await pudlApplets.start(key);
-      var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+      var win = window.dinahHelpers.windowOf(key);
       if (!win || win.querySelector('[data-applet-state="error"]')) throw new Error('The applet did not initialize');
       var instance = instances.get(key);
       if (!instance) throw new Error('The applet is unavailable');
@@ -570,7 +570,7 @@
         dinahUIState.migratePrefix('dinah-scroll:' + oldKey + ':', 'dinah-scroll:' + key + ':');
         dinahUIState.migratePrefix('dinah-chart:' + oldKey + ':', 'dinah-chart:' + key + ':');
       }
-      var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+      var win = window.dinahHelpers.windowOf(key);
       win.dataset.winKind = item.kind;
     var pin = pinReference(item);
     if (pin) { win.dataset.winDestinationProvider = pin.provider; win.dataset.winDestination = pin.id; }
@@ -622,7 +622,7 @@
   function windowsOf(args) {
     if (!window.pudlWindows) return [];
     return window.pudlWindows.state().open.map(function (key) {
-      var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), root = win && win.querySelector('.dinah-applet');
+      var win = window.dinahHelpers.windowOf(key), root = win && win.querySelector('.dinah-applet');
       var item = null;
       try { item = root && JSON.parse(root.dataset.item); } catch (err) { item = null; }
       if (!item) return null;

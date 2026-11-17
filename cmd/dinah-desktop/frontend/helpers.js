@@ -216,5 +216,50 @@
      build's engine, reports the Enter that confirms, after compositionend. */
   function composing(e) { return !!e.isComposing || e.keyCode === 229; }
   window.dinahHost = { on, onResync, settled };
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing };
+  /* The element of the open window with this key. A window is a child of the
+     window layer, so it is looked for there, and the answer is remembered
+     for as long as that element is in the page under that key. Asking the
+     whole document for [data-win="key"] reads every element of every open
+     window, and the page asked many times for each change to a chat or a
+     window, once for each open window (17 November 2026,
+     docs/design/scaling.md). The element is remembered weakly, so a closed
+     window's content is not kept alive by it. */
+  let windowLayer = null;
+  const windowElements = new Map();
+  function windowOf(key) {
+    if (!key) return null;
+    const kept = windowElements.get(key), hit = kept && kept.deref();
+    if (hit && hit.isConnected && hit.getAttribute('data-win') === key) return hit;
+    windowElements.delete(key);
+    if (!windowLayer || !windowLayer.isConnected) windowLayer = document.querySelector('[data-win-layer]');
+    let found = null;
+    if (windowLayer) for (let el = windowLayer.firstElementChild; el; el = el.nextElementSibling) if (el.getAttribute('data-win') === key) { found = el; break; }
+    // A window that is not the layer's own child is still found, the long way.
+    if (!found) found = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+    if (found) windowElements.set(key, new WeakRef(found));
+    return found;
+  }
+  /* An attribute or an element's words written only when they change. A
+     write of the value already there still makes the browser look again at
+     the styles around the element, and a rule with :has() carries that
+     across a whole window. */
+  function setAttr(el, name, value) {
+    if (value == null) { if (el.hasAttribute(name)) el.removeAttribute(name); }
+    else if (el.getAttribute(name) !== String(value)) el.setAttribute(name, String(value));
+  }
+  function setText(el, text) { text = String(text); if (el.textContent !== text) el.textContent = text; }
+  /* The windows' arrangement as the window layer last announced it
+     (pudl:windows-change, which carries the state after every change). It is
+     for reading only. Asking the layer itself copies the whole arrangement
+     for each caller, and several asked on every event to learn one thing,
+     the window in front. Before the first announcement the layer is asked. */
+  let announced = null;
+  document.addEventListener('pudl:windows-change', function (event) { if (event.detail && event.detail.open) announced = event.detail; });
+  function windowState() { return announced || (window.pudlWindows ? window.pudlWindows.state() : null); }
+  // The open windows' elements, read from the window layer's own children.
+  function windows() {
+    if (!windowLayer || !windowLayer.isConnected) windowLayer = document.querySelector('[data-win-layer]');
+    return windowLayer ? Array.prototype.filter.call(windowLayer.children, function (el) { return el.hasAttribute('data-win'); }) : [];
+  }
+  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing, windowOf, windows, windowState, setAttr, setText };
 }());

@@ -34,7 +34,7 @@
     return owner ? owner.name : '';
   }
   function itemOfWindow(key) {
-    var root = key && document.querySelector('[data-win="' + CSS.escape(key) + '"] [data-item]');
+    var holder = key && window.dinahHelpers.windowOf(key), root = holder && holder.querySelector('[data-item]');
     try { return root ? JSON.parse(root.dataset.item) : null; } catch (e) { return null; }
   }
 

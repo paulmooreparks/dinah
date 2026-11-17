@@ -216,7 +216,7 @@
        which is the one a dialog is opened from. */
     var mount = request.host && request.host.closest ? request.host.closest('.content-applet') || (request.host.querySelector && request.host.querySelector('.content-applet')) : null;
     if (!mount && window.pudlWindows) {
-      var top = window.pudlWindows.state().top, front = top ? document.querySelector('[data-win="' + CSS.escape(top) + '"]') : null;
+      var top = window.pudlWindows.state().top, front = top ? window.dinahHelpers.windowOf(top) : null;
       mount = front ? front.querySelector('.content-applet') : null;
     }
     var folder = mount ? folders.get(String(mount.dataset.contentResource || '')) : '';

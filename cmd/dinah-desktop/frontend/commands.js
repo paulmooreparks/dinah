@@ -88,13 +88,41 @@
     return { label: label || value(entry.label), disabled: !available(entry),
       checked: value(entry.checked), run: () => run(id) };
   }
+  /* The controls that run a command (data-cmd) are found once and the list
+     is kept until one is added to the page or taken from it. Looking for
+     them read every element of every open window, and the look was made
+     several times for each change of a chat's state; with 32 chats open that
+     was a few milliseconds each time (17 November 2026,
+     docs/design/scaling.md). What was added or removed since the last look
+     is read from the page's own record of its changes, at once when the
+     controls are about to be drawn, so a control drawn in the same task is
+     never missed. */
+  let controls = null;
+  function holdsControl(node) { return node.nodeType === 1 && (node.hasAttribute('data-cmd') || !!node.querySelector('[data-cmd]')); }
+  function controlsChanged(records) {
+    if (!controls) return;
+    for (const record of records) {
+      if (record.type === 'attributes' || Array.prototype.some.call(record.addedNodes, holdsControl) || Array.prototype.some.call(record.removedNodes, holdsControl)) { controls = null; return; }
+    }
+  }
+  const controlChanges = new MutationObserver(controlsChanged);
+  controlChanges.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-cmd'] });
+  function commandControls() {
+    controlsChanged(controlChanges.takeRecords());
+    if (!controls) controls = Array.from(document.querySelectorAll('[data-cmd]'));
+    return controls;
+  }
+  // The controls that run one command, for a caller that words them itself.
+  function controlsFor(id) { return commandControls().filter(control => control.dataset.cmd === id); }
   function renderControls() {
-    document.querySelectorAll('[data-cmd]').forEach(control => {
+    commandControls().forEach(control => {
       const entry = resolve(control.dataset.cmd);
       if (!entry) return;
+      // Each is written only when it changes: a write of the same value still makes the browser restyle around it.
       const disabled = !available(entry);
-      if ('disabled' in control) control.disabled = disabled;
-      if (disabled) control.setAttribute('aria-disabled', 'true'); else control.removeAttribute('aria-disabled');
+      if ('disabled' in control && control.disabled !== disabled) control.disabled = disabled;
+      if (!disabled) { if (control.hasAttribute('aria-disabled')) control.removeAttribute('aria-disabled'); }
+      else if (control.getAttribute('aria-disabled') !== 'true') control.setAttribute('aria-disabled', 'true');
       const checked = value(entry.checked);
       if (typeof checked === 'boolean' && control.getAttribute('aria-checked') !== String(checked)) control.setAttribute('aria-checked', String(checked));
       if (control.hasAttribute('data-command-label') && control.textContent !== value(entry.label)) control.textContent = value(entry.label);
@@ -319,7 +347,7 @@
     changed();
   }
 
-  window.dinahCommands = { installHost, describe, alias, register: register, run: run, rows: rows, searchable: searchable, changed: changed, flush: flush, shown: shown, menus: MENUS, addHelp: addHelp, addSearch: addSearch };
+  window.dinahCommands = { installHost, describe, alias, register: register, run: run, rows: rows, searchable: searchable, changed: changed, flush: flush, controlsFor: controlsFor, shown: shown, menus: MENUS, addHelp: addHelp, addSearch: addSearch };
 
   register({ id: 'keyboard-shortcuts', menu: 'help', mnemonic: 'K', label: 'Keyboard Shortcuts', shortcut: 'F1', run: keyboardHelp });
 })();

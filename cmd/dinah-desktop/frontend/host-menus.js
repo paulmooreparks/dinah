@@ -121,12 +121,12 @@
     return (openWindowsMemo = listOpenWindows());
   };
   function listOpenWindows() {
-    var entries = window.pudlWindows.state().open.map(function (key) {
-      var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+    var entries = window.dinahHelpers.windowState().open.map(function (key) {
+      var win = window.dinahHelpers.windowOf(key);
       if (!win) return null;
       var title = win.querySelector('.win-title').textContent.trim(), item = bench.item(key);
       var detail = (window.pudlWindows.detailOf && window.pudlWindows.detailOf(key)) || (item && item.workspace) || '';
-      return { key: key, kind: win.dataset.winKind || '', title: title, detail: detail, open: function () { if (document.querySelector('[data-win="' + CSS.escape(key) + '"]')) window.pudlWindows.raise(key); } };
+      return { key: key, kind: win.dataset.winKind || '', title: title, detail: detail, open: function () { if (window.dinahHelpers.windowOf(key)) window.pudlWindows.raise(key); } };
     }).filter(Boolean);
     var counts = new Map(); entries.forEach(function (item) { counts.set(item.title, (counts.get(item.title) || 0) + 1); });
     return entries.map(function (item) {

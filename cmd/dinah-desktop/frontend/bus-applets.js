@@ -1977,7 +1977,7 @@
       function shown(event) {
         var detail = event.detail;
         if (!detail || detail.message !== target.message || (target.group ? detail.group !== target.group : !detail.thread)) return;
-        var win = detail.windowKey && document.querySelector('.win[data-win="' + CSS.escape(detail.windowKey) + '"]');
+        var win = detail.windowKey && window.dinahHelpers.windowOf(detail.windowKey);
         var row = win && win.querySelector('.bus-target-message[data-bus-message="' + CSS.escape(String(target.message)) + '"]');
         var log = row && row.closest('.bus-log'), bounds = row && row.getBoundingClientRect(), viewport = log && log.getBoundingClientRect();
         if (!win || !win.classList.contains('active') || !bounds || !viewport || !bounds.width || bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.bottom <= 0 || bounds.top >= innerHeight) {

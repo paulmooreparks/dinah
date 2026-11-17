@@ -19,11 +19,11 @@
      only, so a key never closes a window the person is not looking at. */
   var controllers = new Map(), recency = [];
   function frontKey() {
-    var s = window.pudlWindows && window.pudlWindows.state();
+    var s = window.dinahHelpers.windowState();
     return s && s.top && !s.min[s.top] ? s.top : null;
   }
   function frontKind() {
-    var key = frontKey(), win = key && document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+    var key = frontKey(), win = key && window.dinahHelpers.windowOf(key);
     return win ? win.dataset.winKind || '' : '';
   }
   function front() { var key = frontKey(); return key ? controllers.get(key) || null : null; }
@@ -79,7 +79,7 @@
       var keys = recency.filter(function (k) { return controllers.has(k); });
       controllers.forEach(function (c, k) { if (keys.indexOf(k) < 0) keys.push(k); });
       return keys.map(function (k) {
-        var item = window.dinahWorkbench.item(k), win = document.querySelector('[data-win="' + CSS.escape(k) + '"] .win-title');
+        var item = window.dinahWorkbench.item(k), holder = window.dinahHelpers.windowOf(k), win = holder && holder.querySelector('.win-title');
         var title = (item && item.title) || (win ? win.textContent.replace(/ \(changed\)$/, '').trim() : '');
         var c = controllers.get(k);
         return item && item.path ? { draftId: item.path, title: title, workspaceId: item.workspace, application: APPLICATIONS[item.kind] || 'the Editor', where: where(c && c.ref ? c.ref() : null) } : null;

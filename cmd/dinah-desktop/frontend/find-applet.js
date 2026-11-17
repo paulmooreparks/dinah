@@ -77,7 +77,7 @@
       if (event.key === 'Enter' && first) { event.preventDefault(); first.querySelector('a').click(); }
     });
     function frontWindowKind() {
-      var s = window.pudlWindows && window.pudlWindows.state(), win = s && s.top && document.querySelector('[data-win="' + CSS.escape(s.top) + '"]');
+      var s = window.pudlWindows && window.pudlWindows.state(), win = s && s.top && window.dinahHelpers.windowOf(s.top);
       return win && !s.min[s.top] ? win.dataset.winKind || '' : '';
     }
     window.dinahCommands.register({ id: 'find-and-open', glyph: 'search', menu: 'view', mnemonic: 'O', label: 'Find and Open…', shortcut: 'Ctrl+P', run: function () { openGoTo(); } });
