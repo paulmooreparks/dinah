@@ -27,11 +27,22 @@
     return receipt && receipt.operationId === op.input.operationId && (receipt.state === 'committed' || receipt.state === 'rejected') && receipt.id === (op.input.id || '') &&
       Number.isSafeInteger(receipt.revision) && receipt.revision >= 0 && typeof receipt.closed === 'boolean' && Array.isArray(receipt.messageIds) && receipt.messageIds.every(Number.isSafeInteger) && (receipt.state === 'committed' ? receipt.reason === null : receipt.reason && typeof receipt.reason.code === 'string' && typeof receipt.reason.message === 'string' && !!receipt.reason.message && receipt.messageIds.length === 0);
   }
+  function dismisses(op) { return !!op && (op.method === 'DismissRequest' || op.method === 'DismissDecision'); }
+  // DismissRequest and RequestOperation give the settlement receipt {operationId,id,revision,state,outcome,settledAt,code,text}
+  // (docs/design/request-settlement.md). It is kept in the shape of a decision receipt, so that a saved operation
+  // reads the same whichever method sent it. A receipt that is neither a dismissal nor a refusal is not a result.
+  function settlementReceipt(receipt, op) {
+    if (!receipt || receipt.operationId !== op.input.operationId || receipt.id !== op.input.id || !Number.isSafeInteger(receipt.revision) || receipt.revision < 0) return null;
+    var kept = { operationId: receipt.operationId, id: receipt.id, revision: receipt.revision, messageIds: [] };
+    if (receipt.state === 'committed' && receipt.outcome === 'dismissed' && Number.isFinite(Date.parse(receipt.settledAt))) return Object.assign(kept, { state: 'committed', closed: true, reason: null });
+    if (receipt.state === 'refused' && typeof receipt.code === 'string' && receipt.code && typeof receipt.text === 'string' && receipt.text) return Object.assign(kept, { state: 'rejected', closed: receipt.code === 'request_closed', reason: { code: receipt.code, message: receipt.text } });
+    return null;
+  }
   function init(root, opts) {
     var disposed = false, ready = false, readNumber = 0, refreshing = false, refreshAgain = false, moreBefore = 0, loadedPages = 1, readPromise = null, readValid = false;
     var items = new Map(), order = [], selected = '', selectedCopy = null, filter = '', view = 'requests';
     var pane = 'request', lastFinished = null, quoteWatch = null;
-    var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', pending = new Set();
+    var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', pending = new Set(), checking = new Set();
     root.classList.add('decisions');
     // PUDL temporarily makes automatic docks rails while this window needs room.
     root.closest('[data-win]').setAttribute('data-win-room', '84rem');
@@ -73,25 +84,51 @@
     }
     function saveEdited() { say(''); if (draft.operation && !workingOp(draft)) draft.operation = null; persist().catch(function () {}); }
     function workingOp(value) { return value && value.operation && !['committed', 'rejected'].includes(value.operation.status); }
+    // Whether the person can dismiss an entry now, and the reason when not. The host allows it: canDismiss on a
+    // request, the Dismiss command on a task question. The page adds only what it is itself in the middle of.
+    function dismissal(item) {
+      if (!item || !items.has(item.id)) return { enabled: false, reason: 'This request is not in the list of open requests.' };
+      if (item.kind === 'task') return window.dinahTaskQuestions.dismissal(item.taskQuestion.key);
+      if (!app().DismissRequest || !app().RequestOperation) return { enabled: false, reason: 'This build cannot dismiss requests.' };
+      if (!item.canDismiss) return { enabled: false, reason: 'This request cannot be dismissed.' };
+      var saved;
+      try { saved = draftKey === 'request:' + item.id ? draft : draftFor('request:' + item.id); } catch (error) { return { enabled: false, reason: errorText(error) }; }
+      if (workingOp(saved)) return { enabled: false, reason: 'The last send or dismissal has not been confirmed. Check its result first.' };
+      return { enabled: true, reason: '' };
+    }
+    // The line the last finished entry left behind, with the way to its record. A task question has no record.
+    function finishedLine(line) {
+      line.textContent = lastFinished.text;
+      var finished = lastFinished;
+      if (!finished.id.startsWith('task:')) line.appendChild(button(finished.link || 'Show Answers', function () { navigate('record', finished.id); }));
+    }
     function controls() {
       if (disposed || !form) return;
+      var dismissButton = form.querySelector('[data-dismiss-decision]');
+      if (dismissButton) {
+        // Dismiss keeps its place and size in every state. When it cannot be used it is disabled, and the line under the buttons says why.
+        var can = dismissal(current());
+        dismissButton.disabled = !can.enabled; dismissButton.title = can.reason; form.querySelector('.decisions-dismiss-reason').textContent = can.reason;
+      }
       if (view === 'requests' && current() && current().kind === 'task') {
         var key = current().taskQuestion.key, entry = window.dinahTaskQuestions.get(key), why = window.dinahTaskQuestions.validation(key);
         send.disabled = !!why; send.title = why;
         receiptLine.textContent = entry && entry.status || why || 'Your answer is ready to send.';
+        if (lastFinished && why && !(entry && (entry.status || entry.draftError || entry.answering || entry.dismissing))) finishedLine(receiptLine);
+        receiptLine.classList.toggle('danger', !!(entry && entry.status && entry.tone === 'danger'));
         return;
       }
       if (!draft) return;
       var item = current(), busy = !!workingOp(draft), broadcast = view !== 'requests';
       var blocked = busy || !ready;
-      form.querySelectorAll('textarea,input,select,[data-edit-answer]').forEach(function (el) { el.disabled = blocked || !broadcast && (item && item.kind === 'request' && item.canDismiss || !items.has(selected) || !!(draft.operation && draft.operation.status === 'committed' && draft.operation.receipt && draft.operation.receipt.closed)); });
+      // dismissalReason is the host's word that an answer can no longer be delivered. canDismiss is true for every open request and says nothing about answering.
+      var undeliverable = !!(item && item.dismissalReason);
+      form.querySelectorAll('textarea,input,select,[data-edit-answer]').forEach(function (el) { el.disabled = blocked || !broadcast && (undeliverable || !items.has(selected) || !!(draft.operation && draft.operation.status === 'committed' && draft.operation.receipt && draft.operation.receipt.closed)); });
       if (send && !broadcast) {
         var fields = item && item.kind === 'mention' ? [{ number: 0, answered: false }] : item ? item.questions : [];
         var any = fields.some(function (q) { var a = draft.answers[q.number]; return !q.answered && a && (a.asRecommended || a.text.trim()); });
-        send.disabled = blocked || !!draftError || !item || !items.has(selected) || item.kind === 'request' && item.canDismiss || draft.reviewed !== signature(item) || !any;
+        send.disabled = blocked || !!draftError || !item || !items.has(selected) || undeliverable || draft.reviewed !== signature(item) || !any;
       }
-      var dismissButton = form.querySelector('[data-dismiss-decision]');
-      if (dismissButton) { dismissButton.disabled = true; dismissButton.title = window.dinahTaskQuestions.dismissUnavailableReason; }
       if (changedLine && !broadcast) {
         var changed = item && draft.reviewed !== signature(item);
         changedLine.textContent = changed ? 'The request or destination changed. Review it before sending.' : !items.has(selected) ? 'This request is not in the list of open requests. Your draft is saved. Refresh or load earlier requests.' : '';
@@ -105,22 +142,25 @@
       if (receiptLine) {
         var op = draft.operation;
         receiptLine.textContent = deliveryStatus();
-        if (item && item.kind === 'request' && item.canDismiss) receiptLine.textContent = item.dismissalReason || 'This answer can no longer reach the asking chat.';
-        if (changedLine && changedLine.textContent) receiptLine.textContent = changedLine.textContent;
+        // The notice above the questions gives the host's reason. A dismissal's own result, once there is one, is said here in place of this line.
+        if (undeliverable && !op) receiptLine.textContent = 'An answer cannot be delivered. Dismissing closes the request.';
+        if (changedLine && changedLine.textContent && !(dismisses(op) && op.status === 'rejected')) receiptLine.textContent = changedLine.textContent;
         if (status.textContent) receiptLine.textContent = status.textContent;
-        else if (!broadcast && lastFinished && !draft.operation && send && send.disabled) { var finished = lastFinished; receiptLine.textContent = finished.text; if (!finished.id.startsWith('task:')) receiptLine.appendChild(button('Show Answers', function () { navigate('record', finished.id); })); }
+        else if (!broadcast && lastFinished && !draft.operation && send && send.disabled && !undeliverable) finishedLine(receiptLine);
         if (draftError) receiptLine.textContent = draftError;
         receiptLine.classList.toggle('danger', !!draftError || !!op && op.status === 'rejected');
-        detail.querySelectorAll('[data-operation]').forEach(function (el) { el.hidden = !workingOp(draft); el.disabled = !workingOp(draft) || pending.has(op.input.operationId); });
+        detail.querySelectorAll('[data-operation]').forEach(function (el) { el.hidden = !workingOp(draft); el.disabled = !workingOp(draft) || pending.has(op.input.operationId); if (workingOp(draft)) el.textContent = dismisses(op) ? 'Check Dismiss Result' : 'Check Send Result'; });
       }
     }
+    function unconfirmed(op, still) { return (dismisses(op) ? 'Dismissing has ' : 'Sending has ') + (still ? 'still ' : '') + 'not been confirmed. '; }
     function deliveryStatus() {
       if (draftError) return draftError;
       var op = draft.operation;
       if (!op) return send && send.disabled ? 'Choose or write an answer to send it.' : 'Your answer is ready to send.';
       if (op.status === 'rejected') return op.receipt.reason.message;
+      if (op.status !== 'committed' && dismisses(op)) return checking.has(op.input.operationId) ? 'Checking whether this request was dismissed.' : op.status === 'prepared' || pending.has(op.input.operationId) ? 'Dismissing this request.' : 'Dismissing has not been confirmed. Check the result before trying again.';
       if (op.status !== 'committed') return 'Sending has not been confirmed. Check the result before sending again.';
-      if (op.method === 'DismissDecision') return 'Message dismissed. No reply was sent.';
+      if (dismisses(op)) return 'This request was dismissed. No answer was sent.';
       if (op.method === 'ConfirmDecisionBroadcast') return 'Your message is waiting for the chats in the preview.';
       return 'Your reply was sent. The asking chat may not have read it yet.';
     }
@@ -136,13 +176,16 @@
       return window.dinahChats.refreshInventory().then(function () { if (!window.dinahChats.ref(item.askerSession)) throw new Error('The asking chat is no longer available.'); return window.dinahChats.open(item.askerSession); });
     }
     function rowMenu(item, owner, point) {
-      var task = item.kind === 'task', q = item.taskQuestion;
+      var task = item.kind === 'task', q = item.taskQuestion, can = dismissal(item);
+      // The commands are the same for every entry, in the approved mockup's groups. One that cannot apply is disabled with its reason.
       var rows = [
         { label: 'Open', run: function () { navigate('requests', item.id); } },
+        '-',
         { label: 'Open Chat', disabled: task || !!item.dismissalReason, reason: task ? 'A task question comes from a service, not a chat.' : item.dismissalReason, run: function () { return openChat(item); } },
         { label: 'Open Group', disabled: task || !item.group, reason: task ? 'This task question has no group.' : 'This request was asked directly.', run: function () { return window.dinahBus.openGroup(item.group); } },
         { label: 'Open Task', disabled: !task || !q.target.href, reason: task ? q.target.reason : 'This request comes from a chat, not a task.', run: function () { return window.dinahTaskQuestions.open(q.key); } },
-        { label: 'Dismiss ' + (task ? 'Question' : item.kind === 'mention' ? 'Message' : 'Request') + '…', disabled: true, reason: window.dinahTaskQuestions.dismissUnavailableReason }
+        '-',
+        { label: 'Dismiss ' + (task ? 'Question' : item.kind === 'mention' ? 'Message' : 'Request') + '…', danger: true, disabled: !can.enabled, reason: can.reason, run: function () { Promise.resolve().then(function () { return dismiss(item.id); }).catch(window.dinahHost.fail); } }
       ];
       var r = owner.getBoundingClientRect(); window.pudlMenu.openAt(point ? point.x : r.left, point ? point.y : r.bottom, rows, { owner: owner, for: owner });
     }
@@ -224,9 +267,10 @@
     function footer(item) {
       var foot = node('footer', 'decisions-foot'), actions = node('div', 'decisions-foot-actions');
       receiptLine = node('p', 'decisions-receipt decisions-foot-status'); receiptLine.setAttribute('role', 'status'); receiptLine.setAttribute('aria-live', 'polite');
-      var dismissButton = button('Dismiss', function () {}); dismissButton.dataset.dismissDecision = ''; dismissButton.disabled = true; dismissButton.title = window.dinahTaskQuestions.dismissUnavailableReason;
+      var dismissButton = button('Dismiss', function () { return dismiss(item.id); }); dismissButton.dataset.dismissDecision = '';
       send = button('Send', item.kind === 'task' ? function () { return window.dinahTaskQuestions.answer(item.taskQuestion.key); } : answer, true);
-      var unavailable = node('span', 'decisions-dismiss-unavailable'), reason = node('small', 'text-muted', window.dinahTaskQuestions.dismissUnavailableReason); reason.id = 'dismiss-unavailable-' + item.id.replace(/[^a-zA-Z0-9]/g, '-'); dismissButton.setAttribute('aria-describedby', reason.id); unavailable.append(dismissButton); reason.classList.add('decisions-dismiss-reason'); actions.append(unavailable, send, reason); if (item.kind !== 'task') actions.appendChild(operationActions());
+      // The line under the buttons says why Dismiss cannot be used. It is always there with one height, so a reason that appears or goes moves nothing.
+      var slot = node('span', 'decisions-dismiss'), reason = node('small', 'text-muted decisions-dismiss-reason'); reason.id = 'dismiss-reason-' + item.id.replace(/[^a-zA-Z0-9]/g, '-'); dismissButton.setAttribute('aria-describedby', reason.id); slot.append(dismissButton); actions.append(slot, send, reason); if (item.kind !== 'task') actions.appendChild(operationActions());
       foot.append(receiptLine, actions); return foot;
     }
     function drawRequest() {
@@ -271,10 +315,26 @@
       var answers = fields.filter(function (q) { var a = draft.answers[q.number]; return !q.answered && a && (a.asRecommended || a.text.trim()); }).map(function (q) { var a = draft.answers[q.number]; return { number: q.number, text: a.asRecommended ? '' : a.text, asRecommended: !!a.asRecommended }; });
       return begin('AnswerDecision', { operationId: operationId(), id: item.id, revision: item.revision, answers: answers });
     }
-    function dismiss() {
-      if (workingOp(draft) || !items.has(selected) || !current().canDismiss) return;
-      var item = current();
-      return window.dinahHost.ask(item.kind === 'mention' ? 'Dismiss This Message?' : 'Dismiss This Request?', 'This closes the request without sending a reply to ' + item.destination + '.', 'Dismiss').then(function (yes) { if (yes && !disposed && draftKey === 'request:' + item.id) return begin('DismissDecision', { operationId: operationId(), id: item.id, revision: item.revision }); });
+    // Dismiss asks first and says who is told. The wording is the approved mockup's, except where the host does
+    // otherwise: its reason for an answer that cannot be delivered also covers a chat that only left its group,
+    // and such a chat is still told, so the dialog says nobody can be told only of a chat that is gone.
+    function dismiss(id) {
+      var item = items.get(id);
+      if (!item || !dismissal(item).enabled) return;
+      // A question dismissed from its row is opened once the person has confirmed, so that its result is said in its own foot.
+      if (item.kind === 'task') return window.dinahTaskQuestions.dismiss(item.taskQuestion.key, function () { if (!disposed && items.has(id) && (view !== 'requests' || selected !== id)) { selectedCopy = items.get(id); navigate('requests', id); } });
+      var partly = item.questions.some(function (q) { return q.answered; });
+      var told = item.dismissalReason ? item.dismissalReason + ' If the chat itself is gone, nobody can be told.' : item.asker + ' is told you dismissed it, so it does not wait for you.';
+      var body = (partly ? 'No more answers are sent, and it leaves Decisions. The answers you already sent are kept. ' : 'No answer is sent, and it leaves Decisions. ') + told + ' Use this when you have dealt with it elsewhere, or it can no longer be answered.';
+      // The last argument makes the committing button the danger button, with Cancel first and focused and no primary button, as PUDL asks of a destructive action.
+      return window.dinahHost.ask('Dismiss This Request?', body, 'Dismiss', true).then(function (yes) {
+        var now = items.get(id);
+        if (!yes || disposed || !now || !dismissal(now).enabled) return;
+        // The dismissal is the open request's saved operation, so a request dismissed from its row is opened first.
+        if (view !== 'requests' || selected !== id) { selectedCopy = now; navigate('requests', id); }
+        if (!form || draftKey !== 'request:' + id || !draft || !draft.request || draft.request.id !== id || workingOp(draft)) return;
+        return begin('DismissRequest', { operationId: operationId(), id: now.id, revision: now.revision });
+      });
     }
     function begin(method, input) {
       var key = draftKey, value = draft;
@@ -283,20 +343,26 @@
       return persist().then(function () { return execute(key, value); }).catch(function (error) { say(errorText(error)); });
     }
     function accept(key, value, receipt) {
-      var op = value.operation; if (!validReceipt(receipt, op)) throw new Error('The send result could not be confirmed.');
+      var op = value.operation;
+      if (op.method === 'DismissRequest') receipt = settlementReceipt(receipt, op);
+      if (!validReceipt(receipt, op)) throw new Error(dismisses(op) ? 'The dismissal result could not be confirmed.' : 'The send result could not be confirmed.');
       var item = items.get(receipt.id) || selectedCopy;
-      var destination = op.destination || (item && item.id === receipt.id ? item.destination : 'the asking chat');
+      if (item && item.id !== receipt.id) item = null;
+      var destination = op.destination || (item ? item.destination : 'the asking chat');
       op.status = receipt.state; op.receipt = receipt;
       if (op.method === 'ConfirmDecisionBroadcast') value.preview = null;
       if (receipt.state === 'committed' && op.method === 'AnswerDecision') op.input.answers.forEach(function (answer) { delete value.answers[answer.number]; });
-      return store(key, value).then(function () { if (key === draftKey) { draft = value; if (view !== 'requests') rendered = ''; controls(); } if (receipt.state === 'committed' && receipt.closed && selected === receipt.id) { lastFinished = { id: receipt.id, text: op.method === 'DismissDecision' ? 'Request dismissed. No answer was sent.' : 'Your reply was sent to ' + destination + '.' }; selected = ''; selectedCopy = null; rendered = ''; } return load(false); });
+      // A dismissal keeps the answers a partly answered request already had, and the line says so.
+      var finished = !dismisses(op) ? { id: receipt.id, text: 'Your reply was sent to ' + destination + '.', glyph: 'check' } :
+        { id: receipt.id, text: 'You dismissed the request' + (item ? ' from ' + item.asker : '') + '. ' + (item && item.questions.some(function (q) { return q.answered; }) ? 'The answers already sent are kept.' : 'No answer was sent.'), link: 'Show the Request', glyph: 'check' };
+      return store(key, value).then(function () { if (key === draftKey) { draft = value; if (view !== 'requests') rendered = ''; controls(); } if (receipt.state === 'committed' && receipt.closed && selected === receipt.id) { lastFinished = finished; selected = ''; selectedCopy = null; rendered = ''; } return load(false); });
     }
     function execute(key, value) {
       var op = value.operation;
       if (pending.has(op.input.operationId)) return Promise.resolve();
       pending.add(op.input.operationId); op.status = 'submitted'; controls();
       return store(key, value).then(function () { return app()[op.method](op.input); }).then(function (receipt) { return accept(key, value, receipt); }).catch(function (error) {
-        if (!['committed', 'rejected'].includes(op.status)) { op.status = 'submitted'; return store(key, value).then(function () { say('Sending has not been confirmed. ' + errorText(error)); }); }
+        if (!['committed', 'rejected'].includes(op.status)) { op.status = 'submitted'; return store(key, value).then(function () { say(unconfirmed(op) + errorText(error)); }); }
         say('The result was confirmed, but could not be saved on this computer. ' + errorText(error));
       }).finally(function () { pending.delete(op.input.operationId); controls(); });
     }
@@ -304,11 +370,15 @@
       if (!draft || !workingOp(draft)) return Promise.resolve();
       var key = draftKey, value = draft, op = value.operation;
       if (pending.has(op.input.operationId)) return Promise.resolve();
-      pending.add(op.input.operationId); controls();
-      return Promise.resolve().then(function () { return app().DecisionOperation(op.input.operationId); }).then(function (receipt) {
-        if (receipt && receipt.operationId === op.input.operationId && receipt.state === 'unknown' && receipt.id === '' && receipt.revision === 0 && receipt.closed === false && Array.isArray(receipt.messageIds) && receipt.messageIds.length === 0 && receipt.reason === null) { op.status = 'unknown'; pending.delete(op.input.operationId); return execute(key, value); }
+      pending.add(op.input.operationId); checking.add(op.input.operationId); controls();
+      // A dismissal sent through the settlement host is looked up there, by its request and its operation. The
+      // host has no result for an operation it never finished, and then the same operation is sent again.
+      var settlement = op.method === 'DismissRequest';
+      return Promise.resolve().then(function () { return settlement ? app().RequestOperation(op.input.id, op.input.operationId) : app().DecisionOperation(op.input.operationId); }).then(function (receipt) {
+        var unknown = receipt && receipt.operationId === op.input.operationId && receipt.state === 'unknown' && (settlement || receipt.id === '' && receipt.revision === 0 && receipt.closed === false && Array.isArray(receipt.messageIds) && receipt.messageIds.length === 0 && receipt.reason === null);
+        if (unknown) { op.status = 'unknown'; pending.delete(op.input.operationId); checking.delete(op.input.operationId); return execute(key, value); }
         return accept(key, value, receipt);
-      }).catch(function (error) { say('Sending has still not been confirmed. ' + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); if (key === draftKey) controls(); });
+      }).catch(function (error) { say(unconfirmed(op, true) + errorText(error)); }).finally(function () { pending.delete(op.input.operationId); checking.delete(op.input.operationId); if (key === draftKey) controls(); });
     }
     function drawBroadcast() {
       var scope = view === 'broadcast-active' ? 'active' : 'all', key = 'broadcast-' + scope;
@@ -359,7 +429,7 @@
       layout.dataset.mdPane = selected || view !== 'requests' ? 'detail' : 'list';
       root.dataset.decisionPane = pane;
       empty.hidden = items.size > 0 || view !== 'requests'; layout.hidden = !items.size && view === 'requests';
-      if (!items.size && view === 'requests') { var explanation = node('div', 'empty-state'); explanation.append(node('p', 'empty-state-title', status.textContent || 'There are no open requests.'), node('p', 'empty-state-body', 'When a chat or task asks you a question, the request appears here.')); empty.replaceChildren(explanation); if (lastFinished) { var done = node('p', 'decisions-done', lastFinished.text); if (!lastFinished.id.startsWith('task:')) done.appendChild(button('Show Answers', function () { navigate('record', lastFinished.id); })); empty.appendChild(done); } }
+      if (!items.size && view === 'requests') { var explanation = node('div', 'empty-state'); explanation.append(node('p', 'empty-state-title', status.textContent || 'There are no open requests.'), node('p', 'empty-state-body', 'When a chat or task asks you a question, the request appears here.')); empty.replaceChildren(explanation); if (lastFinished) { var done = node('p', 'decisions-done'), mark = node('span', 'glyph'); mark.setAttribute('aria-hidden', 'true'); mark.dataset.glyph = lastFinished.glyph || 'info'; mark.style.setProperty('--glyph', 'var(--glyph-' + mark.dataset.glyph + ')'); finishedLine(done); done.prepend(mark); empty.appendChild(done); } }
       root.dataset.decisionDetail = String(view !== 'requests' || !!selected);
       drawList();
       try {
@@ -373,6 +443,29 @@
           }
         } else if (view === 'requests') drawRequest(); else drawBroadcast();
       } catch (error) { form = null; say(errorText(error)); detail.replaceChildren(node('p', 'text-muted', 'The saved draft could not be read. It has not been replaced.')); }
+    }
+    // A request that left the list without an action in this window was settled somewhere else. Its record says
+    // whether its chat withdrew it or the person dismissed it, and the line is corrected when that is known.
+    function readEnding(finished) {
+      if (!app().DecisionByID) return;
+      Promise.resolve().then(function () { return app().DecisionByID(finished.id); }).then(function (value) {
+        var item = value && value.decision;
+        if (disposed || lastFinished !== finished || !item || item.id !== finished.id || typeof item.asker !== 'string') return;
+        if (item.status === 'withdrawn') { finished.text = item.asker + ' withdrew its request, so it no longer needs an answer. Anything you had typed for it is gone.'; finished.link = 'Show What Was Withdrawn'; }
+        else if (item.status === 'dismissed') { finished.text = 'You dismissed the request from ' + item.asker + '. No answer was sent.'; finished.link = 'Show the Request'; finished.glyph = 'check'; }
+        else return;
+        draw();
+      }).catch(function () { /* The line already says that the request is no longer waiting. */ });
+    }
+    // How a task question ended, in the approved mockup's words. The host's event or record says how; when
+    // neither has, the line says only that the question is no longer waiting.
+    function taskFinished(key) {
+      var ending = window.dinahTaskQuestions.ending(key), q = ending && ending.question, how = q ? ending.disposition : '';
+      return { id: 'task:' + key, glyph: how === 'dismissed' || how === 'answered' ? 'check' : 'info', text:
+        how === 'dismissed' ? 'You dismissed the question from ' + q.serviceName + '. No answer was sent.' :
+        how === 'withdrawn' ? q.serviceName + ' withdrew its question, so it no longer needs an answer. Anything you had typed for it is gone.' :
+        how === 'answered' ? 'Your answer was sent to ' + q.serviceName + ', which continues the task ' + q.taskTitle + '.' :
+        how === 'cancelled' ? 'The task ' + q.taskTitle + ' was cancelled, so its question closed. No answer was sent.' : 'This task question is no longer waiting.' };
     }
     function load(append) {
       if (!ready || disposed) return Promise.resolve();
@@ -395,7 +488,7 @@
         var previouslyOpen = items.has(selected);
         if (!append) { if (items.has(selected)) selectedCopy = items.get(selected); items.clear(); }
         result.items.forEach(function (item) { items.set(item.id, item); if (!order.includes(item.id)) order.push(item.id); });
-        order = order.filter(function (id) { return items.has(id); }); syncTasks(); if (view === 'requests' && previouslyOpen && selected && !items.has(selected) && !workingOp(draft)) { lastFinished = { id: selected, text: 'This request is no longer waiting.' }; selected = ''; selectedCopy = null; rendered = ''; } if (lastFinished && !selected && order.length) { selected = order[0]; opts.changed(address()); } moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
+        order = order.filter(function (id) { return items.has(id); }); syncTasks(); if (view === 'requests' && previouslyOpen && selected && !items.has(selected) && !workingOp(draft)) { lastFinished = { id: selected, text: 'This request is no longer waiting.' }; readEnding(lastFinished); selected = ''; selectedCopy = null; rendered = ''; } if (lastFinished && !selected && order.length) { selected = order[0]; opts.changed(address()); } moreBefore = result.nextBefore; loadedPages = append ? loadedPages + pages : pages;
         listNotice.hidden = true; listNoticeText.textContent = ''; say(''); draw(); readValid = true;
       }).catch(function (error) { if (disposed) return; listNoticeText.textContent = errorText(error); listNotice.hidden = false; say('Requests could not be read. ' + errorText(error)); }).finally(function () {
         refreshing = false; if (!disposed) { refresh.disabled = false; retryRead.disabled = false; more.disabled = !moreBefore; }
@@ -408,7 +501,9 @@
     var unsubscribe = window.dinahHost.on('bus:changed', function () { load(false); });
     var unTask = window.dinahTaskQuestions.subscribe(function (key) {
       var id = 'task:' + key;
-      if (selected === id && !window.dinahTaskQuestions.get(key)) { lastFinished = { id: id, text: 'This task question is no longer waiting.' }; selected = ''; selectedCopy = null; rendered = ''; syncTasks(); if (order.length) selected = order[0]; opts.changed(address()); }
+      if (selected === id && !window.dinahTaskQuestions.get(key)) { lastFinished = taskFinished(key); selected = ''; selectedCopy = null; rendered = ''; syncTasks(); if (order.length) selected = order[0]; opts.changed(address()); }
+      // How the question ended can be read after it has left the list, and then the line it left is said again.
+      else if (lastFinished && lastFinished.id === id && !window.dinahTaskQuestions.get(key)) lastFinished = taskFinished(key);
       draw();
     });
     var unresync = window.dinahHost.onResync(function () { return load(false); });

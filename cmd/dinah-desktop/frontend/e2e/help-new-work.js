@@ -16,7 +16,7 @@ const { launch } = require('./lib/page');
     ok('reloading the guide address restores its content', sections === 'Decisions | Clean Up Chats | Broadcast | Pause Chats and Restart | Kept Attention Cards | Background Chats | Updates', sections);
     await p.evaluate(() => dinahCommands.run('help-chats'));
     ok('opening the guide again raises the same window', await guide.count() === 1);
-    const changes = (await t.calls()).filter(c => /^(AnswerDecision|DismissDecision|ConfirmDecisionBroadcast|PauseAndRestart|RestartToUpdate|CancelRestart|SetBackgroundChatLimit|CallService|InstallPackages)$/.test(c[0]));
+    const changes = (await t.calls()).filter(c => /^(AnswerDecision|DismissDecision|DismissRequest|ConfirmDecisionBroadcast|PauseAndRestart|RestartToUpdate|CancelRestart|SetBackgroundChatLimit|CallService|InstallPackages)$/.test(c[0]));
     ok('reading help performs no feature operation', changes.length === 0, JSON.stringify(changes));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

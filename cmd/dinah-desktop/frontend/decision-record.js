@@ -20,14 +20,24 @@
         if (!value || value.readOnly !== true || typeof value.closed !== 'boolean' || !validItem(value.decision) || value.decision.id !== id) throw new Error('The request response is invalid.');
         var item = value.decision; title.textContent = item.asker;
         meta.textContent = item.workspace + (item.groupTitle ? ' · ' + item.groupTitle : '') + ' · ' + window.dinahRegional.format(new Date(item.createdAt), 'dayTime');
-        status.textContent = value.closed ? 'This request is closed. This view is read-only.' : 'This request is still open. This linked view is read-only; use Requests to answer it.';
+        // The host's record says how a closed request ended and when (status and settledAt). An answered request,
+        // and one closed before the host kept its ending, is said as closed, as it was before.
+        var how = value.closed ? item.status : '', when = Number.isFinite(Date.parse(item.settledAt)) ? ' on ' + window.dinahRegional.format(new Date(item.settledAt), 'dayTime') : '';
+        var answered = item.questions.some(function (q) { return q.answered; });
+        status.textContent = !value.closed ? 'This request is still open. This linked view is read-only; use Requests to answer it.' :
+          how === 'dismissed' ? 'You dismissed this request' + when + '. ' + (answered ? 'The answers sent before then are kept.' : 'No answer was sent.') + ' This view is read-only.' :
+          how === 'withdrawn' ? item.asker + ' withdrew this request' + when + '. This view is read-only.' : 'This request is closed. This view is read-only.';
+        if (how === 'withdrawn') {
+          var notice = node('div', 'notice'), words = node('div', 'notice-content');
+          words.append(node('p', 'notice-title', item.asker + ' withdrew this request' + when), node('p', 'notice-body', 'It no longer needs an answer from you.')); notice.appendChild(words); content.appendChild(notice);
+        }
         content.appendChild(window.dinahDecisionContext(item));
         (item.kind === 'mention' ? [{ number: 0, text: item.text }] : item.questions).forEach(function (q) {
           var group = node('section', 'decisions-question'); group.appendChild(node('h3', '', item.kind === 'mention' ? 'Original Message' : 'Question ' + q.number));
           group.appendChild(node('p', 'decisions-question-text', q.text));
           if (item.kind === 'request') {
             group.appendChild(node('p', 'decisions-recommendation', 'Recommendation: ' + q.recommendation));
-            group.appendChild(node('p', '', q.answered ? 'Answer: ' + q.answer : 'This question has not been answered.'));
+            group.appendChild(node('p', '', q.answered ? 'Answer: ' + q.answer : how === 'dismissed' ? 'This question was dismissed without an answer.' : how === 'withdrawn' ? 'This question was withdrawn without an answer.' : 'This question has not been answered.'));
           }
           content.appendChild(group);
         });

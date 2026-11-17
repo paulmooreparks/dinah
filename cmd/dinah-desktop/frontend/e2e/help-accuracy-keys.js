@@ -13,7 +13,7 @@ const {setup,makeRequest,choose}=require('./lib/decisions-fixture');
    const rows=await help.locator('tbody tr').evaluateAll(trs=>trs.map(tr=>[...tr.cells].map(td=>td.textContent)));
    const keys=label=>(rows.find(r=>r[0]===label)||[])[2]||'';
    ok('the reference says As recommended is chosen with Space',/Space/.test(keys('As recommended'))&&!/Enter/.test(keys('As recommended')),JSON.stringify(rows));
-   for(const label of ['Send','Show More Requests'])ok('the reference says '+label+' takes Enter or Space',/Enter or Space/.test(keys(label)),JSON.stringify(rows));
+   for(const label of ['Send','Dismiss','Show More Requests'])ok('the reference says '+label+' takes Enter or Space',/Enter or Space/.test(keys(label)),JSON.stringify(rows));
    await help.locator('[data-close]').click();
   }
   await p.evaluate(()=>dinahWorkbench.open('decisions'));
@@ -26,6 +26,8 @@ const {setup,makeRequest,choose}=require('./lib/decisions-fixture');
   await p.evaluate(async()=>{await dinahUIState.flush();pudlWindows.close('decisions');});
   await p.evaluate(()=>dinahWorkbench.open('decisions'));await choose(t,'r3');
   ok(key+' draft survives closing Decisions',await recommended.isChecked());
+  await activate(p.locator('[data-dismiss-decision]'),key,'Dismiss');await p.locator('#ask[open]').waitFor();
+  ok(key+' on Dismiss asks before dismissing anything',(await t.calls('DismissRequest')).length===0&&await p.evaluate(()=>document.activeElement===document.getElementById('ask-no')));await p.locator('#ask-no').click();
   await activate(p.getByRole('button',{name:'Send',exact:true}));await p.waitForFunction(()=>__delivered.length===1);
   ok(key+' sends only answered question',(await t.calls('AnswerDecision'))[0][1].answers.length===1);
   await p.evaluate(()=>dinahCommands.run('broadcast-active'));await p.getByLabel('Broadcast Message',{exact:true}).fill('Fixture message');

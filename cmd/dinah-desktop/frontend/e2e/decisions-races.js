@@ -18,6 +18,6 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await p.getByRole('button', { name: 'Check Send Result', exact: true }).click(); await p.waitForFunction(() => document.querySelector('.decisions-receipt').textContent.includes('Your reply was sent'));
     ok('the stored receipt reconciles without duplicate send', (await t.calls('AnswerDecision')).length === 2);
     await choose(t, 'r3');
-    ok('dismissal remains disabled pending settlement support and sends nothing', await p.getByRole('button', { name: 'Dismiss', exact: true }).isDisabled() && (await t.calls('DismissDecision')).length === 0);
+    ok('Dismiss is offered for another request and sends nothing until it is confirmed', await p.getByRole('button', { name: 'Dismiss', exact: true }).isEnabled() && (await t.calls('DismissDecision')).length === 0 && (await t.calls('DismissRequest')).length === 0);
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

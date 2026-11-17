@@ -170,8 +170,8 @@
 .decisions-record .decisions-delivery { flex: none; height: 4.25rem; padding: var(--space-3); box-sizing: border-box; }
 
 .decisions .md-detail { container: decision-detail / inline-size; }
-.decisions-dismiss-unavailable { display: flex; flex-direction: column; gap: 2px; flex: 1 1 40%; min-width: 0; max-width: 10rem; text-align: center; }
-.decisions-dismiss-unavailable small { font-size: var(--text-xs); line-height: 1.2; }
+/* Dismiss has a slot of one width, so the button is the same size for a request and for a task question. */
+.decisions-dismiss { display: flex; flex-direction: column; flex: 1 1 40%; min-width: 0; max-width: 10rem; text-align: center; }
 @container decision-detail (max-width: 40rem) {
   .decisions-about-open, .decisions-about-back { display: inline-block; }
   .decisions-about { width: auto; padding: var(--space-4); }
@@ -185,4 +185,18 @@
 .decisions-list-notice { flex: none; margin: var(--space-2); }
 .decisions-list-notice[hidden] { display: none; }
 
-.decisions-dismiss-reason { flex: 1 0 100%; order: 1; font-size: var(--text-xs); line-height: 1.2; }
+/* Why Dismiss cannot be used, under the buttons. The line and the buttons' block keep one size whether or not
+   there is a reason, so a reason that appears or goes moves no button: two lines beside the status line, three
+   in a narrow pane, which is the room the longest reason from the host needs. */
+.decisions-foot-actions { width: 30rem; }
+.decisions-dismiss-reason { flex: 1 0 100%; order: 1; height: 2.4em; overflow: hidden; font-size: var(--text-xs); line-height: 1.2; }
+/* The status line has the height of its two lines whatever it says, with one line centred in it. */
+.decisions-foot-status { height: 3em; }
+.decisions-done .glyph[data-glyph="info"] { color: var(--accent); }
+.decisions-record .notice { margin-bottom: var(--space-4); }
+@container decision-detail (max-width: 40rem) {
+  .decisions-foot-actions { width: auto; }
+  /* In a narrow pane the reason comes straight under Dismiss and Send, and Check Send Result takes the row
+     below it, so the button's arrival moves neither. */
+  .decisions-dismiss-reason { order: 0; height: 3.6em; }
+}

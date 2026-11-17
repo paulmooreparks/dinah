@@ -14,7 +14,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     const calls = await t.calls('AnswerDecision');
     ok('a corrected attempt gets a new identity', calls[0][1].operationId !== calls[1][1].operationId);
     await choose(t, 'r2');
-    ok('an orphaned request retains the unavailable settlement reason and blocks answers', await p.getByRole('button', { name: 'Dismiss', exact: true }).isDisabled() && (await p.locator('.decisions-detail').innerText()).includes('The asking chat was removed') && await p.getByRole('button', { name: 'Send', exact: true }).isDisabled() && (await t.calls('DismissDecision')).length === 0);
+    ok('an orphaned request shows the host\'s reason, blocks answers and can be dismissed', await p.getByRole('button', { name: 'Dismiss', exact: true }).isEnabled() && (await p.locator('.decisions-detail').innerText()).includes('The asking chat was removed') && await p.getByLabel('Answer 1', { exact: true }).isDisabled() && await p.getByRole('button', { name: 'Send', exact: true }).isDisabled() && (await p.locator('.decisions-foot-status').innerText()) === 'An answer cannot be delivered. Dismissing closes the request.' && (await t.calls('DismissDecision')).length === 0 && (await t.calls('DismissRequest')).length === 0);
     await p.evaluate(() => { window.__malformedList = true; __emit('bus:changed', {}); });
     await p.waitForFunction(() => document.querySelector('.decisions-status').textContent.includes('request list is invalid'));
     ok('a malformed list is reported without losing the previous rows', await p.locator('.decisions-row[data-request-id="r1"]').count() === 1);

@@ -11,7 +11,8 @@
     var op = saved.operation;
     if (op) {
       if (op.destination !== undefined && typeof op.destination !== 'string') throw new Error('Your saved send destination could not be read.');
-      if (!['AnswerDecision', 'DismissDecision', 'ConfirmDecisionBroadcast'].includes(op.method) || !['prepared', 'submitted', 'unknown', 'committed', 'rejected'].includes(op.status) || !op.input || typeof op.input.operationId !== 'string' || !op.input.operationId || op.input.operationId.length > 128) throw new Error('Your saved send request could not be read.');
+      // DismissDecision is the method of a dismissal saved before the settlement host; a dismissal is now sent with DismissRequest.
+      if (!['AnswerDecision', 'DismissDecision', 'DismissRequest', 'ConfirmDecisionBroadcast'].includes(op.method) || !['prepared', 'submitted', 'unknown', 'committed', 'rejected'].includes(op.status) || !op.input || typeof op.input.operationId !== 'string' || !op.input.operationId || op.input.operationId.length > 128) throw new Error('Your saved send request could not be read.');
       if (op.method === 'ConfirmDecisionBroadcast') {
         if (!/^broadcast-(active|all)$/.test(id) || typeof op.input.token !== 'string' || !op.input.token) throw new Error('Your saved broadcast could not be read.');
       } else {

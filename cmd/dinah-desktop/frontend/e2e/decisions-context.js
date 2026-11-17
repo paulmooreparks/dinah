@@ -56,7 +56,7 @@ const { setup, makeRequest, choose } = require('./lib/decisions-fixture');
     await p.getByRole('button', { name: 'About This Request', exact: true }).click();
     ok('narrow context has no horizontal overflow', await p.locator('.decisions-context').evaluate(el => el.scrollWidth <= el.clientWidth + 1) && await p.locator('.decisions-context-body').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
     await t.shot('decisions-context-narrow');
-    ok('context reads never mark messages read or deliver anything', !(await t.calls()).some(call => /Mark.*Read|AnswerDecision|DismissDecision|ConfirmDecisionBroadcast/.test(call[0])) && await p.evaluate(() => __delivered.length === 0));
+    ok('context reads never mark messages read or deliver anything', !(await t.calls()).some(call => /Mark.*Read|AnswerDecision|DismissDecision|DismissRequest|ConfirmDecisionBroadcast/.test(call[0])) && await p.evaluate(() => __delivered.length === 0));
   } finally { await t.close(); }
   const linkedMessages = [89, 90, 100, 101].map(id => ({ id, room: 'review', from: 'Reviewer', fromSession: 'reviewer', fromPerson: false, fromWorkspace: 'C:/Fixture', createdAt: '2026-11-14T00:00:00Z', text: 'Review message ' + id, attachments: [], mentions: [] }));
   const linked = await setup([makeRequest('r100', { group: 'review', groupTitle: 'Review Group' })], { contextRoom: linkedMessages });
