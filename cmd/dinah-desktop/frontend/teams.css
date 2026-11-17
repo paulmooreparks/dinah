@@ -1,5 +1,5 @@
 /* Teams use PUDL components; these rules only compose the chat content. */
-.chat-team { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
+.chat-team { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
 .chat-team[hidden] { display: none; }
 .chat-team > .chat-team-toolbar { flex: 1 1 auto; min-width: 0; }
 .team-tree { container-type: inline-size; }
@@ -40,7 +40,11 @@
 .team-report-title { margin: 0 0 var(--space-2); font-size: var(--text-md); }
 .team-report-section { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
 .team-report-section[hidden], .team-report .team-tree[hidden] { display: none; }
-.team-member-note { padding-block: var(--space-2); }
+/* The note about a chat's lead ends the top bar on one line. The toolbar keeps
+   the room it needs to stay unfolded, so as the window narrows the note is cut
+   short first, and its tooltip has the whole text. */
+.chat-team > .team-member-note { flex: 0 1000 auto; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-team > .team-member-note[hidden] { display: none; }
 /* A chat that reports to a lead keeps its input box; what the person writes in
    it is copied, with the answer, to the lead (docs/design/team-hierarchy.md). */
 @container (max-width: 640px) { .team-task { white-space: normal; } }

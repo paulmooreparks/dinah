@@ -50,6 +50,8 @@ When the person speaks to a member directly, the member's lead is sent a copy of
 
 The exchange itself happens in the member's chat. The lead receives the copies; it is not a party to the exchange and does not answer in it.
 
+The member's window says so on its top bar, after its Open Team button: "This chat reports to (lead). What you send here is copied, with its answer, to (team room)." When the window is too narrow, the note is cut short before any button folds, and its tooltip has the whole text.
+
 ## What is to be built
 
 - The two refusals removed, with the cycle refusal kept and tested at depth.

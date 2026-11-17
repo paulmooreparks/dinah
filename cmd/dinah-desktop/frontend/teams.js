@@ -230,7 +230,7 @@
     // here (o.lastRead) keeps the bar mounted at one height, so the
     // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
-    function showSection() { section.hidden = !lastRead && openTeamButton.hidden && ownTeamButton.hidden && toggle.hidden; }
+    function showSection() { section.hidden = !lastRead && openTeamButton.hidden && ownTeamButton.hidden && toggle.hidden && memberNote.hidden; }
     /* The bar's controls are a folding PUDL toolbar, as the group's is: Last
        Read first and longest, then Members, then the team's navigation. */
     var bar = node('div', 'toolbar chat-team-toolbar');
@@ -294,8 +294,10 @@
         held.row.remove(); leadRows.delete(key);
       });
     }
+    /* The note about the chat's lead sits on the top bar after the toolbar,
+       whose Open Team button opens the lead's team room. */
     var memberNote = node('div', 'team-member-note form-help'); memberNote.hidden = true;
-    o.root.querySelector('[data-view-id="composer"]').appendChild(memberNote);
+    section.appendChild(memberNote);
     var activity = o.root.querySelector('[data-view-id="activity"]'), foldFrame = 0;
     function observeTraffic() { trafficObserver.observe(activity, { childList: true, subtree: true }); }
     function refreshTraffic() {
@@ -336,23 +338,21 @@
     function renderMember() {
       syncOpen();
       toggle.hidden = !current || (!current.group && !(current.members || []).length);
-      showSection();
       o.root.toggleAttribute('data-team-member', member());
       o.root.toggleAttribute('data-team-pending', !!id && !relationKnown);
       memberNote.hidden = !member() && relationKnown && !relationError; memberNote.replaceChildren();
+      showSection();
       memberNote.tabIndex = -1;
       if (lead) {
         var room = window.dinahBus && (window.dinahBus.overview().rooms || []).find(function (r) { return r.name === lead.group; });
-        memberNote.appendChild(node('span', null, 'This chat reports to ' + lead.title + '. What you send here is copied, with its answer, to ' + (room ? room.title : lead.title + "'s team room") + '. '));
-        var a = node('a', null, 'Open Team Chat'); a.href = groupAddress(lead.group);
-        a.addEventListener('click', function (e) {
-          e.preventDefault(); groupLink(lead.group, 0, { chat: id, title: o.title() }).catch(host().fail);
-        }); memberNote.appendChild(a);
+        memberNote.appendChild(node('span', null, 'This chat reports to ' + lead.title + '. What you send here is copied, with its answer, to ' + (room ? room.title : lead.title + "'s team room") + '.'));
       }
       if (relationError || !relationKnown) {
         memberNote.appendChild(node('span', null, (lead ? ' ' : '') + (relationError || 'Checking team membership…')));
         if (relationError) { var retry = node('button', 'btn btn-sm', 'Retry'); retry.type = 'button'; retry.addEventListener('click', function () { read(); }); memberNote.appendChild(retry); }
       }
+      // A narrow window cuts the note short; its whole text is its tooltip.
+      memberNote.title = memberNote.textContent;
       if (o.changed) o.changed(lead);
     }
     function draw(v, again) {
@@ -406,7 +406,7 @@
       },
       isMember: member,
       isPending: function () { return !!id && !relationKnown; },
-      focus: function () { (memberNote.querySelector('a, button') || memberNote).focus(); },
+      focus: function () { (memberNote.querySelector('button') || memberNote).focus(); },
       openTeam: function () { return lead ? groupLink(lead.group, 0, { chat: id, title: o.title() }) : Promise.resolve(); },
       commands: function () {
         if (!id) return [];

@@ -154,15 +154,18 @@ const { launch } = require('./lib/page');
     const member = p.locator('[data-win="' + builderKey + '"]');
     await member.locator('.team-member-note').waitFor();
     ok('a member keeps its message box, its toolbar and its approvals, with the note that its lead is copied', await member.locator('.composer-row').isVisible() && /is copied, with its answer/.test(await member.locator('.team-member-note').innerText()) && await member.locator('.composer-bar').isVisible() && await member.locator('[data-command="provider"]').count() > 0 && await member.locator('[data-view-id="context-hold"]').count() === 1);
+    ok('the note about the lead is on the top bar beside Open Team, with no link of its own', await member.locator('.chat-team > .team-member-note').isVisible() && await member.locator('[data-view-id="composer"] .team-member-note').count() === 0 && await member.locator('.team-member-note a').count() === 0 && await member.locator('.chat-team-toolbar').getByRole('button', { name: 'Open Team', exact: true }).isVisible());
+    ok('the note and the toolbar share one line', await member.evaluate(w => { const bar = w.querySelector('.chat-team-toolbar').getBoundingClientRect(), note = w.querySelector('.chat-team > .team-member-note').getBoundingClientRect(); return note.top < bar.bottom && bar.top < note.bottom && note.left >= bar.right - 1; }));
     ok('team bodies omit aggregates, and the title shows the lead\'s own state alone', await lead.locator('.team-aggregate').count() === 0 && await lead.locator('.team-stuck-chip').count() === 0 && await lead.locator('.chat-working-chip .chat-state').count() === 1);
     await t.shot('teams-member');
-    // The team draft survives and gains a mention, without being sent.
+    // A member's Open Team opens its lead's team room with the room's draft kept, sending nothing.
     await p.evaluate(() => dinahBus.openGroup('team-room'));
     await group.locator('textarea').fill('Existing draft text');
     await p.evaluate(() => dinahOpenChat('builder'));
-    await member.locator('.team-member-note a').click();
-    await p.waitForFunction(() => document.querySelector('.group-composer textarea').value.includes('@Builder'));
-    ok('Open Team Chat preserves the draft, adds its mention and sends nothing', /Existing draft text.*@Builder/.test(await group.locator('textarea').inputValue()) && await p.evaluate(() => !__teamCalls.some(c => c[0] === 'group-send')));
+    await member.locator('.chat-team-toolbar').getByRole('button', { name: 'Open Team', exact: true }).click();
+    // The team room comes in front of the member once Open Team has run.
+    await p.waitForFunction(([g, m]) => { const z = k => Number(getComputedStyle(document.querySelector('[data-win="' + k + '"]')).zIndex) || 0; return z(g) > z(m); }, [await group.getAttribute('data-win'), await member.getAttribute('data-win')]);
+    ok('a member\'s Open Team keeps the team room\'s draft and sends nothing', await group.locator('textarea').inputValue() === 'Existing draft text' && await p.evaluate(() => !__teamCalls.some(c => c[0] === 'group-send')));
     ok('member and routed team composer have no bottom recipient panel', await member.locator('.group-notice-note, .group-routing-summary, .group-routing-details').count() === 0 && await group.locator('.group-composer .group-notice-note').count() === 0 && await group.locator('.group-toolbar .group-mention-everyone').isVisible());
     await group.locator('[data-bus-message="12"] .bus-relay-mark').waitFor();
     ok('a relayed group message says how it is addressed without a notification', /For Paul through Team Lead/.test(await group.locator('.bus-relay-mark').textContent()) && await p.evaluate(() => dinahHost.notices.list(e => e.data.notificationId).length) === 0);
@@ -191,7 +194,7 @@ const { launch } = require('./lib/page');
     ok('closing a member view does not stop or close its session', await p.evaluate(() => !__teamCalls.some(c => c[0] === 'stop' || c[0] === 'close-session')));
     await p.evaluate(() => dinahOpenChat('builder'));
     await member.locator('.team-member-note').waitFor();
-    ok('a reopened member view still has its team link and its message box', await member.locator('.composer-row').isVisible() && await member.getByRole('link', { name: 'Open Team Chat', exact: true }).count() === 1);
+    ok('a reopened member view still has its note, its Open Team and its message box', await member.locator('.composer-row').isVisible() && await member.locator('.chat-team > .team-member-note').isVisible() && await member.locator('.chat-team-toolbar').getByRole('button', { name: 'Open Team', exact: true }).isVisible());
     await p.evaluate(() => { __memberLead = false; __emit('agent:session', { sessionId: 'builder', stateGen: 'chat-g', stateVer: 1, lead: null, provider: 'codex', cwd: 'C:/Fixture', open: true }); });
     await member.locator('.team-member-note').waitFor({ state: 'hidden' });
     ok('making a member ordinary removes the note about its lead', await member.locator('.team-member-note').isHidden());
