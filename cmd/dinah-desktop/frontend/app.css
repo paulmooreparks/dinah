@@ -349,6 +349,29 @@ body:not(.show-thoughts) .thought-row { display: none; }
    so the mark over the title gets the dialog's side padding above it. */
 /* The logo is the product's (product-logo.svg); a product's brand.css may size it its own way. */
 .about-logo { display: block; width: 96px; height: 96px; margin: var(--space-5) 0 var(--space-4); }
+/* Open-Source Notices (open-source-notices.js): a list of components and the
+   chosen one's notices. Both panes keep their size whatever is chosen or
+   filtered, so nothing moves. */
+.open-source-notices { height: 100%; min-height: 0; overflow: hidden; container-type: inline-size; }
+.open-source-notices > .notices-panes { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--space-3); padding: var(--space-3); }
+.open-source-notices .notices-list, .open-source-notices .notices-detail { min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.open-source-notices .notices-list > .form-input { flex: none; }
+.open-source-notices .notices-count { flex: none; margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.open-source-notices .notices-rows { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.open-source-notices .notices-rows table { width: 100%; }
+.open-source-notices .notices-rows th { position: sticky; top: 0; background: var(--surface); }
+.open-source-notices .notices-rows tr[hidden] { display: none; }
+.open-source-notices .notices-rows td:first-child { overflow-wrap: anywhere; }
+.open-source-notices .notices-open { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-align: start; cursor: pointer; text-decoration: underline; }
+/* The name has room for two lines and the details for three, always, so the
+   notice below them starts at one place for every component. What does not
+   fit is in the tooltip. */
+.open-source-notices .notices-name { flex: none; margin: 0; font-size: var(--text-md); line-height: 1.3; block-size: 2.6em; overflow: hidden; overflow-wrap: anywhere; }
+.open-source-notices .notices-meta { flex: none; margin: 0; font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; block-size: 4.2em; overflow: hidden; }
+.open-source-notices .notices-text { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; }
+.open-source-notices .notices-actions { flex: none; display: flex; gap: var(--space-2); justify-content: flex-end; }
+.open-source-notices .notices-copy { min-width: 11em; }
+@container (max-width: 720px) { .open-source-notices > .notices-panes { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); } }
 
 /* Glyphs PUDL does not have yet, drawn like its own: a 16-unit outline at
    PUDL's stroke weight, used as a mask. */

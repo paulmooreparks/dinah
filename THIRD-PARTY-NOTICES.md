@@ -80,8 +80,8 @@ These are served by the programs as part of the window's page. A component that 
 
 | Component | Version | Licence |
 | --- | --- | --- |
-| pudl | as bundled | Apache-2.0 |
-| pudl/fonts | as bundled | OFL-1.1 |
+| PUDL, the Pleasantly Usable Design Language | 0.107.1 | Apache-2.0 |
+| Inter, the typeface bundled with PUDL | as bundled | OFL-1.1 |
 | pudl/vendor/cfworker-json-schema | 4.1.1 | MIT |
 | vendor/codemirror | 6.43 | MIT |
 | vendor/gosh | as bundled | BSD-3-Clause |
@@ -90,7 +90,7 @@ These are served by the programs as part of the window's page. A component that 
 | vendor/mermaid | as bundled | MIT |
 | vendor/wasmoon | 1.16.0 | MIT |
 | vendor/xterm | 6.0.0 | MIT |
-| yavc | as bundled | Apache-2.0 |
+| yavc.app, the document, diagram and slide applets | as bundled | Apache-2.0 |
 | yavc/content/diagram-kit | as bundled | OFL-1.1 |
 | yavc/content/md-editor/language-service | as bundled | MIT |
 | yavc/content/md-editor/vendor | as bundled | OFL-1.1 |
@@ -4496,7 +4496,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ~~~~
 
-### pudl
+### PUDL, the Pleasantly Usable Design Language 0.107.1
 
 Bundled with the page.
 
@@ -4707,7 +4707,7 @@ Bundled with the page.
    limitations under the License.
 ~~~~
 
-### pudl/fonts
+### Inter, the typeface bundled with PUDL
 
 Bundled with the page.
 
@@ -5318,7 +5318,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ~~~~
 
-### yavc
+### yavc.app, the document, diagram and slide applets
 
 Bundled with the page.
 

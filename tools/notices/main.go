@@ -40,8 +40,8 @@ type module struct {
 }
 
 type notice struct {
-	Name string // the file's path, as a reader would look for it
-	Text string
+	Name string `json:"file"` // the file's path, as a reader would look for it
+	Text string `json:"text"`
 }
 
 type component struct {
@@ -63,6 +63,14 @@ var provenance = regexp.MustCompile("(?i)^(.*[-._])?notice([-._].*)?$")
 
 // versioned is a folder that ends with its component's version (katex-0.19.1).
 var versioned = regexp.MustCompile("^(.*?)-([0-9]+([.][0-9]+)*)$")
+
+// names gives a bundled library the name it is known by, where its folder's
+// name is not that.
+var names = map[string]string{
+	"pudl":       "PUDL, the Pleasantly Usable Design Language",
+	"pudl/fonts": "Inter, the typeface bundled with PUDL",
+	"yavc":       "yavc.app, the document, diagram and slide applets",
+}
 
 // elections records, for a component offered under a choice of licences,
 // which one the product takes it under and what that licence asks to be
@@ -91,6 +99,10 @@ type options struct {
 	Own []string `json:"own"`
 	// Out is the file the notices are written to.
 	Out string `json:"out"`
+	// Page is the file the same notices are written to as data, for the
+	// window that shows them (Help, About, Open-Source Notices). The
+	// programs serve it with the page.
+	Page string `json:"page"`
 }
 
 const productOptions = "cmd/dinah-desktop/product/notices.json"
@@ -104,6 +116,7 @@ func defaults() options {
 		Roots:     []string{"cmd/dinah-desktop/frontend", "internal/web/static"},
 		Own:       []string{"github.com/paulmooreparks/dinah-extension-go", "vendor/parks-files", "vendor/parks-terminal"},
 		Out:       "THIRD-PARTY-NOTICES.md",
+		Page:      "cmd/dinah-desktop/frontend/third-party-notices.json",
 	}
 }
 
@@ -131,21 +144,26 @@ func main() {
 		fmt.Fprintln(os.Stderr, "notices:", err)
 		os.Exit(1)
 	}
-	text, err := build(o)
+	text, data, err := build(o)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "notices:", err)
 		os.Exit(1)
 	}
-	if *check {
-		if !current(o.Out, text) {
-			fmt.Fprintf(os.Stderr, "notices: %s is out of date; run go run ./tools/notices\n", o.Out)
+	for _, file := range [][2]string{{o.Out, text}, {o.Page, data}} {
+		if file[0] == "" {
+			continue
+		}
+		if *check {
+			if !current(file[0], file[1]) {
+				fmt.Fprintf(os.Stderr, "notices: %s is out of date; run go run ./tools/notices\n", file[0])
+				os.Exit(1)
+			}
+			continue
+		}
+		if err := os.WriteFile(file[0], []byte(file[1]), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "notices:", err)
 			os.Exit(1)
 		}
-		return
-	}
-	if err := os.WriteFile(o.Out, []byte(text), 0o644); err != nil {
-		fmt.Fprintln(os.Stderr, "notices:", err)
-		os.Exit(1)
 	}
 }
 
@@ -159,7 +177,8 @@ func current(file, text string) bool {
 // that changed the endings is not taken for a change to the notices.
 func normal(b []byte) []byte { return bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n")) }
 
-func build(o options) (string, error) {
+// build is the notices as the document and as the page's data.
+func build(o options) (string, string, error) {
 	product, roots := o.Product, o.Roots
 	ownName := map[string]bool{}
 	for _, name := range o.Own {
@@ -167,14 +186,14 @@ func build(o options) (string, error) {
 	}
 	modules, err := linkedModules(o.Programs, o.Platforms, o.Tags, ownName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var goComponents []component
 	var missing []string
 	for _, m := range modules {
 		notices, err := noticesIn(m.Dir, m.Path+"/")
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if len(notices) == 0 {
 			missing = append(missing, m.Path+" "+m.Version)
@@ -187,17 +206,53 @@ func build(o options) (string, error) {
 		goComponents = append(goComponents, component{Title: m.Path, Version: m.Version, Kind: kind, Notices: notices})
 	}
 	if len(missing) > 0 {
-		return "", fmt.Errorf("no licence file was found for: %s", strings.Join(missing, ", "))
+		return "", "", fmt.Errorf("no licence file was found for: %s", strings.Join(missing, ", "))
 	}
 	toolchain, err := goToolchain()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	page, err := pageComponents(roots, ownName)
 	if err != nil {
+		return "", "", err
+	}
+	data, err := pageData(append([]component{toolchain}, goComponents...), page)
+	if err != nil {
+		return "", "", err
+	}
+	return render(product, toolchain, goComponents, page), data, nil
+}
+
+// pageData is the notices as the window that shows them reads them: each
+// component with its name, version, licence, where it is used and its texts.
+func pageData(built, bundled []component) (string, error) {
+	type entry struct {
+		Name    string   `json:"name"`
+		Version string   `json:"version"`
+		Licence string   `json:"licence"`
+		Where   string   `json:"where"`
+		Note    string   `json:"note,omitempty"`
+		Notices []notice `json:"notices"`
+	}
+	var list []entry
+	add := func(where string, components []component) {
+		for _, c := range components {
+			note := ""
+			if _, rest, ok := strings.Cut(c.Kind, ". "); ok {
+				note = rest + "."
+			}
+			list = append(list, entry{Name: c.Title, Version: c.Version, Licence: licencesOf(c), Where: where, Note: note, Notices: c.Notices})
+		}
+	}
+	add("Built into the programs", built)
+	add("Bundled with the page", bundled)
+	b, err := json.MarshalIndent(struct {
+		Components []entry `json:"components"`
+	}{list}, "", " ")
+	if err != nil {
 		return "", err
 	}
-	return render(product, toolchain, goComponents, page), nil
+	return string(b) + "\n", nil
 }
 
 // linkedModules is every module some program links on some platform, apart
@@ -424,6 +479,16 @@ func pageComponents(roots []string, own map[string]bool) ([]component, error) {
 		title, version := nameAndVersion(dir, roots)
 		if own[title] {
 			continue
+		}
+		// A library that says its own version in a file named VERSION is given that version.
+		if version == "" {
+			if b, err := os.ReadFile(filepath.FromSlash(dir + "/VERSION")); err == nil {
+				version = strings.TrimSpace(string(b))
+			}
+		}
+		// A library known by a name other than its folder's is listed by that name.
+		if name := names[title]; name != "" {
+			title = name
 		}
 		files := byDir[dir]
 		sort.Strings(files)

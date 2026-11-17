@@ -26,12 +26,14 @@ func TestTheThirdPartyNoticesAreUpToDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	text, err := build(o)
+	text, data, err := build(o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !current(o.Out, text) {
-		t.Fatalf("%s is out of date; run go run ./tools/notices and commit the result", o.Out)
+	for _, file := range [][2]string{{o.Out, text}, {o.Page, data}} {
+		if file[0] != "" && !current(file[0], file[1]) {
+			t.Fatalf("%s is out of date; run go run ./tools/notices and commit the result", file[0])
+		}
 	}
 	for _, want := range []string{"## Built into the programs", "## Bundled with the page", "The Go runtime and standard library", "github.com/wailsapp/wails/v2"} {
 		if !strings.Contains(text, want) {
