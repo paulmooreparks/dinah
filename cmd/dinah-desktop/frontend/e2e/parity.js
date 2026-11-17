@@ -20,6 +20,7 @@ const path = require('path');
     init: () => { window.runtime.ClipboardSetText = async (t) => { (window.__copied = window.__copied || []).push(t); return true; }; },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const { ok } = t;
   try {
     await p.waitForTimeout(500);

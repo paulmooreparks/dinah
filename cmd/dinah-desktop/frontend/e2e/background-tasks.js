@@ -27,6 +27,7 @@ const { launch } = require('./lib/page');
     init: () => { window.__calls = []; },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const { ok } = t;
   await p.fill('.win[data-chat-current] [data-view-id=prompt]', 'Build it for Windows and Linux.');
   await p.click('.win[data-chat-current] [data-view-id=send]');

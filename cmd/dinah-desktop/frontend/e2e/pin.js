@@ -16,6 +16,7 @@ const windows = require('./lib/windows');
     init: () => { window.__copied = []; window.runtime.ClipboardSetText = async (t) => { window.__copied.push(t); return true; }; },
   });
   const p = windows(t.page);
+  await p.openNewChat();
   const { ok } = t;
   try {
     const prompt = 'Draft the Note 14 design doc for the parser.\nUse the grammar rules from the meeting notes in parser/notes.\nKeep the summary short.\nFlag anything the sources do not settle as an open issue.';

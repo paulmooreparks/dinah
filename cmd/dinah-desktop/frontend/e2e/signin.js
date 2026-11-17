@@ -13,6 +13,7 @@ const { launch } = require('./lib/page');
   });
   const { page: p, ok } = t;
   require('./lib/windows')(p);
+  await p.openNewChat();
   try {
     await p.waitForTimeout(400);
     ok('no notice while nothing was refused', await p.isHidden('.win[data-chat-current] [data-view-id=signin-note]'));

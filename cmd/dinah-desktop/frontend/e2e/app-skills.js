@@ -31,6 +31,7 @@ const { openMenu } = require('./lib/commands');
     init: () => { window.__calls = []; },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const { ok } = t;
   // The Skills button.
   const chat = p.locator('.win[data-chat-current]');

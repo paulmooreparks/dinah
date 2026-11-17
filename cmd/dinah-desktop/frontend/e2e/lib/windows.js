@@ -22,5 +22,12 @@ module.exports = function windows(page) {
       return original(selector, ...args);
     };
   }
+  /* The New Chat window is not among the windows open at start since 15
+     November 2026 (startup is passive). A suite that works in it opens it
+     first, as the person does with New Chat. */
+  page.openNewChat = async () => {
+    await page.evaluate(() => window.dinahWorkbench.open('chat'));
+    await page.locator('.win[data-chat-current]').waitFor();
+  };
   return page;
 };

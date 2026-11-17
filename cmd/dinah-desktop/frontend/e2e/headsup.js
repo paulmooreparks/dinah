@@ -14,6 +14,7 @@ const { launch } = require('./lib/page');
   });
   const { page: p, ok } = t;
   require('./lib/windows')(p);
+  await p.openNewChat();
   try {
     await p.waitForTimeout(400);
     await p.fill('.win[data-chat-current] [data-view-id=prompt]', 'Install the setup');

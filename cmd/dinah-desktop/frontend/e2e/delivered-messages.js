@@ -58,6 +58,7 @@ const { launch } = require('./lib/page');
     },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const ok = t.ok;
 
   // A live chat: the person asks, and the bus delivers.

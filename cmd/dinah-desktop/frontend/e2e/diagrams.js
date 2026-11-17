@@ -38,6 +38,7 @@ const path = require('path');
   const ok = t.ok;
   await p.goto(PAGE);
   await t.waitReady();
+  await p.openNewChat();
   await p.fill('.win[data-chat-current] [data-view-id=prompt]', 'Draw it.');
   await p.click('.win[data-chat-current] [data-view-id=send]');
   await p.waitForTimeout(300);

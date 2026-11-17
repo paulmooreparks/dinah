@@ -36,6 +36,7 @@ const { openMenu } = require('./lib/commands');
   });
   const { page: p, ok } = t;
   require('./lib/windows')(p);
+  await p.openNewChat();
   try {
     await p.waitForTimeout(500);
 
@@ -119,7 +120,9 @@ const { openMenu } = require('./lib/commands');
     ok('reading back leaves the guide chip visible and pointer-accessible', await p.evaluate(() => {
       const chip = [...document.querySelectorAll('.win[data-chat-current] [data-view-id=logs] .smart-chip')].find(el => el.textContent === 'the guide');
       const bounds = chip.getBoundingClientRect(), log = chip.closest('[data-view-id=activity]').getBoundingClientRect();
-      return bounds.top >= log.top && bounds.bottom <= log.bottom && document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).closest('.smart-chip') === chip;
+      // A chip that wraps onto two lines has a box whose middle is between its parts, so the pointer is put on its first part.
+      const part = chip.getClientRects()[0];
+      return bounds.top >= log.top && bounds.bottom <= log.bottom && document.elementFromPoint(part.x + part.width / 2, part.y + part.height / 2).closest('.smart-chip') === chip;
     }));
     await t.shot('chips-reading');
     await p.click('.win[data-chat-current] [data-view-id=logs] .smart-chip >> text=the guide');

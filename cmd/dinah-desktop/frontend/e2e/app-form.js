@@ -25,6 +25,7 @@ const { openMenu } = require('./lib/commands');
     init: () => { window.__calls = []; },
   });
   const p = require('./lib/windows')(t.page);
+  await p.openNewChat();
   const { ok } = t;
   const last = () => p.evaluate(() => window.__calls[window.__calls.length - 1]);
 
