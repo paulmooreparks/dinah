@@ -1,6 +1,6 @@
 // The parts of CodeMirror 6 that Dinah's Editor and its diff view use,
-// bundled into one file that defines the global CM. Built with:
-//   esbuild entry.js --bundle --format=iife --global-name=CM --minify --legal-comments=eof
+// bundled into one file that defines the global dinahCodeMirror. Built with:
+//   esbuild entry.js --bundle --format=iife --global-name=dinahCodeMirror --minify --legal-comments=eof
 export { EditorState, Compartment, StateEffect, StateField, Transaction, Prec, Text } from '@codemirror/state';
 export {
     EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter,

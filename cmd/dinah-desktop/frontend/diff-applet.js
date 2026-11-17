@@ -48,16 +48,21 @@
   const api = window.dinahHelpers.app;
   function message(err) { return window.dinahHelpers.message(err, 'sentence'); }
 
-  /* The bundle is the Editor's; it is loaded once, by whichever asks
-     first. */
+  /* The diff view's own build of the editing library, loaded once. It is
+     in the page as dinahCodeMirror. The content applets bring a build of
+     their own with other parts in it, which is in the page as CM, and they
+     take a library already there under that name as theirs. While this one
+     was CM too, a document opened after a Diff window got this build, which
+     lacks parts the Editor needs, and failed to start with "Cannot read
+     properties of undefined (reading 'define')" (17 November 2026). */
   var cmReady = null;
   function loadCodeMirror() {
-    if (window.CM && window.CM.MergeView) return Promise.resolve(window.CM);
+    if (window.dinahCodeMirror) return Promise.resolve(window.dinahCodeMirror);
     if (!cmReady) {
       cmReady = new Promise(function (resolve, reject) {
         var script = document.createElement('script');
-        script.src = 'vendor/codemirror-6.43/codemirror.js';
-        script.onload = function () { resolve(window.CM); };
+        script.src = 'vendor/codemirror-6.43/codemirror.js?v=2';
+        script.onload = function () { resolve(window.dinahCodeMirror); };
         script.onerror = function () { cmReady = null; reject(new Error('The diff view could not be loaded.')); };
         document.head.appendChild(script);
       });

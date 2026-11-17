@@ -1,6 +1,6 @@
 # CodeMirror 6 for the Editor and the Diff View
 
-Dinah's copy of the bundle is `cmd/dinah-desktop/frontend/vendor/codemirror-6.43/codemirror.js`. It is CodeMirror 6 (MIT), bundled once from npm with esbuild and vendored unmodified, and it defines the global `CM` with the exports listed in `entry.js`. The diff view (`diff-applet.js`) loads it when a diff opens. The Editor is now the yavc.app Editor, which brings its own CodeMirror build.
+Dinah's copy of the bundle is `cmd/dinah-desktop/frontend/vendor/codemirror-6.43/codemirror.js`. It is CodeMirror 6 (MIT), bundled once from npm with esbuild and vendored unmodified, and it defines the global `dinahCodeMirror` with the exports listed in `entry.js`. The name is its own because the yavc.app Editor's build defines `CM` and uses a library already in the page under that name (17 November 2026; before then this bundle was `CM` too, and a document opened after a Diff window could not start). The diff view (`diff-applet.js`) loads it when a diff opens. The Editor is now the yavc.app Editor, which brings its own CodeMirror build.
 
 The recipe came from the Parks Computing site. `package.json` here pins every package in the bundle, the indirect ones through npm `overrides`, so a rebuild from it reproduces the bundle byte for byte; that was checked on 25 October 2026 against the bundle of 10 October before anything was added.
 
@@ -10,7 +10,7 @@ In a scratch directory holding copies of `package.json` and `entry.js`:
 
 ```
 npm install
-npx esbuild entry.js --bundle --format=iife --global-name=CM --minify \
+npx esbuild entry.js --bundle --format=iife --global-name=dinahCodeMirror --minify \
   --legal-comments=eof --outfile=codemirror.js
 ```
 
