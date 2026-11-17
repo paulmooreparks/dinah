@@ -108,8 +108,8 @@
     if (!layoutRestore) layoutRestore = productAppletsLoaded().then(restoreLayoutNow);
     return layoutRestore;
   }
-  /* The page keeps its contents out of sight until the saved layout is in
-     place (app.css, body[aria-busy]). Before this, the page was shown as
+  /* The start screen stays in front of the page until the saved layout is
+     in place (app.css, .start-screen). Before this, the page was shown as
      soon as it was parsed, with the default windows in the default docks,
      and about a second later everything moved to where the saved layout
      has it (Paul, 17 November 2026).

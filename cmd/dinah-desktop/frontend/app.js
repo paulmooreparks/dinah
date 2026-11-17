@@ -328,10 +328,15 @@
   }
   /* Until the layout and the app's state have been read, the status area
      says Dinah is starting, and commands that need the workspace say
-     so rather than that there is no workspace. The page's other contents
-     are out of sight until then (app.css, body[aria-busy]), so that they
-     are first seen where the saved layout has them. */
+     so rather than that there is no workspace. The start screen is in
+     front of the page until then (app.css, .start-screen), so that the
+     page is first seen where the saved layout has it. */
   var started = false;
+  // The start screen says which part of starting is under way; its line keeps its place and height.
+  document.addEventListener('dinah:ui-state-restored', function () {
+    var words = $('start-screen-words');
+    if (words && !started) words.textContent = 'Opening your windows…';
+  }, { once: true });
   function setStarted() {
     started = true;
     var s = $('status-starting');

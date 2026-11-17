@@ -40,9 +40,9 @@ func TestProductFilesAreServedOverDinahs(t *testing.T) {
 func TestTheServedPageIsTheProducts(t *testing.T) {
 	page := []byte(`<!doctype html><html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime"><head><title>Dinah Documents</title><script>var words = "Dinah <b>";</script></head>` +
 		`<body><nav aria-label="Dinah" title="Dinah's bar > all" data-product-attrs="aria-label">About <span data-product-name>Dinah</span> and <b data-product-name></b>.</nav>` +
-		`<button hidden title="A newer build of Dinah is installed" aria-label="Dinah is newer" data-product-attrs="aria-label title">Update Dinah</button><img alt="Dinah" data-product-attrs="alt"></body></html>`)
+		`<button hidden title="A newer build of Dinah is installed" aria-label="Dinah is newer" data-product-attrs="aria-label title">Update Dinah</button><img alt="Dinah" data-product-attrs="alt"><p>Version <span data-product-version></span></p></body></html>`)
 	const name = `Parks & "Sons"`
-	rendered, err := renderPage(page, name, "night")
+	rendered, err := renderPage(page, name, "night", "1.2.3 <dev>")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,6 +56,7 @@ func TestTheServedPageIsTheProducts(t *testing.T) {
 		`title="A newer build of Parks &amp; &#34;Sons&#34; is installed"`,
 		`aria-label="Parks &amp; &#34;Sons&#34; is newer"`,
 		`alt="Parks &amp; &#34;Sons&#34;"`,
+		`<p>Version <span data-product-version>1.2.3 &lt;dev&gt;</span></p>`,
 		// What is not marked stays Dinah's: an attribute not listed, a script and ordinary text.
 		// A tag with a changed attribute is written again, with the same values.
 		`title="Dinah&#39;s bar &gt; all"`,
@@ -69,7 +70,7 @@ func TestTheServedPageIsTheProducts(t *testing.T) {
 	// A page rendered with the name it was written with is the page as
 	// written, but for the marked element written empty, which is given the name.
 	page = []byte(strings.Replace(string(page), `<b data-product-name></b>`, `<b data-product-name>Dinah</b>`, 1))
-	same, err := renderPage(page, "Dinah", "clear-chime")
+	same, err := renderPage(page, "Dinah", "clear-chime", "")
 	if err != nil || string(same) != string(page) {
 		t.Fatalf("rendering for the markup's own product changed the page: %v\n%s", err, same)
 	}
@@ -104,7 +105,7 @@ func TestEveryServedPageIsRenderedWhole(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rendered, err := renderPage(page, name, "night")
+		rendered, err := renderPage(page, name, "night", "9.8.7")
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -170,6 +171,9 @@ func TestEveryServedPageIsRenderedWhole(t *testing.T) {
 						}
 					}
 				}
+				if _, ok := attr(n, "data-product-version"); ok && text(n) != "9.8.7" {
+					t.Errorf("%s: a version element shows %q", path, text(n))
+				}
 				if n.Data == "title" && strings.Contains(text(n), own) {
 					t.Errorf("%s: the title is %q", path, text(n))
 				}
@@ -191,7 +195,7 @@ func TestEveryServedPageIsRenderedWhole(t *testing.T) {
 			}
 		}
 		ownTheme(was)
-		if same, err := renderPage(page, own, theme); err != nil || string(same) != string(page) {
+		if same, err := renderPage(page, own, theme, ""); err != nil || string(same) != string(page) {
 			t.Errorf("%s: rendering for the markup's own product changed the page (%v)", path, err)
 		}
 	}

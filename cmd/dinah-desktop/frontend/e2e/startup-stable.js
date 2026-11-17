@@ -2,10 +2,9 @@
 // with its default windows first, and the saved layout arrives from the
 // engine some time later; until 17 November 2026 both were shown, so the
 // default docks stood beside an empty launcher pane for about a second and
-// everything then moved to its saved place. The page now keeps its contents
-// out of sight until the saved layout has been drawn (app.css,
-// body[aria-busy]; ui-state.js, layoutSettled), and the launcher's pane
-// starts closed.
+// everything then moved to its saved place. The start screen is now in front
+// of the page until the saved layout has been drawn (app.css, .start-screen;
+// ui-state.js, layoutSettled), and the launcher's pane starts closed.
 //
 // Every frame from the first is recorded: where the parts are, and whether
 // they can be seen. What is checked is that every frame in which they can be
@@ -18,8 +17,10 @@ const record = () => {
     const parts = {};
     [['slot', '#launcher-slot'], ['space', '.dinah-window-space'], ['topbar', '.topbar'], ['bar', '.win-bar'], ['dock', '.win-dock'], ['status', '.status-area']].forEach(([name, selector]) => { parts[name] = box(document.querySelector(selector)); });
     document.querySelectorAll('.win-layer > .win').forEach(win => { const b = box(win); if (b) parts['window ' + win.dataset.winKind] = b; });
-    const held = ['.launcher-workspace', '.topbar > *', '.win-dock'].map(selector => { const el = document.querySelector(selector); return el ? getComputedStyle(el).opacity : ''; });
-    return { parts, seen: held.every(value => value === '1'), hidden: held.every(value => value === '0' || value === ''), busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: (() => { const el = document.getElementById('status-starting'); return !!el && !el.hidden && getComputedStyle(el).opacity === '1'; })() };
+    // The start screen covers the whole page, in front of it, until the page has started.
+    const screen = document.getElementById('start-screen'), area = screen ? screen.getBoundingClientRect() : null;
+    const covering = !!area && area.width >= innerWidth && area.height >= innerHeight && getComputedStyle(screen).display !== 'none' && document.elementFromPoint(innerWidth / 2, 8) && screen.contains(document.elementFromPoint(innerWidth / 2, 8)) && screen.contains(document.elementFromPoint(8, innerHeight - 8));
+    return { parts, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(screen.querySelector('.start-screen-words').textContent) && screen.querySelector('.start-screen-name').textContent.trim() !== '' };
   };
   let last = '';
   (function tick() {
@@ -57,13 +58,13 @@ const record = () => {
       const seen = frames.filter(frame => frame.seen), before = frames.filter(frame => !frame.seen && frame.parts.space);
       const last = frames[frames.length - 1];
       ok('the page was recorded while it started, with its contents out of sight', before.length > 0 && before.every(frame => frame.hidden && frame.busy), JSON.stringify(before.filter(frame => !frame.hidden || !frame.busy).slice(0, 2)));
-      ok('the line that says the program is starting is in sight meanwhile', before.some(frame => frame.starting));
+      ok('the start screen shows the name of the product and says what is happening meanwhile', before.some(frame => frame.starting));
       ok('the default windows were built out of sight, in other places than the saved layout has', before.some(frame => text(frame) !== text(last) && frame.parts['window needs-you']), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
       ok('the saved layout is what is shown', !!last.parts['window chat-session'] && !last.parts['window needs-you'] && last.seen && !last.busy, text(last));
       ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame)).join('\n'));
       ok('the launcher pane never stood empty beside the windows', frames.every(frame => !frame.parts.slot), frames.filter(frame => frame.parts.slot).map(frame => frame.t + ' ' + frame.parts.slot).join(' '));
-      // Out of sight, the contents took no pointer; shown, they take it again.
-      ok('the contents take the pointer once they are shown', await p.evaluate(() => ['.launcher-workspace', '.win-dock'].every(selector => getComputedStyle(document.querySelector(selector)).pointerEvents !== 'none')));
+      ok('the start screen is gone, and a press reaches the page', await p.evaluate(() => getComputedStyle(document.getElementById('start-screen')).display === 'none' && !!document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('.dinah-workbench')));
+      ok('the start screen had the logo, the name and a line of progress', await p.evaluate(() => { const s = document.getElementById('start-screen'); return !!s.querySelector('img.start-screen-logo') && s.querySelector('.start-screen-name').textContent === 'Dinah' && !!s.querySelector('progress') && s.querySelector('.start-screen-words').textContent === 'Opening your windows…'; }));
       await t.shot('startup-stable');
     } finally { await t.close(); }
   }
@@ -87,7 +88,7 @@ const record = () => {
     const { page: p, ok } = t;
     try {
       await p.goto('http://dinah.test/index.html');
-      const shown = await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.querySelector('.launcher-workspace')).opacity === '1', null, { timeout: 8000 }).then(() => true, () => false);
+      const shown = await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none', null, { timeout: 8000 }).then(() => true, () => false);
       ok('a page whose state could not be read is shown all the same', shown);
       ok('and says why', await p.locator('.toast', { hasText: 'The state could not be read.' }).count() > 0);
     } finally { await t.close(); }

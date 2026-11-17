@@ -190,6 +190,24 @@
   <link rel="stylesheet" href="teams.css">
 </head>
 <body aria-busy="true">
+  <!-- The start screen: the product's logo and name, in front of everything
+       while the program starts (body[aria-busy]), and gone in one step when
+       the saved layout has been drawn (app.js, setStarted). The window
+       program writes the name and the version into it before the page is
+       served (product_assets.go), so it is whole at the first paint. The
+       approved mockup is docs/mockups/start-screen.html (17 November 2026). -->
+  <div class="start-screen" id="start-screen" role="status">
+    <div class="start-screen-body">
+      <img class="start-screen-logo" src="product-logo.svg" alt="">
+      <p class="start-screen-name" data-product-name>Dinah</p>
+      <p class="start-screen-about">Connects your workspace and applets to supported agents.</p>
+      <p class="start-screen-version">Version <span data-product-version></span></p>
+      <div class="start-screen-state">
+        <progress class="progress" aria-label="Starting"></progress>
+        <p class="start-screen-words" id="start-screen-words">Starting…</p>
+      </div>
+    </div>
+  </div>
 
   <header class="topbar">
     <!-- A desktop host: Alt alone and F10 reach the bar, and Alt (Ctrl+Option

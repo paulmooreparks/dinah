@@ -51,7 +51,7 @@ func productFrontend() (fs.FS, error) {
 		if err != nil {
 			return nil, err
 		}
-		rendered, err := renderPage(page, product.Name, product.DefaultTheme)
+		rendered, err := renderPage(page, product.Name, product.DefaultTheme, shownVersion())
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", entry.Name(), err)
 		}
@@ -67,7 +67,9 @@ renderPage writes a product's name and default theme into a page before it is
 served. The markup is written as Dinah's: its html element has Dinah's name and
 default theme, its title has the name, an element marked data-product-name has
 the name as its text, and an element with data-product-attrs has the name
-inside each attribute listed there. A product's build serves all of these with
+inside each attribute listed there. An element marked data-product-version is
+written empty and is given the build's version, which the start screen shows
+before the engine has been asked anything. A product's build serves all of these with
 its own name, so the page is the product's from its first paint.
 
 product.js makes the same replacements when the engine reports the product,
@@ -80,13 +82,15 @@ which was already the product's.
 The markup is read as HTML, so an attribute's value may hold any character.
 What is not changed is written out as it was read.
 */
-func renderPage(page []byte, name, theme string) ([]byte, error) {
+func renderPage(page []byte, name, theme, version string) ([]byte, error) {
 	z := html.NewTokenizer(bytes.NewReader(page))
 	var out bytes.Buffer
 	// own is the name the markup was written with, known from the html element on.
 	own := ""
-	// marked says the element just opened shows the name as its text.
-	marked, inTitle := false, false
+	// fill is the text the element just opened shows: the name for one marked
+	// data-product-name, the version for one marked data-product-version.
+	var fill *string
+	inTitle := false
 	for {
 		kind := z.Next()
 		if kind == html.ErrorToken {
@@ -98,8 +102,8 @@ func renderPage(page []byte, name, theme string) ([]byte, error) {
 		// Token reuses the buffer Raw returns.
 		raw := append([]byte(nil), z.Raw()...)
 		token := z.Token()
-		wasMarked := marked
-		marked = false
+		filling := fill
+		fill = nil
 		switch kind {
 		case html.StartTagToken, html.SelfClosingTagToken:
 			changed := false
@@ -120,7 +124,14 @@ func renderPage(page []byte, name, theme string) ([]byte, error) {
 				for _, attr := range token.Attr {
 					switch attr.Key {
 					case "data-product-name":
-						marked = kind == html.StartTagToken
+						if kind == html.StartTagToken {
+							fill = &name
+						}
+					case "data-product-version":
+						// A page rendered with no version keeps the element as it was written.
+						if kind == html.StartTagToken && version != "" {
+							fill = &version
+						}
 					case "data-product-attrs":
 						listed = attr.Val
 					}
@@ -144,17 +155,17 @@ func renderPage(page []byte, name, theme string) ([]byte, error) {
 			}
 		case html.TextToken:
 			switch {
-			case wasMarked && token.Data != name:
-				out.WriteString(html.EscapeString(name))
+			case filling != nil && token.Data != *filling:
+				out.WriteString(html.EscapeString(*filling))
 			case inTitle && own != "" && own != name && strings.Contains(token.Data, own):
 				out.WriteString(html.EscapeString(strings.ReplaceAll(token.Data, own, name)))
 			default:
 				out.Write(raw)
 			}
 		case html.EndTagToken:
-			// A marked element written empty is given the name.
-			if wasMarked {
-				out.WriteString(html.EscapeString(name))
+			// A marked element written empty is given its text.
+			if filling != nil {
+				out.WriteString(html.EscapeString(*filling))
 			}
 			inTitle = false
 			out.Write(raw)

@@ -913,15 +913,29 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
 .live-work .activity-row > :not(.activity-time) { grid-column: 1 / -1; }
 
-/* While the page starts (body[aria-busy], which app.js takes off once the
-   saved layout has been drawn), its contents are out of sight and take no
-   pointer: the bars are empty but for the line that says the program is
-   starting, and the work area is blank. Everything is laid out and built as
-   ever, and it is all first seen where the saved layout has it. Shown from
-   the first paint, the
-   default windows stood in the default docks until the saved layout arrived
-   about a second later, and everything then moved (17 November 2026). */
-body[aria-busy="true"] :is(.topbar > *, .launcher-workspace, .win-bar > :not(.status-area), .status-area > :not(.status-starting)) { opacity: 0; pointer-events: none; }
+/* The start screen fills the window while the page starts (body[aria-busy],
+   which app.js takes off once the saved layout has been drawn), in front of
+   everything but dialogs and toasts, and is gone in one step. Behind it the
+   page is laid out and built as ever, so it is all first seen where the
+   saved layout has it. Shown from the first paint, the default windows stood
+   in the default docks until the saved layout arrived about a second later,
+   and everything then moved (17 November 2026). Nothing on the screen can be
+   pressed, so nothing on it is raised; the logo and the name are the largest
+   things on it. A product gives the logo its own size in its brand.css. */
+.start-screen { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: var(--space-5); background: var(--bg); color: var(--text); }
+body:not([aria-busy="true"]) > .start-screen { display: none; }
+.start-screen-body { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; max-width: 34rem; }
+.start-screen-logo { display: block; width: 160px; height: 160px; }
+.start-screen-name { margin: var(--space-2) 0 0; font-size: 2.75rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--dinah-title, var(--text)); }
+.start-screen-about { margin: 0; color: var(--text-muted); }
+.start-screen-version { margin: 0; color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+/* A page served without a version, as a preview is, says nothing about one. */
+.start-screen-version:has(> [data-product-version]:empty) { visibility: hidden; }
+/* The line that says what is happening keeps one height and one place whatever it says. */
+.start-screen-state { margin-top: var(--space-5); width: min(20rem, 100%); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.start-screen-state .progress { width: 100%; }
+.start-screen-words { margin: 0; min-height: 1.5em; font-size: var(--text-sm); color: var(--text-muted); }
+@media (max-width: 640px) { .start-screen-logo { width: 112px; height: 112px; } .start-screen-name { font-size: 2rem; } }
 .launcher-workspace { flex: 1; min-height: 0; min-width: 0; --split-a: 300px; }
 .launcher-workspace > .dinah-window-space { min-width: 0; }
 #launcher-slot { min-width: 0; overflow: hidden; }
