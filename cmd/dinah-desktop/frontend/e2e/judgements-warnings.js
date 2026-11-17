@@ -29,6 +29,7 @@ const path = require('path');
   const neutralZero=badge=>badge.evaluate(el=>!el.hidden&&el.textContent==='0'&&!el.classList.contains('warn'));
   for(const theme of ['light','dark']) for(const width of [1440,500,390]) for(const scale of [1,2]) {
    await p.setViewportSize({width,height:900});
+   await p.waitForFunction(width=>innerWidth===width,width);
    await p.evaluate(({theme,scale,base})=>{
     pudlSetTheme(theme);
     for(const [k,v] of Object.entries(base)) document.documentElement.style.setProperty(k,parseFloat(v)*scale+'px');
@@ -51,6 +52,25 @@ const path = require('path');
     await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     t.ok('closing Status returns to its opener',await foldedControl.evaluate(el=>el===document.activeElement),await p.evaluate(()=>document.activeElement.id||document.activeElement.className));
    }
+   // The check begins once the page has finished reacting to this width and
+   // text size. PUDL reacts to a change of size on the frame after the browser
+   // reports it: it fits the bar again, and it scrolls the selected tab of a
+   // docked group into view. That scroll also moves the main area sideways
+   // when an earlier click on a clipped tray item had scrolled it, and at 390
+   // it moved every tray control by 38 or 59 px just after the first sample
+   // was taken (17 November 2026). A ResizeObserver reports once when it starts
+   // and again whenever the bar, a part of the bar or a docked group changes
+   // size, so the page has settled on the first frame that follows a frame
+   // with no report.
+   await t.deadline('the taskbar to settle at '+theme+'/'+width+'/'+scale,p.evaluate(()=>new Promise(resolve=>{
+    let reports=0,seen=-1;
+    const sizes=new ResizeObserver(()=>{reports++;});
+    for(const el of document.querySelectorAll('.win-bar, .win-bar > *, .win-dock-group')) sizes.observe(el);
+    requestAnimationFrame(function frame(){
+     if(reports>0&&reports===seen){sizes.disconnect();resolve();return;}
+     seen=reports;requestAnimationFrame(frame);
+    });
+   })));
    const geometry=await p.evaluate(async()=>{
     const samples=[],failures=[];
     __paused=false;__warnings=[];__publishWarnings();
