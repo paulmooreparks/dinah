@@ -1112,6 +1112,16 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .oc-members > li { position: relative; padding-top: var(--space-2); }
 .oc-members > li::before { content: ''; position: absolute; left: calc(var(--oc-step) / -2); top: 0; width: calc(var(--oc-step) / 2 - 1px); height: calc(var(--space-2) + 18px); border-left: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); border-bottom-left-radius: 3px; }
 .oc-members > li:not(:last-child)::after { content: ''; position: absolute; left: calc(var(--oc-step) / -2); top: 0; bottom: 0; border-left: 2px solid var(--text-muted); }
+/* Members side by side (org-chart-applet.js, oc-members-row): a line comes
+   down from the lead at the list's left, runs along above the members, and
+   drops to each one. The row does not wrap, since a second line of members
+   would have no line to hang from; the chart scrolls sideways instead. */
+.oc-members.oc-members-row { --oc-drop: 16px; --oc-rise: 10px; position: relative; display: flex; flex-wrap: nowrap; align-items: flex-start; gap: var(--oc-gutter); padding-top: var(--oc-drop); }
+.oc-members.oc-members-row[hidden] { display: none; }
+.oc-members.oc-members-row::before { content: ''; position: absolute; left: calc(var(--oc-step) / 2); top: 0; width: calc(var(--oc-step) / 2 + 10px); height: calc(var(--oc-drop) - var(--oc-rise)); border-left: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); border-bottom-left-radius: 3px; }
+.oc-members.oc-members-row > li { padding-top: 0; }
+.oc-members.oc-members-row > li::before { left: 10px; top: calc(var(--oc-rise) * -1); width: 0; height: var(--oc-rise); border-left: 2px solid var(--text-muted); border-bottom: 0; border-radius: 0; }
+.oc-members.oc-members-row > li:not(:last-child)::after { left: 10px; top: calc(var(--oc-rise) * -1); bottom: auto; width: calc(100% + var(--oc-gutter)); border-left: 0; border-top: 2px solid var(--text-muted); }
 
 /* A chat box: fixed width, every line clipped, so a new title, state or
    time changes nothing else. Its actions button always shows. */

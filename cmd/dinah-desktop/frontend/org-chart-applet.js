@@ -335,6 +335,12 @@
             members.append(li);
           }
         });
+        /* A lead whose members have teams of their own has them side by side,
+           as an org chart has the branches under one box, so that each
+           branch can be read down by itself; stacked, the second branch began
+           far below the lead (Paul, 17 November 2026). A team of chats with no
+           teams of their own stays a stack, which is the narrower. */
+        if (members.querySelector(":scope > li > .oc-team")) members.classList.add("oc-members-row");
         section.append(members);
         return section;
       }
