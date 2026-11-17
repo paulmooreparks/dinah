@@ -999,41 +999,51 @@ body:not([aria-busy="true"]) > .start-screen { display: none; }
   background: var(--danger);
   mask-image: var(--glyph-warning);
 }
-.chat-cleanup { display: flex; flex-direction: column; min-height: 0; gap: var(--space-2); padding: var(--space-3); overflow: hidden; }
-.cleanup-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: var(--space-2); }
-.cleanup-filters .form-label { min-width: 0; }
-.cleanup-filters select { width: 100%; }
-.cleanup-closed { white-space: nowrap; padding-block: var(--space-2); }
-.cleanup-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: none; }
-.cleanup-count { width: 11ch; white-space: nowrap; overflow: auto; font-variant-numeric: tabular-nums; }
-.cleanup-delete { width: 22ch; white-space: nowrap; overflow: hidden; }
-.cleanup-status { height: 3em; overflow: auto; margin: 0; flex: none; }
-.cleanup-lists { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); min-height: 0; flex: 1; }
-.cleanup-section { display: flex; flex-direction: column; min-height: 0; gap: var(--space-2); }
-.cleanup-section h2 { font-size: var(--text-base); margin: 0; }
-.cleanup-section > button { align-self: start; }
-.cleanup-rows { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; flex: 1; scrollbar-gutter: stable; border: 1px solid var(--border); }
-.cleanup-row { height: 9rem; box-sizing: border-box; padding: var(--space-2); border-bottom: 1px solid var(--border); display: grid; grid-template-rows: 1.75rem 3rem minmax(0, 1fr) 0; gap: var(--space-1); overflow: hidden; }
-.cleanup-bin-row { height: 15rem; grid-template-rows: 1.75rem 6rem minmax(0, 1fr) 2rem; }
-.cleanup-row-main { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.cleanup-title { white-space: nowrap; overflow: auto; min-width: 0; }
-.cleanup-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: auto; gap: var(--space-1) var(--space-2); font-size: var(--text-sm); }
-.cleanup-bin-row .cleanup-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.cleanup-meta span { overflow-wrap: anywhere; }
-.cleanup-reason { overflow: auto; overflow-wrap: anywhere; margin: 0; }
-.cleanup-reason[data-status]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: var(--space-1); vertical-align: -0.15em; mask: var(--glyph-warning) center / contain no-repeat; background: var(--warn); }
-.cleanup-reason[data-status="positive"]::before { mask-image: var(--glyph-check); background: var(--positive); }
-.cleanup-row-actions { display: flex; gap: var(--space-2); }
+/* Clean Up Chats (chat-cleanup.js): two tabs that fill the window. Each is
+   a bar of controls, a table that scrolls by itself, and a line that says
+   what is shown or what just happened, so the bars and the line stay put
+   while the rows scroll. */
+.chat-cleanup > .tabs > [role="tabpanel"] { padding: 0; overflow: hidden; }
+.cleanup-view { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.cleanup-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.cleanup-bar .browser-search { flex: 1 1 14rem; min-width: 10rem; }
+.cleanup-bar .form-select-wrap { flex: 1 1 11rem; max-width: 16rem; min-width: 9rem; }
+.cleanup-bar .form-select { width: 100%; }
+.cleanup-bar .switch { flex: none; }
+.cleanup-actions { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.cleanup-actions .toolbar { flex: 1 1 auto; min-width: 0; }
+.cleanup-actions .cleanup-note { flex: 1 1 20rem; }
+/* The count and the button keep one width whatever number they say. */
+.cleanup-selected { flex: none; width: 13ch; font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+.cleanup-delete { justify-content: center; font-variant-numeric: tabular-nums; }
+.cleanup-delete-words { display: inline-grid; justify-items: center; }
+.cleanup-delete-words > * { grid-area: 1 / 1; white-space: nowrap; }
+.cleanup-delete-reserve { visibility: hidden; }
+.cleanup-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.cleanup-table { flex: 1; min-height: 0; overflow: auto; border: 0; border-radius: 0; scrollbar-gutter: stable; }
+.cleanup-table table { width: 100%; }
+.cleanup-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.cleanup-table td { vertical-align: top; }
+.cleanup-table tr[hidden] { display: none; }
+.cleanup-table .cleanup-chat { min-width: 12rem; }
+.cleanup-title { display: block; font-weight: 600; overflow-wrap: anywhere; }
+/* Why a chat cannot be changed, under its title, with a glyph as well as the colour. */
+.cleanup-reason { display: flex; align-items: flex-start; gap: var(--space-1); margin-top: 2px; font-size: var(--text-sm); color: var(--text-muted); }
+.cleanup-reason[hidden] { display: none; }
+.cleanup-reason .glyph { flex: none; margin-top: 2px; --glyph-size: 14px; color: var(--warn); }
+.cleanup-reason[data-tone="info"] .glyph { color: var(--text-muted); }
+.cleanup-when { white-space: nowrap; }
+.cleanup-when small { display: block; color: var(--text-muted); font-size: var(--text-xs); }
+.cleanup-row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; white-space: nowrap; }
+/* The line keeps one height whatever it says: room for two lines, and its whole text is its tooltip. */
+.cleanup-foot { flex: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); line-height: 1.4; color: var(--text-muted); height: 3.5rem; }
+.cleanup-foot > [role="status"] { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.cleanup-foot .btn { margin-inline-start: auto; flex: none; }
+.cleanup-foot [data-tone="result"] { color: var(--text); }
+.cleanup-tab-count { margin-inline-start: var(--space-1); font-variant-numeric: tabular-nums; }
 .cleanup-confirm { max-width: 34rem; }
-@media (max-width: 600px) {
-  .cleanup-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cleanup-toolbar { gap: var(--space-1); }
-  .cleanup-row { height: 12rem; grid-template-rows: 1.75rem 5rem minmax(0, 1fr) 0; }
-  .cleanup-bin-row { height: 18rem; grid-template-rows: 1.75rem 8rem minmax(0, 1fr) 2rem; }
-  .cleanup-meta, .cleanup-bin-row .cleanup-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cleanup-lists { min-height: 18rem; }
-  .chat-cleanup { overflow-y: auto; }
-}
+.cleanup-confirm ul { margin: var(--space-2) 0 0; padding-inline-start: 1.25rem; max-height: 9rem; overflow: auto; }
+@media (max-width: 640px) { .cleanup-bar .form-select-wrap { max-width: none; flex-basis: 100%; } }
 
 /* Effort (docs/design/effort-control.md). The button always says "Effort"
    and shows the level as a mark of one fixed width: one cell for each level
