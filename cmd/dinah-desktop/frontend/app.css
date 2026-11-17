@@ -933,9 +933,9 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .grants-group td:last-child, .grants-group th:last-child { width: 1%; white-space: nowrap; text-align: end; }
 .grants-applet { color: var(--text-muted); white-space: nowrap; }
 
-/* The start screen fills the window while the page starts (body[aria-busy],
-   which app.js takes off once the saved layout has been drawn), in front of
-   everything but dialogs and toasts, and is gone in one step. Behind it the
+/* The start screen fills the window while the page starts, in front of
+   everything but dialogs and toasts, and is gone in one step when the saved
+   layout has been drawn (app.js, showPage). Behind it the
    page is laid out and built as ever, so it is all first seen where the
    saved layout has it. Shown from the first paint, the default windows stood
    in the default docks until the saved layout arrived about a second later,
@@ -943,7 +943,7 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
    pressed, so nothing on it is raised; the logo and the name are the largest
    things on it. A product gives the logo its own size in its brand.css. */
 .start-screen { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: var(--space-5); background: var(--bg); color: var(--text); }
-body:not([aria-busy="true"]) > .start-screen { display: none; }
+.start-screen[hidden] { display: none; }
 .start-screen-body { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; max-width: 34rem; }
 .start-screen-logo { display: block; width: 160px; height: 160px; }
 .start-screen-name { margin: var(--space-2) 0 0; font-size: 2.75rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--dinah-title, var(--text)); }

@@ -309,7 +309,9 @@
         var theme = window.dinahUIState.get('pudl-theme', 'light');
         if (window.pudlSetTheme) window.pudlSetTheme(['light', 'dark', 'system'].includes(theme) ? theme : 'light');
         window.dinahUIState.restoreLayout();
-      }
+        // The start screen goes once the layout the page starts with has been drawn (ui-state.js, layoutSettled).
+        window.dinahUIState.layoutSettled().then(showPage, showPage);
+      } else showPage();
       drawWorkspaces(st);
       chatBrowser.setTitles(st.titles);
       restoreNotifications().catch(fail);
@@ -321,17 +323,28 @@
       chats.restoreView();
       refreshSessions();
       return settings.declaredProviders();
-    }).catch(fail).then(function () {
-      // The page is shown once the layout it starts with has been drawn (ui-state.js, layoutSettled).
-      return window.dinahUIState && window.dinahUIState.layoutSettled ? window.dinahUIState.layoutSettled() : null;
-    }).then(setStarted, setStarted);
+    }).catch(function (error) { fail(error); showPage(); }).then(function () { setStarted(); });
   }
   /* Until the layout and the app's state have been read, the status area
      says Dinah is starting, and commands that need the workspace say
-     so rather than that there is no workspace. The start screen is in
-     front of the page until then (app.css, .start-screen), so that the
-     page is first seen where the saved layout has it. */
+     so rather than that there is no workspace.
+
+     The start screen is in front of the page for a shorter time: until
+     the saved layout has been drawn, so that the page is first seen where
+     that layout has it (app.css, .start-screen). It does not wait for the
+     agent programs to be found, which can take long and which the page is
+     usable without; it did for an hour on 17 November 2026, and a scan
+     that had not answered kept the screen in front of everything. A page
+     whose state could not be read is shown as it is, with the reason. */
   var started = false;
+  /* The status bar's own Starting line goes with the start screen, while
+     the screen still covers it: taken away later, when the agent programs
+     have been found, it made the tray beside it shrink in plain sight. */
+  function showPage() {
+    var line = $('status-starting'), screen = $('start-screen');
+    if (line) line.hidden = true;
+    if (screen) screen.hidden = true;
+  }
   // The start screen says which part of starting is under way; its line keeps its place and height.
   document.addEventListener('dinah:ui-state-restored', function () {
     var words = $('start-screen-words');

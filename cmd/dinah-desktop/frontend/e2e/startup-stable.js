@@ -57,7 +57,7 @@ const record = () => {
       const text = frame => JSON.stringify(frame.parts);
       const seen = frames.filter(frame => frame.seen), before = frames.filter(frame => !frame.seen && frame.parts.space);
       const last = frames[frames.length - 1];
-      ok('the page was recorded while it started, with its contents out of sight', before.length > 0 && before.every(frame => frame.hidden && frame.busy), JSON.stringify(before.filter(frame => !frame.hidden || !frame.busy).slice(0, 2)));
+      ok('the page was recorded while it started, with its contents out of sight', before.length > 0 && before.every(frame => frame.hidden), JSON.stringify(before.filter(frame => !frame.hidden).slice(0, 2)));
       ok('the start screen shows the name of the product and says what is happening meanwhile', before.some(frame => frame.starting));
       ok('the default windows were built out of sight, in other places than the saved layout has', before.some(frame => text(frame) !== text(last) && frame.parts['window needs-you']), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
       ok('the saved layout is what is shown', !!last.parts['window chat-session'] && !last.parts['window needs-you'] && last.seen && !last.busy, text(last));
@@ -91,6 +91,20 @@ const record = () => {
       const shown = await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none', null, { timeout: 8000 }).then(() => true, () => false);
       ok('a page whose state could not be read is shown all the same', shown);
       ok('and says why', await p.locator('.toast', { hasText: 'The state could not be read.' }).count() > 0);
+    } finally { await t.close(); }
+  }
+  // The start screen does not wait for the agent programs to be found: a
+  // scan that never answers leaves the page in sight and in use, with the
+  // status bar still saying that the program is starting.
+  {
+    const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, app: () => ({ AgentProviders: () => new Promise(() => {}), DeclaredProviders: () => new Promise(() => {}) }) });
+    const { page: p, ok } = t;
+    try {
+      await p.goto('http://dinah.test/index.html');
+      const shown = await p.waitForFunction(() => getComputedStyle(document.getElementById('start-screen')).display === 'none', null, { timeout: 8000 }).then(() => true, () => false);
+      ok('a scan of the agent programs that never answers does not keep the start screen up', shown);
+      ok('the page still counts as starting, and the status bar’s own line went with the start screen', await p.evaluate(() => document.body.hasAttribute('aria-busy') && document.getElementById('status-starting').hidden));
+      await p.locator('#status-workspace').click({ timeout: 4000 }).then(() => ok('and the page can be used', true), error => ok('and the page can be used', false, String(error).slice(0, 200)));
     } finally { await t.close(); }
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

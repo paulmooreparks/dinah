@@ -120,8 +120,31 @@
      that follow it have been drawn: the taskbar folds its tray one frame
      after its buttons arrive. An arrangement that changes nothing is
      announced by nothing, so the wait is bounded; the page is then already
-     as the address has it. */
-  var SETTLE_LIMIT = 2000, FRAME_LIMIT = 500;
+     as the address has it.
+
+     The bottom bar goes on changing for a few frames after that, and does
+     with no saved layout too: the taskbar's pinned buttons and its arrange
+     button are added, and status items are shown as their counts arrive.
+     So the layout counts as drawn once nothing has been added to the bar,
+     taken from it, shown or hidden for a few frames running, which is
+     watched for and not guessed at, and that wait is bounded as well. */
+  var SETTLE_LIMIT = 2000, FRAME_LIMIT = 500, QUIET_FRAMES = 4, QUIET_LIMIT = 1200;
+  function barQuiet() {
+    var bar = document.querySelector('.win-bar');
+    if (!bar) return frames(2);
+    return new Promise(function (resolve) {
+      var left = QUIET_FRAMES, done = false;
+      var observer = new MutationObserver(function () { left = QUIET_FRAMES; });
+      observer.observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      var timer = setTimeout(finish, QUIET_LIMIT); // a window out of sight draws no frames
+      function finish() { if (done) return; done = true; clearTimeout(timer); observer.disconnect(); resolve(); }
+      (function next() {
+        if (done) return;
+        if (left-- <= 0) { finish(); return; }
+        requestAnimationFrame(next);
+      })();
+    });
+  }
   function frames(count) {
     return new Promise(function (resolve) {
       var timer = setTimeout(resolve, FRAME_LIMIT); // a window out of sight draws no frames
@@ -136,7 +159,7 @@
       var timer = setTimeout(done, SETTLE_LIMIT);
       function done() { clearTimeout(timer); document.removeEventListener('pudl:windows-change', done); resolve(); }
       document.addEventListener('pudl:windows-change', done);
-    }).then(function () { return frames(2); });
+    }).then(barQuiet);
   }
   /* Resolves when the layout the page starts with has been drawn. A page
      whose layout was never restored, because its state could not be read,
@@ -146,7 +169,8 @@
   }
   function restoreLayoutNow() {
     var saved = get('dinah-workbench-layout');
-    layoutDrawn = frames(2);
+    // The other listeners of the event below set the bar up; the quiet is looked for after them.
+    layoutDrawn = frames(1).then(barQuiet);
     if (!originalSearch && typeof saved === 'string') {
       try {
         var query = new URLSearchParams(saved), opened = (query.get('open') || '').split(',');
