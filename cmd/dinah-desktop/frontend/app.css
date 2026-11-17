@@ -1144,6 +1144,13 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .oc-chat > .org-chart-actions-button { position: absolute; top: 6px; right: 6px; visibility: visible; }
 .oc-chat-title { display: block; font-size: var(--text-sm); font-weight: 700; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--link, var(--accent)); text-decoration: underline; text-underline-offset: 2px; }
 .oc-chat-title:hover { text-decoration-thickness: 2px; }
+/* The name row: the title, and a workspace after it only for a chat drawn in another workspace's box. Both are cut
+   with an ellipsis when the card is narrow, the workspace keeping at most half the row; the row is one line high
+   whether or not the workspace is there. */
+.oc-chat-name { display: flex; align-items: baseline; min-width: 0; height: 22px; white-space: nowrap; }
+.oc-chat-name > .oc-chat-title { flex: 0 1 auto; min-width: 0; }
+.oc-chat-where { flex: 0 1 auto; min-width: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); color: var(--text-muted); white-space: pre; }
+.oc-chat-where[hidden] { display: none; }
 .oc-chat-role { display: block; font-size: var(--text-xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 16px; }
 .oc-chat-state { display: flex; align-items: center; gap: var(--space-2); height: 22px; margin-right: -24px; min-width: 0; white-space: nowrap; overflow: hidden; }
 .oc-chat-state .badge { flex: none; }

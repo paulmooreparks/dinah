@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"slices"
+	"strings"
 
 	"studio/internal/acp"
 )
@@ -103,4 +104,61 @@ func ModelOption(opts []acp.ConfigOption) (acp.ConfigOption, bool) {
 		}
 	}
 	return acp.ConfigOption{}, false
+}
+
+// ModelName is the name the agent's own list gives the model its options
+// select now, or "" when the agent offers no model option or its list gives
+// the selected value no name. The name is what the agent reports, so a
+// value such as "Adaptive", where the agent picks the model itself, is
+// shown as it is and never resolved further.
+func ModelName(opts []acp.ConfigOption) string {
+	option, ok := ModelOption(opts)
+	if !ok {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(option.CurrentValue, &value) != nil || value == "" {
+		return ""
+	}
+	return ValueName(option.Options, value)
+}
+
+// ModelValueName is the name an agent's options give a model value saved
+// for a chat that is not open, or "" when the agent's list no longer gives
+// that value a name.
+func ModelValueName(opts []acp.ConfigOption, saved json.RawMessage) string {
+	option, ok := ModelOption(opts)
+	if !ok {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(saved, &value) != nil || value == "" {
+		return ""
+	}
+	return ValueName(option.Options, value)
+}
+
+// ValueName finds the name a select option's list gives a value, in a flat
+// list or a list of groups, and returns "" when the list gives it none.
+func ValueName(options json.RawMessage, value string) string {
+	var entries []struct {
+		Value   string            `json:"value"`
+		Name    string            `json:"name"`
+		Options []json.RawMessage `json:"options"`
+	}
+	if json.Unmarshal(options, &entries) != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.Value == value && strings.TrimSpace(e.Name) != "" {
+			return strings.TrimSpace(e.Name)
+		}
+		for _, raw := range e.Options {
+			var inner struct{ Value, Name string }
+			if json.Unmarshal(raw, &inner) == nil && inner.Value == value && strings.TrimSpace(inner.Name) != "" {
+				return strings.TrimSpace(inner.Name)
+			}
+		}
+	}
+	return ""
 }

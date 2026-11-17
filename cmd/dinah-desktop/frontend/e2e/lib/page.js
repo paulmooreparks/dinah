@@ -160,18 +160,18 @@ function stub({ state, app, init, args }) {
   if (init) init(args);
 }
 
-// The page is ready when: 'ui-state', the saved UI state has been read, the
-// layout restored and the start screen gone (the usual choice, since boxes
-// read their drafts and windows their places only then, and the page can be
-// seen and pressed only then); 'workbench', the workbench and menu bar
+// The page is ready when: 'ui-state', the saved UI state has been read and
+// the layout restored (the usual choice, since boxes read their drafts and
+// windows their places only then); 'workbench', the workbench and menu bar
 // exist; 'chat', a chat window exists; or a function run in the page until
-// it is true.
+// it is true. Each named choice also waits for the start screen to go.
 const READY = {
   // The start screen is in front of the page until the restored layout has been drawn (app.js, showPage), and
-  // nothing under it can be seen or pressed until then, so a page still under it is not ready.
+  // nothing under it can be seen or pressed until then, so a page still under it is not ready. Each function
+  // runs in the page by itself, which is why the test of the start screen is written out in each.
   'ui-state': () => document.documentElement.dataset.uiStateReady === 'true' && (!document.getElementById('start-screen') || document.getElementById('start-screen').hidden),
-  workbench: () => window.dinahWorkbench && window.dinahHost && document.querySelector('.menubar-ready'),
-  chat: () => window.dinahWorkbench && document.querySelector('.chat-instance'),
+  workbench: () => window.dinahWorkbench && window.dinahHost && document.querySelector('.menubar-ready') && (!document.getElementById('start-screen') || document.getElementById('start-screen').hidden),
+  chat: () => window.dinahWorkbench && document.querySelector('.chat-instance') && (!document.getElementById('start-screen') || document.getElementById('start-screen').hidden),
 };
 
 async function launch(options = {}) {

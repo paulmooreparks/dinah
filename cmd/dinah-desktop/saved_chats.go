@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"studio/internal/agents"
 	"studio/internal/bus"
 	"studio/internal/providers"
 	"studio/internal/sessionhost"
@@ -191,6 +192,7 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 			if row.Provider == "" {
 				row.Provider = saved.logicalEvidence[members.Head].Provider
 			}
+			row.Model = savedModelName(saved, row.Provider, members.Head)
 		}
 		if busTitles[members.Head].Retired {
 			row.State = &ChatState{Life: lifeRetired}
@@ -256,6 +258,34 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 	view.Generation = fmt.Sprintf("%x", sha256.Sum256(data))
 	view.identity = inventoryHash([]any{stamp, headerStamp, busTitles, inventoryRuntimeIdentity(runtimes)})
 	return view, nil
+}
+
+// savedModelName is the name of the model a chat that is not open gets back
+// when it opens: the value saved for it, after a substitution stored for that
+// value (option_substitutions.go), named as the program's last list of
+// options names it. It is "" when the program offers no choice of model,
+// nothing is saved for the chat, or the list gives the value no name.
+func savedModelName(saved Settings, provider, session string) string {
+	provider = normalizedProvider(provider)
+	catalog := saved.Catalog
+	if providers.For(provider).OwnPreferences {
+		catalog = saved.ProviderCatalogs[provider]
+	}
+	option, ok := agents.ModelOption(catalog)
+	if !ok {
+		return ""
+	}
+	value, ok := saved.SessionOptions[session][option.ID]
+	if !ok {
+		return ""
+	}
+	for _, sub := range saved.OptionSubstitutions[provider] {
+		if sub.Option == option.ID && sameValue(sub.From, value) {
+			value = sub.To
+			break
+		}
+	}
+	return agents.ModelValueName(catalog, value)
 }
 
 // continuedConversations are the saved conversations that another saved

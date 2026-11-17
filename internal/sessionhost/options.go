@@ -33,12 +33,18 @@ func (o *Options) Finish(s *Conversation, opts []acp.ConfigOption) error {
 	return nil
 }
 func (o *Options) Update(s *Conversation, opts []acp.ConfigOption, finishRestore bool) error {
+	before := agents.ModelName(s.Options())
 	restoring, kept := s.UpdateOptions(opts)
 	var saveErr error
 	if !restoring || finishRestore {
 		saveErr = o.host.Save(s, opts, kept)
 	}
 	EmitOptions(o.host.Emit, s, saveErr)
+	// The chat's information has its model's name (Info.Model), which the
+	// Chats list and the Org Chart show, so a change of model sends it again.
+	if agents.ModelName(s.Options()) != before {
+		EmitSession(o.host.Emit, s)
+	}
 	return saveErr
 }
 

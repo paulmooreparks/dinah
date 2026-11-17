@@ -2484,6 +2484,16 @@
       "sha256": "e7adfac5b840aaa6fae09c2575bc4430a0da138974968b30bf464d233f609db5"
     }
   ],
+  "hostOnly": [
+    "go.mod",
+    "go.sum",
+    "lab/host.css",
+    "lab/host.js",
+    "lab/index.html",
+    "workspace-lab/host.css",
+    "workspace-lab/host.js",
+    "workspace-lab/index.html"
+  ],
   "kind": "portable-content-release-set",
   "requirements": {
     "resourceContract": 1,

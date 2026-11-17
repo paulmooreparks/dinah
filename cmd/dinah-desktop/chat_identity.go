@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
 
 	"studio/internal/acp"
 	"studio/internal/agents"
@@ -26,40 +25,20 @@ func (a *App) chatIdentityLine(session string) string {
 }
 
 // currentModelName is the display name of the model a chat's options select,
-// or the selected value when the option lists no name for it.
+// or the selected value when the option lists no name for it. The chat is
+// told the value rather than nothing, since it reads it only to know itself;
+// the lists the person reads show a model only by its name (agents.ModelName).
 func currentModelName(opts []acp.ConfigOption) string {
+	if name := agents.ModelName(opts); name != "" {
+		return name
+	}
 	option, ok := agents.ModelOption(opts)
 	if !ok {
 		return ""
 	}
 	var value string
-	if json.Unmarshal(option.CurrentValue, &value) != nil || value == "" {
+	if json.Unmarshal(option.CurrentValue, &value) != nil {
 		return ""
-	}
-	return optionValueName(option.Options, value)
-}
-
-// optionValueName finds the name an option's list gives a value, in a flat
-// list or a list of groups, and returns the value itself when there is none.
-func optionValueName(options json.RawMessage, value string) string {
-	var entries []struct {
-		Value   string            `json:"value"`
-		Name    string            `json:"name"`
-		Options []json.RawMessage `json:"options"`
-	}
-	if json.Unmarshal(options, &entries) != nil {
-		return value
-	}
-	for _, e := range entries {
-		if e.Value == value && strings.TrimSpace(e.Name) != "" {
-			return e.Name
-		}
-		for _, raw := range e.Options {
-			var inner struct{ Value, Name string }
-			if json.Unmarshal(raw, &inner) == nil && inner.Value == value && strings.TrimSpace(inner.Name) != "" {
-				return inner.Name
-			}
-		}
 	}
 	return value
 }
