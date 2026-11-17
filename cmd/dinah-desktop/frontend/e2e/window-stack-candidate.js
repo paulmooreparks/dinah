@@ -32,7 +32,8 @@ const out = process.argv[3];
   async function snapshot(label) {
     const s = await t.page.evaluate(() => {
       const state=pudlWindows.state();
-      const hit=document.elementFromPoint(700,380)?.closest('[data-win]')?.dataset.win;
+      // The start screen is in front of the page while it starts, so the window at the point is the first window under it.
+      const hit=document.elementsFromPoint(700,380).map(el=>el.closest('[data-win]')).find(Boolean)?.dataset.win;
       return {state,hit,events:__events,focus:document.activeElement?.closest('[data-win]')?.dataset.win};
     }); evidence.push({label,...s}); return s;
   }

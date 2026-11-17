@@ -323,7 +323,13 @@
       chats.restoreView();
       refreshSessions();
       return settings.declaredProviders();
-    }).catch(function (error) { fail(error); showPage(); }).then(function () { setStarted(); });
+    }).catch(function (error) { fail(error); showPage(); }).then(function () {
+      /* Start-up has ended once the agent programs are found and the page
+         has been shown. The page is shown first when the programs take
+         long, and last when they are quick; either way the page no longer
+         counts as starting while the start screen is still in front of it. */
+      return pageShown;
+    }).then(function () { setStarted(); });
   }
   /* Until the layout and the app's state have been read, the status area
      says Dinah is starting, and commands that need the workspace say
@@ -340,10 +346,12 @@
   /* The status bar's own Starting line goes with the start screen, while
      the screen still covers it: taken away later, when the agent programs
      have been found, it made the tray beside it shrink in plain sight. */
+  var markShown, pageShown = new Promise(function (resolve) { markShown = resolve; });
   function showPage() {
     var line = $('status-starting'), screen = $('start-screen');
     if (line) line.hidden = true;
     if (screen) screen.hidden = true;
+    markShown();
   }
   // The start screen says which part of starting is under way; its line keeps its place and height.
   document.addEventListener('dinah:ui-state-restored', function () {
