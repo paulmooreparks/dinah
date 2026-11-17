@@ -39,6 +39,24 @@ func (b *Bus) ResultQueued(ctx context.Context, key string) (bool, error) {
 	return n > 0, err
 }
 
+// FindResult reads an existing completion and checks its immutable destination
+// and body. A missing result is not an instruction to replay its source action.
+func (b *Bus) FindResult(ctx context.Context, key, recipient, text string) (int64, error) {
+	var id int64
+	var savedRecipient, savedText string
+	err := b.db.QueryRowContext(ctx, `SELECT h.message_id,h.recipient,m.text FROM host_results h JOIN messages m ON m.id=h.message_id WHERE h.key=?`, key).Scan(&id, &savedRecipient, &savedText)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if savedRecipient != recipient || savedText != text {
+		return 0, errors.New("the host result key identifies another result")
+	}
+	return id, nil
+}
+
 // EnqueueResult records a host result and its delivery in one transaction.
 // The stable key makes reconciliation safe after a restart or a lost reply.
 // It addresses a session ID even when that session is currently closed,

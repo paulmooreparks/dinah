@@ -42,7 +42,7 @@ var pageMethods = func() map[string]pageMethodClass {
 	list(pageQuery, `
  OllamaMemory
  ListSetAsidePrograms ListChatCleanup OrgChart OrgChartActions
- Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast
+ Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast TaskQuestionStatus NotificationRequest RequestOperation RequestState
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
@@ -71,7 +71,7 @@ var pageMethods = func() map[string]pageMethodClass {
  AcknowledgeMention
  ApplyOrgChartAction RemoveChats RestoreRemovedChat DeleteRemovedChat EmptyChatRecycleBin
  RemoveSetAsidePrograms
- AnswerDecision DismissDecision ConfirmDecisionBroadcast
+ AnswerDecision DismissDecision DismissRequest ConfirmDecisionBroadcast
  AddFileAccessEntry RemoveFileAccessEntry SetFileAccessDefault AcknowledgeFileAccessLog
  LogQueueDefault DismissJudgementWarning DismissJudgementWarnings SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart
  AgentSignIn AgentStop Answer AnswerTaskQuestion AnswerAppletRequest AnswerExtensionCommand AnswerPage

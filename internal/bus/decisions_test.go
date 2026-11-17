@@ -144,8 +144,8 @@ func TestDecisionGroupAnswerAndPlainMentionResolution(t *testing.T) {
 	if d.Group != room.Name || d.Destination != "#"+room.Title {
 		t.Fatalf("group DTO %+v", d)
 	}
-	if r, err := b.DismissDecision(ctx, DismissDecisionInput{OperationID: "bad-dismiss", ID: d.ID, Revision: 1}); err != nil || r.State != "rejected" || r.Reason.Code != "dismissal_unavailable" {
-		t.Fatalf("available request dismissal %+v %v", r, err)
+	if !d.CanDismiss {
+		t.Fatalf("available request has no dismissal command %+v", d)
 	}
 	r, err := b.AnswerDecision(ctx, AnswerDecisionInput{OperationID: "group-answer", ID: d.ID, Revision: 1, Answers: []DecisionAnswer{{Number: 1, AsRecommended: true}}})
 	if err != nil {
@@ -464,8 +464,8 @@ func TestDecisionUnavailableRequestsCanBeCleared(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if d.CanDismiss || d.DismissalReason != "" {
-				t.Fatalf("available request allowed dismissal %+v", d)
+			if !d.CanDismiss || d.DismissalReason != "" {
+				t.Fatalf("available request cannot be dismissed %+v", d)
 			}
 			partial, err := b.AnswerDecision(ctx, AnswerDecisionInput{OperationID: "partial-before-orphan", ID: d.ID, Revision: 1, Answers: []DecisionAnswer{{Number: 7, AsRecommended: true}}})
 			if err != nil || partial.State != "committed" {
@@ -551,7 +551,7 @@ func TestDecisionUnavailableRequestsCanBeCleared(t *testing.T) {
 	}
 }
 
-func TestDecisionDismissalRechecksRestoredDestination(t *testing.T) {
+func TestDecisionDismissalKeepsItsReceiptAcrossDestinationChanges(t *testing.T) {
 	ctx := context.Background()
 	b, s, d := personRequestFixture(t)
 	lead, err := b.RegisterSession(ctx, "window-restored-lead", s.WorkspacePath, "Lead")
@@ -572,21 +572,21 @@ func TestDecisionDismissalRechecksRestoredDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 	in := DismissDecisionInput{OperationID: "restored-dismiss", ID: d.ID, Revision: 1}
-	rejected, err := b.DismissDecision(ctx, in)
-	if err != nil || rejected.State != "rejected" || rejected.Reason.Code != "dismissal_unavailable" {
-		t.Fatalf("restored dismissal %+v %v", rejected, err)
+	settled, err := b.DismissDecision(ctx, in)
+	if err != nil || settled.State != "committed" || !settled.Closed {
+		t.Fatalf("restored dismissal %+v %v", settled, err)
 	}
 	if err = b.SetRetired(ctx, s.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	retry, err := b.DismissDecision(ctx, in)
-	if err != nil || !reflect.DeepEqual(retry, rejected) {
-		t.Fatalf("terminal rejection changed %+v %v", retry, err)
+	if err != nil || !reflect.DeepEqual(retry, settled) {
+		t.Fatalf("terminal dismissal changed %+v %v", retry, err)
 	}
 	in.OperationID = "new-orphan-dismiss"
 	cleared, err := b.DismissDecision(ctx, in)
-	if err != nil || cleared.State != "committed" || !cleared.Closed {
-		t.Fatalf("fresh dismissal %+v %v", cleared, err)
+	if err != nil || cleared.State != "rejected" || !cleared.Closed || cleared.Reason.Code != "decision_closed" {
+		t.Fatalf("a different operation resettled the request %+v %v", cleared, err)
 	}
 }
 

@@ -17,9 +17,10 @@ import (
 )
 
 type taskRecord struct {
-	ID       string             `json:"id"`
-	Sequence uint64             `json:"sequence"`
-	Receipts map[string]Receipt `json:"receipts"`
+	Questions map[string]QuestionRecord `json:"questions,omitempty"`
+	ID        string                    `json:"id"`
+	Sequence  uint64                    `json:"sequence"`
+	Receipts  map[string]Receipt        `json:"receipts"`
 }
 
 type lease struct {
@@ -35,20 +36,21 @@ type lease struct {
 }
 
 type Window struct {
-	mu       sync.Mutex
-	options  Options
-	store    records.Store
-	reviews  map[string]Review
-	bindings map[string]Binding
-	leases   map[string]*lease
-	workers  sync.WaitGroup
-	closed   bool
-	targets  map[string]map[string]string
-	events   []Receipt
-	emitting bool
-	claims   map[string]bool
-	root     context.Context
-	stop     context.CancelFunc
+	questions *Questions
+	mu        sync.Mutex
+	options   Options
+	store     records.Store
+	reviews   map[string]Review
+	bindings  map[string]Binding
+	leases    map[string]*lease
+	workers   sync.WaitGroup
+	closed    bool
+	targets   map[string]map[string]string
+	events    []Receipt
+	emitting  bool
+	claims    map[string]bool
+	root      context.Context
+	stop      context.CancelFunc
 }
 
 func New(o Options) (*Window, error) {
@@ -269,6 +271,11 @@ func (w *Window) write(record taskRecord, r Receipt) error {
 	if err != nil {
 		return refusal("persistence_failed", err.Error())
 	}
+	if w.options.AfterSave != nil {
+		if err := w.options.AfterSave(clone(r)); err != nil {
+			return refusal("outcome_unknown", "The write result is unknown. Reconcile the original operation before taking further action: "+err.Error())
+		}
+	}
 	if w.options.Emit != nil {
 		w.events = append(w.events, clone(r))
 	}
@@ -456,7 +463,7 @@ func (w *Window) run(l *lease, o Operation, resource string, done func()) {
 		if err != nil {
 			out = Outcome{State: "failed", Code: "not_authorized", Reason: err.Error()}
 		} else {
-			out = executeBackend(w.options.Backend, l.ctx, l.plan.Scope, o, func(progress Progress) error {
+			out = executeBackend(w.options.Backend, context.WithValue(l.ctx, questionExecutionKey{}, questionExecution{w, o.ID}), l.plan.Scope, o, func(progress Progress) error {
 				w.mu.Lock()
 				defer w.unlock()
 				rec, e := w.read(key)
@@ -495,25 +502,29 @@ func (w *Window) run(l *lease, o Operation, resource string, done func()) {
 	record, err = w.read(key)
 	if err == nil {
 		r = record.Receipts[o.ID]
-		if !slices.Contains([]string{"succeeded", "failed", "cancelled", "unknown"}, out.State) {
-			out = Outcome{State: "unknown", Code: "unknown_outcome", Reason: "the adapter did not establish an outcome"}
-		}
-		if l.poison != nil {
-			out.State, out.Code, out.Reason = "unknown", "persistence_failed", l.poison.Error()
-		}
-		if out.Identity != "" {
-			if r.Identity != "" && out.Identity != r.Identity {
-				out.State = "unknown"
-				out.Code = "unknown_outcome"
-			} else {
-				r.Identity = out.Identity
+		// A question settlement checkpoint already includes its final operation
+		// receipt and completion obligation. The returning worker cannot replace it.
+		if r.Disposition == "" {
+			if !slices.Contains([]string{"succeeded", "failed", "cancelled", "unknown"}, out.State) {
+				out = Outcome{State: "unknown", Code: "unknown_outcome", Reason: "the adapter did not establish an outcome"}
 			}
+			if l.poison != nil {
+				out.State, out.Code, out.Reason = "unknown", "persistence_failed", l.poison.Error()
+			}
+			if out.Identity != "" {
+				if r.Identity != "" && out.Identity != r.Identity {
+					out.State = "unknown"
+					out.Code = "unknown_outcome"
+				} else {
+					r.Identity = out.Identity
+				}
+			}
+			r.State, r.Code, r.Reason = out.State, out.Code, out.Reason
+			if out.Result != nil {
+				r.Result = out.Result
+			}
+			err = w.write(record, r)
 		}
-		r.State, r.Code, r.Reason = out.State, out.Code, out.Reason
-		if out.Result != nil {
-			r.Result = out.Result
-		}
-		err = w.write(record, r)
 	}
 	if err != nil {
 		l.poison = err

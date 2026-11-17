@@ -31,6 +31,10 @@ type taskServiceState struct {
 	now       func() time.Time
 	rooms     taskhost.RoomAdapter
 	interests map[string]func()
+	// Private persistence seams let isolated receiving fixtures observe actual
+	// source writes and lose responses without replacing the source store.
+	receiptSave  func(taskhost.Receipt) error
+	receiptSaved func(taskhost.Receipt) error
 }
 
 type taskOwnedTurn struct {
@@ -57,7 +61,8 @@ func (a *App) startTaskServices() error {
 	a.taskServices.once.Do(func() {
 		h, err := taskhost.New(taskhost.Options{
 			State: configDir(), Resolve: a.taskWorkspace, Check: a.checkTaskIdentity,
-			HoldTask: a.holdTaskRecord, Admit: a.admitTaskOperation, Confirm: a.confirmTaskReview, TargetRevision: a.taskTargetRevision,
+			QuestionRecipient: func(s taskhost.Scope) string { return a.knownBusID(s.OwnerChat) },
+			HoldTask:          a.holdTaskRecord, Admit: a.admitTaskOperation, Confirm: a.confirmTaskReview, TargetRevision: a.taskTargetRevision,
 			Resource:   a.taskResource,
 			Operations: a.taskHostOperations, DescribeChats: a.describeTaskChats, CheckProgram: a.checkTaskProgram, DescribeAction: a.describeTaskAction,
 			PendingQuestions: a.pendingServiceQuestions,
@@ -79,7 +84,25 @@ func (a *App) startTaskServices() error {
 				}
 				return func() { a.EndExitWork(token) }, nil
 			},
-			Emit:      func(r taskhost.Receipt) { a.emit("task:receipt", r) },
+			Emit: func(r taskhost.Receipt) { a.emit("task:receipt", r) },
+			Save: func(r taskhost.Receipt) error {
+				a.taskServices.mu.Lock()
+				f := a.taskServices.receiptSave
+				a.taskServices.mu.Unlock()
+				if f != nil {
+					return f(r)
+				}
+				return nil
+			},
+			AfterSave: func(r taskhost.Receipt) error {
+				a.taskServices.mu.Lock()
+				f := a.taskServices.receiptSaved
+				a.taskServices.mu.Unlock()
+				if f != nil {
+					return f(r)
+				}
+				return nil
+			},
 			Lifecycle: func(phase string) { a.emit("task:host", map[string]string{"phase": phase}) },
 		})
 		var window *services.Window
