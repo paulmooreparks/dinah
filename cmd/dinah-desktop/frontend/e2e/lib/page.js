@@ -135,6 +135,22 @@ function stub({ state, app, init, args }) {
   if (!own.SavedChats) App.SavedChats = async () => ({ generation: 'fixture', chats: await (own.Sessions || App.Sessions)() });
   if (!own.DeclaredProviders) App.DeclaredProviders = async () => (await (own.AgentProviders || App.AgentProviders)()).map(p => ({ id: p.id, name: p.name, default: p.default, facts: p.facts, status: 'unknown' }));
   Object.assign(App, own);
+  /* The page saves what changed in the UI state (SaveUIStateChanges), and the
+     host keeps the whole store. Most suites give SaveUIState to see what was
+     saved, so this host applies the changes to its copy of the store, which
+     starts as what ReadUIState gave the page, and hands the whole of it to
+     SaveUIState, as the real host writes the whole file. A suite that checks
+     the changes themselves gives SaveUIStateChanges. */
+  if (!own.SaveUIStateChanges) {
+    const read = App.ReadUIState;
+    let store = null;
+    App.SaveUIStateChanges = async changes => {
+      if (!store) store = JSON.parse(JSON.stringify((await read()).values || {}));
+      for (const key of changes.remove || []) delete store[key];
+      for (const [key, value] of Object.entries(changes.set || {})) store[key] = JSON.parse(JSON.stringify(value));
+      return window.go.main.App.SaveUIState({ version: 1, values: JSON.parse(JSON.stringify(store)) });
+    };
+  }
   // Every call is recorded with its arguments, whichever stub answers it.
   for (const name of Object.keys(App)) {
     const fn = App[name];

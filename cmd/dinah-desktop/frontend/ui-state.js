@@ -6,11 +6,20 @@
    workspace. */
 (function () {
   'use strict';
-  var values = {}, loaded = false, writable = false, restoring = true;
-  var pending = false, saving = null, timer = null, mode = 'floating', kindModes = {}, modeOf = {}, initializationError = '';
+  /* Each value is kept as its JSON text, and the keys changed since the last
+     save are remembered. The whole store used to be copied and sent on every
+     save, and compared twice more afterwards; a long-used installation's
+     store is some 600 KB in 600 values, so bringing one window forward
+     serialised megabytes on the page's thread (measured 17 November 2026,
+     docs/design/scaling.md). A save now sends the changed values alone
+     (SaveUIStateChanges, ui_state.go), and reading a value parses that one
+     value. */
+  var texts = {}, dirty = new Set(), loaded = false, writable = false, restoring = true;
+  var saving = null, timer = null, mode = 'floating', kindModes = {}, modeOf = {}, initializationError = '';
   var originalSearch = location.search, scrolls = new Map();
   const backend = window.dinahHelpers.app;
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function has(key) { return Object.prototype.hasOwnProperty.call(texts, key); }
+  function take(values) { texts = {}; Object.keys(values).forEach(function (key) { texts[key] = JSON.stringify(values[key]); }); }
   function report(error) { document.dispatchEvent(new CustomEvent('dinah:ui-state-error', { detail: String(error) })); }
   function legacy() {
     var data = {};
@@ -28,31 +37,34 @@
     } catch (error) { /* Browser storage is optional. */ }
     return data;
   }
-  function get(key, fallback) { return Object.prototype.hasOwnProperty.call(values, key) ? clone(values[key]) : fallback; }
+  function get(key, fallback) { return has(key) ? JSON.parse(texts[key]) : fallback; }
   function set(key, value) {
     if (!loaded || restoring) return;
-    if (JSON.stringify(values[key]) === JSON.stringify(value)) return;
-    if (value === undefined) delete values[key]; else values[key] = clone(value);
+    var text = value === undefined ? undefined : JSON.stringify(value);
+    if (text === (has(key) ? texts[key] : undefined)) return;
+    if (text === undefined) delete texts[key]; else texts[key] = text;
     if (!backend() || !backend().ReadUIState) {
       try {
         if (value === undefined) localStorage.removeItem(key);
         else localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
       } catch (error) { /* Browser-only previews can disable storage. */ }
     }
-    pending = true;
+    dirty.add(key);
     clearTimeout(timer); timer = setTimeout(function () { flush().catch(report); }, 150);
   }
   function flush() {
     clearTimeout(timer);
     if (initializationError) return Promise.reject(new Error(initializationError));
-    if (!loaded || !writable || !pending) return saving || Promise.resolve();
+    if (!loaded || !writable || !dirty.size) return saving || Promise.resolve();
     if (saving) return saving.then(flush);
-    pending = false;
-    var snapshot = { version: 1, values: clone(values) };
-    saving = Promise.resolve().then(function () { return backend().SaveUIState(snapshot); }).catch(function (error) {
-      pending = true; throw error;
+    var keys = Array.from(dirty), changes = { version: 1, set: {}, remove: [] };
+    dirty.clear();
+    keys.forEach(function (key) { if (has(key)) changes.set[key] = JSON.parse(texts[key]); else changes.remove.push(key); });
+    saving = Promise.resolve().then(function () { return backend().SaveUIStateChanges(changes); }).catch(function (error) {
+      // What was not saved is still to be saved, whatever has changed since.
+      keys.forEach(function (key) { dirty.add(key); }); throw error;
     }).finally(function () { saving = null; });
-    return saving.then(function () { if (pending && JSON.stringify(values) !== JSON.stringify(snapshot.values)) return flush(); });
+    return saving.then(function () { if (dirty.size) return flush(); });
   }
   var finishReady, started = false;
   var ready = new Promise(function (resolve) { finishReady = resolve; });
@@ -62,11 +74,12 @@
     started = true;
     Promise.resolve().then(function () {
     var app = backend();
-    if (!app || !app.ReadUIState) { values = legacy(); return; }
+    if (!app || !app.ReadUIState) { take(legacy()); return; }
     return Promise.resolve(app.ReadUIState()).then(function (state) {
       if (!state || state.version !== 1 || !state.values || Array.isArray(state.values)) throw new Error('The saved UI state has an unsupported format.');
-      values = state.values; writable = !!app.SaveUIState;
-      if (!Object.keys(values).length) { values = legacy(); pending = !!Object.keys(values).length; }
+      take(state.values); writable = !!app.SaveUIStateChanges;
+      // An empty store takes over what an older build kept in the browser, and saves all of it.
+      if (!Object.keys(texts).length) { take(legacy()); Object.keys(texts).forEach(function (key) { dirty.add(key); }); }
     });
     }).catch(function (error) { initializationError = String(error); report(error); }).then(function () {
     loaded = true;
@@ -115,7 +128,7 @@
     document.documentElement.dataset.uiStateReady = 'true';
     document.dispatchEvent(new CustomEvent('dinah:ui-state-restored', { detail: { explicit: !!originalSearch, restored: !originalSearch && typeof saved === 'string' } }));
     refreshScroll(document);
-    if (pending) flush().catch(report);
+    if (dirty.size) flush().catch(report);
   }
   /* An entry reads its saved position once the saved state is loaded and
      the layout has been restored. Until then it may neither restore nor
@@ -200,8 +213,8 @@
     var entry = scrolls.get(el); if (entry) { entry.pending = false; entry.defer = false; }
   }
   function migratePrefix(oldPrefix, newPrefix) {
-    Object.keys(values).forEach(function (key) {
-      if (key.startsWith(oldPrefix)) { set(newPrefix + key.slice(oldPrefix.length), values[key]); set(key, undefined); }
+    Object.keys(texts).forEach(function (key) {
+      if (key.startsWith(oldPrefix)) { set(newPrefix + key.slice(oldPrefix.length), JSON.parse(texts[key])); set(key, undefined); }
     });
     scrolls.forEach(function (entry) { if (entry.key.startsWith(oldPrefix)) entry.key = newPrefix + entry.key.slice(oldPrefix.length); });
   }

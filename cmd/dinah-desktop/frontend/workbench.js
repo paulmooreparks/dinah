@@ -10,16 +10,32 @@
   var svgSerial = 0;
   var embedSerial = 0;
   var layoutKey = 'dinah-workbench-layout';
+  /* Where each window was last placed is a saved value of its own. They used
+     to be one value, a map of every window that was ever opened, which had
+     grown to 80 KB on a long-used installation and was read, changed and
+     written whole for every change to any window (17 November 2026,
+     docs/design/scaling.md). The old value is still read until it has been
+     taken apart, which happens once the saved state may be written. */
+  var PLACE = 'dinah-window-place:', OLD_PLACES = 'dinah-window-placements', oldPlaces;
+  function rememberedPlace(key) {
+    var own = dinahUIState.get(PLACE + key);
+    if (own) return own;
+    if (oldPlaces === undefined) oldPlaces = dinahUIState.get(OLD_PLACES, null);
+    return oldPlaces ? oldPlaces[key] : undefined;
+  }
   function saveLayout(event) {
     if (!window.dinahUIState || dinahUIState.isRestoring()) return;
     dinahUIState.set(layoutKey, location.search);
-    if (event && event.detail && event.detail.place) {
-      var placements = dinahUIState.get('dinah-window-placements', {});
-      Object.assign(placements, event.detail.place);
-      dinahUIState.set('dinah-window-placements', placements);
-    }
+    if (event && event.detail && event.detail.place) Object.keys(event.detail.place).forEach(function (key) { dinahUIState.set(PLACE + key, event.detail.place[key]); });
   }
   document.addEventListener('pudl:windows-change', saveLayout);
+  document.addEventListener('dinah:ui-state-restored', function () {
+    var old = dinahUIState.get(OLD_PLACES, null);
+    oldPlaces = null;
+    if (!old) return;
+    Object.keys(old).forEach(function (key) { if (dinahUIState.get(PLACE + key) === undefined) dinahUIState.set(PLACE + key, old[key]); });
+    dinahUIState.set(OLD_PLACES, undefined);
+  });
   document.addEventListener('dinah:ui-state-restored', function (event) {
     if (!window.pudlWindows || event.detail.explicit || event.detail.restored) return;
     window.pudlWindows.state().open.forEach(function (key) {
@@ -29,7 +45,7 @@
   });
   document.addEventListener('pudl:window-place', function (event) {
     if (!window.dinahUIState) return;
-    var remembered = dinahUIState.get('dinah-window-placements', {})[event.detail.key];
+    var remembered = rememberedPlace(event.detail.key);
     if (remembered) { event.detail.placement = remembered; return; }
     var item = decode(event.detail.key), cfg = kinds.get(item ? item.kind : event.detail.key);
     if (!cfg || cfg.mode || cfg.dockOnly) return;

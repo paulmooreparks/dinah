@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -45,6 +46,83 @@ func TestUIStateRoundTripAndWindowPreference(t *testing.T) {
 	}
 	if err := a.SetNewWindowMode("minimized"); err == nil {
 		t.Fatal("unknown preference accepted")
+	}
+}
+
+// compactJSON is a stored value without the indentation the store is written with.
+func compactJSON(value json.RawMessage) string {
+	var out bytes.Buffer
+	if err := json.Compact(&out, value); err != nil {
+		return string(value)
+	}
+	return out.String()
+}
+
+// The page saves what changed, and everything it did not change stays as it was.
+func TestUIStateChangesSetAndRemoveOnlyTheirOwnKeys(t *testing.T) {
+	a, _ := providerTestApp(t)
+	if err := a.SaveUIStateChanges(UIStateChanges{Version: 1, Set: map[string]json.RawMessage{
+		"layout": json.RawMessage(`"?open=workspace"`), "scroll:a": json.RawMessage(`{"top":10}`), "scroll:b": json.RawMessage(`{"top":20}`),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.SaveUIStateChanges(UIStateChanges{Version: 1, Set: map[string]json.RawMessage{"scroll:a": json.RawMessage(`{"top":99}`)}, Remove: []string{"scroll:b", "never-there"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.ReadUIState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Values) != 2 || compactJSON(got.Values["layout"]) != `"?open=workspace"` || compactJSON(got.Values["scroll:a"]) != `{"top":99}` {
+		t.Fatalf("changes were not applied to their own keys alone: %v", got.Values)
+	}
+	// A change the store cannot hold is refused whole and changes nothing.
+	for _, bad := range []UIStateChanges{
+		{Version: 2, Set: map[string]json.RawMessage{"layout": json.RawMessage(`"x"`)}},
+		{Version: 1, Set: map[string]json.RawMessage{"": json.RawMessage(`"x"`)}},
+		{Version: 1, Set: map[string]json.RawMessage{"layout": json.RawMessage(`{`)}},
+	} {
+		if err := a.SaveUIStateChanges(bad); err == nil {
+			t.Fatalf("invalid changes accepted: %+v", bad)
+		}
+	}
+	after, _ := a.ReadUIState()
+	if compactJSON(after.Values["layout"]) != `"?open=workspace"` || len(after.Values) != 2 {
+		t.Fatalf("refused changes altered the store: %v", after.Values)
+	}
+}
+
+// A store that cannot be read is never replaced by changes to it.
+func TestUIStateChangesLeaveAnUnreadableStoreAlone(t *testing.T) {
+	a, _ := providerTestApp(t)
+	path := filepath.Join(configDir(), "ui-state.json")
+	stateTestWrite(t, path, `{`)
+	if err := a.SaveUIStateChanges(UIStateChanges{Version: 1, Set: map[string]json.RawMessage{"layout": json.RawMessage(`"x"`)}}); err == nil {
+		t.Fatal("changes were applied to a store that cannot be read")
+	}
+	if got, _ := os.ReadFile(path); string(got) != `{` {
+		t.Fatal("the unreadable store was modified")
+	}
+}
+
+// A removed chat's draft does not come back with a change to something else.
+func TestUIStateChangesDoNotRestoreARemovedChatsDraft(t *testing.T) {
+	a, _ := providerTestApp(t)
+	if err := a.SaveUIStateChanges(UIStateChanges{Version: 1, Set: map[string]json.RawMessage{"dinah-draft:chat:gone": json.RawMessage(`"words"`)}}); err != nil {
+		t.Fatal(err)
+	}
+	a.mu.Lock()
+	if a.settings.RemovedChats == nil {
+		a.settings.RemovedChats = map[string]chatRemoval{}
+	}
+	a.settings.RemovedChats["gone"] = chatRemoval{Stage: "removed"}
+	a.mu.Unlock()
+	if err := a.SaveUIStateChanges(UIStateChanges{Version: 1, Set: map[string]json.RawMessage{"layout": json.RawMessage(`"x"`)}}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := a.ReadUIState()
+	if _, kept := got.Values["dinah-draft:chat:gone"]; kept {
+		t.Fatal("a removed chat's draft survived a later change")
 	}
 }
 

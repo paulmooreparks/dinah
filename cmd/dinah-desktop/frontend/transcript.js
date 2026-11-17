@@ -3,6 +3,25 @@
 (function () {
   'use strict';
   var node = window.dinahHelpers.node;
+  /* An attribute written with the value it already has still makes the
+     browser look again at every style rule that reads it, and a rule with
+     :has() carries that to the window's whole content and to its
+     neighbours. A streamed chunk wrote these several times each, which
+     restyled thousands of elements for nothing (17 November 2026), so each
+     is written only when it changes. */
+  function setHidden(el, value) { value = !!value; if (el.hidden !== value) el.hidden = value; }
+  /* The window in front, kept from the window layer's announcement of each
+     change, which carries its state. Asking the layer for its state instead
+     copies the whole arrangement, and every transcript asked on every
+     streamed chunk. */
+  var topKey;
+  function topWindow() {
+    if (topKey === undefined) topKey = window.pudlWindows.state().top || null;
+    return topKey;
+  }
+  document.addEventListener('pudl:windows-change', function (event) { topKey = event.detail && event.detail.top || null; });
+  // Whether the element's window is drawn at all (covered-windows.js). Measuring inside one that is not would lay it out.
+  function covered(el) { return !!window.dinahCovered && window.dinahCovered.is(el); }
   function mount(o) {
     var log = o.log, content = o.content, disposed = false, following = true;
     var frame = 0, navigationTarget = null, leavingEnd = false;
@@ -23,7 +42,7 @@
     if (!o.stopped) { controls.appendChild(stopped); log.before(controls); }
     // A host that keeps the control in place itself, enabling it rather
     // than hiding it, is told when it is offered.
-    function showStopped(shown) { if (o.stoppedChanged) o.stoppedChanged(shown); else controls.hidden = !shown; }
+    function showStopped(shown) { if (o.stoppedChanged) o.stoppedChanged(shown); else setHidden(controls, !shown); }
     showStopped(false);
     var divider = node('p', 'transcript-unread-divider'); divider.setAttribute('role', 'status');
     var unreadGlyph = node('span', 'glyph'), unreadWords = node('span');
@@ -37,15 +56,15 @@
     }
     function active() {
       var win = o.root.closest('.win');
-      return !!win && !win.hidden && !!log.clientHeight && document.visibilityState === 'visible' && window.pudlWindows.state().top === win.dataset.win;
+      return !!win && !win.hidden && topWindow() === win.dataset.win && document.visibilityState === 'visible' && !!log.clientHeight;
     }
     function ready() { return (!o.ready || o.ready()) && document.documentElement.dataset.uiStateReady === 'true'; }
     function setFollowing(value) {
       following = !!value;
-      log.dataset.following = String(following);
+      if (log.dataset.following !== String(following)) log.dataset.following = String(following);
       if (following) { leavingEnd = false; navigationTarget = null; window.dinahChatText.releasePlace(log); }
       if (o.followingChanged) o.followingChanged(following);
-      jump.hidden = following || !log.clientHeight || atEnd();
+      setHidden(jump, following || !log.clientHeight || atEnd());
     }
     function release() {
       navigationTarget = null;
@@ -91,7 +110,7 @@
         if (divider.nextElementSibling !== first.element) first.element.before(divider);
       } else if (divider.parentNode) divider.remove();
       showStopped(!!first);
-      jump.hidden = following || !log.clientHeight || atEnd();
+      setHidden(jump, following || !log.clientHeight || atEnd());
       if (anchor && anchor.element.isConnected) {
         var shift = anchor.element.getBoundingClientRect().top - log.getBoundingClientRect().top - anchorTop;
         if (Math.abs(shift) > 0.5) { log.scrollTop += shift; }
@@ -104,7 +123,7 @@
       }
     }
     function check() {
-      if (disposed || !log.clientHeight) return;
+      if (disposed || covered(log) || !log.clientHeight) return;
       // Only deliberate navigation releases following. A delayed layout scroll
       // can carry an old position after both the extent and viewport settled.
       if (following) queueTail();
@@ -112,14 +131,17 @@
       updateSeen();
     }
     function scroll(force) {
-      if (disposed || !log.clientHeight) return;
+      /* A covered window's transcript is not laid out, so there is nothing
+         to follow yet; it is brought to its end when the window shows again
+         (uncovered, below). */
+      if (disposed || covered(log) || !log.clientHeight) return;
       if (window.dinahUIState && window.dinahUIState.restorePending(log)) {
         window.dinahUIState.restoreNow(log); setFollowing(atEnd()); updateSeen(); return;
       }
       if (force) setFollowing(true);
       if (following) { window.dinahChatText.releasePlace(log); log.scrollTop = log.scrollHeight; }
       if (o.scrolled) o.scrolled();
-      jump.hidden = following || atEnd(); updateSeen();
+      setHidden(jump, following || atEnd()); updateSeen();
       // Seen controls and the unread divider can change the viewport or extent.
       // Finish the same operation at the resulting end, before another frame.
       if (following) log.scrollTop = log.scrollHeight;
@@ -141,8 +163,19 @@
     }
     function schedule() {
       if (disposed || frame) return;
-      frame = requestAnimationFrame(function () { frame = 0; if (disposed) return; if (following && (!o.canTail || o.canTail())) scroll(); else { updateSeen(); centreTarget(); } });
+      frame = requestAnimationFrame(function () { frame = 0; if (disposed || covered(log)) return; if (following && (!o.canTail || o.canTail())) scroll(); else { updateSeen(); centreTarget(); } });
     }
+    /* The window layer's changes concern a transcript only when its own
+       window is the one now in front, which is when what it shows counts as
+       read. Every transcript used to lay itself out for every change to any
+       window, so raising one window cost a layout for each open chat. A
+       change to the transcript's own size reaches it through its resize
+       observer. */
+    function windowsChanged(event) {
+      var win = o.root.closest('.win');
+      if (!win || !event.detail || event.detail.top === win.dataset.win) schedule();
+    }
+    function uncovered(event) { if (event.detail.window.contains(log)) schedule(); }
     function input(event) {
       if (event.type === 'keydown' && (event.defaultPrevented || event.target !== log || !['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key))) return;
       if (event.type === 'pointerdown' && event.target !== log) return;
@@ -208,7 +241,8 @@
     rowChanges.observe(sizingRoot, { childList: true, subtree: true }); sizeRows(sizingRoot, false);
     var mutation = new MutationObserver(schedule); mutation.observe(content, { childList: true, subtree: true, characterData: true });
     var resize = new ResizeObserver(schedule); resize.observe(content); resize.observe(log);
-    document.addEventListener('pudl:windows-change', schedule); document.addEventListener('visibilitychange', schedule);
+    document.addEventListener('pudl:windows-change', windowsChanged); document.addEventListener('visibilitychange', schedule);
+    document.addEventListener('dinah:window-uncovered', uncovered);
     setFollowing(true); schedule();
     return {
       pause: function () { release(); setFollowing(false); },
@@ -228,7 +262,8 @@
         jump.removeEventListener('click', latest); stopped.removeEventListener('click', whereStopped);
         log.removeEventListener('scroll', check); log.removeEventListener('dinah:scroll-restored', restored);
         ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (name) { log.removeEventListener(name, input); });
-        document.removeEventListener('pudl:windows-change', schedule); document.removeEventListener('visibilitychange', schedule);
+        document.removeEventListener('pudl:windows-change', windowsChanged); document.removeEventListener('visibilitychange', schedule);
+        document.removeEventListener('dinah:window-uncovered', uncovered);
       }
     };
   }

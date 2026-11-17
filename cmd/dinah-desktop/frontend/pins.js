@@ -54,7 +54,8 @@
      and a long press all open the same menu. */
   function rowActions(row, pinOf, more) {
     var b = node('button'); b.type = 'button'; b.setAttribute('data-row-actions', '');
-    row.appendChild(b);
+    // The row says that it has the button, so the stylesheet need not ask with :has() (app.css, .row-with-actions).
+    row.appendChild(b); row.classList.add('row-with-actions');
     row.addEventListener('pudl:contextmenu', function (e) {
       if (e.detail.count()) return;
       e.detail.add([command(pinOf())].concat(more ? more() : []).filter(Boolean));

@@ -62,6 +62,45 @@ func (a *App) SaveUIState(state UIState) error {
 	return a.saveUIStateForCleanup(state)
 }
 
+// UIStateChanges is what the page changed in the saved UI state since it last
+// saved: the values to set and the keys to remove.
+type UIStateChanges struct {
+	Version int                        `json:"version"`
+	Set     map[string]json.RawMessage `json:"set"`
+	Remove  []string                   `json:"remove"`
+}
+
+// SaveUIStateChanges applies the page's changes to the saved UI state. The
+// page saves a moment after every change to a window, a scroll position or a
+// draft, and the whole store, which is hundreds of kilobytes on a long-used
+// installation, used to cross the bridge each time; the page now sends what
+// changed, and the store is read, changed and written here, off the page's
+// thread. A store that cannot be read is left as it is and the changes are
+// refused, as a whole save is.
+func (a *App) SaveUIStateChanges(changes UIStateChanges) error {
+	if changes.Version != 1 {
+		return fmt.Errorf("unsupported UI state version %d; the saved layout has not been changed", changes.Version)
+	}
+	for key, value := range changes.Set {
+		if key == "" || !json.Valid(value) {
+			return errors.New("UI state changes contain an invalid key or value")
+		}
+	}
+	a.chatCleanupMu.Lock()
+	defer a.chatCleanupMu.Unlock()
+	state, err := a.ReadUIState()
+	if err != nil {
+		return err
+	}
+	for _, key := range changes.Remove {
+		delete(state.Values, key)
+	}
+	for key, value := range changes.Set {
+		state.Values[key] = value
+	}
+	return a.saveUIStateForCleanup(state)
+}
+
 // saveUIStateForCleanup requires chatCleanupMu, also held by final deletion.
 // Copy the map before filtering because the page may retry its stale snapshot.
 func (a *App) saveUIStateForCleanup(state UIState) error {
