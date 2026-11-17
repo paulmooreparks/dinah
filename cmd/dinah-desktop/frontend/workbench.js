@@ -36,13 +36,27 @@
     Object.keys(old).forEach(function (key) { if (dinahUIState.get(PLACE + key) === undefined) dinahUIState.set(PLACE + key, old[key]); });
     dinahUIState.set(OLD_PLACES, undefined);
   });
+  /* What a layout that starts from the default windows is given. PUDL's
+     window interface exists from the moment the document has been read, and
+     a quick start can report its saved state before that, so the work waits
+     for PUDL's first arrangement when it has to; it used to be left out. */
   document.addEventListener('dinah:ui-state-restored', function (event) {
-    if (!window.pudlWindows || event.detail.explicit || event.detail.restored) return;
+    if (event.detail.explicit || event.detail.restored) return;
+    if (window.pudlWindows) freshLayout();
+    else document.addEventListener('pudl:windows-change', freshLayout, { once: true });
+  });
+  function freshLayout() {
     window.pudlWindows.state().open.forEach(function (key) {
       var item = decode(key), cfg = kinds.get(item ? item.kind : key);
       if (cfg && !cfg.mode && !cfg.dockOnly) window.pudlWindows.snap(key, dinahUIState.windowMode(item ? item.kind : key));
     });
-  });
+    /* A layout that starts from the default windows has Chats in front in
+       its dock. PUDL puts the last of the default windows in front, which
+       was New Chat until it left that list on 15 November 2026 and has been
+       Notifications since, so the list of chats was behind it on a first
+       start (Paul, 17 November 2026). The tabs keep their order. */
+    if (window.pudlWindows.state().open.indexOf('chat-browser') >= 0) window.pudlWindows.raise('chat-browser');
+  }
   document.addEventListener('pudl:window-place', function (event) {
     if (!window.dinahUIState) return;
     var remembered = rememberedPlace(event.detail.key);

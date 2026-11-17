@@ -79,6 +79,7 @@ const record = () => {
       const frames = await p.evaluate(() => window.__frames), last = frames[frames.length - 1];
       const seen = frames.filter(frame => frame.seen);
       ok('with no saved layout the default windows are shown', last.seen && !!last.parts['window workspace'], JSON.stringify(last.parts));
+      ok('and Chats is the pane in front in its dock, with Notifications behind it', !!last.parts['window chat-browser'] && !last.parts['window needs-you'], JSON.stringify(last.parts));
       ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts)).join('\n'));
     } finally { await t.close(); }
   }
