@@ -1,6 +1,8 @@
 // Export Workspace… and Import Workspace… (docs/design/workspace-export.md):
-// the export window with its chats, their total and what goes of their
-// groups and teams, the import window's sources and choices, a source of
+// the windows' size, resize corner and narrow layout, the export window's
+// chats table with its All box, the total and how many members of each
+// group and team go, ticks that move nothing, the import window's sources
+// and choices, a source of
 // a kind this build does not know kept and not checked, a folder that is
 // not on the computer shown dimmed in the Sources tree with Create the
 // Folders…, and a workspace whose main folder is missing.
@@ -106,40 +108,121 @@ const { launch } = require('./lib/page');
     // A toast is shown when its words are on the page as the person sees it.
     const shown = text => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 5000 }).then(() => true, () => false);
     const shot = name => t.shot('workspace-transfer-' + name);
+    /* The window at a large screen's size, at 800 by 600 and in a narrow
+       window, for looking at after a layout change; the suite's own
+       viewport comes back after. */
+    const shotSizes = async name => {
+      for (const [width, height] of [[1920, 1080], [800, 600], [520, 700]]) {
+        await page.setViewportSize({ width, height });
+        await page.waitForTimeout(100);
+        await shot(name + '-' + width + 'x' + height);
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    };
+    /* layout reads every row's top and height in a window's tables, each
+       column's left edge, and the top of the given elements, so that a tick
+       can be checked to move nothing. */
+    const layout = (dialog, below) => page.evaluate(([dialog, below]) => {
+      const d = document.getElementById(dialog), round = n => Math.round(n * 100) / 100;
+      const rows = [...d.querySelectorAll('.data-table tbody tr')].map(tr => { const r = tr.getBoundingClientRect(); return [round(r.top), round(r.height)]; });
+      const columns = [...d.querySelectorAll('.data-table tbody tr')].map(tr => [...tr.cells].map(td => round(td.getBoundingClientRect().left)));
+      const tops = below.map(id => round(document.getElementById(id).getBoundingClientRect().top));
+      return JSON.stringify({ rows, columns, tops });
+    }, [dialog, below]);
+    const cells = selector => page.evaluate(sel => [...document.querySelectorAll(sel + ' tbody tr')].map(tr => [...tr.cells].map(td => td.textContent.trim())), selector);
 
     // Export Workspace… first shows the export window, with every chat ticked.
     await page.locator('#status-workspace').click();
     await page.locator('#workspace-status-menu [data-cmd=export-workspace]').click();
     const exp = page.locator('dialog[open]#workspace-export');
     await exp.waitFor();
-    const chat = id => exp.locator('.import-source[data-chat-id="' + id + '"]');
+    const chat = id => exp.locator('#workspace-export-chats tr[data-chat-id="' + id + '"]');
+    const all = exp.locator('#workspace-export-all');
+    const allState = () => all.evaluate(box => (box.checked ? 'checked' : 'unchecked') + (box.indeterminate ? ', mixed' : ''));
     const text = async sel => (await page.locator(sel).textContent()).trim();
     ok('Export Workspace… plans the export of the workspace in front before any file is chosen', await page.evaluate(() => __calls.some(c => c[0] === 'plan-export' && c[1] === 'w1') && !__calls.some(c => c[0] === 'export')));
     ok('the export window says what it saves and which sources and pins go', (await exp.textContent()).includes('This saves the workspace "SampleLab" to a file that Import Workspace… reads on another computer.') &&
       await text('#workspace-export-sources') === '3 sources and 1 pin go with it: the main folder SampleLab, the folder Notes and the source Concepts.', await text('#workspace-export-sources'));
-    ok('every chat is listed and ticked', await exp.locator('#workspace-export-chats input[type=checkbox]').count() === 5 && await exp.locator('#workspace-export-chats input[type=checkbox]:checked').count() === 5);
-    ok('a chat shows its program, model and size', (await chat('chat-lead').textContent()).includes('Claude · Opus 5.5') && (await chat('chat-lead').locator('.import-size').textContent()) === '41.2 MB');
-    ok('a closed chat and a hidden chat are marked', (await chat('chat-notes').textContent()).includes('Closed') && (await chat('chat-notes').textContent()).includes('Hidden') && !(await chat('chat-lead').textContent()).includes('Closed'));
-    ok('the total counts every ticked chat', await text('#workspace-export-total') === '5 chats with 146.6 MB of history.', await text('#workspace-export-total'));
-    const lines = async () => (await page.locator('#workspace-export-groups p').allTextContents()).map(s => s.trim());
-    let said = await lines();
-    ok('the group line counts the members here and names the one in another workspace', said[0] === 'The group Harbor Team goes with them, with its conversation: 4 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
-    ok('the team line says who leads it', said[1] === 'Harbor Lead leads a team of 4.', said[1]);
+    ok('every chat is a row of the table, ticked, and the All box is ticked', await exp.locator('#workspace-export-chats tbody input[type=checkbox]').count() === 5 &&
+      await exp.locator('#workspace-export-chats tbody input[type=checkbox]:checked').count() === 5 && await allState() === 'checked', await allState());
+    ok('every cell of the chats table has its label for the narrow layout', await page.evaluate(() => [...document.querySelectorAll('#workspace-export-chats tbody td')].every(td => td.dataset.label)));
+    const leadCells = await cells('#workspace-export-chats').then(rows => rows[0]);
+    ok('a chat shows its title, program, model, state and size', JSON.stringify(leadCells) === JSON.stringify(['', 'Harbor Lead', 'Claude · Opus 5.5', 'Open', '41.2 MB']), JSON.stringify(leadCells));
+    ok('a closed chat and a hidden chat are marked', (await chat('chat-notes').textContent()).includes('Closed, Hidden') && !(await chat('chat-lead').textContent()).includes('Closed'));
+    ok('the total beside the buttons counts every ticked chat', await text('#workspace-export-total') === '5 of 5 chats, 146.6 MB of history' &&
+      await exp.locator('.dialog-actions #workspace-export-total').count() === 1, await text('#workspace-export-total'));
+    let groups = await cells('#workspace-export-groups');
+    ok('the group row counts the members here and says who is in another workspace', JSON.stringify(groups[0]) === JSON.stringify(['Harbor Team, a group', '4 of 4 members', 'Docks Builder in Docks']), JSON.stringify(groups[0]));
+    ok('the team row counts its lead among its members', JSON.stringify(groups[1]) === JSON.stringify(['Harbor Lead\'s team', '4 of 4 members', 'None']), JSON.stringify(groups[1]));
+    ok('below the table the window says that a team without its lead goes without its budget', (await text('#workspace-export-group-notes')).includes('When its lead does not go, the team\'s budget stays behind, and its members rejoin the team on a computer that has the lead.'));
     ok('the window warns that the file holds the conversations', (await text('#workspace-export-private')).includes('Keep it as private as the chats.'));
+
+    // The window's size, its resize corner, and its title and buttons kept in place.
+    const box = await exp.evaluate(d => { const r = d.getBoundingClientRect(), s = getComputedStyle(d), body = d.querySelector('.transfer-body');
+      return { width: r.width, height: r.height, left: r.left, top: r.top, resize: s.resize, overflow: s.overflow, scrolls: getComputedStyle(body).overflowY,
+        titleTop: d.querySelector('.dialog-title').getBoundingClientRect().top - r.top, actionsBottom: r.bottom - d.querySelector('.dialog-actions').getBoundingClientRect().bottom }; });
+    ok('the window opens wide, 64rem by 46rem, centred in a large program window', box.width === 1024 && box.height === 736 && Math.abs(box.left - (1440 - 1024) / 2) < 1 && Math.abs(box.top - (1000 - 736) / 2) < 1, JSON.stringify(box));
+    ok('the window resizes from its corner, and only its middle scrolls', box.resize === 'both' && box.overflow === 'hidden' && box.scrolls === 'auto' && box.titleTop < 2 && box.actionsBottom < 2, JSON.stringify(box));
+    const sized = async (width, height) => exp.evaluate((d, [w, h]) => { d.style.width = w; d.style.height = h; const r = d.getBoundingClientRect(); return { width: r.width, height: r.height }; }, [width, height]);
+    const largest = await sized('5000px', '5000px'), smallest = await sized('10px', '10px');
+    await exp.evaluate(d => { d.style.width = ''; d.style.height = ''; });
+    ok('resizing stops 8 pixels inside the program window', largest.width === 1440 - 16 && largest.height === 1000 - 16, JSON.stringify(largest));
+    ok('resizing stops at 26rem by 20rem', smallest.width === 416 && smallest.height === 320, JSON.stringify(smallest));
+    // The corner is dragged as a person drags it.
+    await page.mouse.move(box.left + box.width - 3, box.top + box.height - 3);
+    await page.mouse.down();
+    await page.mouse.move(box.left + box.width - 203, box.top + box.height - 103, { steps: 5 });
+    await page.mouse.up();
+    const dragged = await exp.evaluate(d => { const r = d.getBoundingClientRect(); return { width: r.width, height: r.height }; });
+    ok('dragging the lower right corner makes the window smaller', dragged.width < box.width - 100 && dragged.height < box.height - 50, JSON.stringify(dragged));
+    await exp.evaluate(d => { d.style.width = ''; d.style.height = ''; });
     await shot('export');
-    const warningAt = async () => (await page.locator('#workspace-export-private').boundingBox()).y;
-    const before = await warningAt();
+
+    // Ticking changes words in cells, never the height of a row or the place of anything.
+    const exportBelow = ['workspace-export-private', 'workspace-export-group-notes', 'workspace-export-go'];
+    const before = await layout('workspace-export', exportBelow);
     await chat('chat-lead').getByRole('checkbox').uncheck();
-    said = await lines();
-    ok('unticking a chat takes it off the total', await text('#workspace-export-total') === '4 chats with 105.4 MB of history.', await text('#workspace-export-total'));
-    ok('the group line counts one member fewer', said[0] === 'The group Harbor Team goes with them, with its conversation: 3 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
-    ok('without its lead the team goes without its budget', said[1] === 'Harbor Lead stays behind, so its team\'s budget does not go. 3 of its members go and rejoin it on a computer that has Harbor Lead.', said[1]);
-    ok('ticking does not move the warning', await warningAt() === before);
+    groups = await cells('#workspace-export-groups');
+    ok('unticking a chat takes it off the total', await text('#workspace-export-total') === '4 of 5 chats, 105.4 MB of history', await text('#workspace-export-total'));
+    ok('with some chats ticked the All box shows the mixed state', await allState() === 'unchecked, mixed', await allState());
+    ok('the group row counts one member fewer', groups[0][1] === '3 of 4 members', groups[0][1]);
+    ok('without its lead the team row says its lead does not go', groups[1][1] === '3 of 4 members, not its lead', groups[1][1]);
+    ok('unticking moves no row, column or line', await layout('workspace-export', exportBelow) === before);
     for (const id of ['chat-review', 'chat-research', 'chat-builder']) await chat(id).getByRole('checkbox').uncheck();
-    said = await lines();
-    ok('with none of its members ticked the group does not go', said[0] === 'The group Harbor Team does not go, because none of its members is ticked.' && said[1] === 'Harbor Lead\'s team does not go, because none of its chats here is ticked.', said.join(' | '));
-    ok('the warning still has not moved', await warningAt() === before);
+    groups = await cells('#workspace-export-groups');
+    ok('with none of its members ticked a group or team stays behind', groups[0][1] === 'Stays behind' && groups[1][1] === 'Stays behind', JSON.stringify(groups));
+    ok('still nothing has moved', await layout('workspace-export', exportBelow) === before);
+    await all.click();
+    ok('the All box ticks every chat from the mixed state', await exp.locator('#workspace-export-chats tbody input:checked').count() === 5 && await allState() === 'checked' &&
+      await text('#workspace-export-total') === '5 of 5 chats, 146.6 MB of history', await allState());
+    await all.click();
+    ok('the All box unticks every chat', await exp.locator('#workspace-export-chats tbody input:checked').count() === 0 && await allState() === 'unchecked' &&
+      await text('#workspace-export-total') === '0 of 5 chats, 0.0 MB of history', await text('#workspace-export-total'));
+    ok('the All box moved nothing either', await layout('workspace-export', exportBelow) === before);
+    await chat('chat-notes').getByRole('checkbox').check();
     await chat('chat-lead').getByRole('checkbox').check();
+    ok('ticking the lead alone sends the team with 1 member', (await cells('#workspace-export-groups'))[1][1] === '1 of 4 members');
+
+    // In a narrow window each row becomes a card with labels.
+    await page.setViewportSize({ width: 520, height: 700 });
+    await page.waitForTimeout(100);
+    const narrow = await exp.evaluate(d => {
+      const table = d.querySelector('#workspace-export-chats'), td = table.querySelector('tbody td:nth-child(2)');
+      return { head: getComputedStyle(table.tHead).position, row: getComputedStyle(table.tBodies[0].rows[0]).display, cell: getComputedStyle(td).display,
+        label: getComputedStyle(td, '::before').content, width: d.getBoundingClientRect().width };
+    });
+    ok('in a narrow window the chats table shows each row as a card of labelled values', narrow.head === 'absolute' && narrow.row === 'block' && narrow.cell === 'flex' && narrow.label === '"Chat"' && narrow.width === 520 - 32, JSON.stringify(narrow));
+    const cardsAll = exp.locator('#workspace-export-all-cards');
+    const cardsState = () => cardsAll.evaluate(box => (box.checked ? 'checked' : 'unchecked') + (box.indeterminate ? ', mixed' : ''));
+    ok('the narrow layout shows its own All box above the cards, in the mixed state', await cardsAll.isVisible() && await cardsState() === 'unchecked, mixed', await cardsState());
+    await cardsAll.click();
+    ok('that All box ticks every chat too', await exp.locator('#workspace-export-chats tbody input:checked').count() === 5 && await allState() === 'checked' && await cardsState() === 'checked');
+    await cardsAll.click();
+    await chat('chat-notes').getByRole('checkbox').check();
+    await chat('chat-lead').getByRole('checkbox').check();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    ok('a wide window shows only the All box in the table\'s head', !(await cardsAll.isVisible()) && await all.isVisible());
+    await shotSizes('export');
     await page.evaluate(() => { window.__cancelSave = true; });
     await exp.getByRole('button', { name: 'Export…' }).click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'export'));
@@ -154,8 +237,10 @@ const { launch } = require('./lib/page');
     await page.evaluate(() => { document.querySelectorAll('[popover]:popover-open').forEach(p => p.hidePopover()); document.querySelector('#workspace-status-menu [data-cmd=import-workspace]').click(); });
     const win = page.locator('dialog[open]#workspace-import');
     await win.waitFor();
-    const row = key => win.locator('.import-source[data-key="' + key + '"]');
+    const row = key => win.locator('#workspace-import-sources tr[data-key="' + key + '"]');
     ok('the import window says what it makes', (await win.textContent()).includes('This makes the workspace "SampleLab" with these sources.'));
+    ok('without chats the summary beside the buttons counts the sources and pins', await text('#workspace-import-total') === '4 sources and 2 pins', await text('#workspace-import-total'));
+    ok('every cell of the sources table has its label for the narrow layout', await page.evaluate(() => [...document.querySelectorAll('#workspace-import-sources tbody td')].every(td => td.dataset.label)));
     ok('the main folder is found and marked', (await row('s1').textContent()).includes('Main Folder') && (await row('s1').textContent()).includes('Found'));
     ok('a folder not here yet says so and offers Choose… and Create It Now', (await row('s2').textContent()).includes('Not on This Computer Yet') &&
       await row('s2').getByRole('button', { name: 'Choose…' }).count() === 1 && await row('s2').getByLabel(/Create It Now, With 3 Folders Inside/).count() === 1);
@@ -164,12 +249,18 @@ const { launch } = require('./lib/page');
       (await row('s3').textContent()).includes('does not use this kind of source (web-page)') && await row('s3').locator('button, input').count() === 0);
     ok('a registered kind shows its site and its problem', (await row('s4').textContent()).includes('https://site.example.com · 7') && (await row('s4').textContent()).includes('Needs a connection to https://site.example.com'));
     ok('the pins line says which are kept unchecked', (await page.locator('#workspace-import-pins').textContent()).includes('2 pins come with it. 1 of them is of a kind'));
+    ok('below the table the window says what Create It Now does and warns about OneDrive', (await text('#workspace-import-create')).includes('leave it for that service'));
     await shot('import');
+    const importBelow = ['workspace-import-pins', 'workspace-import-create', 'workspace-import-go'];
+    const sourcesBefore = await layout('workspace-import', importBelow);
     await row('s2').getByLabel(/Create It Now/).check();
-    ok('choosing to create a folder says what it does and warns about OneDrive', (await row('s2').textContent()).includes('Created on Import') && (await row('s2').textContent()).includes('leave it for that service'));
+    ok('ticking Create It Now marks the folder Created on Import', (await row('s2').textContent()).includes('Created on Import'));
+    ok('ticking Create It Now moves no row, column or line', await layout('workspace-import', importBelow) === sourcesBefore);
+    ok('the tick box keeps the focus when its row is drawn again', await page.evaluate(() => document.activeElement && document.activeElement.closest('tr[data-key="s2"]') !== null && document.activeElement.type === 'checkbox'));
     await row('s2').getByLabel(/Create It Now/).uncheck();
+    ok('unticking it moves nothing either', await layout('workspace-import', importBelow) === sourcesBefore);
     await row('s2').getByRole('button', { name: 'Choose…' }).click();
-    await page.waitForFunction(() => document.querySelector('#workspace-import .import-source[data-key="s2"]').textContent.includes('E:/Elsewhere/Notes'));
+    await page.waitForFunction(() => document.querySelector('#workspace-import-sources tr[data-key="s2"]').textContent.includes('E:/Elsewhere/Notes'));
     ok('Choose… plans the import again with the chosen folder', await page.evaluate(() => { const c = __calls.find(c => c[0] === 'plan'); return c && c[2][0].key === 's2' && c[2][0].path === 'E:/Elsewhere/Notes'; }) &&
       (await row('s2').textContent()).includes('Found'));
     await win.getByRole('button', { name: 'Import', exact: true }).click();
@@ -237,11 +328,15 @@ const { launch } = require('./lib/page');
     };
     await page.evaluate(() => { window.__nextImport = window.__laptopPlan; window.__importResult = { existing: false, sources: 1, pins: 0, waiting: 0, chats: 2, groups: 1, messages: 312 }; __calls.length = 0; });
     await openImport();
-    const chatRow = key => win.locator('#workspace-import-chats .import-source[data-chat-key="' + key + '"]');
-    const groupRows = () => win.locator('#workspace-import-groups .import-source');
+    const chatRow = key => win.locator('#workspace-import-chats tr[data-chat-key="' + key + '"]');
+    const groupRows = () => win.locator('#workspace-import-groups tbody tr');
     ok('the import window says it makes the workspace with its chats', (await page.locator('#workspace-import-summary').textContent()) === 'This makes the workspace "Harbor" with these sources and chats.');
-    ok('each chat is listed as New with its program and model', (await chatRow('c1').textContent()).includes('New') && (await chatRow('c1').textContent()).includes('Claude · Opus 5.5'));
-    ok('a chat whose program is not here says so', (await chatRow('c2').textContent()).includes('Codex is not on this computer. The chat opens on its saved history and asks which program continues it.'));
+    ok('each chat is listed as New with its program and model', (await chatRow('c1').textContent()).includes('New') && (await chatRow('c1').textContent()).includes('Claude · Opus 5.5') &&
+      await chatRow('c1').locator('td[data-label="What Happens"] .badge.accent').textContent() === 'New');
+    ok('a chat whose program is not here is marked, and the note below the table says what happens', await chatRow('c2').locator('.badge.warn').textContent() === 'Not on This Computer' &&
+      (await text('#workspace-import-chat-notes')).includes('Codex is not on this computer. The chat opens on its saved history and asks which program continues it.'), await text('#workspace-import-chat-notes'));
+    ok('every cell of the chats and groups tables has its label for the narrow layout', await page.evaluate(() => [...document.querySelectorAll('#workspace-import-chats tbody td, #workspace-import-groups tbody td')].every(td => td.dataset.label)));
+    ok('the summary beside the buttons counts the new chats and group messages', await text('#workspace-import-total') === '2 new chats, 312 group messages', await text('#workspace-import-total'));
     const groupText = await groupRows().nth(0).textContent();
     ok('a new group says which members are in the file and which wait for their workspace', groupText.includes('New Group') && groupText.includes('4 members are in this file.') &&
       groupText.includes('Docks Builder waits for the workspace Docks; importing Docks adds it.') && groupText.includes('Its conversation comes too: 312 messages.'), groupText);
@@ -264,11 +359,16 @@ const { launch } = require('./lib/page');
     const existing = await groupRows().nth(0).textContent();
     ok('a group here already says what it gains and which lead it keeps', existing.includes('Joins the Existing Group') && existing.includes('All its members are here already.') &&
       existing.includes('18 newer messages are added to its conversation.') && existing.includes('It keeps its lead here, Pier Lead'), existing);
-    const groupsAt = async () => (await page.locator('#workspace-import-groups').boundingBox()).y;
-    const groupsBefore = await groupsAt();
+    ok('the note below the chats says what each mark means and what a separate chat is', (await text('#workspace-import-chat-notes')).includes('Already Up to Date: Nothing changed on the other computer.') &&
+      (await text('#workspace-import-chat-notes')).includes('Import as a Separate Chat adds the other computer\'s copy beside it, with "(Imported)" after its title'), await text('#workspace-import-chat-notes'));
+    ok('the summary counts the updated chat and the new group messages', await text('#workspace-import-total') === '1 updated, 18 group messages', await text('#workspace-import-total'));
+    const backBelow = ['workspace-import-chat-notes', 'workspace-import-groups', 'workspace-import-go'];
+    const backBefore = await layout('workspace-import', backBelow);
     await chatRow('c3').getByLabel('Import as a Separate Chat').check();
-    ok('ticking it says what is added, and moves nothing', (await chatRow('c3').textContent()).includes('It is added as "Keyboard Research (Imported)"') && await groupsAt() === groupsBefore);
+    ok('ticking it adds the separate chat to the summary', await text('#workspace-import-total') === '1 updated, 1 separate chat, 18 group messages', await text('#workspace-import-total'));
+    ok('ticking it moves no row, column or line', await layout('workspace-import', backBelow) === backBefore);
     await shot('import-back');
+    await shotSizes('import-back');
     await win.getByRole('button', { name: 'Add to the Workspace' }).click();
     await page.locator('#workspace-import').waitFor({ state: 'hidden' });
     ok('the import is sent with the separate chat chosen', await page.evaluate(() => { const c = __calls.find(c => c[0] === 'import'); return c && c[2].some(x => x.chat === 'c3' && x.separate === true); }));
