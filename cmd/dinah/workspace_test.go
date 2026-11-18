@@ -41,19 +41,33 @@ func TestWorkspaceExportWritesTheStructure(t *testing.T) {
 	}
 	file := filepath.Join(ws, "Orchard"+workspaces.ExportExtension)
 	out.Reset()
-	if err := workspaceCommand([]string{"export", "orchard", "--out", file}, &out); err != nil {
+	if err := workspaceCommand([]string{"export", "orchard", "--out", file, "--no-chats"}, &out); err != nil {
 		t.Fatalf("export: %v %s", err, out.String())
 	}
-	data, err := os.ReadFile(file)
+	archive, err := workspaces.OpenArchive(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	export, err := workspaces.ReadExport(data)
-	if err != nil || export.Name != "Orchard" || len(export.Sources) != 2 || !export.Sources[0].Main || export.Sources[0].Local.FromHome != "OneDrive/Orchard" || export.Sources[0].Local.Folders[0] != "Concepts" {
+	export := archive.Export
+	archive.Close()
+	if archive.Bare || export.Name != "Orchard" || len(export.Sources) != 2 || !export.Sources[0].Main || export.Sources[0].Local.FromHome != "OneDrive/Orchard" || export.Sources[0].Local.Folders[0] != "Concepts" || len(export.Chats) != 0 {
 		t.Fatalf("export: %+v %v", export, err)
 	}
 	if string(export.Sources[1].Extra["projectKey"]) != `"ORCH"` {
-		t.Fatalf("the source of a kind this build does not know lost its fields: %s", data)
+		t.Fatalf("the source of a kind this build does not know lost its fields: %+v", export.Sources[1])
+	}
+	// Without --no-chats the window program writes the export, with the
+	// workspace's ID and the file; without --out the archive is printed.
+	var asked []string
+	previous := exportWithChats
+	exportWithChats = func(id, to string) error {
+		asked = append(asked, id)
+		return os.WriteFile(to, []byte("archive written by the window program"), 0o600)
+	}
+	defer func() { exportWithChats = previous }()
+	out.Reset()
+	if err := workspaceCommand([]string{"export", "orchard"}, &out); err != nil || out.String() != "archive written by the window program" || len(asked) != 1 || asked[0] != "ws_test" {
+		t.Fatalf("export with chats: %v %q %v", err, out.String(), asked)
 	}
 	if after, _ := os.ReadFile(filepath.Join(state, workspaces.RegistryFile)); string(after) != string(settings) {
 		t.Fatal("the export changed the registry")

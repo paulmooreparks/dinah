@@ -66,7 +66,7 @@ var pageMethods = func() map[string]pageMethodClass {
  PendingPermissions PendingTaskPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
  ChatEvents ChatStates OpenShow PostShow CloseShow StandaloneApplications OpenStandalone
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
- InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
+ InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceExport PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `
  AcknowledgeMention
  ApplyOrgChartAction RemoveChats RestoreRemovedChat DeleteRemovedChat EmptyChatRecycleBin

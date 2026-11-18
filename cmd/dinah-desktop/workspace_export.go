@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,7 +14,6 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"studio/internal/layout"
-	"studio/internal/statefile"
 	"studio/internal/workspaces"
 )
 
@@ -92,28 +90,6 @@ func workspaceFileFilter() []wruntime.FileFilter {
 	return []wruntime.FileFilter{{DisplayName: product.Name + " workspace (*" + workspaces.ExportExtension + ")", Pattern: "*" + workspaces.ExportExtension}}
 }
 
-// ExportWorkspace asks where to save a workspace's export, suggesting its
-// main folder, and saves it there. It returns the file, or nothing when
-// the person cancelled.
-func (a *App) ExportWorkspace(id string) (string, error) {
-	record, err := a.workspaceSourceRecord(id)
-	if err != nil {
-		return "", err
-	}
-	dir := mainFolderOf(record)
-	if dir == "" || !folderExists(dir) {
-		dir, _ = userHome()
-	}
-	file, err := wruntime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{Title: "Export Workspace", DefaultDirectory: dir, DefaultFilename: exportFileName(record.Name), Filters: workspaceFileFilter()})
-	if err != nil || file == "" {
-		return "", err
-	}
-	if !strings.EqualFold(filepath.Ext(file), workspaces.ExportExtension) {
-		file += workspaces.ExportExtension
-	}
-	return file, a.exportWorkspaceTo(id, file)
-}
-
 // exportFileName is a workspace's export file name, with the characters a
 // file name cannot have replaced.
 func exportFileName(name string) string {
@@ -142,22 +118,6 @@ func mainFolderOf(record WorkspaceRecord) string {
 	return ""
 }
 
-// exportWorkspaceTo writes a workspace's export to file. The file is
-// written as a state file is (package statefile), so an interrupted write
-// leaves the old file or the new one.
-func (a *App) exportWorkspaceTo(id, file string) error {
-	record, err := a.workspaceSourceRecord(id)
-	if err != nil {
-		return err
-	}
-	home, _ := userHome()
-	data, err := json.MarshalIndent(workspaces.BuildExport(record, file, home), "", "  ")
-	if err != nil {
-		return err
-	}
-	return statefile.Write(file, append(data, '\n'))
-}
-
 // ChooseWorkspaceImport asks for an export file and plans its import.
 func (a *App) ChooseWorkspaceImport() (WorkspaceImportPlan, error) {
 	home, _ := userHome()
@@ -183,20 +143,25 @@ func (a *App) ChooseImportFolder(start string) (string, error) {
 	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Choose the Folder", DefaultDirectory: start})
 }
 
-// readWorkspaceImport reads an export file.
+// readWorkspaceImport reads an export file, an archive or the bare document
+// of an earlier build. The import does not yet bring an archive's chats,
+// groups and teams, only its sources and pins.
 func readWorkspaceImport(file string) (workspaces.Export, error) {
-	info, err := os.Stat(file)
+	archive, err := workspaces.OpenArchive(file)
 	if err != nil {
-		return workspaces.Export{}, fmt.Errorf("the workspace export could not be read: %w", err)
+		return workspaces.Export{}, err
 	}
-	if !info.Mode().IsRegular() || info.Size() > 8<<20 {
-		return workspaces.Export{}, workspaces.ErrNotAnExport
+	defer archive.Close()
+	export := archive.Export
+	// A chat pin has nothing to open until the import brings chats.
+	pins := []workspaces.ExportPin{}
+	for _, pin := range export.Pins {
+		if pin.Kind != "chat" {
+			pins = append(pins, pin)
+		}
 	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return workspaces.Export{}, fmt.Errorf("the workspace export could not be read: %w", err)
-	}
-	return workspaces.ReadExport(data)
+	export.Pins = pins
+	return export, nil
 }
 
 // planLocal finds where each local folder of an export is or would be,

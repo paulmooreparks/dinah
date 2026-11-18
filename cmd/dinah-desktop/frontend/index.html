@@ -375,6 +375,29 @@
     </form>
   </dialog>
 
+  <!-- Export Workspace…: the workspace's chats, each ticked, with what goes
+       with them, drawn by workspaces-applet.js from the plan Go makes
+       (workspace_export_chats.go), before the save window asks for the file. -->
+  <dialog class="dialog import-dialog" id="workspace-export" aria-labelledby="workspace-export-title">
+    <h2 class="dialog-title" id="workspace-export-title">Export Workspace</h2>
+    <div class="dialog-body vstack gap-3">
+      <p id="workspace-export-summary"></p>
+      <p class="form-help" id="workspace-export-sources"></p>
+      <h3 class="import-section" id="workspace-export-chats-title">Chats</h3>
+      <ul class="import-sources" id="workspace-export-chats" aria-labelledby="workspace-export-chats-title"></ul>
+      <p class="form-help" id="workspace-export-none" hidden>No chats are listed in this workspace.</p>
+      <div class="vstack gap-2 import-goes" id="workspace-export-goes" aria-live="polite">
+        <p class="form-help import-total" id="workspace-export-total"></p>
+        <div class="vstack gap-2" id="workspace-export-groups"></div>
+      </div>
+      <p class="form-help" id="workspace-export-private">The file contains the chats' whole conversations, including anything pasted into them. Keep it as private as the chats.</p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="workspace-export-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="workspace-export-go">Export…</button>
+    </div>
+  </dialog>
+
   <!-- Import Workspace…: each source of the export with what was found for
        it, drawn by app.js from the plan Go makes (workspace_export.go). -->
   <dialog class="dialog import-dialog" id="workspace-import" aria-labelledby="workspace-import-title">

@@ -1,5 +1,6 @@
 // Export Workspace… and Import Workspace… (docs/design/workspace-export.md):
-// the export command, the import window's sources and choices, a source of
+// the export window with its chats, their total and what goes of their
+// groups and teams, the import window's sources and choices, a source of
 // a kind this build does not know kept and not checked, a folder that is
 // not on the computer shown dimmed in the Sources tree with Create the
 // Folders…, and a workspace whose main folder is missing.
@@ -39,9 +40,28 @@ const { launch } = require('./lib/page');
         if (p === '/workspaces/SampleLab/Notes/Meetings') return { nextStart: -1, entries: [item('/workspaces/SampleLab/Notes/Meetings/2026', '2026', ref('notes', 'Meetings/2026'), window.__notesMissing, ['list'])] };
         return { entries: [], nextStart: -1 };
       };
+      // The export plan has the shape PlanWorkspaceExport gives
+      // (workspace_export_chats.go): sizes in bytes, members with here set
+      // for the plan's own chats, and a lead with the members it leads.
+      const mb = n => Math.round(n * 1048576);
+      const member = (chatId, title, here, workspace) => ({ chatId, title, workspace: workspace || 'SampleLab', here });
+      const lead = member('chat-lead', 'Harbor Lead', true), review = member('chat-review', 'Checkout Review', true),
+        research = member('chat-research', 'Keyboard Research', true), builder = member('chat-builder', 'Harbor Builder', true),
+        docks = member('chat-docks', 'Docks Builder', false, 'Docks');
+      const exportPlan = { workspaceId: 'w1', name: 'SampleLab', pins: 1,
+        sources: [{ name: 'SampleLab', kind: 'local-folder', main: true }, { name: 'Notes', kind: 'local-folder', main: false }, { name: 'Concepts', kind: 'web-page', main: false }],
+        chats: [
+          { chatId: 'chat-lead', title: 'Harbor Lead', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', size: mb(41.2), open: true, hidden: false },
+          { chatId: 'chat-review', title: 'Checkout Review', provider: 'codex', providerName: 'Codex', model: 'GPT-5.4', size: mb(12.8), open: true, hidden: false },
+          { chatId: 'chat-research', title: 'Keyboard Research', provider: 'claude', providerName: 'Claude', model: 'Sonnet 5.5', size: mb(23.5), open: true, hidden: false },
+          { chatId: 'chat-builder', title: 'Harbor Builder', provider: 'devin', providerName: 'Devin', model: 'Adaptive', size: mb(66.0), open: true, hidden: false },
+          { chatId: 'chat-notes', title: 'Release Notes', provider: 'claude', providerName: 'Claude', model: 'Haiku 5.5', size: mb(3.1), open: false, hidden: true }],
+        groups: [{ title: 'Harbor Team', members: [lead, review, research, builder, docks] }],
+        teams: [{ lead, members: [review, research, builder] }] };
       const App = {
         State: async () => state(),
-        ExportWorkspace: async id => { __calls.push(['export', id]); return 'D:/SampleLab/SampleLab.dinah-workspace'; },
+        PlanWorkspaceExport: async id => { __calls.push(['plan-export', id]); return JSON.parse(JSON.stringify(exportPlan)); },
+        ExportWorkspace: async (id, choice) => { __calls.push(['export', id, choice]); return window.__cancelSave ? '' : 'D:/SampleLab/SampleLab.dinah-workspace'; },
         ChooseWorkspaceImport: async () => { __calls.push(['choose-import']); return plan(); },
         PlanWorkspaceImport: async (file, choices) => { __calls.push(['plan', file, choices]); return plan(choices); },
         ChooseImportFolder: async start => { __calls.push(['choose-folder', start]); return 'E:/Elsewhere/Notes'; },
@@ -69,11 +89,47 @@ const { launch } = require('./lib/page');
     const shown = text => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 5000 }).then(() => true, () => false);
     const shot = name => t.shot('workspace-transfer-' + name);
 
-    // Export Workspace… writes the workspace in front and says where.
+    // Export Workspace… first shows the export window, with every chat ticked.
     await page.locator('#status-workspace').click();
     await page.locator('#workspace-status-menu [data-cmd=export-workspace]').click();
+    const exp = page.locator('dialog[open]#workspace-export');
+    await exp.waitFor();
+    const chat = id => exp.locator('.import-source[data-chat-id="' + id + '"]');
+    const text = async sel => (await page.locator(sel).textContent()).trim();
+    ok('Export Workspace… plans the export of the workspace in front before any file is chosen', await page.evaluate(() => __calls.some(c => c[0] === 'plan-export' && c[1] === 'w1') && !__calls.some(c => c[0] === 'export')));
+    ok('the export window says what it saves and which sources and pins go', (await exp.textContent()).includes('This saves the workspace "SampleLab" to a file that Import Workspace… reads on another computer.') &&
+      await text('#workspace-export-sources') === '3 sources and 1 pin go with it: the main folder SampleLab, the folder Notes and the source Concepts.', await text('#workspace-export-sources'));
+    ok('every chat is listed and ticked', await exp.locator('#workspace-export-chats input[type=checkbox]').count() === 5 && await exp.locator('#workspace-export-chats input[type=checkbox]:checked').count() === 5);
+    ok('a chat shows its program, model and size', (await chat('chat-lead').textContent()).includes('Claude · Opus 5.5') && (await chat('chat-lead').locator('.import-size').textContent()) === '41.2 MB');
+    ok('a closed chat and a hidden chat are marked', (await chat('chat-notes').textContent()).includes('Closed') && (await chat('chat-notes').textContent()).includes('Hidden') && !(await chat('chat-lead').textContent()).includes('Closed'));
+    ok('the total counts every ticked chat', await text('#workspace-export-total') === '5 chats with 146.6 MB of history.', await text('#workspace-export-total'));
+    const lines = async () => (await page.locator('#workspace-export-groups p').allTextContents()).map(s => s.trim());
+    let said = await lines();
+    ok('the group line counts the members here and names the one in another workspace', said[0] === 'The group Harbor Team goes with them, with its conversation: 4 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
+    ok('the team line says who leads it', said[1] === 'Harbor Lead leads a team of 4.', said[1]);
+    ok('the window warns that the file holds the conversations', (await text('#workspace-export-private')).includes('Keep it as private as the chats.'));
+    await shot('export');
+    const warningAt = async () => (await page.locator('#workspace-export-private').boundingBox()).y;
+    const before = await warningAt();
+    await chat('chat-lead').getByRole('checkbox').uncheck();
+    said = await lines();
+    ok('unticking a chat takes it off the total', await text('#workspace-export-total') === '4 chats with 105.4 MB of history.', await text('#workspace-export-total'));
+    ok('the group line counts one member fewer', said[0] === 'The group Harbor Team goes with them, with its conversation: 3 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
+    ok('without its lead the team goes without its budget', said[1] === 'Harbor Lead stays behind, so its team\'s budget does not go. 3 of its members go and rejoin it on a computer that has Harbor Lead.', said[1]);
+    ok('ticking does not move the warning', await warningAt() === before);
+    for (const id of ['chat-review', 'chat-research', 'chat-builder']) await chat(id).getByRole('checkbox').uncheck();
+    said = await lines();
+    ok('with none of its members ticked the group does not go', said[0] === 'The group Harbor Team does not go, because none of its members is ticked.' && said[1] === 'Harbor Lead\'s team does not go, because none of its chats here is ticked.', said.join(' | '));
+    ok('the warning still has not moved', await warningAt() === before);
+    await chat('chat-lead').getByRole('checkbox').check();
+    await page.evaluate(() => { window.__cancelSave = true; });
+    await exp.getByRole('button', { name: 'Export…' }).click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'export'));
-    ok('Export Workspace… exports the workspace in front and says where the file is', await page.evaluate(() => __calls.find(c => c[0] === 'export')[1] === 'w1') &&
+    ok('cancelling the save window leaves the export window open as it was', await page.locator('dialog[open]#workspace-export').count() === 1 && await exp.locator('#workspace-export-chats input:checked').count() === 2);
+    await page.evaluate(() => { window.__cancelSave = false; __calls.length = 0; });
+    await exp.getByRole('button', { name: 'Export…' }).click();
+    await page.locator('#workspace-export').waitFor({ state: 'hidden' });
+    ok('Export… exports the workspace with the ticked chats and says where the file is', await page.evaluate(() => { const c = __calls.find(c => c[0] === 'export'); return c && c[1] === 'w1' && JSON.stringify(c[2]) === JSON.stringify({ chats: ['chat-lead', 'chat-notes'] }); }) &&
       await shown('Exported "SampleLab" to D:/SampleLab/SampleLab.dinah-workspace'));
 
     // Import Workspace… shows each source with what was found.
