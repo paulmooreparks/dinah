@@ -211,7 +211,8 @@ func (b *Bus) replaceTeamLead(ctx context.Context, group, oldLead, newLead strin
 			args  []any
 		}{
 			{`UPDATE team_members SET lead = ? WHERE lead = ? AND member <> ?`, []any{newLead, oldLead, newLead}},
-			{`UPDATE team_members SET member = ?, lead = ?, since = ?, retired = 0 WHERE member = ? AND lead = ?`, []any{oldLead, newLead, b.stamp(), newLead, oldLead}},
+			// The old lead was never started as a member, so it has no remit; the new lead's was its own.
+			{`UPDATE team_members SET member = ?, lead = ?, since = ?, retired = 0, remit = '' WHERE member = ? AND lead = ?`, []any{oldLead, newLead, b.stamp(), newLead, oldLead}},
 			{`UPDATE rooms SET lead = ? WHERE name = ?`, []any{newLead, key}},
 			{`UPDATE team_budgets SET lead = ? WHERE lead = ?`, []any{newLead, oldLead}},
 		}

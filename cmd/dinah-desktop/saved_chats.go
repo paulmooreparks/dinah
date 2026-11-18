@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"studio/internal/acp"
 	"studio/internal/agents"
 	"studio/internal/bus"
 	"studio/internal/providers"
@@ -266,26 +267,40 @@ func (a *App) savedChatsWithStages(afterSnapshot func(), stages bool) (SavedChat
 // options names it. It is "" when the program offers no choice of model,
 // nothing is saved for the chat, or the list gives the value no name.
 func savedModelName(saved Settings, provider, session string) string {
+	_, name := savedModelChoice(saved, provider, session)
+	return name
+}
+
+// savedModelChoice is the model value a chat that is not open gets back when
+// it opens, as savedModelName finds it, with its name. The value is "" when
+// nothing is saved for the chat or the program offers no choice of model.
+func savedModelChoice(saved Settings, provider, session string) (value, name string) {
 	provider = normalizedProvider(provider)
-	catalog := saved.Catalog
-	if providers.For(provider).OwnPreferences {
-		catalog = saved.ProviderCatalogs[provider]
-	}
+	catalog := savedCatalog(saved, provider)
 	option, ok := agents.ModelOption(catalog)
 	if !ok {
-		return ""
+		return "", ""
 	}
-	value, ok := saved.SessionOptions[session][option.ID]
+	raw, ok := saved.SessionOptions[session][option.ID]
 	if !ok {
-		return ""
+		return "", ""
 	}
 	for _, sub := range saved.OptionSubstitutions[provider] {
-		if sub.Option == option.ID && sameValue(sub.From, value) {
-			value = sub.To
+		if sub.Option == option.ID && sameValue(sub.From, raw) {
+			raw = sub.To
 			break
 		}
 	}
-	return agents.ModelValueName(catalog, value)
+	return judgeOptionString(raw), agents.ModelValueName(catalog, raw)
+}
+
+// savedCatalog is the program's last list of options, which describes the
+// settings of its chats that are not open.
+func savedCatalog(saved Settings, provider string) []acp.ConfigOption {
+	if providers.For(normalizedProvider(provider)).OwnPreferences {
+		return saved.ProviderCatalogs[provider]
+	}
+	return saved.Catalog
 }
 
 // continuedConversations are the saved conversations that another saved

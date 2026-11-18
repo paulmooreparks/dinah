@@ -37,3 +37,43 @@ A built-in skill, Duplicate a Team, gives a lead the procedure.
 5. Assign the first task with `dinah.team/assign@1`.
 
 A product built from this source can point its own skills, such as a customer lead's, at this one.
+
+## As Built
+
+The two actions were built on 18 November 2026 in `cmd/dinah-desktop/team_duplication.go`, beside the existing team actions in `applet_team.go`. The Team applet's version is now 1.1.0. `dinah.team/describe@1` has the capability `chat.read` and is replayed as pure; `dinah.team/start@2` has `team.manage` and runs once, as `start@1` does.
+
+### Describe
+
+`describe@1` takes an optional `member`, the session ID of a chat in the caller's tree, and returns `{"team": …}` with that chat, or the caller, at the root. Each chat in it has `sessionId`, `busId`, `title`, `remit`, `remitSource`, `provider`, `model` (with `value` and `name`), `options`, `settings`, `workspace` (the folder), `workspaceName`, `lead` and `leadBusId`, `state`, `stateWhy`, `retired` and `members`. `options` holds the chat's settings other than its model, by setting ID, in the form `start@2` takes them. `settings` lists the same settings with the names and categories the program gives them, so a reader can see which one is the permission mode. The model is left out of both because it has its own field.
+
+An open chat's program and settings come from the chat itself. A closed chat's come from what Dinah saved for it, read with the program's last list of options, which is what the chat gets back when it opens; the model's value follows a stored substitution as the Chats list does. Nothing is opened, woken or written.
+
+### Remit
+
+The remit is kept in a new column, `team_members.remit`, added to the bus database the way earlier columns were, so older rows read as empty. Both `start@1` and `start@2` write it in the same transaction that makes the chat a member; `start@1` keeps the brief, and its input and output are unchanged. `assign@1` does not touch the row. A member that the person moves to another lead keeps its remit, since the remit says what it is for. When a member replaces its lead, the former lead becomes a member with no remit, because it was never started as one.
+
+`remitSource` is `kept` for a remit in the row. For an older member it is `start brief` when the remit was recovered, and empty when nothing was found. The recovered remit is the lead's first message that mentions the member, and it counts only when the newest line the lead left before it in the same group, saying it started a member, ends with that message's first line, as `start@1` writes it. It is worked out on every read and never written back, so `describe@1` stays a read.
+
+### Starting under a chat in the tree
+
+`start@2` checks that `lead` is in the caller's tree and not retired, before anything is started. The new chat's workspace, program and model default to the caller's, as `start@1`'s do. Its brief is posted by its own lead in that lead's team group, so the member's task, wake and relays work as they do for any member, and the line saying it was started reads "at the request of" the caller. The output is `start@1`'s with `lead` and `notApplied` added.
+
+### The own-tree rule
+
+A chat's tree is its members, their members, and so on; a chat is not in its own tree, and its lead is not either. `bus.InTree` decides it by walking up from the chat through its leads, and both new actions refuse a chat outside the tree with a reason. The existing actions already act only on the caller's direct members.
+
+### The permission rule
+
+Dinah has no documented order of any program's permission modes. The provider table records no such fact, and a program's option list gives its modes in the program's order with names but says nothing about which allows more. The rule is therefore the design's fallback for every program. A permission mode is a setting the protocol gives the category `mode`, the same test a workspace move uses to keep authority from following a chat. A new member may have the caller's own mode, when it runs the same program as the caller, or the program's default.
+
+The program's default is the mode Dinah gives a new chat of that program as it is made: the person's saved default, or else the provider table's value, such as Manual for Claude. A requested mode that is neither the caller's own nor that default is refused before anything starts. When Dinah gives the program's new chats no mode, the default is the program's own, known only once the chat exists, so the mode is checked against the new chat's starting mode at that point. A mode that fails that check is not set; the member keeps its default and `notApplied` says why. Every refusal lists the modes that may be given, with their names.
+
+Other settings, such as effort, are checked against the program's last option list before the start and given after it with the same call the window uses, so the chat's menus show them and they are saved with the chat. A setting the new chat refuses is listed in `notApplied` with the reason. A model among the options is refused and must be given as `model`.
+
+### The skill
+
+Dinah had no built-in skills before this one. A built-in skill is a folder with a `SKILL.md` in `cmd/dinah-desktop/builtin-skills`, embedded in the program. Built-in skills are listed in every skills catalogue with the scope `builtin` and the origin Built-in Skills. That includes the Skills pane, a chat's skill menu and `dinah.skills/list@1`, and `dinah.skills/read@1` returns the text. They are read only, and one cannot be run in a new chat of its own, since it needs a chat that already has its work. The skill is `duplicate-a-team`, with the procedure above; its step 3 asks the person once with `ask_person`, showing the roster, before anyone is started.
+
+### Tests
+
+`cmd/dinah-desktop/team_duplication_test.go` and `internal/bus/team_remit_test.go` cover the nested tree with remits, model values and names and settings, a closed member, refusals outside the tree, a start under a sub-lead, settings applied and saved, the permission rule both before and after the chat is made, the remit surviving assignments and moves, recovery from a start brief, `start@1` unchanged, and the skill listed for the person and for agents.

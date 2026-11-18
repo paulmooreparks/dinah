@@ -149,9 +149,9 @@ type SwitchFacts struct {
 	Running    RunningFacts  `json:"running"`
 }
 
-// authorityCategory is the category the protocol gives a setting that is a
+// AuthorityCategory is the category the protocol gives a setting that is a
 // permission mode, which grants the agent authority.
-const authorityCategory = "mode"
+const AuthorityCategory = "mode"
 
 // optionFacts reads a chat's settings as facts.
 func optionFacts(options []acp.ConfigOption) []OptionFact {
@@ -193,7 +193,7 @@ func optionValueName(o acp.ConfigOption) string {
 // not, by the category the protocol gives each.
 func splitOptions(options []acp.ConfigOption) (carried, notCarried []acp.ConfigOption) {
 	for _, o := range options {
-		if o.Category == authorityCategory {
+		if o.Category == AuthorityCategory {
 			notCarried = append(notCarried, o)
 		} else {
 			carried = append(carried, o)

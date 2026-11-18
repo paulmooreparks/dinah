@@ -40,12 +40,14 @@ func (b *Bus) TeamStartLine(ctx context.Context, lead, group, detail string) err
 // LeadDeletedLine is the text of the line a team's group keeps when its lead is deleted.
 const LeadDeletedLine = "lead deleted"
 
-// TeamMember is a chat that has a lead.
+// TeamMember is a chat that has a lead. Remit is what the member is for, the brief it was started with, and empty for
+// a member started before remits were kept or made a member some other way.
 type TeamMember struct {
 	Session string
 	Lead    string
 	Since   string
 	Retired bool
+	Remit   string
 }
 
 // LeadOf is the chat that leads a member, and whether the member is retired, or "" for a
@@ -58,9 +60,76 @@ func (b *Bus) LeadOf(ctx context.Context, member string) (lead string, retired b
 	return lead, retired, err
 }
 
+// InTree says a chat is in another's tree: one of its members, or a member of one of them, at any depth. A chat is
+// not in its own tree. Only relations between chats that are not removed count, as in LeadOf.
+func (b *Bus) InTree(ctx context.Context, root, session string) (bool, error) {
+	seen := map[string]bool{session: true}
+	for cur := session; ; {
+		lead, _, err := b.LeadOf(ctx, cur)
+		if err != nil || lead == "" {
+			return false, err
+		}
+		if lead == root {
+			return true, nil
+		}
+		if seen[lead] {
+			return false, nil
+		}
+		seen[lead] = true
+		cur = lead
+	}
+}
+
+// Remit is the remit kept for a member, or "" for a chat that has none.
+func (b *Bus) Remit(ctx context.Context, member string) (string, error) {
+	var remit string
+	err := b.db.QueryRowContext(ctx, `SELECT remit FROM team_members WHERE member = ?`, member).Scan(&remit)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return remit, err
+}
+
+// SetLeadWithRemit makes a chat a member of a lead's team, as SetLead does, and keeps its remit, in one transaction.
+func (b *Bus) SetLeadWithRemit(ctx context.Context, member, lead, remit string) (string, error) {
+	var group string
+	err := b.tx(ctx, func(t *sql.Tx) error {
+		var err error
+		if group, err = b.setLead(t, member, lead); err != nil {
+			return err
+		}
+		_, err = t.Exec(`UPDATE team_members SET remit = ? WHERE member = ?`, remit, member)
+		return err
+	})
+	return group, err
+}
+
+// StartBrief is the first message a lead sent that mentions a member, with the text of the newest line the lead left
+// in the same group before it saying it started a member (StartedPrefix). The caller decides whether that line is
+// the start of this member; ok is false when either message is missing.
+func (b *Bus) StartBrief(ctx context.Context, lead, member string) (brief Assignment, startLine string, ok bool, err error) {
+	err = b.db.QueryRowContext(ctx, `SELECT id, room, text FROM messages WHERE from_session = ? AND kind = 'text' AND room <> '' AND mentions LIKE '%,' || ? || ',%'
+		ORDER BY id LIMIT 1`, lead, member).Scan(&brief.Message, &brief.Room, &brief.Text)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Assignment{}, "", false, nil
+	}
+	if err != nil {
+		return Assignment{}, "", false, err
+	}
+	err = b.db.QueryRowContext(ctx, `SELECT text FROM messages WHERE from_session = ? AND kind = ? AND room = ? AND id < ? AND text LIKE ? || '%'
+		ORDER BY id DESC LIMIT 1`, lead, MemberKind, brief.Room, brief.Message, StartedPrefix).Scan(&startLine)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Assignment{}, "", false, nil
+	}
+	if err != nil {
+		return Assignment{}, "", false, err
+	}
+	return brief, startLine, true, nil
+}
+
 // TeamMembers are the chats a lead leads, in the order they joined, retired ones too.
 func (b *Bus) TeamMembers(ctx context.Context, lead string) ([]TeamMember, error) {
-	rows, err := b.db.QueryContext(ctx, `SELECT member, lead, since, retired FROM team_members WHERE lead = ? AND EXISTS (SELECT 1 FROM sessions WHERE id=member AND removed_at IS NULL) AND EXISTS (SELECT 1 FROM sessions WHERE id=lead AND removed_at IS NULL) ORDER BY rowid`, lead)
+	rows, err := b.db.QueryContext(ctx, `SELECT member, lead, since, retired, remit FROM team_members WHERE lead = ? AND EXISTS (SELECT 1 FROM sessions WHERE id=member AND removed_at IS NULL) AND EXISTS (SELECT 1 FROM sessions WHERE id=lead AND removed_at IS NULL) ORDER BY rowid`, lead)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +137,7 @@ func (b *Bus) TeamMembers(ctx context.Context, lead string) ([]TeamMember, error
 	var out []TeamMember
 	for rows.Next() {
 		var m TeamMember
-		if err := rows.Scan(&m.Session, &m.Lead, &m.Since, &m.Retired); err != nil {
+		if err := rows.Scan(&m.Session, &m.Lead, &m.Since, &m.Retired, &m.Remit); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -255,7 +324,12 @@ func (b *Bus) assignLead(t *sql.Tx, member, lead string) (string, error) {
 	if previous == lead {
 		return b.teamGroup(t, lead)
 	}
+	// A member moved to another lead keeps its remit, which says what it is for and not whom it reports to.
+	var remit string
 	if previous != "" {
+		if err := t.QueryRow(`SELECT remit FROM team_members WHERE member = ?`, member).Scan(&remit); err != nil {
+			return "", err
+		}
 		if err := b.leaveTeamGroup(t, member, previous); err != nil {
 			return "", err
 		}
@@ -270,7 +344,7 @@ func (b *Bus) assignLead(t *sql.Tx, member, lead string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := t.Exec(`INSERT INTO team_members (member, lead, since) VALUES (?, ?, ?)`, member, lead, b.stamp()); err != nil {
+	if _, err := t.Exec(`INSERT INTO team_members (member, lead, since, remit) VALUES (?, ?, ?, ?)`, member, lead, b.stamp(), remit); err != nil {
 		return "", err
 	}
 	return group, b.joinTeamGroup(t, group, member)

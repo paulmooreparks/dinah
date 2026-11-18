@@ -15,7 +15,7 @@ var skillsAppletSource []byte
 func (a *App) skillsAppletBundle() (applet.Bundle, error) {
 	item := `{"type":"object","additionalProperties":false,"required":["id","name","description","hint","origin","revision"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"},"hint":{"type":"string"},"origin":{"type":"string"},"revision":{"type":"string"}}}`
 	manifest := applet.Manifest{ID: "dinah.skills", Version: "1.0.0", APIVersion: 1, Title: "Skills", Description: "Discover and read skill packages in the calling workspace through the VFS.", Actions: []applet.Action{
-		{Ref: "dinah.skills/list@1", Title: "List Skills", Description: "List skills owned by the calling workspace, including their stable resource identities and instruction revisions.", Replay: "pure", Capabilities: []string{"workspace.read"}, InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false}`), OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["skills","problems"],"properties":{"skills":{"type":"array","items":` + item + `},"problems":{"type":"array","items":{"type":"string"}}}}`)},
+		{Ref: "dinah.skills/list@1", Title: "List Skills", Description: "List skills owned by the calling workspace, and the skills built into the application, including their stable resource identities and instruction revisions.", Replay: "pure", Capabilities: []string{"workspace.read"}, InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false}`), OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["skills","problems"],"properties":{"skills":{"type":"array","items":` + item + `},"problems":{"type":"array","items":{"type":"string"}}}}`)},
 		{Ref: "dinah.skills/read@1", Title: "Read Skill", Description: "Read instructions for a skill returned by List Skills. This does not run the skill or change permissions.", Replay: "pure", Capabilities: []string{"workspace.read"}, InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["id"],"properties":{"id":{"type":"string","minLength":1,"maxLength":8192}}}`), OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["id","text","revision"],"properties":{"id":{"type":"string"},"text":{"type":"string"},"revision":{"type":"string"}}}`)},
 	}}
 	handlers := map[string]applet.Handler{}
@@ -49,6 +49,16 @@ func (a *App) skillsAppletBundle() (applet.Bundle, error) {
 		for _, skill := range a.skillCatalog(record.ID, false).Skills {
 			if skill.ID != in.ID {
 				continue
+			}
+			if skill.Ref == nil {
+				if skill.Scope != builtinSkillScope {
+					break
+				}
+				result, err := builtinJSON(map[string]string{"id": skill.ID, "text": skill.builtinText, "revision": skill.Revision})
+				if err != nil {
+					return applet.Result{}, err
+				}
+				return a.auditPathlessRead(ctx, "dinah.skills/read@1", skill.ID, result)
 			}
 			read, err := (workspaceVFS{service: a.resourceService(), allowedWorkspace: record.ID}).readCatalogResource(*skill.Ref)
 			if err != nil {

@@ -35,7 +35,7 @@ func TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit(t *testing.T)
 		t.Fatal(err)
 	}
 	ctx := builtinTestContext(root)
-	catalog := a.skillCatalog("resource-workspace", false)
+	catalog := withoutBuiltinSkills(a.skillCatalog("resource-workspace", false))
 	if len(catalog.Skills) != 1 {
 		t.Fatalf("catalogue: %+v", catalog)
 	}

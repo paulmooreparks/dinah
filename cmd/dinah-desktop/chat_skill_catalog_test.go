@@ -28,7 +28,7 @@ func TestChatSkillCatalogProviderAndPersonal(t *testing.T) {
 		map[string]any{"name": "codex-test", "description": "Codex test", "path": path, "enabled": true},
 		map[string]any{"name": "disabled", "path": path, "enabled": false},
 	}, "errors": []any{}}}}
-	result := a.ChatSkillCatalog(ws, "codex")
+	result := withoutBuiltinSkills(a.ChatSkillCatalog(ws, "codex"))
 	if len(result.Problems) != 0 || len(result.Skills) != 2 {
 		t.Fatalf("catalogue: %+v", result)
 	}
@@ -55,11 +55,11 @@ func TestChatSkillCatalogProviderAndPersonal(t *testing.T) {
 		t.Fatal("stale skill accepted")
 	}
 	c.skillError = errors.New("discovery unavailable")
-	result = a.ChatSkillCatalog(ws, "codex")
+	result = withoutBuiltinSkills(a.ChatSkillCatalog(ws, "codex"))
 	if len(result.Skills) != 1 || len(result.Problems) != 1 {
 		t.Fatalf("partial result: %+v", result)
 	}
-	result = a.skillCatalog("", false)
+	result = withoutBuiltinSkills(a.skillCatalog("", false))
 	if len(result.Skills) != 0 {
 		t.Fatal("personal skill leaked to scoped applet catalogue")
 	}

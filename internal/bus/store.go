@@ -398,6 +398,9 @@ var added = []struct{ table, column, decl string }{
 	{"attachments", "mime", "TEXT NOT NULL DEFAULT ''"},
 	{"attachments", "stored", "INTEGER NOT NULL DEFAULT 0"},
 	{"attachments", "removed_at", "TEXT NOT NULL DEFAULT ''"},
+	// A team member's remit is the brief it was started with, kept apart from its current task (teams.go,
+	// docs/design/team-duplication.md); a member started before it was kept has none here.
+	{"team_members", "remit", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func upgrade(db *sql.DB) error {
