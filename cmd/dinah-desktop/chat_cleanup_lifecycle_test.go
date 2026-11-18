@@ -50,6 +50,14 @@ func TestCleanupStagesRestoresAndFinallyDeletesThroughDocumentedHook(t *testing.
 	id := "codex:cleanup"
 	recipient := "window-cleanup"
 	cleanupFixtureChat(t, a, id, "codex", ws, recipient)
+	// The chat came from another computer, and its record goes and comes
+	// back with it.
+	if err := a.updateSettings(func(s *Settings) error {
+		s.MovedChats = map[string]movedChat{id: {Exporter: "exp_other", File: "Invented.dinah-workspace"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	nativeDeletes := 0
 	a.chatCleanupHooks.DeleteProvider = func(_ context.Context, provider, native string) (bool, error) {
 		nativeDeletes++
@@ -85,6 +93,12 @@ func TestCleanupStagesRestoresAndFinallyDeletesThroughDocumentedHook(t *testing.
 	if err != nil || len(tr.Messages) != 2 {
 		t.Fatal("restored transcript changed", tr, err)
 	}
+	a.mu.Lock()
+	moved := a.settings.MovedChats[id]
+	a.mu.Unlock()
+	if moved.Exporter != "exp_other" {
+		t.Fatalf("the restored chat lost its moved-chat record: %+v", moved)
+	}
 	if err := a.DeleteSession(id); err != nil {
 		t.Fatal("compatibility call did not stage", err)
 	}
@@ -102,8 +116,9 @@ func TestCleanupStagesRestoresAndFinallyDeletesThroughDocumentedHook(t *testing.
 	a.mu.Lock()
 	_, title := a.settings.SessionTitles[id]
 	_, provider := a.settings.SessionProviders[id]
+	_, movedKept := a.settings.MovedChats[id]
 	a.mu.Unlock()
-	if title || provider {
+	if title || provider || movedKept {
 		t.Fatal("final deletion kept chat settings")
 	}
 	if _, err := os.Stat(chatCleanupArchiveDir(id)); !os.IsNotExist(err) {

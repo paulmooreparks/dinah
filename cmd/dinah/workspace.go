@@ -1,17 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"studio/internal/acp"
 	"studio/internal/bus"
-	"studio/internal/statefile"
+	"studio/internal/programs"
 	"studio/internal/workspaces"
 )
 
@@ -20,8 +23,14 @@ import (
 // which Import Workspace… in the window reads on another computer
 // (docs/design/workspace-export.md). Importing is done in the window, since
 // it asks the person about folders and changes the registry.
+//
+// An export takes the workspace's chats unless --no-chats is given. What a
+// chat is, and which chats a workspace has, is kept by the window program,
+// so the export with chats is written by that program, installed beside
+// this one and started with no window (its --export-workspace option). The
+// export without chats is written here.
 func workspaceCommand(args []string, stdout io.Writer) error {
-	usage := errors.New("usage: " + product.CommandProgram + " workspace list | export WORKSPACE [--out FILE]")
+	usage := errors.New("usage: " + product.CommandProgram + " workspace list | export WORKSPACE [--out FILE] [--no-chats]")
 	if len(args) == 0 {
 		return usage
 	}
@@ -49,6 +58,7 @@ func workspaceCommand(args []string, stdout io.Writer) error {
 		flags := flag.NewFlagSet("workspace export", flag.ContinueOnError)
 		flags.SetOutput(io.Discard)
 		to := flags.String("out", "", "the file to write, ending in "+workspaces.ExportExtension)
+		noChats := flags.Bool("no-chats", false, "leave the workspace's chats out")
 		// The workspace may come before or after --out.
 		rest := []string{}
 		for list := args[1:]; ; {
@@ -78,26 +88,67 @@ func workspaceCommand(args []string, stdout io.Writer) error {
 				return err
 			}
 		}
-		home, _ := os.UserHomeDir()
-		data, err := json.MarshalIndent(workspaces.BuildExport(record, file, home), "", "  ")
+		// Without --out the archive is written to the standard output, and
+		// its local folders can then be found on the other computer only from
+		// the home folder or in full.
+		target := file
+		if file == "" {
+			dir, err := os.MkdirTemp("", "workspace-export-")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(dir)
+			target = filepath.Join(dir, "export"+workspaces.ExportExtension)
+		}
+		if *noChats {
+			home, _ := os.UserHomeDir()
+			err = workspaces.WriteArchiveFile(target, func(w io.Writer) error {
+				return workspaces.NewArchiveWriter(w).Finish(workspaces.BuildExport(record, file, home))
+			})
+		} else {
+			err = exportWithChats(record.ID, target)
+		}
 		if err != nil {
 			return err
 		}
-		data = append(data, '\n')
-		// Without --out the export is printed, and its local folders can
-		// then be found on the other computer only from the home folder or
-		// in full.
 		if file == "" {
-			_, err = stdout.Write(data)
-			return err
-		}
-		if err := statefile.Write(file, data); err != nil {
+			f, err := os.Open(target)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			_, err = io.Copy(stdout, f)
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, file)
 		return err
 	}
 	return usage
+}
+
+// exportWithChats has the window program, installed beside this one, write
+// a workspace's export with its chats to file. It is a variable so that a
+// test can stand in for the window program.
+var exportWithChats = func(workspaceID, file string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	program := filepath.Join(filepath.Dir(self), programs.FileName(product.WindowProgram))
+	if info, err := os.Stat(program); err != nil || info.IsDir() {
+		return fmt.Errorf("%s writes an export with chats, and it is not installed in %s; use --no-chats to export without them", programs.FileName(product.WindowProgram), filepath.Dir(self))
+	}
+	cmd := exec.Command(program, "--export-workspace", "--workspace", workspaceID, "--out", file)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	acp.HideWindow(cmd)
+	if err := cmd.Run(); err != nil {
+		if text := strings.TrimSpace(stderr.String()); text != "" {
+			return errors.New(text)
+		}
+		return fmt.Errorf("%s could not write the export: %w", product.WindowProgram, err)
+	}
+	return nil
 }
 
 // writeIndented prints a value as indented JSON.

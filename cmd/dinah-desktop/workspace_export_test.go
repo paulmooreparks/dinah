@@ -119,7 +119,7 @@ func exportFromDesktop(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	file := filepath.Join(main, "Orchard"+workspaces.ExportExtension)
-	if err := a.exportWorkspaceTo(id, file); err != nil {
+	if err := a.exportWorkspaceTo(id, file, WorkspaceExportChoice{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(file)
@@ -240,11 +240,11 @@ func TestImportWorkspaceOnAnotherComputer(t *testing.T) {
 	// Exporting the imported workspace writes the kept source and pin as
 	// they came.
 	out := filepath.Join(t.TempDir(), "again"+workspaces.ExportExtension)
-	if err := a.exportWorkspaceTo(record.ID, out); err != nil {
+	if err := a.exportWorkspaceTo(record.ID, out, WorkspaceExportChoice{}); err != nil {
 		t.Fatal(err)
 	}
 	reexported := mustRead(t, out)
-	original, _ := workspaces.ReadExport(data)
+	original := mustRead(t, saveExport(t, data, t.TempDir()))
 	if !workspaces.SameExtra(reexported.Sources[2].Extra, original.Sources[2].Extra) || !workspaces.SameExtra(reexported.Pins[1].Extra, original.Pins[1].Extra) {
 		t.Fatalf("the kept source or pin changed:\n%+v\n%+v", reexported, original)
 	}

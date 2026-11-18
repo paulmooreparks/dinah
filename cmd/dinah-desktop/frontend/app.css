@@ -758,6 +758,12 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .import-dialog .import-source-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .import-dialog .import-source-where { margin: var(--space-1) 0; overflow-wrap: anywhere; }
 .import-dialog .import-source p.form-help:last-child { margin-bottom: 0; }
+/* Export Workspace… lists the chats the same way, each with its size at the
+   end of its row, under a small heading, with the total below. */
+.import-dialog .import-section { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: 700; }
+.import-dialog .import-size { margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.import-dialog .import-total { font-variant-numeric: tabular-nums; }
+.import-dialog .import-goes p { margin: 0; }
 
 /* A package's install plan, its update window and the installed list in
    Settings › Packages (docs/design/packages.md). */

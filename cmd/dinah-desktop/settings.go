@@ -26,8 +26,13 @@ type Settings struct {
 	BackgroundChatLimit    int                            `json:"backgroundChatLimit,omitempty"`
 	NativeSessions         map[string]nativeSessionRecord `json:"nativeSessions,omitempty"`
 	NativeRecoveryAttempts map[string]string              `json:"nativeRecoveryAttempts,omitempty"`
-	RemovedChats           map[string]chatRemoval         `json:"removedChats,omitempty"`
-	NewWindowMode          string                         `json:"newWindowMode,omitempty"`
+	// MovedChats are the chats a workspace import brought from another
+	// computer, by the session that was their newest stage when they came
+	// (workspace_import_chats.go). Such a chat has no native session here and
+	// continues from its saved history.
+	MovedChats    map[string]movedChat   `json:"movedChats,omitempty"`
+	RemovedChats  map[string]chatRemoval `json:"removedChats,omitempty"`
+	NewWindowMode string                 `json:"newWindowMode,omitempty"`
 	// HostNotificationsOff turns off the operating system's notifications
 	// when an agent needs the person (host_notices.go), which are
 	// on unless it is set.

@@ -1,5 +1,6 @@
 // Export Workspace… and Import Workspace… (docs/design/workspace-export.md):
-// the export command, the import window's sources and choices, a source of
+// the export window with its chats, their total and what goes of their
+// groups and teams, the import window's sources and choices, a source of
 // a kind this build does not know kept and not checked, a folder that is
 // not on the computer shown dimmed in the Sources tree with Create the
 // Folders…, and a workspace whose main folder is missing.
@@ -39,13 +40,50 @@ const { launch } = require('./lib/page');
         if (p === '/workspaces/SampleLab/Notes/Meetings') return { nextStart: -1, entries: [item('/workspaces/SampleLab/Notes/Meetings/2026', '2026', ref('notes', 'Meetings/2026'), window.__notesMissing, ['list'])] };
         return { entries: [], nextStart: -1 };
       };
+      // The export plan has the shape PlanWorkspaceExport gives
+      // (workspace_export_chats.go): sizes in bytes, members with here set
+      // for the plan's own chats, and a lead with the members it leads.
+      const mb = n => Math.round(n * 1048576);
+      const member = (chatId, title, here, workspace) => ({ chatId, title, workspace: workspace || 'SampleLab', here });
+      const lead = member('chat-lead', 'Harbor Lead', true), review = member('chat-review', 'Checkout Review', true),
+        research = member('chat-research', 'Keyboard Research', true), builder = member('chat-builder', 'Harbor Builder', true),
+        docks = member('chat-docks', 'Docks Builder', false, 'Docks');
+      const exportPlan = { workspaceId: 'w1', name: 'SampleLab', pins: 1,
+        sources: [{ name: 'SampleLab', kind: 'local-folder', main: true }, { name: 'Notes', kind: 'local-folder', main: false }, { name: 'Concepts', kind: 'web-page', main: false }],
+        chats: [
+          { chatId: 'chat-lead', title: 'Harbor Lead', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', size: mb(41.2), open: true, hidden: false },
+          { chatId: 'chat-review', title: 'Checkout Review', provider: 'codex', providerName: 'Codex', model: 'GPT-5.4', size: mb(12.8), open: true, hidden: false },
+          { chatId: 'chat-research', title: 'Keyboard Research', provider: 'claude', providerName: 'Claude', model: 'Sonnet 5.5', size: mb(23.5), open: true, hidden: false },
+          { chatId: 'chat-builder', title: 'Harbor Builder', provider: 'devin', providerName: 'Devin', model: 'Adaptive', size: mb(66.0), open: true, hidden: false },
+          { chatId: 'chat-notes', title: 'Release Notes', provider: 'claude', providerName: 'Claude', model: 'Haiku 5.5', size: mb(3.1), open: false, hidden: true }],
+        groups: [{ title: 'Harbor Team', members: [lead, review, research, builder, docks] }],
+        teams: [{ lead, members: [review, research, builder] }] };
+      // Import plans with chats, groups and teams, in the shape PlanWorkspaceImport
+      // gives (workspace_import_chats.go, workspace_import_groups.go).
+      const harborSource = { key: 's1', kind: 'local-folder', name: 'Harbor', main: true, path: 'C:/Users/sam/OneDrive/Harbor', found: true, folders: 0, checked: true, actions: ['choose-folder'] };
+      window.__laptopPlan = () => ({ file: 'C:/Downloads/Harbor.dinah-workspace', name: 'Harbor', pins: 0, uncheckedPins: 0, sources: [harborSource],
+        chats: [
+          { key: 'c1', chatId: 'chat-lead', title: 'Harbor Lead', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', mark: 'new' },
+          { key: 'c2', chatId: 'chat-review', title: 'Checkout Review', provider: 'codex', providerName: 'Codex', model: 'GPT-5.4', mark: 'new', providerMissing: true }],
+        groups: [{ title: 'Harbor Team', existing: false, inFile: 4, here: 0, waiting: [{ title: 'Docks Builder', workspace: 'Docks' }], messages: 312, new: 312 }],
+        teams: [{ lead: 'Harbor Lead', members: ['Checkout Review', 'Keyboard Research', 'Harbor Builder'], existing: false, waiting: [] }],
+        links: [{ a: 'Docks', b: 'Harbor' }] });
+      window.__backPlan = () => ({ file: 'C:/Downloads/Harbor.dinah-workspace', name: 'Harbor', existingId: 'w1', existingName: 'Harbor', pins: 0, uncheckedPins: 0, sources: [harborSource],
+        chats: [
+          { key: 'c1', chatId: 'chat-lead', title: 'Harbor Lead', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', mark: 'updated' },
+          { key: 'c2', chatId: 'chat-review', title: 'Checkout Review', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', mark: 'up-to-date' },
+          { key: 'c3', chatId: 'chat-research', title: 'Keyboard Research', provider: 'claude', providerName: 'Claude', model: 'Sonnet 5.5', mark: 'changed-on-both' },
+          { key: 'c4', chatId: 'chat-builder', title: 'Harbor Builder', provider: 'claude', providerName: 'Claude', model: 'Opus 5.5', mark: 'close-to-update' }],
+        groups: [{ title: 'Harbor Team', existing: true, inFile: 4, here: 0, waiting: [], messages: 330, new: 18, keptLead: 'Pier Lead' }],
+        teams: [], links: [] });
       const App = {
         State: async () => state(),
-        ExportWorkspace: async id => { __calls.push(['export', id]); return 'D:/SampleLab/SampleLab.dinah-workspace'; },
-        ChooseWorkspaceImport: async () => { __calls.push(['choose-import']); return plan(); },
+        PlanWorkspaceExport: async id => { __calls.push(['plan-export', id]); return JSON.parse(JSON.stringify(exportPlan)); },
+        ExportWorkspace: async (id, choice) => { __calls.push(['export', id, choice]); return window.__cancelSave ? '' : 'D:/SampleLab/SampleLab.dinah-workspace'; },
+        ChooseWorkspaceImport: async () => { __calls.push(['choose-import']); return window.__nextImport ? window.__nextImport() : plan(); },
         PlanWorkspaceImport: async (file, choices) => { __calls.push(['plan', file, choices]); return plan(choices); },
         ChooseImportFolder: async start => { __calls.push(['choose-folder', start]); return 'E:/Elsewhere/Notes'; },
-        ImportWorkspace: async (file, choices) => { __calls.push(['import', file, choices]); return { state: state(), workspaceId: 'w1', existing: false, sources: 4, pins: 2, waiting: 1 }; },
+        ImportWorkspace: async (file, choices) => { __calls.push(['import', file, choices]); return Object.assign({ state: state(), workspaceId: 'w1', existing: false, sources: 4, pins: 2, waiting: 1 }, window.__importResult || {}); },
         CreateWorkspaceFolders: async (ws, src) => { __calls.push(['create', ws, src]); if (ws === 'w1') { window.__notesMissing = false; delete sample.plannedFolders; } else window.__oldMissing = false; return ws === 'w1' ? sample : old; },
         RelocateWorkspaceSource: async (ws, src) => { __calls.push(['relocate', ws, src]); return sample; },
         DetachWorkspaceSource: async (ws, src) => { __calls.push(['detach', ws, src]); return sample; },
@@ -69,11 +107,47 @@ const { launch } = require('./lib/page');
     const shown = text => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 5000 }).then(() => true, () => false);
     const shot = name => t.shot('workspace-transfer-' + name);
 
-    // Export Workspace… writes the workspace in front and says where.
+    // Export Workspace… first shows the export window, with every chat ticked.
     await page.locator('#status-workspace').click();
     await page.locator('#workspace-status-menu [data-cmd=export-workspace]').click();
+    const exp = page.locator('dialog[open]#workspace-export');
+    await exp.waitFor();
+    const chat = id => exp.locator('.import-source[data-chat-id="' + id + '"]');
+    const text = async sel => (await page.locator(sel).textContent()).trim();
+    ok('Export Workspace… plans the export of the workspace in front before any file is chosen', await page.evaluate(() => __calls.some(c => c[0] === 'plan-export' && c[1] === 'w1') && !__calls.some(c => c[0] === 'export')));
+    ok('the export window says what it saves and which sources and pins go', (await exp.textContent()).includes('This saves the workspace "SampleLab" to a file that Import Workspace… reads on another computer.') &&
+      await text('#workspace-export-sources') === '3 sources and 1 pin go with it: the main folder SampleLab, the folder Notes and the source Concepts.', await text('#workspace-export-sources'));
+    ok('every chat is listed and ticked', await exp.locator('#workspace-export-chats input[type=checkbox]').count() === 5 && await exp.locator('#workspace-export-chats input[type=checkbox]:checked').count() === 5);
+    ok('a chat shows its program, model and size', (await chat('chat-lead').textContent()).includes('Claude · Opus 5.5') && (await chat('chat-lead').locator('.import-size').textContent()) === '41.2 MB');
+    ok('a closed chat and a hidden chat are marked', (await chat('chat-notes').textContent()).includes('Closed') && (await chat('chat-notes').textContent()).includes('Hidden') && !(await chat('chat-lead').textContent()).includes('Closed'));
+    ok('the total counts every ticked chat', await text('#workspace-export-total') === '5 chats with 146.6 MB of history.', await text('#workspace-export-total'));
+    const lines = async () => (await page.locator('#workspace-export-groups p').allTextContents()).map(s => s.trim());
+    let said = await lines();
+    ok('the group line counts the members here and names the one in another workspace', said[0] === 'The group Harbor Team goes with them, with its conversation: 4 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
+    ok('the team line says who leads it', said[1] === 'Harbor Lead leads a team of 4.', said[1]);
+    ok('the window warns that the file holds the conversations', (await text('#workspace-export-private')).includes('Keep it as private as the chats.'));
+    await shot('export');
+    const warningAt = async () => (await page.locator('#workspace-export-private').boundingBox()).y;
+    const before = await warningAt();
+    await chat('chat-lead').getByRole('checkbox').uncheck();
+    said = await lines();
+    ok('unticking a chat takes it off the total', await text('#workspace-export-total') === '4 chats with 105.4 MB of history.', await text('#workspace-export-total'));
+    ok('the group line counts one member fewer', said[0] === 'The group Harbor Team goes with them, with its conversation: 3 members are in this workspace, and Docks Builder is in the workspace Docks.', said[0]);
+    ok('without its lead the team goes without its budget', said[1] === 'Harbor Lead stays behind, so its team\'s budget does not go. 3 of its members go and rejoin it on a computer that has Harbor Lead.', said[1]);
+    ok('ticking does not move the warning', await warningAt() === before);
+    for (const id of ['chat-review', 'chat-research', 'chat-builder']) await chat(id).getByRole('checkbox').uncheck();
+    said = await lines();
+    ok('with none of its members ticked the group does not go', said[0] === 'The group Harbor Team does not go, because none of its members is ticked.' && said[1] === 'Harbor Lead\'s team does not go, because none of its chats here is ticked.', said.join(' | '));
+    ok('the warning still has not moved', await warningAt() === before);
+    await chat('chat-lead').getByRole('checkbox').check();
+    await page.evaluate(() => { window.__cancelSave = true; });
+    await exp.getByRole('button', { name: 'Export…' }).click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'export'));
-    ok('Export Workspace… exports the workspace in front and says where the file is', await page.evaluate(() => __calls.find(c => c[0] === 'export')[1] === 'w1') &&
+    ok('cancelling the save window leaves the export window open as it was', await page.locator('dialog[open]#workspace-export').count() === 1 && await exp.locator('#workspace-export-chats input:checked').count() === 2);
+    await page.evaluate(() => { window.__cancelSave = false; __calls.length = 0; });
+    await exp.getByRole('button', { name: 'Export…' }).click();
+    await page.locator('#workspace-export').waitFor({ state: 'hidden' });
+    ok('Export… exports the workspace with the ticked chats and says where the file is', await page.evaluate(() => { const c = __calls.find(c => c[0] === 'export'); return c && c[1] === 'w1' && JSON.stringify(c[2]) === JSON.stringify({ chats: ['chat-lead', 'chat-notes'] }); }) &&
       await shown('Exported "SampleLab" to D:/SampleLab/SampleLab.dinah-workspace'));
 
     // Import Workspace… shows each source with what was found.
@@ -155,5 +229,49 @@ const { launch } = require('./lib/page');
     await page.locator('#ask-yes').click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'select' && c[1] === 'w2'));
     ok('accepting creates its main folder and opens it', await page.evaluate(() => __calls.some(c => c[0] === 'create' && c[1] === 'w2' && c[2] === 'm2')) && await page.locator('#status-workspace-name').textContent() === 'Old Work');
+
+    // Import on the laptop: the chats are new, and the group and team come with them.
+    const openImport = async () => {
+      await page.evaluate(() => { document.querySelectorAll('[popover]:popover-open').forEach(p => p.hidePopover()); document.querySelector('#workspace-status-menu [data-cmd=import-workspace]').click(); });
+      await win.waitFor();
+    };
+    await page.evaluate(() => { window.__nextImport = window.__laptopPlan; window.__importResult = { existing: false, sources: 1, pins: 0, waiting: 0, chats: 2, groups: 1, messages: 312 }; __calls.length = 0; });
+    await openImport();
+    const chatRow = key => win.locator('#workspace-import-chats .import-source[data-chat-key="' + key + '"]');
+    const groupRows = () => win.locator('#workspace-import-groups .import-source');
+    ok('the import window says it makes the workspace with its chats', (await page.locator('#workspace-import-summary').textContent()) === 'This makes the workspace "Harbor" with these sources and chats.');
+    ok('each chat is listed as New with its program and model', (await chatRow('c1').textContent()).includes('New') && (await chatRow('c1').textContent()).includes('Claude · Opus 5.5'));
+    ok('a chat whose program is not here says so', (await chatRow('c2').textContent()).includes('Codex is not on this computer. The chat opens on its saved history and asks which program continues it.'));
+    const groupText = await groupRows().nth(0).textContent();
+    ok('a new group says which members are in the file and which wait for their workspace', groupText.includes('New Group') && groupText.includes('4 members are in this file.') &&
+      groupText.includes('Docks Builder waits for the workspace Docks; importing Docks adds it.') && groupText.includes('Its conversation comes too: 312 messages.'), groupText);
+    const teamText = await groupRows().nth(1).textContent();
+    ok('a team says who reports to its lead', teamText.includes("Harbor Lead's team") && teamText.includes('New Team') && teamText.includes('Checkout Review, Keyboard Research and Harbor Builder report to Harbor Lead.'), teamText);
+    ok('the trusted link is listed as not imported', (await page.locator('#workspace-import-links').textContent()).includes('Not imported: the trusted link between Docks and Harbor. A file cannot grant agents that trust'));
+    await shot('import-chats');
+    await win.getByRole('button', { name: 'Import', exact: true }).click();
+    await page.locator('#workspace-import').waitFor({ state: 'hidden' });
+    ok('Import says how many chats and groups came', await shown('Imported the workspace "Harbor" with 2 chats and 1 group.'));
+
+    // Import back on the desktop: the chats already here are marked, and a chat changed on both can be added separately.
+    await page.evaluate(() => { window.__nextImport = window.__backPlan; window.__importResult = { existing: true, sources: 0, pins: 0, waiting: 0, chats: 0, updated: 1, separate: 1, messages: 18 }; __calls.length = 0; });
+    await openImport();
+    ok('the window says it adds to the workspace and updates chats worked on elsewhere', (await page.locator('#workspace-import-summary').textContent()).includes('adds what it does not have and updates chats worked on elsewhere') &&
+      (await win.locator('#workspace-import-go').textContent()) === 'Add to the Workspace');
+    ok('each chat already here has its mark', (await chatRow('c1').textContent()).includes('Updated From the Other Computer') && (await chatRow('c2').textContent()).includes('Already Up to Date') &&
+      (await chatRow('c3').textContent()).includes('Changed on Both Computers') && (await chatRow('c4').textContent()).includes('Close It to Update It'));
+    ok('only a chat changed on both offers Import as a Separate Chat, off', await win.getByLabel('Import as a Separate Chat').count() === 1 && !(await chatRow('c3').getByLabel('Import as a Separate Chat').isChecked()));
+    const existing = await groupRows().nth(0).textContent();
+    ok('a group here already says what it gains and which lead it keeps', existing.includes('Joins the Existing Group') && existing.includes('All its members are here already.') &&
+      existing.includes('18 newer messages are added to its conversation.') && existing.includes('It keeps its lead here, Pier Lead'), existing);
+    const groupsAt = async () => (await page.locator('#workspace-import-groups').boundingBox()).y;
+    const groupsBefore = await groupsAt();
+    await chatRow('c3').getByLabel('Import as a Separate Chat').check();
+    ok('ticking it says what is added, and moves nothing', (await chatRow('c3').textContent()).includes('It is added as "Keyboard Research (Imported)"') && await groupsAt() === groupsBefore);
+    await shot('import-back');
+    await win.getByRole('button', { name: 'Add to the Workspace' }).click();
+    await page.locator('#workspace-import').waitFor({ state: 'hidden' });
+    ok('the import is sent with the separate chat chosen', await page.evaluate(() => { const c = __calls.find(c => c[0] === 'import'); return c && c[2].some(x => x.chat === 'c3' && x.separate === true); }));
+    ok('the toast says what was updated and added', await shown('Updated 1 chat worked on elsewhere. Added 1 separate chat. Added 18 group messages.'));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

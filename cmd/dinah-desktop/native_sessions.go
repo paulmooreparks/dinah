@@ -96,6 +96,11 @@ func (a *App) beforeNativeOpen(ws, id string) (SessionInfo, bool, error) {
 	if s := a.session(id); s != nil && s.Info().Open {
 		return SessionInfo{}, false, nil
 	}
+	// A chat moved here from another computer is never loaded by its
+	// provider; its next message continues it (moved_chats.go).
+	if err := a.openMoved(id); err != nil {
+		return SessionInfo{}, true, err
+	}
 	provider, err := a.savedSessionProvider(id)
 	if err != nil {
 		return SessionInfo{}, true, err

@@ -58,7 +58,11 @@ type Transcript struct {
 	// ParentWorkspace is the workspace of the chat this one continues, when it is
 	// not this chat's own: a chat moved to another workspace records where it came
 	// from, so a link that crosses workspaces is one that was chosen.
-	ParentWorkspace string                `json:"parentWorkspace,omitempty"`
+	ParentWorkspace string `json:"parentWorkspace,omitempty"`
+	// StagesElsewhere says that the chat's earlier stages are on another
+	// computer, from which a workspace import moved the chat; ParentHistory
+	// is then the only copy of them here (StagesElsewhere).
+	StagesElsewhere bool                  `json:"stagesElsewhere,omitempty"`
 	Complete        bool                  `json:"complete"`
 	PendingHandoff  bool                  `json:"pendingHandoff,omitempty"`
 	Handoff         string                `json:"handoff,omitempty"`

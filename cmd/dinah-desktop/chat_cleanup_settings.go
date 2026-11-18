@@ -23,6 +23,9 @@ type chatCleanupSettings struct {
 	ChatTransfers          map[string]chatTransfer               `json:"chatTransfers,omitempty"`
 	ChatTransferHistory    []chatTransfer                        `json:"chatTransferHistory,omitempty"`
 	Hidden                 []string                              `json:"hidden,omitempty"`
+	// MovedChats are the records of the chat's stages that a workspace
+	// import moved here from another computer (moved_chats.go).
+	MovedChats map[string]movedChat `json:"movedChats,omitempty"`
 	// Pins are the chat's pins, each with its workspace and its place among
 	// that workspace's pins. Removing the chat takes them off, and restoring it
 	// puts them back.
@@ -85,6 +88,7 @@ func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 		JudgedTitles:   map[string]JudgedTitle{}, NativeSessions: map[string]nativeSessionRecord{},
 		NativeRecoveryAttempts: map[string]string{}, BusSessions: map[string]string{},
 		ChatBindings: map[string]string{}, ChatTransfers: map[string]chatTransfer{},
+		MovedChats: map[string]movedChat{},
 	}
 	members := map[string]bool{}
 	for _, id := range ids {
@@ -121,6 +125,9 @@ func cleanupSavedSettings(s Settings, ids []string) chatCleanupSettings {
 		if v, ok := s.ChatTransfers[id]; ok {
 			out.ChatTransfers[id] = v
 		}
+		if v, ok := s.MovedChats[id]; ok {
+			out.MovedChats[id] = v
+		}
 	}
 	for _, tr := range s.ChatTransferHistory {
 		if members[tr.Source] {
@@ -154,6 +161,9 @@ func cleanupRestoreSettings(s *Settings, saved chatCleanupSettings) {
 	cleanupMergeMap(&s.BusSessions, saved.BusSessions)
 	cleanupMergeMap(&s.ChatBindings, saved.ChatBindings)
 	cleanupMergeMap(&s.ChatTransfers, saved.ChatTransfers)
+	if len(saved.MovedChats) > 0 {
+		cleanupMergeMap(&s.MovedChats, saved.MovedChats)
+	}
 	for _, tr := range saved.ChatTransferHistory {
 		if !slices.Contains(s.ChatTransferHistory, tr) {
 			s.ChatTransferHistory = append(s.ChatTransferHistory, tr)

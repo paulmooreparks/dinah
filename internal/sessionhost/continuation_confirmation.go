@@ -19,7 +19,7 @@ type warningEntry struct{ Text string }
 // confirmationTranscript retains metadata and warnings after schema validation.
 type confirmationTranscript struct {
 	SessionID, Provider, Workspace, ParentSessionID, ParentWorkspace string
-	Unsupported, Complete, Deleted                                   bool
+	Unsupported, Complete, Deleted, StagesElsewhere                  bool
 	CaptureError, Summary                                            string
 	ParentHistory                                                    []warningEntry
 	Messages                                                         []warningEntry
@@ -52,7 +52,7 @@ func confirmationMetadata(tr *Transcript) confirmationTranscript {
 		SessionID: tr.SessionID, Provider: tr.Provider, Workspace: tr.Workspace,
 		ParentSessionID: tr.ParentSessionID, ParentWorkspace: tr.ParentWorkspace,
 		Complete: tr.Complete, Deleted: tr.Deleted, CaptureError: tr.CaptureError, Unsupported: tr.Unsupported,
-		Summary: tr.Summary,
+		Summary: tr.Summary, StagesElsewhere: tr.StagesElsewhere,
 	}
 	if tr.ParentHistory != nil {
 		m.ParentHistory = []warningEntry{}
@@ -187,6 +187,12 @@ func (c *Continuations) confirmationLocked(s *Conversation, provider, cwd string
 			}
 		}
 		missingSnapshot = missingSnapshot || tr.ParentSessionID != "" && tr.ParentHistory == nil
+		// The earlier stages of a chat moved here from another computer are not
+		// on this one, and its kept copy of them stands in, as in
+		// TranscriptHistory (StagesElsewhere).
+		if tr.StagesElsewhere && tr.ParentSessionID != "" && tr.ParentHistory != nil {
+			break
+		}
 		id = tr.ParentSessionID
 		if tr.ParentWorkspace != "" {
 			workspace = tr.ParentWorkspace

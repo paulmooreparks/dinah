@@ -278,6 +278,14 @@ func reconcileListedChatProjection(s *Settings) error {
 	if err != nil {
 		return err
 	}
+	return mergeListedChatProjection(s, data)
+}
+
+// mergeListedChatProjection merges the saved projection, data, into the
+// settings, as loading the settings does. It writes nothing, so a reader of
+// the window's state that must not change it, such as the command line's
+// workspace export (workspace_export_option.go), can use it.
+func mergeListedChatProjection(s *Settings, data []byte) error {
 	var projection listedChatProjection
 	if err := json.Unmarshal(data, &projection); err != nil {
 		return fmt.Errorf("read chat inventory: %w", err)

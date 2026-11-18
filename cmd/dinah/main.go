@@ -65,9 +65,9 @@ var usage = strings.NewReplacer(
   {cmd} ext            install, update, list or remove signed extensions
   {cmd} workspace list
                        list the workspaces, with their IDs and main folders
-  {cmd} workspace export WORKSPACE [--out FILE]
-                       write a workspace's structure for Import Workspace…
-                       in {name} on another computer
+  {cmd} workspace export WORKSPACE [--out FILE] [--no-chats]
+                       write a workspace with its chats for Import
+                       Workspace… in {name} on another computer
   {cmd} package install ZIP [--personal] [--workspace DIR] [--dry-run]
                        install or update a package of skills, for you in
                        every workspace or in one workspace

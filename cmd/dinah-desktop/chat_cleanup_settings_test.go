@@ -15,8 +15,17 @@ func TestCleanupSavedSettingsExcludeOtherChatsAndWorkspaceRecords(t *testing.T) 
 		WorkspaceRecords:    []WorkspaceRecord{{ID: "unrelated-workspace", Name: "Shared documents"}},
 		Templates:           []Template{{Name: "Not chat-owned", Text: "Leave this alone"}},
 		ChatTransferHistory: []chatTransfer{{Source: "selected", Target: "old-candidate"}, {Source: "separate", Target: "another"}},
+		MovedChats:          map[string]movedChat{"selected": {Exporter: "exp_other", File: "Harbor.dinah-workspace"}, "separate": {Exporter: "exp_unrelated"}},
 	}
 	saved := cleanupSavedSettings(s, []string{"selected", "old-candidate"})
+	if len(saved.MovedChats) != 1 || saved.MovedChats["selected"].Exporter != "exp_other" {
+		t.Fatalf("the moved-chat record did not go with the chat: %+v", saved.MovedChats)
+	}
+	restored := Settings{}
+	cleanupRestoreSettings(&restored, saved)
+	if restored.MovedChats["selected"].File != "Harbor.dinah-workspace" || len(restored.MovedChats) != 1 {
+		t.Fatalf("the moved-chat record did not come back with the chat: %+v", restored.MovedChats)
+	}
 	if len(saved.SessionTitles) != 1 || saved.SessionTitles["selected"] != "Keep this title" || len(saved.SessionOptions) != 1 {
 		t.Fatalf("chat snapshot %+v", saved)
 	}

@@ -130,6 +130,10 @@ func main() {
 	if len(os.Args) >= 2 && os.Args[1] == documentServiceOption {
 		os.Exit(runDocumentService(os.Args[2:]))
 	}
+	// The command line's workspace export with chats (workspace_export_option.go).
+	if len(os.Args) >= 2 && os.Args[1] == workspaceExportOption {
+		os.Exit(runWorkspaceExport(os.Args[2:]))
+	}
 	// An option a product's packages added runs in place of the window.
 	if len(os.Args) >= 2 {
 		if run, ok := programs.StartOption(os.Args[1]); ok {

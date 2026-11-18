@@ -175,7 +175,8 @@
       if (m.deliveryAttempt) s.deliveryOpening = { origin: m.deliveryOrigin, attempt: m.deliveryAttempt };
       reconnectChat(s.id, false).then(function (r) {
         if (m.deliveryAttempt) return; // The durable waiting-delivery card owns this diagnostic.
-        if (r || sessions[s.id] !== s || chatWindowsFor(s.id).length) return;
+        // A moved chat waits for the person's message, and its messages wait with it.
+        if (r || sessions[s.id] !== s || chatWindowsFor(s.id).length || s.moved) return;
         var agent = providerName(sessionProvider(s));
         toast(agent + ' reported: ' + String(s.failed || 'the agent did not open it').replace(/^Error:\s*/, '') + ' The messages waiting for it keep waiting.', 'danger', { title: agent + ' could not open "' + title(s) + '".' });
       }).catch(function () {});
@@ -313,6 +314,13 @@
         // (docs/plans/recurring-chat-faults.md). The engine records either
         // and never resumes it, so the note offers no Try Again (sessionNote).
         s.notFound = detail && (detail.kind === 'session-not-found' || detail.kind === 'session-unverified') ? detail : null;
+        /* A chat moved here from another computer is never opened by its
+           provider (moved_chats.go). It shows its saved history, which ends
+           with the line saying it moved, and its next message continues it
+           (ensureSession). That is no failure, unless its provider is not on
+           this computer, when the note offers Continue from Saved History. */
+        s.moved = detail && detail.kind === 'moved-chat' ? detail : null;
+        if (s.moved && !s.moved.providerMissing) s.failed = '';
         if (!kept && app().SavedConversation) {
           try {
             var saved = await app().SavedConversation(id);

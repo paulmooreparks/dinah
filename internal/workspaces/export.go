@@ -17,12 +17,18 @@ import (
 // A workspace export (docs/design/workspace-export.md) is a workspace's
 // structure, so that the same workspace can be made on another computer:
 // its name, its sources, its main folder, its pins and the folders inside
-// its local folders. It holds no content, no IDs, no credentials, no chats
-// and no approvals. Its format is a compatibility contract: fields are only
-// ever added, and a reader ignores fields it does not know, or, for a
-// source or pin, keeps them (extra.go).
+// its local folders. Since November 2026 it can also hold the workspace's
+// chats, their groups and teams, and their conversations, which are entries
+// of the archive described in archive.go. It holds no IDs of sources or
+// workspaces, no credentials and no approvals. Its format is a compatibility
+// contract: fields are only ever added, and a reader ignores fields it does
+// not know, or, for a source, a pin or one of the records of chats, keeps
+// them (extra.go).
 
 // ExportFormat is the format this version writes and the newest it reads.
+// The chats, groups and teams were added as fields, so the number stayed 1:
+// a reader of format 1 that meets them in a bare document ignores them, and
+// the container they need is told apart by its signature (archive.go).
 const ExportFormat = 1
 
 // ExportExtension is an export file's extension, which the profile gives.
@@ -40,6 +46,17 @@ type Export struct {
 	Name    string         `json:"name"`
 	Sources []ExportSource `json:"sources"`
 	Pins    []ExportPin    `json:"pins,omitempty"`
+	// Exporter is the identity of the Dinah that wrote the export, which an
+	// import records with each group message it brings (ExporterIdentity).
+	Exporter string `json:"exporter,omitempty"`
+	// Chats, Groups and Teams are the workspace's chats and the groups and
+	// teams they belong to (chats.go).
+	Chats  []ExportChat  `json:"chats,omitempty"`
+	Groups []ExportGroup `json:"groups,omitempty"`
+	Teams  []ExportTeam  `json:"teams,omitempty"`
+	// Links are the trusted links the exporting computer had for the
+	// workspace's folders, which an import never makes and only lists.
+	Links []ExportLink `json:"links,omitempty"`
 }
 
 // ExportSource is a source in an export. Key tells the sources of one
@@ -88,13 +105,14 @@ type ExportLocation struct {
 }
 
 // ExportPin is a pin in an export: a resource of one of its sources, by the
-// source's key and the path within it, or a pin of another kind, with the
-// fields that identify it in Extra.
+// source's key and the path within it, a chat of the export by its key, or
+// a pin of another kind, with the fields that identify it in Extra.
 type ExportPin struct {
 	Kind      string `json:"kind"`
 	Title     string `json:"title"`
 	Source    string `json:"source,omitempty"`
 	Path      string `json:"path,omitempty"`
+	Chat      string `json:"chat,omitempty"`
 	ItemKind  string `json:"itemKind,omitempty"`
 	Directory bool   `json:"directory,omitempty"`
 	// Extra holds the fields of a pin of another kind (extra.go).
@@ -123,8 +141,16 @@ func (p *ExportPin) UnmarshalJSON(data []byte) error {
 // BuildExport makes the export of a workspace, to be written to file, for
 // a person whose home folder is home. A local folder that is on the
 // computer has its folders listed; one that is not keeps those its own
-// import recorded.
+// import recorded. It has no chats, and so no chat pins.
 func BuildExport(record Record, file, home string) Export {
+	return BuildExportWithChats(record, file, home, nil)
+}
+
+// BuildExportWithChats is BuildExport for an export that takes chats.
+// chatKeys gives, by session ID, the key of the exported chat that session
+// is a stage of; a chat pin is kept, in its place among the pins, when its
+// session has a key. The caller adds the chats themselves.
+func BuildExportWithChats(record Record, file, home string, chatKeys map[string]string) Export {
 	out := Export{Format: ExportFormat, Name: record.Name, Sources: []ExportSource{}}
 	keys := map[string]string{}
 	main := ExecutionPath(record)
@@ -161,8 +187,10 @@ func BuildExport(record Record, file, home string) Export {
 			}
 			out.Pins = append(out.Pins, ExportPin{Kind: "resource", Title: pin.Title, Source: keys[pin.Ref.SourceID], Path: pin.Ref.Path, ItemKind: pin.ItemKind, Directory: pin.Directory})
 		case "chat":
-			// A chat is kept by the agent on the computer it ran on, so a
-			// chat pin has nothing to open on another.
+			// A chat pin goes only with its chat, which it refers to by key.
+			if key := chatKeys[pin.Session]; key != "" {
+				out.Pins = append(out.Pins, ExportPin{Kind: "chat", Title: pin.Title, Chat: key})
+			}
 		default:
 			if !ValidKind(pin.Kind) {
 				continue
@@ -296,12 +324,16 @@ func ListFolders(root string) []string {
 // CleanFolder checks a recorded folder: relative, separated by "/", with
 // no empty, "." or ".." part, nothing a path could escape through, and no
 // deeper than ExportFolderDepth.
-func CleanFolder(folder string) bool {
+func CleanFolder(folder string) bool { return cleanRelative(folder, ExportFolderDepth) }
+
+// cleanRelative checks a relative path separated by "/" as CleanFolder
+// does, to at most depth parts.
+func cleanRelative(folder string, depth int) bool {
 	if folder == "" || strings.ContainsAny(folder, "\\:\x00") || strings.HasPrefix(folder, "/") {
 		return false
 	}
 	parts := strings.Split(folder, "/")
-	if len(parts) > ExportFolderDepth {
+	if len(parts) > depth {
 		return false
 	}
 	for _, part := range parts {
@@ -315,14 +347,19 @@ func CleanFolder(folder string) bool {
 // ErrNotAnExport is returned for a file that is not a workspace export.
 var ErrNotAnExport = errors.New("this file is not a workspace export")
 
-// ReadExport reads an export and checks it: a format this version knows, a
-// kind of plain form for each source, local folders with a location that
-// stays inside their folder, sources of registered kinds that their kind
-// accepts, keys that are unique and at most one main folder, which must be
-// a local folder. Pins that refer to no source of the export, chat pins
-// and pins their kind refuses are dropped. A source or pin of a kind this
-// build does not know is kept as it is.
+// ReadExport reads an export's document and checks it: a format this
+// version knows, a kind of plain form for each source, local folders with a
+// location that stays inside their folder, sources of registered kinds that
+// their kind accepts, keys that are unique and at most one main folder,
+// which must be a local folder, and chats, groups and teams as checkChats
+// describes. Pins that refer to no source of the export, chat pins that
+// refer to no chat of it, and pins their kind refuses are dropped. A source
+// or pin of a kind this build does not know is kept as it is. An archive's
+// entries are checked by OpenArchive, which reads the document through this.
 func ReadExport(data []byte) (Export, error) {
+	if len(data) > MaxExportDocument {
+		return Export{}, ErrNotAnExport
+	}
 	var out Export
 	if err := json.Unmarshal(data, &out); err != nil || out.Format == 0 {
 		return Export{}, ErrNotAnExport
@@ -388,15 +425,23 @@ func ReadExport(data []byte) (Export, error) {
 			main = true
 		}
 	}
+	chats, err := checkChats(&out)
+	if err != nil {
+		return Export{}, err
+	}
 	pins := []ExportPin{}
 	for _, pin := range out.Pins {
 		switch {
 		case pin.Kind == "resource":
 			if keys[pin.Source] {
-				pin.Extra = nil
+				pin.Extra, pin.Chat = nil, ""
 				pins = append(pins, pin)
 			}
-		case pin.Kind == "chat" || !ValidKind(pin.Kind):
+		case pin.Kind == "chat":
+			if chats[pin.Chat] {
+				pins = append(pins, ExportPin{Kind: "chat", Title: pin.Title, Chat: pin.Chat})
+			}
+		case !ValidKind(pin.Kind):
 		case pin.Source != "" && !keys[pin.Source]:
 		default:
 			if kind, ok := LookupPinKind(pin.Kind); ok && kind.Read != nil && !kind.Read(pin) {

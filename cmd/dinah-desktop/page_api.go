@@ -66,7 +66,7 @@ var pageMethods = func() map[string]pageMethodClass {
  PendingPermissions PendingTaskPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
  ChatEvents ChatStates OpenShow PostShow CloseShow StandaloneApplications OpenStandalone
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
- InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
+ InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceExport PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `
  AcknowledgeMention
  ApplyOrgChartAction RemoveChats RestoreRemovedChat DeleteRemovedChat EmptyChatRecycleBin
@@ -82,7 +82,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ChooseAgentExecutable ChooseComputerSavePath ChooseDocumentFile
  ChooseExtensionSource ChooseImportFolder ChoosePackageBundle ChooseUploadFiles
  ChooseWorkspace ChooseWorkspaceImport ChooseWorkspaceSource ClearHistory ClearNotifications
- Connect ContinueSessionWithProvider ContinueSessionInWorkspace DismissSwitchFailure CopySkillToMine CopyWorkspaceMount CreateWorkspace
+ Connect ContinueMovedChat ContinueSessionWithProvider ContinueSessionInWorkspace DismissSwitchFailure CopySkillToMine CopyWorkspaceMount CreateWorkspace
  CreateNamedChat CreateWorkspaceFolder CreateWorkspaceFolders DeleteSession DeleteTemplate
  DetachWorkspaceSource DiscardDraft DraftKeptText DismissAppletResultAt DismissNotification DismissSteering
  EnableExtension ExportThemeFile ExportWorkspace FindPackageUpdates ForgetAppletGrant

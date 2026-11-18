@@ -188,6 +188,7 @@ func cleanupEraseSettings(s *Settings, ids []string) {
 		delete(s.BusSessions, id)
 		delete(s.ChatBindings, id)
 		delete(s.ChatTransfers, id)
+		delete(s.MovedChats, id)
 	}
 	s.ChatTransferHistory = slices.DeleteFunc(s.ChatTransferHistory, func(tr chatTransfer) bool { return slices.Contains(ids, tr.Source) })
 	s.Hidden = slices.DeleteFunc(s.Hidden, func(id string) bool { return slices.Contains(ids, id) })

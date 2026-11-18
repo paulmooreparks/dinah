@@ -284,13 +284,135 @@
        imported all the same and waits for the folder, unless the person asks
        for it to be created now. A source of a kind this build does not know
        is kept as it is, and the window says so. */
+    /* Export Workspace… first shows the export window: the workspace's
+       chats, every one ticked, with their program, model and size, the
+       total, what goes with them of their groups and teams, and a warning
+       that the file holds their conversations. Export… then asks where to
+       save the file, with the chats that are still ticked. */
+    var exporting = { plan: null, ticked: {}, busy: false };
     function exportWorkspace() {
       var record = workspaceRecords.find(function (r) { return r.id === workspaceId; });
-      if (!record || !app().ExportWorkspace) return;
-      Promise.resolve(app().ExportWorkspace(record.id)).then(function (file) {
-        if (file) toast('Exported "' + record.name + '" to ' + file + '. Import Workspace… in ' + productName() + ' on another computer reads it.', 'positive');
+      if (!record || !app().PlanWorkspaceExport || exporting.busy) return;
+      Promise.resolve(app().PlanWorkspaceExport(record.id)).then(function (plan) {
+        if (!plan) return;
+        var ticked = {};
+        (plan.chats || []).forEach(function (c) { ticked[c.chatId] = true; });
+        exporting = { plan: plan, ticked: ticked, busy: false, heights: null };
+        drawWorkspaceExport();
+        $('workspace-export').showModal();
+        holdWorkspaceExportLines();
+        $('workspace-export-go').focus();
       }).catch(fail);
     }
+    function megabytes(bytes) {
+      var mb = bytes / 1048576;
+      return (bytes > 0 && mb < 0.1 ? 0.1 : mb).toFixed(1) + ' MB';
+    }
+    function listWords(items) {
+      return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+    function drawWorkspaceExport() {
+      var plan = exporting.plan;
+      const el = window.dinahHelpers.node;
+      $('workspace-export-summary').textContent = 'This saves the workspace "' + plan.name + '" to a file that Import Workspace… reads on another computer.';
+      var sources = (plan.sources || []).map(function (s) {
+        return (s.kind === 'local-folder' ? (s.main ? 'the main folder ' : 'the folder ') : 'the source ') + s.name;
+      });
+      var counted = sources.length + (sources.length === 1 ? ' source' : ' sources') + (plan.pins ? ' and ' + plan.pins + (plan.pins === 1 ? ' pin' : ' pins') : '');
+      $('workspace-export-sources').textContent = counted + (sources.length === 1 && !plan.pins ? ' goes' : ' go') + ' with it' + (sources.length ? ': ' + listWords(sources) + '.' : '.');
+      var list = $('workspace-export-chats');
+      list.replaceChildren();
+      (plan.chats || []).forEach(function (c) {
+        var row = list.appendChild(el('li', 'import-source'));
+        row.dataset.chatId = c.chatId;
+        var head = row.appendChild(el('div', 'import-source-head'));
+        var label = head.appendChild(el('label', 'check'));
+        var box = label.appendChild(el('input'));
+        box.type = 'checkbox'; box.checked = !!exporting.ticked[c.chatId];
+        label.appendChild(document.createTextNode(' '));
+        label.appendChild(el('strong', 'import-source-name', c.title));
+        if (!c.open) head.appendChild(el('span', 'badge', 'Closed'));
+        if (c.hidden) head.appendChild(el('span', 'badge', 'Hidden'));
+        head.appendChild(el('span', 'import-size', megabytes(c.size)));
+        row.appendChild(el('p', 'form-help', c.providerName + (c.model ? ' · ' + c.model : '')));
+        box.addEventListener('change', function () {
+          exporting.ticked[c.chatId] = box.checked;
+          drawWorkspaceExportTotals();
+        });
+      });
+      $('workspace-export-none').hidden = (plan.chats || []).length > 0;
+      drawWorkspaceExportTotals();
+    }
+    function drawWorkspaceExportTotals() {
+      var plan = exporting.plan, ticked = exporting.ticked;
+      const el = window.dinahHelpers.node;
+      var n = 0, bytes = 0;
+      (plan.chats || []).forEach(function (c) { if (ticked[c.chatId]) { n++; bytes += c.size; } });
+      var total = $('workspace-export-total');
+      total.hidden = !(plan.chats || []).length;
+      total.textContent = n + (n === 1 ? ' chat' : ' chats') + ' with ' + megabytes(bytes) + ' of history.';
+      var lines = $('workspace-export-groups');
+      lines.replaceChildren();
+      workspaceExportLines(function (m) { return m.here && ticked[m.chatId]; }).forEach(function (line, i) {
+        var p = lines.appendChild(el('p', 'form-help', line.text));
+        if (exporting.heights) p.style.minHeight = exporting.heights[i] + 'px';
+      });
+    }
+    /* workspaceExportLines says, for each group and team, what goes of it
+       with the chats that goes accepts, and every other way the line could
+       read as chats are ticked, so that its height can be held. */
+    function workspaceExportLines(goes) {
+      var plan = exporting.plan, out = [];
+      (plan.groups || []).forEach(function (g) {
+        var elsewhere = g.members.filter(function (m) { return !m.here; }).map(function (m) { return m.title + ' is in the workspace ' + m.workspace; });
+        var text = function (here) {
+          return here ? 'The group ' + g.title + ' goes with them, with its conversation: ' + here + (here === 1 ? ' member is' : ' members are') + ' in this workspace' + (elsewhere.length ? ', and ' + listWords(elsewhere) + '.' : '.')
+            : 'The group ' + g.title + ' does not go, because none of its members is ticked.';
+        };
+        var most = g.members.filter(function (m) { return m.here; }).length;
+        out.push({ text: text(g.members.filter(goes).length), variants: [text(0), text(1), text(most)] });
+      });
+      (plan.teams || []).forEach(function (t) {
+        var text = function (leadGoes, going) {
+          if (leadGoes) return t.lead.title + ' leads a team of ' + (t.members.length + 1) + '.';
+          if (!going) return t.lead.title + '\'s team does not go, because none of its chats here is ticked.';
+          if (t.lead.here) return t.lead.title + ' stays behind, so its team\'s budget does not go. ' + going + (going === 1 ? ' of its members goes and rejoins' : ' of its members go and rejoin') + ' it on a computer that has ' + t.lead.title + '.';
+          return going + (going === 1 ? ' member reports' : ' members report') + ' to ' + t.lead.title + ', which is in the workspace ' + t.lead.workspace + '.';
+        };
+        var most = t.members.filter(function (m) { return m.here; }).length;
+        out.push({ text: text(goes(t.lead), t.members.filter(goes).length), variants: [text(t.lead.here, 0), text(false, 0), text(false, 1), text(false, most)] });
+      });
+      return out;
+    }
+    /* Each line is held at the height of its tallest wording, measured once
+       the window is open, so that ticking a chat never moves the warning or
+       the buttons below the lines. */
+    function holdWorkspaceExportLines() {
+      var shown = $('workspace-export-groups').children, lines = workspaceExportLines(function () { return false; });
+      exporting.heights = lines.map(function (line, i) {
+        var p = shown[i], now = p.textContent, tallest = 0;
+        // The height is read unrounded, since a line box can be a fraction of
+        // a pixel taller than offsetHeight says.
+        line.variants.forEach(function (text) { p.textContent = text; tallest = Math.max(tallest, p.getBoundingClientRect().height); });
+        p.textContent = now;
+        p.style.minHeight = tallest + 'px';
+        return tallest;
+      });
+    }
+    $('workspace-export-cancel').addEventListener('click', function () { $('workspace-export').close(); });
+    $('workspace-export').addEventListener('cancel', function (event) { if (exporting.busy) event.preventDefault(); });
+    $('workspace-export-go').addEventListener('click', function () {
+      var plan = exporting.plan, go = this, cancel = $('workspace-export-cancel');
+      if (!plan || exporting.busy) return;
+      var chats = (plan.chats || []).filter(function (c) { return exporting.ticked[c.chatId]; }).map(function (c) { return c.chatId; });
+      exporting.busy = true; go.disabled = true; cancel.disabled = true;
+      Promise.resolve(app().ExportWorkspace(plan.workspaceId, { chats: chats })).then(function (file) {
+        // Cancelling the save window leaves the export window as it was.
+        if (!file) return;
+        $('workspace-export').close();
+        toast('Exported "' + plan.name + '" to ' + file + '. Import Workspace… in ' + productName() + ' on another computer reads it.', 'positive');
+      }).catch(fail).finally(function () { exporting.busy = false; go.disabled = false; cancel.disabled = false; });
+    });
     var importing = { plan: null, choices: {}, busy: false };
     function importWorkspace() {
       if (!app().ChooseWorkspaceImport || importing.busy) return;
@@ -299,11 +421,120 @@
         importing = { plan: plan, choices: {}, busy: false };
         drawWorkspaceImport();
         $('workspace-import').showModal();
+        holdWordings($('workspace-import'));
         $('workspace-import-go').focus();
       }).catch(fail);
     }
+    /* holdWordings holds each line that can read more than one way, marked
+       with its wordings, at the height of the tallest, measured unrounded
+       while its window is open, so that a choice never moves what is below. */
+    function holdWordings(root) {
+      if (!root.open) return;
+      root.querySelectorAll('[data-wordings]').forEach(function (line) {
+        var now = line.textContent, tallest = 0;
+        JSON.parse(line.dataset.wordings).forEach(function (text) { line.textContent = text; tallest = Math.max(tallest, line.getBoundingClientRect().height); });
+        line.textContent = now;
+        line.style.minHeight = tallest + 'px';
+      });
+    }
     function importChoices(choices) {
-      return Object.keys(choices).map(function (key) { return { key: key, path: choices[key].path || '', create: !!choices[key].create }; });
+      var out = Object.keys(choices).map(function (key) { return { key: key, path: choices[key].path || '', create: !!choices[key].create }; });
+      var separate = importing.separate || {};
+      Object.keys(separate).forEach(function (key) { if (separate[key]) out.push({ key: '', chat: key, separate: true }); });
+      return out;
+    }
+    /* The import window's Chats section (docs/design/workspace-export.md,
+       "The Windows"): each chat of the file with what importing it does. A
+       chat changed on both computers is left as it is unless the person
+       ticks Import as a Separate Chat. */
+    var chatMarks = {
+      'new': ['New', 'accent'],
+      'up-to-date': ['Already Up to Date', ''],
+      'updated': ['Updated From the Other Computer', 'positive'],
+      'changed-on-both': ['Changed on Both Computers', 'warn'],
+      'close-to-update': ['Close It to Update It', 'warn']
+    };
+    var chatMarkHelp = {
+      'up-to-date': 'Nothing changed on the other computer.',
+      'updated': 'It was continued on the other computer. Its newer history replaces this one\'s.',
+      'changed-on-both': 'Both computers have messages the other lacks. This computer\'s chat is left as it is.',
+      'close-to-update': 'It is open and working here. Close it and import again to take the other computer\'s history.'
+    };
+    function importRow(list, glyphName, name, marks) {
+      const el = window.dinahHelpers.node;
+      var row = list.appendChild(el('li', 'import-source'));
+      var head = row.appendChild(el('div', 'import-source-head'));
+      var glyph = head.appendChild(el('span', 'glyph'));
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.style.setProperty('--glyph', 'var(--glyph-' + glyphName + ')');
+      head.appendChild(el('strong', 'import-source-name', name));
+      marks.forEach(function (m) { head.appendChild(el('span', 'badge' + (m[1] ? ' ' + m[1] : ''), m[0])); });
+      return row;
+    }
+    function drawImportChats(plan) {
+      const el = window.dinahHelpers.node;
+      var chats = plan.chats || [], list = $('workspace-import-chats');
+      $('workspace-import-chats-title').hidden = list.hidden = !chats.length;
+      list.replaceChildren();
+      var separate = importing.separate = importing.separate || {};
+      chats.forEach(function (c) {
+        var row = importRow(list, 'comments', c.title, [chatMarks[c.mark] || [c.mark, '']]);
+        row.dataset.chatKey = c.key;
+        row.appendChild(el('p', 'form-help', c.providerName + (c.model ? ' · ' + c.model : '')));
+        if (c.providerMissing) row.appendChild(el('p', 'form-help', c.providerName + ' is not on this computer. The chat opens on its saved history and asks which program continues it.'));
+        if (chatMarkHelp[c.mark]) row.appendChild(el('p', 'form-help', chatMarkHelp[c.mark]));
+        if (c.mark !== 'changed-on-both') return;
+        var controls = row.appendChild(el('div', 'hstack gap-3 align-center import-source-controls'));
+        var label = controls.appendChild(el('label', 'check'));
+        var box = label.appendChild(el('input'));
+        box.type = 'checkbox'; box.checked = !!separate[c.key];
+        label.appendChild(document.createTextNode(' Import as a Separate Chat'));
+        // The line under the choice is always there, so ticking it moves nothing.
+        var said = row.appendChild(el('p', 'form-help'));
+        var wordings = ['It is added as "' + c.title + ' (Imported)", with its own place in its groups.', 'Tick it to add the other computer\'s copy beside this one.'];
+        said.dataset.wordings = JSON.stringify(wordings);
+        function drawSeparate() { said.textContent = wordings[box.checked ? 0 : 1]; }
+        drawSeparate();
+        box.addEventListener('change', function () { separate[c.key] = box.checked; drawSeparate(); });
+      });
+    }
+    /* The Groups and Teams section: each group of the file, new or joining
+       the group of its name here, with its members and its conversation,
+       then each team. A member whose chat is neither in the file nor here
+       waits for its own workspace's import. The trusted links the other
+       computer had are listed last, as not imported. */
+    function waitingWords(waiting) {
+      return waiting.map(function (m) { return m.title + ' waits for the workspace ' + m.workspace + '; importing ' + m.workspace + ' adds it.'; }).join(' ');
+    }
+    function drawImportGroups(plan) {
+      const el = window.dinahHelpers.node;
+      var groups = plan.groups || [], teams = plan.teams || [], list = $('workspace-import-groups');
+      $('workspace-import-groups-title').hidden = list.hidden = !groups.length && !teams.length;
+      list.replaceChildren();
+      var count = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+      groups.forEach(function (g) {
+        var row = importRow(list, 'comments', g.title, [g.existing ? ['Joins the Existing Group', ''] : ['New Group', 'accent']]);
+        var waiting = g.waiting || [], said = [];
+        if (g.existing && !waiting.length) said.push('All its members are here already.');
+        else {
+          if (g.inFile) said.push(count(g.inFile, 'member is', 'members are') + ' in this file.');
+          if (g.here) said.push(count(g.here, 'member is', 'members are') + ' here already.');
+        }
+        if (waiting.length) said.push(waitingWords(waiting));
+        row.appendChild(el('p', 'form-help', said.join(' ')));
+        if (g.messages) row.appendChild(el('p', 'form-help', !g.existing ? 'Its conversation comes too: ' + count(g.messages, 'message', 'messages') + '.'
+          : g.new ? count(g.new, 'newer message is', 'newer messages are') + ' added to its conversation.' : 'Its conversation is here already.'));
+        if (g.keptLead) row.appendChild(el('p', 'form-help', 'It keeps its lead here, ' + g.keptLead + ', although the file gives it another.'));
+      });
+      teams.forEach(function (t) {
+        var row = importRow(list, 'branch', t.lead + '\'s team', [t.existing ? ['Joins the Existing Team', ''] : ['New Team', 'accent']]);
+        row.appendChild(el('p', 'form-help', listWords(t.members) + (t.members.length === 1 ? ' reports' : ' report') + ' to ' + t.lead + '.'));
+        if ((t.waiting || []).length) row.appendChild(el('p', 'form-help', waitingWords(t.waiting)));
+      });
+      var links = plan.links || [], line = $('workspace-import-links');
+      line.hidden = !links.length;
+      line.textContent = links.length ? 'Not imported: the trusted ' + (links.length === 1 ? 'link' : 'links') + ' between ' + links.map(function (l) { return l.a + ' and ' + l.b; }).join(', and between ') +
+        '. A file cannot grant agents that trust; add ' + (links.length === 1 ? 'it' : 'them') + ' again in Settings if you want ' + (links.length === 1 ? 'it' : 'them') + '.' : '';
     }
     function importStatus(s, create) {
       if (s.kind === 'local-folder') return s.found ? ['Found', 'positive'] : create ? ['Created on Import', 'accent'] : ['Not on This Computer Yet', 'warn'];
@@ -313,8 +544,13 @@
     function drawWorkspaceImport() {
       var plan = importing.plan, choices = importing.choices;
       const el = window.dinahHelpers.node;
-      $('workspace-import-summary').textContent = plan.existingId ? '"' + plan.existingName + '" already works in this main folder, so the import adds the sources and pins it does not have.'
-        : 'This makes the workspace "' + plan.name + '" with these sources.';
+      var withChats = (plan.chats || []).length > 0;
+      $('workspace-import-summary').textContent = plan.existingId
+        ? '"' + plan.existingName + '" already works in this main folder, so the import adds ' + (withChats ? 'what it does not have and updates chats worked on elsewhere.' : 'the sources and pins it does not have.')
+        : 'This makes the workspace "' + plan.name + '" with these sources' + (withChats ? ' and chats.' : '.');
+      drawImportChats(plan);
+      drawImportGroups(plan);
+      holdWordings($('workspace-import'));
       var list = $('workspace-import-sources'), waitingMain = false;
       list.replaceChildren();
       plan.sources.forEach(function (s) {
@@ -375,7 +611,16 @@
       Promise.resolve(app().ImportWorkspace(plan.file, importChoices(importing.choices))).then(function (result) {
         $('workspace-import').close();
         switchTo(result.state);
-        var added = result.existing ? 'Added ' + result.sources + (result.sources === 1 ? ' source' : ' sources') + ' and ' + result.pins + (result.pins === 1 ? ' pin' : ' pins') + ' to "' + plan.existingName + '".' : 'Imported the workspace "' + plan.name + '".';
+        var count = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+        var chatWords = [];
+        if (result.chats) chatWords.push(count(result.chats, 'chat', 'chats'));
+        if (result.groups && !result.existing) chatWords.push(count(result.groups, 'group', 'groups'));
+        var added = result.existing ? 'Added ' + count(result.sources, 'source', 'sources') + ' and ' + count(result.pins, 'pin', 'pins') + ' to "' + plan.existingName + '".'
+          : 'Imported the workspace "' + plan.name + '"' + (chatWords.length ? ' with ' + chatWords.join(' and ') : '') + '.';
+        if (result.existing && result.chats) added += ' Added ' + count(result.chats, 'chat', 'chats') + '.';
+        if (result.updated) added += ' Updated ' + count(result.updated, 'chat', 'chats') + ' worked on elsewhere.';
+        if (result.separate) added += ' Added ' + count(result.separate, 'separate chat', 'separate chats') + '.';
+        if (result.existing && result.messages) added += ' Added ' + count(result.messages, 'group message', 'group messages') + '.';
         if (result.waiting) added += ' ' + result.waiting + (result.waiting === 1 ? ' folder is' : ' folders are') + ' not on this computer yet.';
         toast(added, 'positive');
       }).catch(fail).finally(function () { importing.busy = false; go.disabled = false; });
@@ -395,7 +640,7 @@
     var renamingWorkspace = '', workspaceRenameBusy = false;
     var creatingWorkspace = false;
     function commandEnabled(id) {
-      const methods = { 'rename-workspace': 'RenameWorkspace', 'remove-workspace': 'RemoveWorkspace', 'export-workspace': 'ExportWorkspace' };
+      const methods = { 'rename-workspace': 'RenameWorkspace', 'remove-workspace': 'RemoveWorkspace', 'export-workspace': 'PlanWorkspaceExport' };
       if (methods[id]) return !!workspaceId && !!app()?.[methods[id]];
       if (id === 'refresh-workspace') return !!adapter.workspace();
       if (id === 'import-workspace') return !!app()?.ChooseWorkspaceImport;
