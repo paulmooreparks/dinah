@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -85,21 +87,92 @@ func (a *App) observeExitCall(name string) func() {
 	}
 	a.mu.Lock()
 	a.exitCalls++
+	if a.exitCallNames == nil {
+		a.exitCallNames = map[string]int{}
+	}
+	a.exitCallNames[name]++
 	a.mu.Unlock()
 	var once sync.Once
-	return func() { once.Do(func() { a.mu.Lock(); a.exitCalls--; a.mu.Unlock() }) }
+	return func() {
+		once.Do(func() {
+			a.mu.Lock()
+			a.exitCalls--
+			if a.exitCallNames[name]--; a.exitCallNames[name] <= 0 {
+				delete(a.exitCallNames, name)
+			}
+			if a.exitCalls == 0 && a.exitDrained != nil {
+				close(a.exitDrained)
+				a.exitDrained = nil
+			}
+			a.mu.Unlock()
+		})
+	}
+}
+
+// exitSettle is how long a close waits for the page calls already running
+// to finish before it decides whether to ask. A call is counted as unfinished
+// work only while it runs, so a close that looked at one instant asked about
+// calls that ended a moment later: Paul confirmed Restart Now quickly on 18
+// November 2026 and was asked to confirm exiting, which a few seconds' wait
+// avoided. A call that finishes while the close waits is not interrupted, so
+// there is nothing to ask about.
+var exitSettle = 5 * time.Second
+
+// settleThenClose waits until the running page calls have finished, or
+// exitSettle has passed, and closes the window again. That close decides as
+// usual, asking when work is still running.
+func (a *App) settleThenClose(drained <-chan struct{}) {
+	timer := time.NewTimer(exitSettle)
+	defer timer.Stop()
+	select {
+	case <-drained:
+	case <-timer.C:
+	}
+	a.mu.Lock()
+	a.exitSettling = false
+	a.exitSettled = true
+	retry := a.exitRetry
+	a.mu.Unlock()
+	if retry != nil {
+		retry()
+	} else if a.ctx != nil {
+		wruntime.Quit(a.ctx)
+	}
+}
+
+// logExitAsk says in the log which calls and activities were still running
+// when a close asked to confirm, so that a question nobody expected can be
+// traced to its cause.
+func (a *App) logExitAsk(status exitStatus) {
+	if status.UnfinishedRequests == 0 {
+		return
+	}
+	a.mu.Lock()
+	calls := make([]string, 0, len(a.exitCallNames))
+	for name, n := range a.exitCallNames {
+		calls = append(calls, fmt.Sprintf("%s×%d", name, n))
+	}
+	work := make([]string, 0, len(a.exitWork))
+	for _, label := range a.exitWork {
+		work = append(work, label)
+	}
+	a.mu.Unlock()
+	sort.Strings(calls)
+	sort.Strings(work)
+	logf("core", "info", "asking to confirm exit with page calls still running [%s] and activities [%s]", strings.Join(calls, ", "), strings.Join(work, ", "))
 }
 
 func (a *App) abandonClose() {
 	a.mu.Lock()
 	a.exitConfirmed = false
 	a.closeApproved = false
+	a.exitSettled = false
 	a.mu.Unlock()
 	a.restartAbandoned()
 }
 func (a *App) confirmExitIfNeeded(ctx context.Context) bool {
 	a.mu.Lock()
-	if a.exitConfirming {
+	if a.exitConfirming || a.exitSettling {
 		a.mu.Unlock()
 		return false
 	}
@@ -111,6 +184,18 @@ func (a *App) confirmExitIfNeeded(ctx context.Context) bool {
 		a.mu.Unlock()
 		return false
 	}
+	// Page calls still running are given exitSettle to finish before the
+	// close decides, once per close. The channel is made while a call is
+	// counted, under the lock its end takes, so its end cannot be missed.
+	if !a.exitSettled && a.exitCalls > 0 {
+		a.exitSettling = true
+		drained := make(chan struct{})
+		a.exitDrained = drained
+		a.mu.Unlock()
+		go a.settleThenClose(drained)
+		return false
+	}
+	a.exitSettled = false
 	a.exitConfirming = true
 	prompt := a.exitPrompt
 	a.mu.Unlock()
@@ -121,6 +206,7 @@ func (a *App) confirmExitIfNeeded(ctx context.Context) bool {
 		a.mu.Unlock()
 		return true
 	}
+	a.logExitAsk(status)
 	if prompt != nil {
 		accepted := prompt(ctx, status)
 		a.mu.Lock()

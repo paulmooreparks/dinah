@@ -96,7 +96,18 @@ type App struct {
 	exitTimer         *time.Timer
 	exitWork          map[string]string
 	exitCalls         int
-	exitPrompt        func(context.Context, exitStatus) bool
+	// exitCallNames counts the running page calls in exitCalls by method,
+	// for the log when a close asks to confirm.
+	exitCallNames map[string]int
+	// A close that finds page calls running waits for them before it decides
+	// (exit_guard.go): exitSettling while it waits, exitSettled for the close
+	// that follows, exitDrained closed when the last running call ends, and
+	// exitRetry, set only by tests, in place of closing the window again.
+	exitSettling bool
+	exitSettled  bool
+	exitDrained  chan struct{}
+	exitRetry    func()
+	exitPrompt   func(context.Context, exitStatus) bool
 	closeRequest      string
 	closeApproved     bool
 	closeTimer        *time.Timer

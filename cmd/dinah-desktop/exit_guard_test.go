@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExitGuardIdleWorkAndCancellation(t *testing.T) {
@@ -227,6 +228,63 @@ func TestARestartAndAReadAreNotUnfinishedWork(t *testing.T) {
 	done()
 	if app.ExitStatus().needsConfirmation() {
 		t.Fatal("a finished call is still counted")
+	}
+}
+
+// A close that finds a page call running waits for it, and closes again once
+// it has finished; nothing is left to ask about, so nobody is asked (Paul's
+// report of 18 November 2026, a Restart Now confirmed quickly).
+func TestACloseWaitsForAPageCallThatEndsAndThenExitsWithoutAsking(t *testing.T) {
+	app, _ := providerTestApp(t)
+	asked := 0
+	app.exitPrompt = func(context.Context, exitStatus) bool { asked++; return true }
+	again := make(chan bool, 1)
+	app.exitRetry = func() { again <- app.confirmExitIfNeeded(nil) }
+	done := app.observeExitCall("Send")
+	if app.confirmExitIfNeeded(nil) {
+		t.Fatal("the close went ahead while a page call was running")
+	}
+	if app.confirmExitIfNeeded(nil) {
+		t.Fatal("a second close went ahead while the first was waiting")
+	}
+	done()
+	select {
+	case ok := <-again:
+		if !ok || asked != 0 {
+			t.Fatalf("after the call ended the close went ahead %v and asked %d times", ok, asked)
+		}
+	case <-time.After(exitSettle):
+		t.Fatal("the close did not try again when the call ended")
+	}
+}
+
+// A call that is still running when the wait is over is unfinished work, and
+// the close asks once, with the call's name in the log.
+func TestACloseAsksWhenAPageCallOutlastsTheWait(t *testing.T) {
+	app, _ := providerTestApp(t)
+	saved := exitSettle
+	exitSettle = 20 * time.Millisecond
+	defer func() { exitSettle = saved }()
+	asked := 0
+	app.exitPrompt = func(_ context.Context, status exitStatus) bool {
+		asked++
+		if status.UnfinishedRequests != 1 {
+			t.Errorf("status %+v", status)
+		}
+		return false
+	}
+	again := make(chan bool, 1)
+	app.exitRetry = func() { again <- app.confirmExitIfNeeded(nil) }
+	done := app.observeExitCall("Send")
+	defer done()
+	if app.confirmExitIfNeeded(nil) {
+		t.Fatal("the close went ahead while a page call was running")
+	}
+	if ok := <-again; ok || asked != 1 {
+		t.Fatalf("after the wait the close went ahead %v and asked %d times", ok, asked)
+	}
+	if app.exitSettling || app.exitSettled {
+		t.Fatal("the wait was not over after the close decided")
 	}
 }
 
