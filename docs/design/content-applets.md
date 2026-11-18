@@ -143,6 +143,16 @@ The rule reaches the Editor and Docs and no other application (`suggestionApps`)
 
 Read a Document and Suggest Changes take an optional `sourceId` since the same day, so an agent proposes to a document of any attached source, such as a page of a wiki, and not only to a file in the workspace's main folder.
 
+### An agent corrects its own suggestions
+
+Until 18 November 2026 an agent could add suggestions but not change or remove one. When another agent found a fault in a few of a batch's suggestions, the agent that made them had to ask the person to reject the whole batch and then propose it again, although most of it was right. Paul asked for a way out, and decided the rules the same day.
+
+Two actions are added. `dinah.documents/revise@1` replaces the proposed text of chosen suggestions, and their reason if one is given. `dinah.documents/withdraw@1` removes chosen suggestions. Neither touches any other suggestion of the batch, and neither changes the document's text. A correction that changes which paragraphs a suggestion covers is a withdrawal followed by a new suggestion through `dinah.documents/suggest@1`.
+
+Only the chat that made a suggestion may revise or withdraw it. Another agent, such as one that verified the suggestion or the chat's lead, asks that chat to do it, so a proposal has one owner. A suggestion records the chat that made it as well as the name the person is shown. A suggestion made before that was recorded is taken to be the calling chat's when its author's name is the chat's title as it is now.
+
+A suggestion whose text the person has edited is the person's. An agent's revision or withdrawal of it is refused, and the refusal tells the agent to ask the person. The window shows no mark for a revised suggestion: its new text takes the old text's place, and its reason can say what changed.
+
 ### Request a Change
 
 The person selects a passage in the Editor or Docs and chooses Request a Change… in the Review menu, in the menu of a right click on the selection, or with Ctrl+Shift+E. A dialog shows the passage and asks what should change and which chat to ask, among the chats of the document's workspace, since an agent reads and proposes within its own workspace. The request goes to that chat as a message of the person's, with the passage as the message's document selection (`history.go`, `draftContext`) and a sentence that says to read the document and propose with the Documents applet, giving the document's path and source. The agent's answer arrives as suggestions in the document's window. The command changes nothing in the document itself.
