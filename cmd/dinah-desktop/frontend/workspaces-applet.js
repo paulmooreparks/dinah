@@ -284,12 +284,15 @@
        imported all the same and waits for the folder, unless the person asks
        for it to be created now. A source of a kind this build does not know
        is kept as it is, and the window says so. */
-    /* Export Workspace… first shows the export window: the workspace's
-       chats, every one ticked, with their program, model and size, the
-       total, what goes with them of their groups and teams, and a warning
-       that the file holds their conversations. Export… then asks where to
-       save the file, with the chats that are still ticked. */
-    var exporting = { plan: null, ticked: {}, busy: false };
+    /* Export Workspace… first shows the export window: a table of the
+       workspace's chats, every one ticked, with their program, model, state
+       and size; a table of their groups and teams, one row each, saying how
+       many of the members here go and who is elsewhere; the running total
+       beside the buttons; and a warning that the file contains their
+       conversations. Export… then asks where to save the file, with the
+       chats that are still ticked. Ticking a chat changes words in cells
+       and never the height of a row, so nothing else in the window moves. */
+    var exporting = { plan: null, ticked: {}, busy: false, rows: [] };
     function exportWorkspace() {
       var record = workspaceRecords.find(function (r) { return r.id === workspaceId; });
       if (!record || !app().PlanWorkspaceExport || exporting.busy) return;
@@ -297,10 +300,10 @@
         if (!plan) return;
         var ticked = {};
         (plan.chats || []).forEach(function (c) { ticked[c.chatId] = true; });
-        exporting = { plan: plan, ticked: ticked, busy: false, heights: null };
+        exporting = { plan: plan, ticked: ticked, busy: false, rows: [] };
         drawWorkspaceExport();
         $('workspace-export').showModal();
-        holdWorkspaceExportLines();
+        $('workspace-export-body').scrollTop = 0;
         $('workspace-export-go').focus();
       }).catch(fail);
     }
@@ -311,8 +314,18 @@
     function listWords(items) {
       return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
     }
+    /* transferCell adds a cell to a row of a transfer window's table, with
+       the label the narrow layout shows before its value. */
+    function transferCell(tr, text, className, label) {
+      var td = tr.appendChild(window.dinahHelpers.node('td', className, text));
+      td.dataset.label = label;
+      return td;
+    }
+    function transferBadge(mark) {
+      return window.dinahHelpers.node('span', 'badge' + (mark[1] ? ' ' + mark[1] : ''), mark[0]);
+    }
     function drawWorkspaceExport() {
-      var plan = exporting.plan;
+      var plan = exporting.plan, chats = plan.chats || [];
       const el = window.dinahHelpers.node;
       $('workspace-export-summary').textContent = 'This saves the workspace "' + plan.name + '" to a file that Import Workspace… reads on another computer.';
       var sources = (plan.sources || []).map(function (s) {
@@ -320,85 +333,95 @@
       });
       var counted = sources.length + (sources.length === 1 ? ' source' : ' sources') + (plan.pins ? ' and ' + plan.pins + (plan.pins === 1 ? ' pin' : ' pins') : '');
       $('workspace-export-sources').textContent = counted + (sources.length === 1 && !plan.pins ? ' goes' : ' go') + ' with it' + (sources.length ? ': ' + listWords(sources) + '.' : '.');
-      var list = $('workspace-export-chats');
-      list.replaceChildren();
-      (plan.chats || []).forEach(function (c) {
-        var row = list.appendChild(el('li', 'import-source'));
-        row.dataset.chatId = c.chatId;
-        var head = row.appendChild(el('div', 'import-source-head'));
-        var label = head.appendChild(el('label', 'check'));
-        var box = label.appendChild(el('input'));
+      var body = $('workspace-export-chats').tBodies[0];
+      body.replaceChildren();
+      chats.forEach(function (c) {
+        var tr = body.appendChild(el('tr'));
+        tr.dataset.chatId = c.chatId;
+        var check = transferCell(tr, null, 'data-table-check', 'Export');
+        var box = check.appendChild(el('input'));
         box.type = 'checkbox'; box.checked = !!exporting.ticked[c.chatId];
-        label.appendChild(document.createTextNode(' '));
-        label.appendChild(el('strong', 'import-source-name', c.title));
-        if (!c.open) head.appendChild(el('span', 'badge', 'Closed'));
-        if (c.hidden) head.appendChild(el('span', 'badge', 'Hidden'));
-        head.appendChild(el('span', 'import-size', megabytes(c.size)));
-        row.appendChild(el('p', 'form-help', c.providerName + (c.model ? ' · ' + c.model : '')));
+        box.setAttribute('aria-label', c.title);
+        transferCell(tr, c.title, 'wrap', 'Chat');
+        transferCell(tr, c.providerName + (c.model ? ' · ' + c.model : ''), 'muted', 'Program and Model');
+        transferCell(tr, (c.open ? 'Open' : 'Closed') + (c.hidden ? ', Hidden' : ''), 'nowrap', 'State');
+        transferCell(tr, megabytes(c.size), 'num nowrap', 'History');
         box.addEventListener('change', function () {
           exporting.ticked[c.chatId] = box.checked;
           drawWorkspaceExportTotals();
         });
       });
-      $('workspace-export-none').hidden = (plan.chats || []).length > 0;
+      $('workspace-export-chats-wrap').hidden = !chats.length;
+      $('workspace-export-none').hidden = chats.length > 0;
+      var rows = exporting.rows = workspaceExportRows(), groups = $('workspace-export-groups').tBodies[0];
+      groups.replaceChildren();
+      rows.forEach(function (row) {
+        var tr = groups.appendChild(el('tr'));
+        transferCell(tr, row.title, 'wrap', 'Group or Team');
+        row.cell = transferCell(tr, '', 'nowrap', 'Goes With It');
+        transferCell(tr, row.elsewhere.length ? listWords(row.elsewhere) : 'None', 'muted wrap', 'Elsewhere');
+      });
+      $('workspace-export-groups-title').hidden = $('workspace-export-groups-wrap').hidden = !rows.length;
+      // The rules for what goes are stated once below the table, and never
+      // change as chats are ticked.
+      var notes = $('workspace-export-group-notes');
+      notes.replaceChildren();
+      if ((plan.groups || []).length) notes.appendChild(el('li', null, 'A group goes, with its conversation, when any of its members here goes.'));
+      if ((plan.teams || []).length) notes.appendChild(el('li', null, 'A team goes when its lead or any of its members goes. When its lead does not go, the team\'s budget stays behind, and its members rejoin the team on a computer that has the lead.'));
+      notes.hidden = !notes.children.length;
       drawWorkspaceExportTotals();
     }
-    function drawWorkspaceExportTotals() {
-      var plan = exporting.plan, ticked = exporting.ticked;
-      const el = window.dinahHelpers.node;
-      var n = 0, bytes = 0;
-      (plan.chats || []).forEach(function (c) { if (ticked[c.chatId]) { n++; bytes += c.size; } });
-      var total = $('workspace-export-total');
-      total.hidden = !(plan.chats || []).length;
-      total.textContent = n + (n === 1 ? ' chat' : ' chats') + ' with ' + megabytes(bytes) + ' of history.';
-      var lines = $('workspace-export-groups');
-      lines.replaceChildren();
-      workspaceExportLines(function (m) { return m.here && ticked[m.chatId]; }).forEach(function (line, i) {
-        var p = lines.appendChild(el('p', 'form-help', line.text));
-        if (exporting.heights) p.style.minHeight = exporting.heights[i] + 'px';
-      });
-    }
-    /* workspaceExportLines says, for each group and team, what goes of it
-       with the chats that goes accepts, and every other way the line could
-       read as chats are ticked, so that its height can be held. */
-    function workspaceExportLines(goes) {
-      var plan = exporting.plan, out = [];
+    /* workspaceExportRows lists each group and team with its members in this
+       workspace, the lead of a team whose lead is here, and the members in
+       other workspaces, so that its row can say how many go as chats are
+       ticked. */
+    function workspaceExportRows() {
+      var plan = exporting.plan, rows = [];
+      var here = function (m) { return m.here; };
       (plan.groups || []).forEach(function (g) {
-        var elsewhere = g.members.filter(function (m) { return !m.here; }).map(function (m) { return m.title + ' is in the workspace ' + m.workspace; });
-        var text = function (here) {
-          return here ? 'The group ' + g.title + ' goes with them, with its conversation: ' + here + (here === 1 ? ' member is' : ' members are') + ' in this workspace' + (elsewhere.length ? ', and ' + listWords(elsewhere) + '.' : '.')
-            : 'The group ' + g.title + ' does not go, because none of its members is ticked.';
-        };
-        var most = g.members.filter(function (m) { return m.here; }).length;
-        out.push({ text: text(g.members.filter(goes).length), variants: [text(0), text(1), text(most)] });
+        rows.push({ title: g.title + ', a group', here: g.members.filter(here), lead: null,
+          elsewhere: g.members.filter(function (m) { return !m.here; }).map(function (m) { return m.title + ' in ' + m.workspace; }) });
       });
       (plan.teams || []).forEach(function (t) {
-        var text = function (leadGoes, going) {
-          if (leadGoes) return t.lead.title + ' leads a team of ' + (t.members.length + 1) + '.';
-          if (!going) return t.lead.title + '\'s team does not go, because none of its chats here is ticked.';
-          if (t.lead.here) return t.lead.title + ' stays behind, so its team\'s budget does not go. ' + going + (going === 1 ? ' of its members goes and rejoins' : ' of its members go and rejoin') + ' it on a computer that has ' + t.lead.title + '.';
-          return going + (going === 1 ? ' member reports' : ' members report') + ' to ' + t.lead.title + ', which is in the workspace ' + t.lead.workspace + '.';
-        };
-        var most = t.members.filter(function (m) { return m.here; }).length;
-        out.push({ text: text(goes(t.lead), t.members.filter(goes).length), variants: [text(t.lead.here, 0), text(false, 0), text(false, 1), text(false, most)] });
+        var all = [t.lead].concat(t.members);
+        rows.push({ title: t.lead.title + '\'s team', here: all.filter(here), lead: t.lead.here ? t.lead : null,
+          elsewhere: all.filter(function (m) { return !m.here; }).map(function (m) { return m.title + (m === t.lead ? ' (its lead)' : '') + ' in ' + m.workspace; }) });
       });
-      return out;
+      return rows;
     }
-    /* Each line is held at the height of its tallest wording, measured once
-       the window is open, so that ticking a chat never moves the warning or
-       the buttons below the lines. */
-    function holdWorkspaceExportLines() {
-      var shown = $('workspace-export-groups').children, lines = workspaceExportLines(function () { return false; });
-      exporting.heights = lines.map(function (line, i) {
-        var p = shown[i], now = p.textContent, tallest = 0;
-        // The height is read unrounded, since a line box can be a fraction of
-        // a pixel taller than offsetHeight says.
-        line.variants.forEach(function (text) { p.textContent = text; tallest = Math.max(tallest, p.getBoundingClientRect().height); });
-        p.textContent = now;
-        p.style.minHeight = tallest + 'px';
-        return tallest;
+    function exportGoesWords(row, ticked) {
+      var going = row.here.filter(function (m) { return ticked[m.chatId]; }).length;
+      if (!going) return 'Stays behind';
+      var words = going + ' of ' + row.here.length + (row.here.length === 1 ? ' member' : ' members');
+      return row.lead && !ticked[row.lead.chatId] ? words + ', not its lead' : words;
+    }
+    function drawWorkspaceExportTotals() {
+      var plan = exporting.plan, ticked = exporting.ticked, chats = plan.chats || [];
+      var n = 0, bytes = 0;
+      chats.forEach(function (c) { if (ticked[c.chatId]) { n++; bytes += c.size; } });
+      // The All box is ticked when every chat is, and shows the mixed state
+      // when only some are. The narrow layout has its own copy above the
+      // cards, since it hides the table's head.
+      ['workspace-export-all', 'workspace-export-all-cards'].forEach(function (id) {
+        var all = $(id);
+        all.checked = chats.length > 0 && n === chats.length;
+        all.indeterminate = n > 0 && n < chats.length;
+        all.disabled = !chats.length;
       });
+      var total = $('workspace-export-total');
+      total.textContent = chats.length ? n + ' of ' + chats.length + (chats.length === 1 ? ' chat, ' : ' chats, ') + megabytes(bytes) + ' of history' : '';
+      total.title = total.textContent;
+      exporting.rows.forEach(function (row) { row.cell.textContent = exportGoesWords(row, ticked); });
     }
+    function tickAllChats() {
+      var plan = exporting.plan, on = this.checked;
+      if (!plan) return;
+      (plan.chats || []).forEach(function (c) { exporting.ticked[c.chatId] = on; });
+      $('workspace-export-chats').querySelectorAll('tbody input[type=checkbox]').forEach(function (box) { box.checked = on; });
+      drawWorkspaceExportTotals();
+    }
+    $('workspace-export-all').addEventListener('change', tickAllChats);
+    $('workspace-export-all-cards').addEventListener('change', tickAllChats);
     $('workspace-export-cancel').addEventListener('click', function () { $('workspace-export').close(); });
     $('workspace-export').addEventListener('cancel', function (event) { if (exporting.busy) event.preventDefault(); });
     $('workspace-export-go').addEventListener('click', function () {
@@ -418,24 +441,12 @@
       if (!app().ChooseWorkspaceImport || importing.busy) return;
       Promise.resolve(app().ChooseWorkspaceImport()).then(function (plan) {
         if (!plan || !plan.file) return;
-        importing = { plan: plan, choices: {}, busy: false };
+        importing = { plan: plan, choices: {}, separate: {}, busy: false, createNote: false };
         drawWorkspaceImport();
         $('workspace-import').showModal();
-        holdWordings($('workspace-import'));
+        $('workspace-import-body').scrollTop = 0;
         $('workspace-import-go').focus();
       }).catch(fail);
-    }
-    /* holdWordings holds each line that can read more than one way, marked
-       with its wordings, at the height of the tallest, measured unrounded
-       while its window is open, so that a choice never moves what is below. */
-    function holdWordings(root) {
-      if (!root.open) return;
-      root.querySelectorAll('[data-wordings]').forEach(function (line) {
-        var now = line.textContent, tallest = 0;
-        JSON.parse(line.dataset.wordings).forEach(function (text) { line.textContent = text; tallest = Math.max(tallest, line.getBoundingClientRect().height); });
-        line.textContent = now;
-        line.style.minHeight = tallest + 'px';
-      });
     }
     function importChoices(choices) {
       var out = Object.keys(choices).map(function (key) { return { key: key, path: choices[key].path || '', create: !!choices[key].create }; });
@@ -443,10 +454,12 @@
       Object.keys(separate).forEach(function (key) { if (separate[key]) out.push({ key: '', chat: key, separate: true }); });
       return out;
     }
-    /* The import window's Chats section (docs/design/workspace-export.md,
-       "The Windows"): each chat of the file with what importing it does. A
-       chat changed on both computers is left as it is unless the person
-       ticks Import as a Separate Chat. */
+    /* The import window's Chats table (docs/design/workspace-export.md,
+       "The Windows"): each chat of the file on one row, with what importing
+       it does as a badge. A chat changed on both computers is left as it is
+       unless the person ticks Import as a Separate Chat on its row. What
+       each badge means is said once below the table, so that ticking
+       changes no row's height. */
     var chatMarks = {
       'new': ['New', 'accent'],
       'up-to-date': ['Already Up to Date', ''],
@@ -457,48 +470,45 @@
     var chatMarkHelp = {
       'up-to-date': 'Nothing changed on the other computer.',
       'updated': 'It was continued on the other computer. Its newer history replaces this one\'s.',
-      'changed-on-both': 'Both computers have messages the other lacks. This computer\'s chat is left as it is.',
+      'changed-on-both': 'Both computers have messages the other lacks. This computer\'s chat is left as it is. Import as a Separate Chat adds the other computer\'s copy beside it, with "(Imported)" after its title and its own place in its groups.',
       'close-to-update': 'It is open and working here. Close it and import again to take the other computer\'s history.'
     };
-    function importRow(list, glyphName, name, marks) {
-      const el = window.dinahHelpers.node;
-      var row = list.appendChild(el('li', 'import-source'));
-      var head = row.appendChild(el('div', 'import-source-head'));
-      var glyph = head.appendChild(el('span', 'glyph'));
-      glyph.setAttribute('aria-hidden', 'true');
-      glyph.style.setProperty('--glyph', 'var(--glyph-' + glyphName + ')');
-      head.appendChild(el('strong', 'import-source-name', name));
-      marks.forEach(function (m) { head.appendChild(el('span', 'badge' + (m[1] ? ' ' + m[1] : ''), m[0])); });
-      return row;
-    }
     function drawImportChats(plan) {
       const el = window.dinahHelpers.node;
-      var chats = plan.chats || [], list = $('workspace-import-chats');
-      $('workspace-import-chats-title').hidden = list.hidden = !chats.length;
-      list.replaceChildren();
-      var separate = importing.separate = importing.separate || {};
+      var chats = plan.chats || [], body = $('workspace-import-chats').tBodies[0];
+      $('workspace-import-chats-title').hidden = $('workspace-import-chats-wrap').hidden = !chats.length;
+      body.replaceChildren();
+      var separate = importing.separate;
       chats.forEach(function (c) {
-        var row = importRow(list, 'comments', c.title, [chatMarks[c.mark] || [c.mark, '']]);
-        row.dataset.chatKey = c.key;
-        row.appendChild(el('p', 'form-help', c.providerName + (c.model ? ' · ' + c.model : '')));
-        if (c.providerMissing) row.appendChild(el('p', 'form-help', c.providerName + ' is not on this computer. The chat opens on its saved history and asks which program continues it.'));
-        if (chatMarkHelp[c.mark]) row.appendChild(el('p', 'form-help', chatMarkHelp[c.mark]));
+        var tr = body.appendChild(el('tr'));
+        tr.dataset.chatKey = c.key;
+        transferCell(tr, c.title, 'wrap', 'Chat');
+        var program = transferCell(tr, null, 'muted', 'Program and Model');
+        program.appendChild(el('span', null, c.providerName + (c.model ? ' · ' + c.model : '')));
+        if (c.providerMissing) program.appendChild(transferBadge(['Not on This Computer', 'warn']));
+        transferCell(tr, null, 'nowrap', 'What Happens').appendChild(transferBadge(chatMarks[c.mark] || [c.mark, '']));
+        var choice = transferCell(tr, null, 'nowrap', 'Choice');
         if (c.mark !== 'changed-on-both') return;
-        var controls = row.appendChild(el('div', 'hstack gap-3 align-center import-source-controls'));
-        var label = controls.appendChild(el('label', 'check'));
+        var label = choice.appendChild(el('label', 'check'));
         var box = label.appendChild(el('input'));
         box.type = 'checkbox'; box.checked = !!separate[c.key];
         label.appendChild(document.createTextNode(' Import as a Separate Chat'));
-        // The line under the choice is always there, so ticking it moves nothing.
-        var said = row.appendChild(el('p', 'form-help'));
-        var wordings = ['It is added as "' + c.title + ' (Imported)", with its own place in its groups.', 'Tick it to add the other computer\'s copy beside this one.'];
-        said.dataset.wordings = JSON.stringify(wordings);
-        function drawSeparate() { said.textContent = wordings[box.checked ? 0 : 1]; }
-        drawSeparate();
-        box.addEventListener('change', function () { separate[c.key] = box.checked; drawSeparate(); });
+        box.addEventListener('change', function () { separate[c.key] = box.checked; drawImportTotal(); });
       });
+      var notes = $('workspace-import-chat-notes');
+      notes.replaceChildren();
+      Object.keys(chatMarkHelp).forEach(function (mark) {
+        if (chats.some(function (c) { return c.mark === mark; })) notes.appendChild(el('li', null, chatMarks[mark][0] + ': ' + chatMarkHelp[mark]));
+      });
+      var missing = {};
+      chats.forEach(function (c) { if (c.providerMissing) missing[c.providerName] = (missing[c.providerName] || 0) + 1; });
+      Object.keys(missing).forEach(function (name) {
+        notes.appendChild(el('li', null, 'Not on This Computer: ' + name + ' is not on this computer. ' + (missing[name] === 1 ? 'The chat opens on its saved history and asks which program continues it.'
+          : 'The chats open on their saved history and ask which program continues them.')));
+      });
+      notes.hidden = !notes.children.length;
     }
-    /* The Groups and Teams section: each group of the file, new or joining
+    /* The Groups and Teams table: each group of the file, new or joining
        the group of its name here, with its members and its conversation,
        then each team. A member whose chat is neither in the file nor here
        waits for its own workspace's import. The trusted links the other
@@ -508,12 +518,17 @@
     }
     function drawImportGroups(plan) {
       const el = window.dinahHelpers.node;
-      var groups = plan.groups || [], teams = plan.teams || [], list = $('workspace-import-groups');
-      $('workspace-import-groups-title').hidden = list.hidden = !groups.length && !teams.length;
-      list.replaceChildren();
+      var groups = plan.groups || [], teams = plan.teams || [], body = $('workspace-import-groups').tBodies[0];
+      $('workspace-import-groups-title').hidden = $('workspace-import-groups-wrap').hidden = !groups.length && !teams.length;
+      body.replaceChildren();
       var count = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+      var row = function (title, mark, said) {
+        var tr = body.appendChild(el('tr'));
+        transferCell(tr, title, 'wrap', 'Group or Team');
+        transferCell(tr, null, 'nowrap', 'What Happens').appendChild(transferBadge(mark));
+        transferCell(tr, said.join(' '), 'muted wrap', 'Members and Conversation');
+      };
       groups.forEach(function (g) {
-        var row = importRow(list, 'comments', g.title, [g.existing ? ['Joins the Existing Group', ''] : ['New Group', 'accent']]);
         var waiting = g.waiting || [], said = [];
         if (g.existing && !waiting.length) said.push('All its members are here already.');
         else {
@@ -521,15 +536,15 @@
           if (g.here) said.push(count(g.here, 'member is', 'members are') + ' here already.');
         }
         if (waiting.length) said.push(waitingWords(waiting));
-        row.appendChild(el('p', 'form-help', said.join(' ')));
-        if (g.messages) row.appendChild(el('p', 'form-help', !g.existing ? 'Its conversation comes too: ' + count(g.messages, 'message', 'messages') + '.'
-          : g.new ? count(g.new, 'newer message is', 'newer messages are') + ' added to its conversation.' : 'Its conversation is here already.'));
-        if (g.keptLead) row.appendChild(el('p', 'form-help', 'It keeps its lead here, ' + g.keptLead + ', although the file gives it another.'));
+        if (g.messages) said.push(!g.existing ? 'Its conversation comes too: ' + count(g.messages, 'message', 'messages') + '.'
+          : g.new ? count(g.new, 'newer message is', 'newer messages are') + ' added to its conversation.' : 'Its conversation is here already.');
+        if (g.keptLead) said.push('It keeps its lead here, ' + g.keptLead + ', although the file gives it another.');
+        row(g.title + ', a group', g.existing ? ['Joins the Existing Group', ''] : ['New Group', 'accent'], said);
       });
       teams.forEach(function (t) {
-        var row = importRow(list, 'branch', t.lead + '\'s team', [t.existing ? ['Joins the Existing Team', ''] : ['New Team', 'accent']]);
-        row.appendChild(el('p', 'form-help', listWords(t.members) + (t.members.length === 1 ? ' reports' : ' report') + ' to ' + t.lead + '.'));
-        if ((t.waiting || []).length) row.appendChild(el('p', 'form-help', waitingWords(t.waiting)));
+        var said = [listWords(t.members) + (t.members.length === 1 ? ' reports' : ' report') + ' to ' + t.lead + '.'];
+        if ((t.waiting || []).length) said.push(waitingWords(t.waiting));
+        row(t.lead + '\'s team', t.existing ? ['Joins the Existing Team', ''] : ['New Team', 'accent'], said);
       });
       var links = plan.links || [], line = $('workspace-import-links');
       line.hidden = !links.length;
@@ -550,26 +565,29 @@
         : 'This makes the workspace "' + plan.name + '" with these sources' + (withChats ? ' and chats.' : '.');
       drawImportChats(plan);
       drawImportGroups(plan);
-      holdWordings($('workspace-import'));
-      var list = $('workspace-import-sources'), waitingMain = false;
-      list.replaceChildren();
+      /* Each source is a row: its name, where it is, what was found, and
+         the choices the plan's actions allow. Ticking Create It Now changes
+         only the words of the Found badge, in a column wide enough for every
+         wording, so no row or column moves. */
+      var body = $('workspace-import-sources').tBodies[0], waitingMain = false;
+      body.replaceChildren();
       plan.sources.forEach(function (s) {
-        var row = list.appendChild(el('li', 'import-source'));
-        row.dataset.key = s.key;
-        var head = row.appendChild(el('div', 'import-source-head'));
-        var glyph = head.appendChild(el('span', 'glyph'));
-        glyph.setAttribute('aria-hidden', 'true');
-        glyph.style.setProperty('--glyph', 'var(--glyph-' + (s.kind === 'local-folder' ? 'folder' : 'link') + ')');
-        head.appendChild(el('strong', 'import-source-name', s.name || s.reference || s.path || s.kind));
-        if (s.main) head.appendChild(el('span', 'badge', 'Main Folder'));
+        var tr = body.appendChild(el('tr'));
+        tr.dataset.key = s.key;
+        var name = transferCell(tr, null, 'wrap', 'Source');
+        name.appendChild(el('span', null, s.name || s.reference || s.path || s.kind));
+        if (s.main) name.appendChild(transferBadge(['Main Folder', '']));
         var actions = s.actions || [], create = !!(choices[s.key] && choices[s.key].create) && actions.indexOf('create-folder') >= 0;
-        var status = importStatus(s, create);
-        head.appendChild(el('span', 'badge' + (status[1] ? ' ' + status[1] : ''), status[0]));
+        if (actions.indexOf('create-folder') >= 0) importing.createNote = true;
+        if (s.main && s.kind === 'local-folder' && !s.found) waitingMain = true;
         var where = s.kind === 'local-folder' ? s.path : s.site ? s.site + (s.reference ? ' · ' + s.reference : '') : '';
-        if (where) row.appendChild(el('p', 'form-help import-source-where', where));
-        if (s.kind !== 'local-folder' && !s.checked) row.appendChild(el('p', 'form-help', productName() + ' does not use this kind of source (' + s.kind + '). It is kept as it is, for a version that does.'));
+        var whereCell = transferCell(tr, null, 'muted wrap', 'Where');
+        if (where) whereCell.appendChild(el('span', null, where));
+        if (s.kind !== 'local-folder' && !s.checked) whereCell.appendChild(el('p', 'form-help', productName() + ' does not use this kind of source (' + s.kind + '). It is kept as it is, for a version that does.'));
+        transferCell(tr, null, 'wrap', 'Found').appendChild(transferBadge(importStatus(s, create)));
+        var choicesCell = transferCell(tr, null, '', 'Folder');
         if (!actions.length) return;
-        var controls = row.appendChild(el('div', 'hstack gap-3 align-center import-source-controls'));
+        var controls = choicesCell.appendChild(el('div', 'transfer-choices'));
         if (actions.indexOf('choose-folder') >= 0) {
           var choose = controls.appendChild(el('button', 'btn btn-sm', 'Choose…'));
           choose.type = 'button';
@@ -583,7 +601,6 @@
           });
         }
         if (actions.indexOf('create-folder') < 0) return;
-        if (s.main && !create) waitingMain = true;
         var label = controls.appendChild(el('label', 'check'));
         var box = label.appendChild(el('input'));
         box.type = 'checkbox'; box.checked = create;
@@ -591,16 +608,44 @@
         box.addEventListener('change', function () {
           choices[s.key] = Object.assign({}, choices[s.key], { create: box.checked });
           drawWorkspaceImport();
+          // The row is drawn again, so the new tick box takes the focus.
+          var again = Array.prototype.find.call(body.rows, function (row) { return row.dataset.key === s.key; });
+          var next = again && again.querySelector('input[type=checkbox]');
+          if (next) next.focus();
         });
-        row.appendChild(el('p', 'form-help', create ? productName() + ' makes this folder and the folders recorded inside it. If OneDrive or another service is still bringing it, leave it for that service instead.'
-          : 'It is shown, dimmed, until it appears here. Create the Folders… in its menu makes it later.'));
       });
       var pins = $('workspace-import-pins');
       pins.hidden = !plan.pins;
       pins.textContent = plan.pins + (plan.pins === 1 ? ' pin comes' : ' pins come') + ' with it.' +
         (plan.uncheckedPins ? ' ' + plan.uncheckedPins + (plan.uncheckedPins === 1 ? ' of them is' : ' of them are') + ' of a kind ' + productName() + ' does not use, and ' + (plan.uncheckedPins === 1 ? 'is' : 'are') + ' kept as ' + (plan.uncheckedPins === 1 ? 'it is.' : 'they are.') : '');
+      // What Create It Now does is said once, below the table, and stays
+      // for as long as the window is open, so that choosing a folder never
+      // moves what comes after it.
+      var createNote = $('workspace-import-create');
+      createNote.hidden = !importing.createNote;
+      createNote.textContent = 'Create It Now makes the folder and the folders recorded inside it. If OneDrive or another service is still bringing the folder, leave it for that service instead. A folder that is not created now is shown, dimmed, until it appears here, and Create the Folders… in its menu makes it later.';
       $('workspace-import-waiting').hidden = !waitingMain;
       $('workspace-import-go').textContent = plan.existingId ? 'Add to the Workspace' : 'Import';
+      drawImportTotal();
+    }
+    /* drawImportTotal writes the short summary at the start of the button
+       row: the chats added, updated and added separately and the group
+       messages, or, for a file without them, its sources and pins. */
+    function drawImportTotal() {
+      var plan = importing.plan, chats = plan.chats || [], separate = importing.separate || {};
+      var count = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+      var marked = function (mark) { return chats.filter(function (c) { return c.mark === mark; }).length; };
+      var apart = chats.filter(function (c) { return c.mark === 'changed-on-both' && separate[c.key]; }).length;
+      var messages = (plan.groups || []).reduce(function (n, g) { return n + ((g.existing ? g.new : g.messages) || 0); }, 0);
+      var parts = [];
+      if (marked('new')) parts.push(count(marked('new'), 'new chat', 'new chats'));
+      if (marked('updated')) parts.push(marked('updated') + ' updated');
+      if (apart) parts.push(count(apart, 'separate chat', 'separate chats'));
+      if (messages) parts.push(count(messages, 'group message', 'group messages'));
+      if (!parts.length) parts.push(count(plan.sources.length, 'source', 'sources') + (plan.pins ? ' and ' + count(plan.pins, 'pin', 'pins') : ''));
+      var total = $('workspace-import-total');
+      total.textContent = parts.join(', ');
+      total.title = total.textContent;
     }
     $('workspace-import-cancel').addEventListener('click', function () { $('workspace-import').close(); });
     $('workspace-import').addEventListener('cancel', function (event) { if (importing.busy) event.preventDefault(); });

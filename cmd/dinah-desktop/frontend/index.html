@@ -377,43 +377,103 @@
 
   <!-- Export Workspace…: the workspace's chats, each ticked, with what goes
        with them, drawn by workspaces-applet.js from the plan Go makes
-       (workspace_export_chats.go), before the save window asks for the file. -->
-  <dialog class="dialog import-dialog" id="workspace-export" aria-labelledby="workspace-export-title">
+       (workspace_export_chats.go), before the save window asks for the file.
+       The window is wide, resizes from its corner, and keeps its title and
+       buttons in place while its middle scrolls
+       (docs/mockups/workspace-transfer-dialogs.html). -->
+  <dialog class="dialog transfer-dialog" id="workspace-export" aria-labelledby="workspace-export-title">
     <h2 class="dialog-title" id="workspace-export-title">Export Workspace</h2>
-    <div class="dialog-body vstack gap-3">
+    <div class="transfer-body" id="workspace-export-body">
       <p id="workspace-export-summary"></p>
       <p class="form-help" id="workspace-export-sources"></p>
-      <h3 class="import-section" id="workspace-export-chats-title">Chats</h3>
-      <ul class="import-sources" id="workspace-export-chats" aria-labelledby="workspace-export-chats-title"></ul>
-      <p class="form-help" id="workspace-export-none" hidden>No chats are listed in this workspace.</p>
-      <div class="vstack gap-2 import-goes" id="workspace-export-goes" aria-live="polite">
-        <p class="form-help import-total" id="workspace-export-total"></p>
-        <div class="vstack gap-2" id="workspace-export-groups"></div>
+      <h3 class="transfer-section" id="workspace-export-chats-title">Chats</h3>
+      <div class="data-table-wrap" id="workspace-export-chats-wrap">
+        <!-- The narrow layout hides the table's head, so it shows this All
+             box instead of the one in the head. -->
+        <label class="check transfer-all"><input type="checkbox" id="workspace-export-all-cards"> All Chats</label>
+        <table class="data-table stack" id="workspace-export-chats" aria-labelledby="workspace-export-chats-title">
+          <thead><tr>
+            <th scope="col" class="data-table-check"><input type="checkbox" id="workspace-export-all" aria-label="All Chats"></th>
+            <th scope="col">Chat</th>
+            <th scope="col">Program and Model</th>
+            <th scope="col">State</th>
+            <th scope="col" class="num">History</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
+      <p class="form-help" id="workspace-export-none" hidden>No chats are listed in this workspace.</p>
+      <h3 class="transfer-section" id="workspace-export-groups-title">Groups and Teams</h3>
+      <div class="data-table-wrap" id="workspace-export-groups-wrap">
+        <table class="data-table stack" id="workspace-export-groups" aria-labelledby="workspace-export-groups-title">
+          <thead><tr>
+            <th scope="col">Group or Team</th>
+            <th scope="col" class="transfer-goes">Goes With It</th>
+            <th scope="col">Elsewhere</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <ul class="form-help transfer-notes" id="workspace-export-group-notes"></ul>
       <p class="form-help" id="workspace-export-private">The file contains the chats' whole conversations, including anything pasted into them. Keep it as private as the chats.</p>
     </div>
     <div class="dialog-actions">
+      <p class="transfer-foot-note" id="workspace-export-total" aria-live="polite"></p>
       <button type="button" class="btn" id="workspace-export-cancel">Cancel</button>
       <button type="button" class="btn btn-primary" id="workspace-export-go">Export…</button>
     </div>
   </dialog>
 
   <!-- Import Workspace…: each source of the export with what was found for
-       it, drawn by app.js from the plan Go makes (workspace_export.go). -->
-  <dialog class="dialog import-dialog" id="workspace-import" aria-labelledby="workspace-import-title">
+       it, then the chats and the groups and teams, drawn by
+       workspaces-applet.js from the plan Go makes (workspace_export.go). -->
+  <dialog class="dialog transfer-dialog" id="workspace-import" aria-labelledby="workspace-import-title">
     <h2 class="dialog-title" id="workspace-import-title">Import Workspace</h2>
-    <div class="dialog-body vstack gap-3" aria-live="polite">
+    <div class="transfer-body" id="workspace-import-body">
       <p id="workspace-import-summary"></p>
-      <ul class="import-sources" id="workspace-import-sources" aria-label="Sources"></ul>
+      <h3 class="transfer-section" id="workspace-import-sources-title">Sources</h3>
+      <div class="data-table-wrap" id="workspace-import-sources-wrap">
+        <table class="data-table stack" id="workspace-import-sources" aria-labelledby="workspace-import-sources-title">
+          <thead><tr>
+            <th scope="col">Source</th>
+            <th scope="col">Where</th>
+            <th scope="col" class="transfer-found">Found</th>
+            <th scope="col"><span class="visually-hidden">Folder</span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
       <p class="form-help" id="workspace-import-pins" hidden></p>
-      <h3 class="import-section" id="workspace-import-chats-title" hidden>Chats</h3>
-      <ul class="import-sources" id="workspace-import-chats" aria-labelledby="workspace-import-chats-title" hidden></ul>
-      <h3 class="import-section" id="workspace-import-groups-title" hidden>Groups and Teams</h3>
-      <ul class="import-sources" id="workspace-import-groups" aria-labelledby="workspace-import-groups-title" hidden></ul>
-      <p class="form-help" id="workspace-import-links" hidden></p>
+      <p class="form-help" id="workspace-import-create" hidden></p>
       <p class="form-help" id="workspace-import-waiting" hidden>The workspace can be opened once its main folder is on this computer.</p>
+      <h3 class="transfer-section" id="workspace-import-chats-title" hidden>Chats</h3>
+      <div class="data-table-wrap" id="workspace-import-chats-wrap" hidden>
+        <table class="data-table stack" id="workspace-import-chats" aria-labelledby="workspace-import-chats-title">
+          <thead><tr>
+            <th scope="col">Chat</th>
+            <th scope="col">Program and Model</th>
+            <th scope="col">What Happens</th>
+            <th scope="col"><span class="visually-hidden">Choice</span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <ul class="form-help transfer-notes" id="workspace-import-chat-notes" hidden></ul>
+      <h3 class="transfer-section" id="workspace-import-groups-title" hidden>Groups and Teams</h3>
+      <div class="data-table-wrap" id="workspace-import-groups-wrap" hidden>
+        <table class="data-table stack" id="workspace-import-groups" aria-labelledby="workspace-import-groups-title">
+          <thead><tr>
+            <th scope="col">Group or Team</th>
+            <th scope="col">What Happens</th>
+            <th scope="col">Members and Conversation</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="form-help" id="workspace-import-links" hidden></p>
     </div>
     <div class="dialog-actions">
+      <p class="transfer-foot-note" id="workspace-import-total" aria-live="polite"></p>
       <button type="button" class="btn" id="workspace-import-cancel">Cancel</button>
       <button type="button" class="btn btn-primary" id="workspace-import-go">Import</button>
     </div>
