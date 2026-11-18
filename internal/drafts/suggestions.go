@@ -29,8 +29,15 @@ type Suggestion struct {
 	Stale  bool   `json:"stale,omitempty"`
 	// Group is the proposal the suggestion came from, so that its changes
 	// can be accepted or rejected together.
-	Group   string   `json:"group"`
-	Author  string   `json:"author"`
+	Group  string `json:"group"`
+	Author string `json:"author"`
+	// Owner is the chat that made the suggestion, by an identity that stays
+	// the same when the chat continues in another session, so that only that
+	// chat may revise or withdraw it (ReviseOwn, WithdrawOwn). Author is the
+	// name the person is shown and may change with the chat's title. A
+	// suggestion made before owners were recorded, or by a caller that is no
+	// chat, has none.
+	Owner   string   `json:"owner,omitempty"`
 	Reason  string   `json:"reason,omitempty"`
 	Sources []string `json:"sources,omitempty"`
 	// Flags are the sentences the proposal's editor flagged as possibly
@@ -45,7 +52,9 @@ type Suggestion struct {
 // Proposal describes where a set of suggestions came from.
 type Proposal struct {
 	// Author is who proposed the changes, such as a flow run and its step.
-	Author  string
+	Author string
+	// Owner is the chat that proposed them, as Suggestion.Owner records it.
+	Owner   string
 	Reason  string
 	Sources []string
 	Flags   []Flag
@@ -194,7 +203,7 @@ func propose(base, proposed, current string, p Proposal, now time.Time) []Sugges
 		}
 		start, end := offsets[op.I1], offsets[op.I2]
 		s := Suggestion{
-			ID: suggestionID(), Group: group, Author: p.Author, Reason: p.Reason, Sources: p.Sources, Flags: p.Flags, Created: now,
+			ID: suggestionID(), Group: group, Author: p.Author, Owner: p.Owner, Reason: p.Reason, Sources: p.Sources, Flags: p.Flags, Created: now,
 			Before: base[start:end], After: strings.Join(b[op.J1:op.J2], ""),
 			Prefix: clamp(base[:start], contextLen, true), Suffix: clamp(base[end:], contextLen, false),
 		}
@@ -404,6 +413,191 @@ func (s *Store) Revise(id, suggestion, after string) (Draft, error) {
 		}
 		return nil
 	})
+}
+
+/* An agent corrects its own suggestions (docs/design/content-applets.md, "An
+   agent corrects its own suggestions"). ReviseOwn and WithdrawOwn are the
+   agent's, and Revise and Reject stay the person's: an agent's revision
+   leaves Edited as it was, since Edited says the person changed the text,
+   and a suggestion the person edited is theirs, so the agent may not touch
+   it. Which suggestions are the caller's is decided by the caller's own
+   test, since only the program knows which chat is calling. Every chosen
+   suggestion is checked before any is changed, so a refusal changes
+   nothing. */
+
+// ErrSuggestionNotOwned means another chat made the suggestion.
+var ErrSuggestionNotOwned = errors.New("another chat made this suggestion, so only that chat may change it; ask it to")
+
+// ErrSuggestionEdited means the person has edited the suggestion's text, so
+// it is theirs now.
+var ErrSuggestionEdited = errors.New("the person has edited this suggestion, so it is theirs now; ask the person")
+
+// ErrSuggestionUnchanged means a revision proposes the text the suggestion
+// would replace, which would change nothing.
+var ErrSuggestionUnchanged = errors.New("the new text is the text the suggestion would replace, so it would change nothing; withdraw the suggestion instead")
+
+// ErrSuggestionRepeated means a request chose one suggestion twice.
+var ErrSuggestionRepeated = errors.New("the request gives this suggestion more than once")
+
+// Refused is one chosen suggestion that a request may not change, and why.
+type Refused struct {
+	ID  string
+	Err error
+}
+
+// RefusedError is a request refused as a whole, with every suggestion that
+// caused it. Nothing was changed.
+type RefusedError struct{ Refused []Refused }
+
+func (e *RefusedError) Error() string {
+	parts := make([]string, len(e.Refused))
+	for i, r := range e.Refused {
+		parts[i] = "suggestion " + r.ID + ": " + r.Err.Error()
+	}
+	return "nothing was changed, because " + strings.Join(parts, "; ")
+}
+
+// Unwrap gives each refusal's reason, for errors.Is.
+func (e *RefusedError) Unwrap() []error {
+	out := make([]error, len(e.Refused))
+	for i, r := range e.Refused {
+		out[i] = r.Err
+	}
+	return out
+}
+
+// AgentRevision is an agent's new proposed text for one of its suggestions.
+type AgentRevision struct {
+	ID    string
+	After string
+}
+
+// ownable checks that each of ids is a suggestion of d that owns says is the
+// caller's and that the person has not edited, and returns where each is.
+func ownable(d *Draft, ids []string, owns func(Suggestion) bool) ([]int, error) {
+	var refused []Refused
+	at := make([]int, len(ids))
+	seen := map[string]bool{}
+	for k, id := range ids {
+		at[k] = d.suggestion(id)
+		switch {
+		case seen[id]:
+			refused = append(refused, Refused{id, ErrSuggestionRepeated})
+		case at[k] < 0:
+			refused = append(refused, Refused{id, ErrSuggestionGone})
+		case !owns(d.Suggestions[at[k]]):
+			refused = append(refused, Refused{id, ErrSuggestionNotOwned})
+		case d.Suggestions[at[k]].Edited:
+			refused = append(refused, Refused{id, ErrSuggestionEdited})
+		}
+		seen[id] = true
+	}
+	if refused != nil {
+		return nil, &RefusedError{refused}
+	}
+	return at, nil
+}
+
+// ReviseOwn replaces the proposed text of chosen suggestions of the caller's,
+// and their reason when reason is given, all or none. The text each replaces,
+// its place and its proposal stay, and the draft's text is not changed. A
+// stale suggestion is refused: the text it would replace is gone, so no new
+// text of it could be accepted, and the agent withdraws it and proposes
+// again. The new text is written with the draft's line endings, and a
+// suggestion whose text ended with a line break keeps one, so that accepting
+// it does not join two paragraphs. It returns the draft and the revised
+// suggestions in the order asked.
+func (s *Store) ReviseOwn(id string, owns func(Suggestion) bool, changes []AgentRevision, reason *string) (Draft, []Suggestion, error) {
+	for _, c := range changes {
+		if err := checkText(c.After); err != nil {
+			return Draft{}, nil, err
+		}
+	}
+	var revised []Suggestion
+	d, err := s.changeSuggestions(id, func(d *Draft) error {
+		ids := make([]string, len(changes))
+		for k, c := range changes {
+			ids[k] = c.ID
+		}
+		at, err := ownable(d, ids, owns)
+		if err != nil {
+			return err
+		}
+		var refused []Refused
+		afters := make([]string, len(changes))
+		for k, c := range changes {
+			sg := d.Suggestions[at[k]]
+			afters[k] = revisedText(c.After, sg, d.Text)
+			switch {
+			case sg.Stale:
+				refused = append(refused, Refused{c.ID, ErrSuggestionStale})
+			case afters[k] == sg.Before:
+				refused = append(refused, Refused{c.ID, ErrSuggestionUnchanged})
+			}
+		}
+		if refused != nil {
+			return &RefusedError{refused}
+		}
+		for k := range changes {
+			sg := &d.Suggestions[at[k]]
+			sg.After = afters[k]
+			if reason != nil {
+				sg.Reason = *reason
+			}
+			revised = append(revised, *sg)
+		}
+		return nil
+	})
+	if err != nil {
+		return Draft{}, nil, err
+	}
+	return d, revised, nil
+}
+
+// revisedText is an agent's new text for sg, with the draft's line endings,
+// ending with the line break sg's text ends with when the agent left it out.
+// The line break comes from the text the suggestion replaces, or, for one
+// that only inserts, from the text it proposed before.
+func revisedText(after string, sg Suggestion, text string) string {
+	after = sameLineEndings(after, text)
+	like := sg.Before
+	if like == "" {
+		like = sg.After
+	}
+	end := like[len(strings.TrimRight(like, "\r\n")):]
+	if after != "" && end != "" && !strings.HasSuffix(after, "\n") {
+		after += firstLine(end)
+	}
+	return after
+}
+
+// WithdrawOwn removes chosen suggestions of the caller's, all or none,
+// without changing the draft's text. A stale one may be withdrawn, as the
+// person may reject one. It returns the draft and how many it removed.
+func (s *Store) WithdrawOwn(id string, owns func(Suggestion) bool, ids []string) (Draft, int, error) {
+	removed := 0
+	d, err := s.changeSuggestions(id, func(d *Draft) error {
+		if _, err := ownable(d, ids, owns); err != nil {
+			return err
+		}
+		gone := map[string]bool{}
+		for _, id := range ids {
+			gone[id] = true
+		}
+		keep := d.Suggestions[:0:0]
+		for _, sg := range d.Suggestions {
+			if !gone[sg.ID] {
+				keep = append(keep, sg)
+			}
+		}
+		removed = len(d.Suggestions) - len(keep)
+		d.Suggestions = keep
+		return nil
+	})
+	if err != nil {
+		return Draft{}, 0, err
+	}
+	return d, removed, nil
 }
 
 // Spans gives each placed suggestion's place in the draft's text in UTF-16
