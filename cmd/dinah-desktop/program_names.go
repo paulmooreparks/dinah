@@ -100,8 +100,30 @@ func (m *programNameMover) note(format string, args ...any) {
 	m.notes = append(m.notes, fmt.Sprintf(format, args...))
 }
 
+// settled reports, from the folder alone, that there is nothing to move:
+// no file has an earlier name of the command line, and every tool program
+// with an earlier name is in its current place. An installation that is
+// moved already starts no program to ask what it is, so the check costs a
+// start nothing.
+func (m *programNameMover) settled() bool {
+	for _, earlier := range m.profile.EarlierCommandPrograms {
+		if exists(m.path(earlier)) {
+			return false
+		}
+	}
+	for _, s := range m.profile.ToolServers {
+		if len(s.EarlierPrograms) > 0 && !exists(m.path(s.Program)) {
+			return false
+		}
+	}
+	return true
+}
+
 // run moves the programs and returns what it did.
 func (m *programNameMover) run() []string {
+	if m.settled() {
+		return nil
+	}
 	m.moveToolPrograms()
 	m.moveCommandProgram()
 	m.removeEarlierCommandPrograms()
@@ -238,8 +260,12 @@ func (a *App) moveProgramsToCurrentNames() {
 	m := &programNameMover{profile: p, bin: bin, version: appVersion,
 		identify: identifyProgram, place: programs.Place, remove: os.Remove,
 		referenced: func(commands []string) bool { return earlierSteeringReferenced(a.knownChatFolders(), commands) }}
-	for _, note := range m.run() {
+	notes := m.run()
+	for _, note := range notes {
 		logf("programs", "info", "%s", note)
+	}
+	if len(notes) == 0 {
+		return
 	}
 	// Devin's own settings are brought to the tool programs' current names
 	// too; a chat's start does the same (devinPrepareApplets).

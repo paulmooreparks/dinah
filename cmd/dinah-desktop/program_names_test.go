@@ -105,6 +105,23 @@ func TestAnOldLayoutBinIsMovedToTheCurrentNames(t *testing.T) {
 	}
 }
 
+// An installation that is moved already asks no program what it is, so a
+// start pays nothing for the check.
+func TestASettledInstallationStartsNoProgram(t *testing.T) {
+	bin := t.TempDir()
+	fakeProgram(t, bin, "example-cli", identityOf("example-cli", "2.0.5"))
+	fakeProgram(t, bin, "example-tools", identityOf("example-tools", "2.0.5"))
+	m := mover(renamedProfile(), bin, false)
+	m.identify = func(path string) (programs.Identity, error) {
+		t.Fatalf("%s was asked what it is", path)
+		return programs.Identity{}, nil
+	}
+	m.referenced = func([]string) bool { t.Fatal("references were looked for"); return true }
+	if notes := m.run(); len(notes) != 0 {
+		t.Fatalf("a settled installation did %v", notes)
+	}
+}
+
 // The command line under its earlier name is placed under its current name
 // only when it is the window's own release. One of another release is left
 // where it is, and so is the tool program's file at that name.
