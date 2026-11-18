@@ -52,9 +52,9 @@ func readIdentity(path string) (programs.Identity, error) {
 	return programs.ParseIdentity(string(b))
 }
 
-func mover(p profile.Profile, bin string, referenced bool) *programNameMover {
+func mover(p profile.Profile, bin string) *programNameMover {
 	return &programNameMover{profile: p, bin: bin, version: "2.0.5", identify: readIdentity, place: programs.Place, remove: os.Remove,
-		referenced: func([]string) bool { return referenced }}
+		rewriteHooks: func([]string) []string { return nil }}
 }
 
 func content(t *testing.T, bin, name string) string {
@@ -81,12 +81,12 @@ func setAside(t *testing.T, bin, name string) []string {
 // names: the command line as "ex" and the tool program as "example-cli".
 // The window copies the tool program to its new name, places the command
 // line under its own, which sets the tool program's file aside so that a
-// running copy keeps it, and removes "ex", which nothing runs.
+// running copy keeps it, and removes "ex".
 func TestAnOldLayoutBinIsMovedToTheCurrentNames(t *testing.T) {
 	bin := t.TempDir()
 	command := fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.5"))
 	tools := fakeProgram(t, bin, "example-cli", identityOf("example-tools", "2.0.5"))
-	notes := mover(renamedProfile(), bin, false).run()
+	notes := mover(renamedProfile(), bin).run()
 	if got := content(t, bin, "example-tools"); got != tools {
 		t.Fatalf("example-tools is %q, want the tool program (%v)", got, notes)
 	}
@@ -100,7 +100,7 @@ func TestAnOldLayoutBinIsMovedToTheCurrentNames(t *testing.T) {
 		t.Fatalf("ex was not removed (%v)", notes)
 	}
 	// A second start changes nothing.
-	if again := mover(renamedProfile(), bin, false).run(); len(again) != 0 {
+	if again := mover(renamedProfile(), bin).run(); len(again) != 0 {
 		t.Fatalf("a second start did %v", again)
 	}
 }
@@ -111,12 +111,12 @@ func TestASettledInstallationStartsNoProgram(t *testing.T) {
 	bin := t.TempDir()
 	fakeProgram(t, bin, "example-cli", identityOf("example-cli", "2.0.5"))
 	fakeProgram(t, bin, "example-tools", identityOf("example-tools", "2.0.5"))
-	m := mover(renamedProfile(), bin, false)
+	m := mover(renamedProfile(), bin)
 	m.identify = func(path string) (programs.Identity, error) {
 		t.Fatalf("%s was asked what it is", path)
 		return programs.Identity{}, nil
 	}
-	m.referenced = func([]string) bool { t.Fatal("references were looked for"); return true }
+	m.rewriteHooks = func([]string) []string { t.Fatal("hooks were looked at"); return nil }
 	if notes := m.run(); len(notes) != 0 {
 		t.Fatalf("a settled installation did %v", notes)
 	}
@@ -129,7 +129,7 @@ func TestAMismatchedCommandLineIsNotPlaced(t *testing.T) {
 	bin := t.TempDir()
 	fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.4"))
 	tools := fakeProgram(t, bin, "example-cli", identityOf("example-tools", "2.0.5"))
-	notes := mover(renamedProfile(), bin, false).run()
+	notes := mover(renamedProfile(), bin).run()
 	if got := content(t, bin, "example-cli"); got != tools {
 		t.Fatalf("example-cli was replaced by a command line of another release (%v)", notes)
 	}
@@ -147,42 +147,49 @@ func TestEarlierBuildsAreNeverPlacedUnderCurrentNames(t *testing.T) {
 	bin := t.TempDir()
 	command := fakeProgram(t, bin, "ex", nil)
 	tools := fakeProgram(t, bin, "example-cli", nil)
-	mover(renamedProfile(), bin, false).run()
+	mover(renamedProfile(), bin).run()
 	if exists(filepath.Join(bin, programs.FileName("example-tools"))) || content(t, bin, "example-cli") != tools || content(t, bin, "ex") != command {
 		t.Fatal("an earlier build was moved")
 	}
 	// A new command line beside a tool program that cannot say what it is
 	// leaves that program where it is.
 	fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.5"))
-	notes := mover(renamedProfile(), bin, false).run()
+	notes := mover(renamedProfile(), bin).run()
 	if content(t, bin, "example-cli") != tools || len(setAside(t, bin, "example-cli")) != 0 {
 		t.Fatalf("a program that cannot say what it is was set aside (%v)", notes)
 	}
 }
 
-// The command line's earlier file is kept while something still runs it,
-// and is removed at a later start once nothing does.
-func TestTheEarlierCommandLineIsRemovedOnlyWhenNothingRunsIt(t *testing.T) {
+// Once the command line is in place, the hooks the window can rewrite are
+// rewritten first, and the command line's earlier file is then removed at
+// once, even when a hooks file could not be rewritten; that entry stops
+// working, which the log says (Paul, 18 November 2026).
+func TestTheEarlierCommandLineIsRemovedOnceTheHooksAreRewritten(t *testing.T) {
 	bin := t.TempDir()
 	fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.5"))
 	fakeProgram(t, bin, "example-cli", identityOf("example-tools", "2.0.5"))
 	var asked []string
-	m := mover(renamedProfile(), bin, true)
-	m.referenced = func(commands []string) bool { asked = commands; return true }
-	m.run()
-	if !exists(filepath.Join(bin, programs.FileName("ex"))) {
-		t.Fatal("ex was removed while something runs it")
+	m := mover(renamedProfile(), bin)
+	m.rewriteHooks = func(commands []string) []string {
+		if !exists(filepath.Join(bin, programs.FileName("ex"))) {
+			t.Fatal("ex was removed before the hooks were rewritten")
+		}
+		asked = commands
+		return []string{"a hooks file with comments"}
+	}
+	notes := m.run()
+	if exists(filepath.Join(bin, programs.FileName("ex"))) {
+		t.Fatal("ex was kept because a hooks file still runs it")
 	}
 	if len(asked) != 1 || asked[0] != "ex steering-hook" {
-		t.Fatalf("the references asked about: %v", asked)
+		t.Fatalf("the hooks rewritten: %v", asked)
 	}
-	mover(renamedProfile(), bin, false).run()
-	if exists(filepath.Join(bin, programs.FileName("ex"))) {
-		t.Fatal("ex was kept when nothing runs it")
+	if !strings.Contains(strings.Join(notes, "\n"), "a hooks file with comments still run") {
+		t.Fatalf("the hooks left were not noted: %v", notes)
 	}
 	// A removal that fails is tried again at the next start.
 	fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.5"))
-	failing := mover(renamedProfile(), bin, false)
+	failing := mover(renamedProfile(), bin)
 	failing.remove = func(string) error { return errors.New("in use") }
 	if notes := failing.run(); len(notes) != 1 || !strings.Contains(notes[0], "tried again") {
 		t.Fatalf("a failed removal: %v", notes)
@@ -201,7 +208,7 @@ func TestAProductThatRenamedNothingMovesNothing(t *testing.T) {
 	}
 	fakeProgram(t, bin, "ex", identityOf("example-cli", "2.0.5"))
 	tools := fakeProgram(t, bin, "example-cli", identityOf("example-tools", "2.0.5"))
-	if notes := mover(p, bin, false).run(); len(notes) != 0 || content(t, bin, "example-cli") != tools || !exists(filepath.Join(bin, programs.FileName("ex"))) {
+	if notes := mover(p, bin).run(); len(notes) != 0 || content(t, bin, "example-cli") != tools || !exists(filepath.Join(bin, programs.FileName("ex"))) {
 		t.Fatalf("something moved: %v", notes)
 	}
 }
@@ -331,11 +338,11 @@ func TestWithNoEarlierNamesSteeringHooksAreUnchanged(t *testing.T) {
 	}
 }
 
-// The check before removing the earlier command line brings each known
-// folder's hooks to the current command, and reports a reference that is
-// left: a hook a person added with a matcher of their own, or a file that
-// cannot be read.
-func TestEarlierSteeringReferencesAreFoundAfterMigration(t *testing.T) {
+// Before the earlier command line is removed, each known folder's hooks are
+// brought to the current command, and the files left running the earlier
+// command are returned for the log: one with a hook a person added with a
+// matcher of their own, or one that cannot be read.
+func TestEarlierSteeringRewriteReportsWhatIsLeft(t *testing.T) {
 	if len(product.EarlierCommandPrograms) != 0 {
 		t.Skip("this test runs on a build whose profile renamed nothing")
 	}
@@ -349,17 +356,17 @@ func TestEarlierSteeringReferencesAreFoundAfterMigration(t *testing.T) {
 	}
 	clean, missing := t.TempDir(), t.TempDir()
 	write(clean, `{"Stop":[{"matcher":"","hooks":[{"type":"command","command":"other steering-hook"}]}]}`)
-	if earlierSteeringReferenced([]string{clean, missing}, []string{"ex steering-hook"}) {
-		t.Fatal("folders with no earlier entry were said to run it")
+	if left := rewriteEarlierSteering([]string{clean, missing}, []string{"ex steering-hook"}); len(left) != 0 {
+		t.Fatalf("folders with no earlier entry were said to run it: %v", left)
 	}
 	person := t.TempDir()
-	write(person, `{"PostToolUse":[{"matcher":"exec","hooks":[{"type":"command","command":"ex steering-hook"}]}]}`)
-	if !earlierSteeringReferenced([]string{person}, []string{"ex steering-hook"}) {
-		t.Fatal("a person's own hook that runs the earlier command was not found")
+	personal := write(person, `{"PostToolUse":[{"matcher":"exec","hooks":[{"type":"command","command":"ex steering-hook"}]}]}`)
+	if left := rewriteEarlierSteering([]string{person}, []string{"ex steering-hook"}); len(left) != 1 || left[0] != personal {
+		t.Fatalf("a person's own hook that runs the earlier command was not reported: %v", left)
 	}
 	broken := t.TempDir()
-	write(broken, `{"Stop":42`)
-	if !earlierSteeringReferenced([]string{broken}, []string{"ex steering-hook"}) {
-		t.Fatal("a file that cannot be read was taken as clean")
+	unreadable := write(broken, `{"Stop":42`)
+	if left := rewriteEarlierSteering([]string{broken}, []string{"ex steering-hook"}); len(left) != 1 || left[0] != unreadable {
+		t.Fatalf("a file that cannot be read was taken as clean: %v", left)
 	}
 }
