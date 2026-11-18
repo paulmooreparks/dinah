@@ -122,10 +122,11 @@ The import window gains two sections below the sources. Chats lists each chat wi
 
 `dinah workspace export` writes the archive too, with its chats, and gains `--no-chats` to leave them out.
 
-### Questions for Paul
+### Decisions of 18 November 2026
 
-1. The archive is not encrypted. I recommend leaving it so for now, since it is the person's file to keep where they keep the chats. A passphrase could be added later as an archive entry that changes no other part of the format.
-2. A chat changed on both computers is left alone unless the person ticks Import as a Separate Chat. I recommend that default, since it never loses work and never makes a duplicate unasked.
+Paul approved the mockup, `docs/mockups/workspace-chats-transfer.html`, on 18 November 2026, and decided two further points. The archive is not encrypted for now. A passphrase can be added later as an archive entry that changes no other part of the format. A chat changed on both computers is left alone unless the person ticks Import as a Separate Chat.
+
+He also asked whether a source can be moved to another folder on import, for a OneDrive folder under `C:\Users\paul` on one computer and `C:\Users\pparks` on the other. The import already handles that, as described under "Local Folders on the Other Computer". The folder is found through its path relative to the home folder, and Choose… points any local folder somewhere else. Chats follow the main folder wherever it settles.
 
 ### Before Building
 
