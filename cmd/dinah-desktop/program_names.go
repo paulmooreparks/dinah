@@ -31,9 +31,11 @@ import (
         current name. If a tool program has that name now, it is set aside
         as every replaced program is (programs.Place), so a running copy
         keeps its file.
-     3. Once the command line is in place and nothing the window knows of
-        runs an earlier name, the file of the command line's earlier name is
-        removed.
+     3. Once the command line is in place, the Devin hooks the window can
+        rewrite are brought to the current name, and the file of the command
+        line's earlier name is removed. A hooks file the window cannot
+        rewrite, or an entry a person wrote by hand, does not keep the file;
+        such an entry stops working (Paul, 18 November 2026).
 
    A file is moved only when it says, through programs.IdentityCommand, that
    it is the program wanted, of this product and of the window's own release.
@@ -69,10 +71,10 @@ type programNameMover struct {
 	identify func(path string) (programs.Identity, error)
 	place    func(src, dst string) error
 	remove   func(path string) error
-	// referenced reports whether anything the window knows of still runs
-	// one of the earlier command program's commands, after bringing what it
-	// can to the current name.
-	referenced func(commands []string) bool
+	// rewriteHooks brings the hooks the window knows of that run one of the
+	// earlier command program's commands to the current name, and returns
+	// the hooks files that still run one, which it could not rewrite.
+	rewriteHooks func(commands []string) []string
 	// notes are what was done and what was left, for the log.
 	notes []string
 }
@@ -215,15 +217,16 @@ func (m *programNameMover) removeEarlierCommandPrograms() {
 	if len(present) == 0 {
 		return
 	}
-	if m.referenced(commands) {
-		m.note("kept %s, since something still runs it", strings.Join(present, " and "))
-		return
+	// The file is removed whatever is left: a hooks file that could not be
+	// rewritten, or an entry a person wrote by hand, stops working.
+	if left := m.rewriteHooks(commands); len(left) > 0 {
+		m.note("the Devin hooks in %s still run %s, which is removed, so they stop working", strings.Join(left, " and "), strings.Join(present, " and "))
 	}
 	for _, path := range present {
 		if err := m.remove(path); err != nil {
 			m.note("%s was not removed, and is tried again at the next start: %v", path, err)
 		} else {
-			m.note("removed %s, which nothing runs now", path)
+			m.note("removed %s", path)
 		}
 	}
 }
@@ -259,7 +262,7 @@ func (a *App) moveProgramsToCurrentNames() {
 	}
 	m := &programNameMover{profile: p, bin: bin, version: appVersion,
 		identify: identifyProgram, place: programs.Place, remove: os.Remove,
-		referenced: func(commands []string) bool { return earlierSteeringReferenced(a.knownChatFolders(), commands) }}
+		rewriteHooks: func(commands []string) []string { return rewriteEarlierSteering(a.knownChatFolders(), commands) }}
 	notes := m.run()
 	for _, note := range notes {
 		logf("programs", "info", "%s", note)
@@ -299,12 +302,12 @@ func (a *App) knownChatFolders() []string {
 	return out
 }
 
-// earlierSteeringReferenced brings each folder's Devin hooks that run one
-// of the earlier commands to the current command, and reports whether any
-// still runs one afterwards, or could not be read or written; a hook a
+// rewriteEarlierSteering brings each folder's Devin hooks that run one of
+// the earlier commands to the current command, and returns the hooks files
+// that still run one afterwards or could not be read or written. A hook a
 // person added with a matcher of their own is theirs and is not changed.
-func earlierSteeringReferenced(folders, commands []string) bool {
-	referenced := false
+func rewriteEarlierSteering(folders, commands []string) []string {
+	var left []string
 	for _, folder := range folders {
 		path := filepath.Join(folder, ".devin", "hooks.v1.json")
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -318,11 +321,13 @@ func earlierSteeringReferenced(folders, commands []string) bool {
 			}
 		}
 		if err != nil {
-			logf("programs", "warn", "the Devin hooks in %s could not be checked: %v", path, err)
-			referenced = true
+			logf("programs", "warn", "the Devin hooks in %s could not be rewritten: %v", path, err)
+			left = append(left, path)
 			continue
 		}
-		referenced = referenced || uses
+		if uses {
+			left = append(left, path)
+		}
 	}
-	return referenced
+	return left
 }
