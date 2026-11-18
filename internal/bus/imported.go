@@ -14,10 +14,10 @@ import (
 // A workspace import brings group chats and their conversations from
 // another computer (docs/design/workspace-export.md, "Groups and Teams").
 // Each message it brings gets a new ID here, and message_origins records
-// where it came from: the exporting Dinah's identity and the message's ID
-// there. A message whose origin is already recorded, such as one that
-// another workspace's export of the same group brought before, is not added
-// again. An imported message is history: it is delivered to no one, so it
+// where it was first made: the identity of the Dinah that made it and its
+// ID there, which travel with the message through every export. A message
+// whose origin is already recorded, such as one that another workspace's
+// export of the same group brought before, is not added again. An imported message is history: it is delivered to no one, so it
 // wakes no chat and notifies nobody, and it does not change a group's turns.
 
 // ImportedFile is a file attached to an imported message. Data is nil when
@@ -60,6 +60,29 @@ func (b *Bus) ImportedMessageID(ctx context.Context, exporter string, origin int
 		return 0, false, nil
 	}
 	return id, err == nil, err
+}
+
+// MessageOrigin is where a message was first made, when an import brought
+// it here: the exporter it came from and its ID there. ok is false for a
+// message made here.
+func (b *Bus) MessageOrigin(ctx context.Context, id int64) (exporter string, origin int64, ok bool, err error) {
+	err = b.db.QueryRowContext(ctx, `SELECT exporter, origin FROM message_origins WHERE message_id = ?`, id).Scan(&exporter, &origin)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", 0, false, nil
+	}
+	return exporter, origin, err == nil, err
+}
+
+// GroupHasMessage reports whether the message with the ID is in the group,
+// by the group's key or title.
+func (b *Bus) GroupHasMessage(ctx context.Context, group string, id int64) (bool, error) {
+	key, _, err := findGroup(b.db, group)
+	if err != nil {
+		return false, err
+	}
+	var n int
+	err = b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM messages WHERE id = ? AND room = ?`, id, key).Scan(&n)
+	return n > 0, err
 }
 
 // ImportMessage adds a group message an import brought, with the files that

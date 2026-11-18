@@ -480,7 +480,7 @@ func (x *workspaceChats) writeArchive(ctx context.Context, w io.Writer, b *bus.B
 			for _, id := range group.members {
 				item.Members = append(item.Members, x.ref(id, keys))
 			}
-			messages, err := x.groupMessages(ctx, b, archive, group.room, keys)
+			messages, err := x.groupMessages(ctx, b, archive, group.room, keys, exporter)
 			if err != nil {
 				return err
 			}
@@ -548,7 +548,10 @@ func (x *workspaceChats) links(ctx context.Context, b *bus.Bus, chats []*exportC
 
 // groupMessages reads a group's conversation for the archive, with the
 // files attached to it that are still on the computer as they were sent.
-func (x *workspaceChats) groupMessages(ctx context.Context, b *bus.Bus, archive *workspaces.ArchiveWriter, room string, keys map[string]string) ([]workspaces.GroupMessage, error) {
+// Each message is written with where it was first made: the origin an
+// import recorded for it, or this Dinah's identity, exporter, and its ID
+// here.
+func (x *workspaceChats) groupMessages(ctx context.Context, b *bus.Bus, archive *workspaces.ArchiveWriter, room string, keys map[string]string, exporter string) ([]workspaces.GroupMessage, error) {
 	messages, err := b.RoomMessages(ctx, room, workspaces.MaxGroupMessages)
 	if err != nil {
 		return nil, err
@@ -556,6 +559,15 @@ func (x *workspaceChats) groupMessages(ctx context.Context, b *bus.Bus, archive 
 	out := make([]workspaces.GroupMessage, 0, len(messages))
 	for _, m := range messages {
 		item := workspaces.GroupMessage{ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, FromName: m.FromName, Text: m.Text, ReplyTo: m.ReplyTo, Version: m.Version, Verdict: m.Verdict}
+		origin, originID, imported, err := b.MessageOrigin(ctx, m.ID)
+		if err != nil {
+			return nil, err
+		}
+		if imported {
+			item.OriginExporter, item.OriginID = origin, originID
+		} else {
+			item.OriginExporter, item.OriginID = exporter, m.ID
+		}
 		if m.FromSession == "" {
 			item.Person = m.FromName == bus.Human
 		} else if id := x.byRecipient[m.FromSession]; id != "" {

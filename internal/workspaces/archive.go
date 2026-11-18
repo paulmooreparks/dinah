@@ -458,6 +458,9 @@ func (a *Archive) GroupMessages(key string) ([]GroupMessage, error) {
 			return nil, bad("has a message without an ID of its own")
 		}
 		ids[m.ID] = true
+		if (m.OriginExporter == "") != (m.OriginID == 0) || m.OriginID < 0 || (m.OriginExporter != "" && !validIdentity(m.OriginExporter)) {
+			return nil, bad("has a message whose origin cannot be read")
+		}
 		if m.From != nil && !checkRef(m.From) {
 			return nil, bad("has a message from a chat it cannot refer to")
 		}

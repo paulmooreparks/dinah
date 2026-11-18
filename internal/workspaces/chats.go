@@ -105,11 +105,17 @@ type ExportAllowance struct {
 }
 
 // GroupMessage is one line of a group's conversation entry. ID is the
-// message's ID on the exporting computer, which an import records with the
-// export's Exporter so that bringing the same message twice adds it once.
-// A message the person sent has Person set; a chat's has From.
+// message's ID on the exporting computer, which replies and the chats'
+// histories refer to. OriginExporter and OriginID are where the message was
+// first made: the identity of that Dinah and the message's ID there, which
+// an import records so that bringing the same message twice, by any route,
+// adds it once. An export written before they were added has neither, and
+// the message was then made by the export's Exporter, with ID as its ID. A
+// message the person sent has Person set; a chat's has From.
 type GroupMessage struct {
 	ID             int64                      `json:"id"`
+	OriginExporter string                     `json:"originExporter,omitempty"`
+	OriginID       int64                      `json:"originId,omitempty"`
 	CreatedAt      string                     `json:"createdAt"`
 	Kind           string                     `json:"kind"`
 	Person         bool                       `json:"person,omitempty"`
@@ -264,6 +270,15 @@ func (a *ExportAllowance) UnmarshalJSON(data []byte) error {
 	*a = ExportAllowance(p)
 	a.Extra = extra
 	return nil
+}
+
+// Origin is where a message of an export was first made: its recorded
+// origin, or else the export's exporter and the message's ID.
+func (m GroupMessage) Origin(exporter string) (string, int64) {
+	if m.OriginExporter != "" {
+		return m.OriginExporter, m.OriginID
+	}
+	return exporter, m.ID
 }
 
 func (m GroupMessage) MarshalJSON() ([]byte, error) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"studio/internal/bus"
@@ -102,6 +103,10 @@ func (a *App) planImportGroups(archive *workspaces.Archive, plan *WorkspaceImpor
 		return err
 	}
 	g := groupImport{export: export, catalog: catalog}
+	self, err := workspaces.ExporterIdentity(configDir())
+	if err != nil {
+		return err
+	}
 	return a.busHost().With(func(b *bus.Bus) error {
 		ctx := context.Background()
 		for _, group := range export.Groups {
@@ -131,9 +136,9 @@ func (a *App) planImportGroups(archive *workspaces.Archive, plan *WorkspaceImpor
 					return err
 				}
 				for _, m := range messages {
-					if _, ok, err := b.ImportedMessageID(ctx, export.Exporter, m.ID); err != nil {
+					if _, here, err := messageHere(ctx, b, self, group.Title, export.Exporter, m); err != nil {
 						return err
-					} else if !ok {
+					} else if !here {
 						item.New++
 					}
 				}
@@ -180,6 +185,10 @@ func (a *App) importGroups(archive *workspaces.Archive, imported map[string]stri
 		return nil, err
 	}
 	g := groupImport{export: export, catalog: catalog}
+	self, err := workspaces.ExporterIdentity(configDir())
+	if err != nil {
+		return nil, err
+	}
 	newIDs := map[int64]int64{}
 	rooms := map[string]string{}
 	err = a.busHost().With(func(b *bus.Bus) error {
@@ -254,7 +263,18 @@ func (a *App) importGroups(archive *workspaces.Archive, imported map[string]stri
 				return err
 			}
 			for _, m := range messages {
-				in := bus.ImportedMessage{Exporter: export.Exporter, Origin: m.ID, Group: rooms[strings.ToLower(group.Title)], CreatedAt: m.CreatedAt, Kind: m.Kind,
+				room := rooms[strings.ToLower(group.Title)]
+				// A message first made here, which went to another computer and
+				// came back, is the message here with its own ID, if the group
+				// still has it; nothing is added for it.
+				if id, here, err := messageHere(ctx, b, self, room, export.Exporter, m); err != nil {
+					return err
+				} else if here {
+					newIDs[m.ID] = id
+					continue
+				}
+				origin, originID := m.Origin(export.Exporter)
+				in := bus.ImportedMessage{Exporter: origin, Origin: originID, Group: room, CreatedAt: m.CreatedAt, Kind: m.Kind,
 					FromName: m.FromName, Text: m.Text, Version: m.Version, Verdict: m.Verdict}
 				if m.From != nil {
 					in.FromSession = g.recipientHere(*m.From, imported)
@@ -263,13 +283,7 @@ func (a *App) importGroups(archive *workspaces.Archive, imported map[string]stri
 					in.FromName = bus.Human
 				}
 				if m.ReplyTo > 0 {
-					if id, ok := newIDs[m.ReplyTo]; ok {
-						in.ReplyTo = id
-					} else if id, ok, err := b.ImportedMessageID(ctx, export.Exporter, m.ReplyTo); err != nil {
-						return err
-					} else if ok {
-						in.ReplyTo = id
-					}
+					in.ReplyTo = newIDs[m.ReplyTo]
 				}
 				if m.MentionsPerson {
 					in.Mentions = append(in.Mentions, bus.Human)
@@ -306,10 +320,26 @@ func (a *App) importGroups(archive *workspaces.Archive, imported map[string]stri
 	return func(tr *conversationTranscript) { a.rewriteBusReferences(tr, export.Exporter, newIDs, rooms) }, nil
 }
 
+// messageHere finds a message of an archive's group conversation on this
+// bus: by its own ID when it was first made here, self being this Dinah's
+// identity, and the group still has it, or else by its recorded origin.
+func messageHere(ctx context.Context, b *bus.Bus, self, group, exporter string, m workspaces.GroupMessage) (int64, bool, error) {
+	origin, originID := m.Origin(exporter)
+	if origin == self {
+		if ok, err := b.GroupHasMessage(ctx, group, originID); err != nil && !errors.Is(err, bus.ErrNotFound) {
+			return 0, false, err
+		} else if ok {
+			return originID, true, nil
+		}
+	}
+	return b.ImportedMessageID(ctx, origin, originID)
+}
+
 // rewriteBusReferences points the bus messages a chat's history received
-// and sent at their IDs here. A message that did not travel, or came in an
-// earlier import, is looked up by its origin; one that is not here keeps its
-// text and loses its link.
+// and sent at their IDs here, through the same mapping as the messages
+// themselves. A message the archive's conversations do not hold, such as one
+// an earlier import brought, is looked up by the exporter's own origin for
+// it; one that is not here keeps its text and loses its link.
 func (a *App) rewriteBusReferences(tr *conversationTranscript, exporter string, newIDs map[int64]int64, rooms map[string]string) {
 	lookup := func(origin int64) (int64, bool) {
 		if id, ok := newIDs[origin]; ok {
