@@ -63,7 +63,7 @@ type contentManifest struct {
 
 // proposeNote tells an agent, in a product whose agents propose their
 // changes, where the actions that change a document went.
-const proposeNote = " In this product an agent does not change a document itself, so the actions that change, save, make or close one are not offered here. Read a document with dinah.documents/read@1 and propose your changes with dinah.documents/suggest@1; the person accepts or rejects each one in the document's window."
+const proposeNote = " In this product an agent does not change a document itself, so the actions that change, save, make or close one are not offered here. Read a document with dinah.documents/read@1 and propose your changes with dinah.documents/suggest@1; the person accepts or rejects each one in the document's window. Correct your own suggestions with dinah.documents/revise@1, which replaces their text, and dinah.documents/withdraw@1, which removes them, rather than proposing the whole batch again."
 
 // contentCapabilities says what an action of the release does, in Dinah's
 // capabilities.

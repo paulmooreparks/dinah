@@ -294,6 +294,34 @@ func (o Ops) Revise(id, suggestion, after string) (drafts.View, error) {
 	return o.View(d, "updated"), nil
 }
 
+// ReviseOwn replaces the proposed text of an agent's own suggestions, and
+// their reason when one is given; see drafts.Store.ReviseOwn. A window that
+// shows the draft is told, as it is after Suggest.
+func (o Ops) ReviseOwn(id string, owns func(drafts.Suggestion) bool, changes []drafts.AgentRevision, reason *string) (drafts.View, []drafts.Suggestion, error) {
+	if _, err := o.Draft(id); err != nil {
+		return drafts.View{}, nil, err
+	}
+	d, revised, err := o.Drafts.Store.ReviseOwn(id, owns, changes, reason)
+	if err != nil {
+		return drafts.View{}, nil, ErrorText(err)
+	}
+	return o.View(d, "suggested"), revised, nil
+}
+
+// WithdrawOwn removes an agent's own suggestions; see
+// drafts.Store.WithdrawOwn. A window that shows the draft is told, as it is
+// after Suggest.
+func (o Ops) WithdrawOwn(id string, owns func(drafts.Suggestion) bool, ids []string) (drafts.View, int, error) {
+	if _, err := o.Draft(id); err != nil {
+		return drafts.View{}, 0, err
+	}
+	d, removed, err := o.Drafts.Store.WithdrawOwn(id, owns, ids)
+	if err != nil {
+		return drafts.View{}, 0, ErrorText(err)
+	}
+	return o.View(d, "suggested"), removed, nil
+}
+
 // Compare compares a draft with its resource as it is now.
 func (o Ops) Compare(id string) (drafts.Comparison, error) {
 	if _, err := o.Draft(id); err != nil {
