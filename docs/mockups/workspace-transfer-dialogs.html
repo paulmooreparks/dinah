@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Export and Import Windows: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame stands for the program's window at the chosen screen size.
+       The transfer window inside it is what the mockup proposes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .btn[aria-pressed="true"] { font-weight: 700; }
+    .mock-controls .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 var(--space-2); }
+    .mock-said { margin: var(--space-2) var(--space-5) 0; min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-screen { position: relative; margin: var(--space-3) var(--space-5); border: 1px solid var(--border); background: color-mix(in srgb, var(--text) 10%, var(--bg)); overflow: hidden; }
+    .mock-screen-label { position: absolute; bottom: var(--space-1); right: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+    .mock-notes { margin: 0 auto var(--space-5); padding: 0 var(--space-5); max-width: 56rem; font-size: var(--text-sm); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* The proposal: a transfer window that is wide enough to read, can be
+       resized from its corner within the program's window, keeps its title
+       and its buttons in place while its middle scrolls, and lists chats and
+       groups as tables. */
+    .transfer-dialog { position: absolute; inset: 0; margin: auto; display: flex; flex-direction: column; padding: 0; max-width: none;
+      width: min(64rem, calc(100% - 32px)); height: min(46rem, calc(100% - 32px));
+      min-width: min(26rem, calc(100% - 16px)); min-height: min(20rem, calc(100% - 16px));
+      max-width: calc(100% - 16px); max-height: calc(100% - 16px); resize: both; overflow: hidden; }
+    .transfer-dialog .dialog-title { flex: none; margin: 0; padding: var(--space-4) var(--space-5) var(--space-2); }
+    .transfer-dialog .transfer-body { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--space-5) var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); }
+    .transfer-dialog .dialog-actions { flex: none; margin: 0; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border); align-items: center; }
+    .transfer-dialog .transfer-foot-note { margin: 0 auto 0 0; font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .transfer-dialog h3 { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: 700; font-family: var(--font); }
+    .transfer-dialog p { margin: 0; }
+    .transfer-dialog .data-table-wrap { flex: none; }
+    .transfer-dialog .data-table { font-size: var(--text-sm); }
+    .transfer-dialog .data-table td.muted { color: var(--text-muted); }
+    .transfer-dialog .data-table .badge { margin-inline-start: var(--space-1); }
+    .transfer-dialog .data-table td { vertical-align: middle; }
+    .transfer-dialog .data-table td.wrap { white-space: normal; overflow-wrap: anywhere; }
+    .transfer-dialog .data-table td.nowrap { white-space: nowrap; }
+    .transfer-dialog .transfer-chats-wrap { max-height: none; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Export and Import windows</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 18 November 2026. Drag the window's lower right corner to resize it.</span>
+  </header>
+
+  <div class="mock-controls">
+    <button type="button" class="btn btn-sm" data-view="export" aria-pressed="true">Export Workspace</button>
+    <button type="button" class="btn btn-sm" data-view="import" aria-pressed="false">Import Workspace</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" class="btn btn-sm" data-screen="1900x1000" aria-pressed="true">Large Screen</button>
+    <button type="button" class="btn btn-sm" data-screen="1280x720" aria-pressed="false">Laptop</button>
+    <button type="button" class="btn btn-sm" data-screen="800x600" aria-pressed="false">Small Window</button>
+  </div>
+  <p class="mock-said" id="mock-said" role="status"></p>
+
+  <div class="mock-screen" id="mock-screen"><span class="mock-screen-label" id="mock-screen-label"></span></div>
+
+  <ul class="mock-notes" id="mock-notes"></ul>
+
+<script>
+(function () {
+  var screen = document.getElementById('mock-screen'), said = document.getElementById('mock-said'), notes = document.getElementById('mock-notes');
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function badge(text, tone) { return el('span', 'badge' + (tone ? ' ' + tone : ''), text); }
+  function say(t) { said.textContent = t; }
+  function button(text, primary, run) { var b = el('button', 'btn' + (primary ? ' btn-primary' : ''), text); b.type = 'button'; b.addEventListener('click', run); return b; }
+  function table(heads, stack) {
+    var wrap = el('div', 'data-table-wrap'), t = wrap.appendChild(el('table', 'data-table' + (stack ? ' stack' : '')));
+    var tr = t.appendChild(el('thead')).appendChild(el('tr'));
+    heads.forEach(function (h) { var th = tr.appendChild(el('th', h.cls || '', h.text)); th.scope = 'col'; if (h.node) th.appendChild(h.node); });
+    return { wrap: wrap, body: t.appendChild(el('tbody')) };
+  }
+  function cell(tr, text, cls, label) { var td = tr.appendChild(el('td', cls || '', text)); if (label) td.dataset.label = label; return td; }
+
+  var chats = [
+    { title: 'Harbor Lead', program: 'Claude', model: 'Opus 5.5', mb: 41.2 },
+    { title: 'Checkout Review', program: 'Codex', model: 'GPT-5.4', mb: 12.8 },
+    { title: 'Keyboard Research', program: 'Claude', model: 'Sonnet 5.5', mb: 23.5 },
+    { title: 'Harbor Builder', program: 'Devin', model: 'Adaptive', mb: 66.0 },
+    { title: 'Release Notes', program: 'Claude', model: 'Haiku 5.5', mb: 3.1, closed: true },
+    { title: 'Docks Survey', program: 'Devin', model: 'SWE-2', mb: 0.7, closed: true },
+    { title: 'Harbor Verifier', program: 'Devin', model: 'Gemini 4 Argon', mb: 4.2 },
+    { title: 'Pricing Notes', program: 'Codex', model: 'GPT-6.1 Sol', mb: 0.5, hidden: true },
+    { title: 'Feature Testing', program: 'Devin', model: 'SWE-2', mb: 2.6 },
+    { title: 'Checkout Author', program: 'Devin', model: 'Claude Sonnet 5.5', mb: 5.2 }
+  ];
+  var ticked = chats.map(function () { return true; });
+
+  function shell(title) {
+    var d = el('div', 'dialog transfer-dialog');
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', title);
+    d.appendChild(el('h2', 'dialog-title', title));
+    var body = d.appendChild(el('div', 'transfer-body'));
+    var actions = d.appendChild(el('div', 'dialog-actions'));
+    screen.querySelectorAll('.transfer-dialog').forEach(function (x) { x.remove(); });
+    screen.appendChild(d);
+    return { body: body, actions: actions };
+  }
+
+  function exportView() {
+    var w = shell('Export Workspace');
+    w.body.appendChild(el('p', null, 'This saves the workspace "Harbor" to a file that Import Workspace… reads on another computer.'));
+    w.body.appendChild(el('p', 'form-help', '6 sources and 4 pins go with it: the main folder Harbor, the folders Shared Notes and Docks, and three linked sources.'));
+    w.body.appendChild(el('h3', null, 'Chats'));
+    var all = el('input'); all.type = 'checkbox'; all.setAttribute('aria-label', 'All chats');
+    var t = table([{ cls: 'data-table-check', node: all }, { text: 'Chat' }, { text: 'Program and Model' }, { text: 'State' }, { text: 'History', cls: 'num' }], true);
+    var boxes = [];
+    chats.forEach(function (c, i) {
+      var tr = t.body.appendChild(el('tr'));
+      var check = tr.appendChild(el('td', 'data-table-check')), box = check.appendChild(el('input'));
+      box.type = 'checkbox'; box.checked = ticked[i]; box.setAttribute('aria-label', c.title);
+      boxes.push(box);
+      cell(tr, c.title, 'wrap', 'Chat');
+      cell(tr, c.program + ' · ' + c.model, 'muted', 'Program and Model');
+      var st = cell(tr, '', 'nowrap', 'State');
+      st.appendChild(document.createTextNode(c.closed ? 'Closed' : c.hidden ? 'Hidden' : 'Open'));
+      cell(tr, c.mb.toFixed(1) + ' MB', 'num nowrap', 'History');
+      box.addEventListener('change', function () { ticked[i] = box.checked; redraw(); say(box.checked ? c.title + ' goes with the workspace.' : c.title + ' stays on this computer.'); });
+    });
+    w.body.appendChild(t.wrap);
+    w.body.appendChild(el('h3', null, 'Groups and Teams'));
+    var g = table([{ text: 'Group or Team' }, { text: 'Goes With It' }, { text: 'Elsewhere' }], true);
+    w.body.appendChild(g.wrap);
+    w.body.appendChild(el('p', 'form-help', 'The file contains the chats\' whole conversations, including anything pasted into them. Keep it as private as the chats.'));
+    var total = el('p', 'transfer-foot-note');
+    w.actions.appendChild(total);
+    w.actions.appendChild(button('Cancel', false, function () { say('Nothing was saved.'); }));
+    w.actions.appendChild(button('Export…', true, function () { say('Next, the save window asks where to put Harbor.dinah-workspace.'); }));
+    all.addEventListener('change', function () { boxes.forEach(function (b, i) { b.checked = all.checked; ticked[i] = all.checked; }); redraw(); say(all.checked ? 'Every chat goes with the workspace.' : 'No chat goes; only the sources and pins.'); });
+    function redraw() {
+      var n = 0, mb = 0;
+      chats.forEach(function (c, i) { if (ticked[i]) { n++; mb += c.mb; } });
+      all.checked = n === chats.length; all.indeterminate = n > 0 && n < chats.length;
+      total.textContent = n + ' of ' + chats.length + ' chats, ' + mb.toFixed(1) + ' MB of history';
+      g.body.replaceChildren();
+      [['Harbor Team, a group', [0, 1, 2, 3], 'Docks Builder in Docks'], ['Harbor Lead\'s team', [0, 1, 2, 3], 'none'], ['Checkout Review Team, a group', [1, 9, 4], 'none']].forEach(function (row) {
+        var here = row[1].filter(function (i) { return ticked[i]; }).length;
+        var tr = g.body.appendChild(el('tr'));
+        cell(tr, row[0], 'wrap', 'Group or Team');
+        cell(tr, here ? here + ' of ' + row[1].length + ' members' : 'Stays behind', 'nowrap', 'Goes With It');
+        cell(tr, row[2], 'muted wrap', 'Elsewhere');
+      });
+    }
+    redraw();
+    setNotes([
+      'The window opens about twice as wide as today\'s, and fits inside the program\'s window when that is smaller. Its lower right corner resizes it, up to the program\'s window. It is still modal.',
+      'The title and the buttons stay put; only the middle scrolls. The total sits beside the buttons, so it is in view whatever is scrolled.',
+      'Chats are a table with a checkbox column and an All box in its head. Each row is one line, so ten chats take ten lines.',
+      'Groups and teams are a table too: one line each, saying how many of their members go and who is in another workspace. Ticking a chat changes the words in a cell, never the height of a row.',
+      'When the window is narrower than 560 pixels, PUDL shows each table row as a small card with labels. Try Small Window.'
+    ]);
+  }
+
+  function importView() {
+    var w = shell('Import Workspace');
+    w.body.appendChild(el('p', null, '"Harbor" already works in this main folder, so the import adds what it does not have and updates chats worked on elsewhere.'));
+    w.body.appendChild(el('h3', null, 'Sources'));
+    var s = table([{ text: 'Source' }, { text: 'Where' }, { text: 'Found' }, { text: '' }], true);
+    [['Harbor', 'C:\\Users\\sam\\OneDrive\\Harbor', 'Main Folder, Found', 'positive'], ['Shared Notes', 'C:\\Users\\sam\\OneDrive\\Shared Notes', 'Not on This Computer Yet', 'warn']].forEach(function (r) {
+      var tr = s.body.appendChild(el('tr'));
+      cell(tr, r[0], 'nowrap', 'Source'); cell(tr, r[1], 'muted wrap', 'Where');
+      var f = cell(tr, '', 'nowrap', 'Found'); f.appendChild(badge(r[2], r[3]));
+      var c = cell(tr, '', 'nowrap', ''); c.appendChild(button('Choose…', false, function () { say('The folder window opens at ' + r[1] + '.'); })).classList.add('btn-sm');
+    });
+    w.body.appendChild(s.wrap);
+    w.body.appendChild(el('h3', null, 'Chats'));
+    var t = table([{ text: 'Chat' }, { text: 'Program and Model' }, { text: 'What Happens' }, { text: '' }], true);
+    var marks = [['Updated From the Other Computer', 'positive'], ['Already Up to Date', ''], ['Changed on Both Computers', 'warn'], ['Close It to Update It', 'warn'], ['New', 'accent'], ['New', 'accent'], ['Already Up to Date', ''], ['New', 'accent'], ['New', 'accent'], ['New', 'accent']];
+    chats.forEach(function (c, i) {
+      var tr = t.body.appendChild(el('tr'));
+      cell(tr, c.title, 'wrap', 'Chat');
+      cell(tr, c.program + ' · ' + c.model, 'muted', 'Program and Model');
+      var m = cell(tr, '', 'nowrap', 'What Happens'); m.appendChild(badge(marks[i][0], marks[i][1]));
+      var x = cell(tr, '', 'nowrap', '');
+      if (i === 2) { var l = x.appendChild(el('label', 'check')), b = l.appendChild(el('input')); b.type = 'checkbox'; l.appendChild(document.createTextNode(' Import as a Separate Chat')); b.addEventListener('change', function () { say(b.checked ? 'It is added as "Keyboard Research (Imported)".' : 'Only this computer\'s Keyboard Research is kept.'); }); }
+    });
+    w.body.appendChild(t.wrap);
+    w.body.appendChild(el('h3', null, 'Groups and Teams'));
+    var g = table([{ text: 'Group or Team' }, { text: 'What Happens' }, { text: 'Members' }], true);
+    [['Harbor Team, a group', 'Joins the Existing Group', '4 here, Docks Builder waits for the workspace Docks'], ['Harbor Lead\'s team', 'Joins the Existing Team', '4 here']].forEach(function (r) {
+      var tr = g.body.appendChild(el('tr')); cell(tr, r[0], 'wrap', 'Group or Team'); var m = cell(tr, '', 'nowrap', 'What Happens'); m.appendChild(badge(r[1])); cell(tr, r[2], 'muted wrap', 'Members');
+    });
+    w.body.appendChild(g.wrap);
+    w.body.appendChild(el('p', 'form-help', 'Not imported: the trusted link between Harbor and Docks. A file cannot grant agents that trust; add it again in Settings if you want it.'));
+    w.actions.appendChild(el('p', 'transfer-foot-note', '6 new chats, 1 updated, 18 group messages'));
+    w.actions.appendChild(button('Cancel', false, function () { say('Nothing was imported.'); }));
+    w.actions.appendChild(button('Add to the Workspace', true, function () { say('Updated 1 chat and added 6 to "Harbor".'); }));
+    setNotes([
+      'The import window has the same shape: sources, chats, and groups and teams as tables, with the buttons always in view.',
+      'Each chat is one line with its mark in a badge. The only control in the Chats table is Import as a Separate Chat, on the chat that changed on both computers.',
+      'Sources keep Choose… on their row, so pointing a folder elsewhere does not open anything that moves the table.'
+    ]);
+  }
+
+  function setNotes(list) { notes.replaceChildren(); list.forEach(function (t) { notes.appendChild(el('li', null, t)); }); }
+  var view = 'export', size = '1900x1000';
+  function frame() {
+    var wh = size.split('x');
+    screen.style.width = 'min(' + wh[0] + 'px, calc(100% - 2 * var(--space-5)))';
+    screen.style.height = wh[1] / (wh[0] > 1600 ? 1.6 : 1) + 'px';
+    document.getElementById('mock-screen-label').textContent = 'The program\'s window, ' + (wh[0] > 1600 ? 'a large screen (shown smaller)' : wh[0] + ' by ' + wh[1]);
+    (view === 'export' ? exportView : importView)();
+  }
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { view = b.dataset.view; document.querySelectorAll('[data-view]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); }); say(''); frame(); }); });
+  document.querySelectorAll('[data-screen]').forEach(function (b) { b.addEventListener('click', function () { size = b.dataset.screen; document.querySelectorAll('[data-screen]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); }); say(''); frame(); }); });
+  document.getElementById('mock-theme').addEventListener('click', function () { var dark = document.documentElement.dataset.theme !== 'dark'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Light Theme' : 'Dark Theme'; });
+  frame();
+})();
+</script>
+</body>
+</html>
