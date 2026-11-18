@@ -486,6 +486,20 @@ func (b *Bus) SendActionRecipients(ctx context.Context, from Sender, to, text st
 	return b.sendRouted(ctx, from, to, text, atts, replyTo, recipients, true)
 }
 
+// SendOnlyToRecipients posts a message in a group that only its action
+// recipients receive. It stays in the group's conversation for anyone who
+// reads the group, but the other member chats are given neither the message
+// nor a notice of it. A lead's copy of the person's exchange with one of its
+// members is sent this way (lead_copies.go in the window), so the member does
+// not receive copies of its own exchange and the rest of the team is not told
+// of it.
+func (b *Bus) SendOnlyToRecipients(ctx context.Context, from Sender, to, text string, recipients []string) (Message, error) {
+	if len(recipients) == 0 {
+		return Message{}, errors.New("a message for its recipients only needs at least one recipient")
+	}
+	return b.sendPresentedOnly(ctx, from, to, text, nil, 0, recipients, true, nil, true)
+}
+
 // send records a message with its attachments already checked and hashed.
 // A message needs words or at least one attachment.
 func (b *Bus) send(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string) (Message, error) {
@@ -497,6 +511,12 @@ func (b *Bus) sendRouted(ctx context.Context, from Sender, to, text string, atts
 }
 
 func (b *Bus) sendPresented(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string, groupRouting bool, presentation *MessagePresentation) (Message, error) {
+	return b.sendPresentedOnly(ctx, from, to, text, atts, replyTo, mentions, groupRouting, presentation, false)
+}
+
+// sendPresentedOnly is sendPresented; with only set, a group's member chats
+// that the message does not mention get no delivery of it.
+func (b *Bus) sendPresentedOnly(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string, groupRouting bool, presentation *MessagePresentation, only bool) (Message, error) {
 	if strings.TrimSpace(text) == "" && len(atts) == 0 {
 		return Message{}, errors.New("the message is empty")
 	}
@@ -521,6 +541,15 @@ func (b *Bus) sendPresented(ctx context.Context, from Sender, to, text string, a
 		}
 		if err := mentionList(t, from, &r, mentions, person); err != nil {
 			return err
+		}
+		if only {
+			kept := r.recipients[:0]
+			for _, rc := range r.recipients {
+				if rc.kind != "session" || strings.Contains(r.mentions, ","+rc.value+",") {
+					kept = append(kept, rc)
+				}
+			}
+			r.recipients = kept
 		}
 		id, err = b.insertMessage(t, from, "text", r, replyTo, text, "", "", atts)
 		if err == nil && presentation != nil {
