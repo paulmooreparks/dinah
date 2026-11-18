@@ -42,6 +42,14 @@ type WorkspaceImportPlan struct {
 	// folder, which the import adds to.
 	ExistingID   string `json:"existingId,omitempty"`
 	ExistingName string `json:"existingName,omitempty"`
+	// Chats are the export's chats, each with what importing it does
+	// (workspace_import_chats.go), and Groups and Teams their groups and
+	// teams. Links are the trusted links the exporting computer had, which
+	// the import does not make (workspace_import_groups.go).
+	Chats  []WorkspaceImportChat  `json:"chats"`
+	Groups []WorkspaceImportGroup `json:"groups"`
+	Teams  []WorkspaceImportTeam  `json:"teams"`
+	Links  []WorkspaceImportLink  `json:"links"`
 }
 
 // WorkspaceImportSource is one source of an import: for a local folder,
@@ -67,15 +75,20 @@ type WorkspaceImportSource struct {
 }
 
 // WorkspaceImportChoice is the person's choice for one local folder of an
-// import: another folder for it, or to create it now.
+// import, by its key: another folder for it, or to create it now. With Chat
+// set instead, it is the choice for the chat of that key: Separate imports a
+// chat changed on both computers as a separate chat.
 type WorkspaceImportChoice struct {
-	Key    string `json:"key"`
-	Path   string `json:"path,omitempty"`
-	Create bool   `json:"create,omitempty"`
+	Key      string `json:"key"`
+	Path     string `json:"path,omitempty"`
+	Create   bool   `json:"create,omitempty"`
+	Chat     string `json:"chat,omitempty"`
+	Separate bool   `json:"separate,omitempty"`
 }
 
 // WorkspaceImportResult is an import's outcome: the state, the workspace
-// made or added to, and how many sources and pins were added.
+// made or added to, how many sources and pins were added, and how many
+// chats were added, updated and added as separate chats.
 type WorkspaceImportResult struct {
 	State       State  `json:"state"`
 	WorkspaceID string `json:"workspaceId"`
@@ -83,6 +96,11 @@ type WorkspaceImportResult struct {
 	Sources     int    `json:"sources"`
 	Pins        int    `json:"pins"`
 	Waiting     int    `json:"waiting"`
+	Chats       int    `json:"chats"`
+	Updated     int    `json:"updated"`
+	Separate    int    `json:"separate"`
+	Groups      int    `json:"groups"`
+	Messages    int    `json:"messages"`
 }
 
 // workspaceFileFilter is the file dialogs' filter for export files.
@@ -144,8 +162,8 @@ func (a *App) ChooseImportFolder(start string) (string, error) {
 }
 
 // readWorkspaceImport reads an export file, an archive or the bare document
-// of an earlier build. The import does not yet bring an archive's chats,
-// groups and teams, only its sources and pins.
+// of an earlier build. Its chat pins are left out here, since they go with
+// their chats (workspace_import_chats.go).
 func readWorkspaceImport(file string) (workspaces.Export, error) {
 	archive, err := workspaces.OpenArchive(file)
 	if err != nil {
@@ -153,7 +171,6 @@ func readWorkspaceImport(file string) (workspaces.Export, error) {
 	}
 	defer archive.Close()
 	export := archive.Export
-	// A chat pin has nothing to open until the import brings chats.
 	pins := []workspaces.ExportPin{}
 	for _, pin := range export.Pins {
 		if pin.Kind != "chat" {
@@ -173,7 +190,7 @@ func (a *App) planLocal(file string, export workspaces.Export, choices []Workspa
 	for _, c := range choices {
 		chosen[c.Key] = c
 	}
-	plan := WorkspaceImportPlan{File: file, Name: export.Name, Sources: []WorkspaceImportSource{}, Pins: len(export.Pins)}
+	plan := WorkspaceImportPlan{File: file, Name: export.Name, Sources: []WorkspaceImportSource{}, Pins: len(export.Pins), Chats: []WorkspaceImportChat{}, Groups: []WorkspaceImportGroup{}, Teams: []WorkspaceImportTeam{}, Links: []WorkspaceImportLink{}}
 	for _, pin := range export.Pins {
 		if !workspaces.KnownPin(pin.Kind) {
 			plan.UncheckedPins++
@@ -244,6 +261,17 @@ func (a *App) PlanWorkspaceImport(file string, choices []WorkspaceImportChoice) 
 		checkCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 		item.Problem, item.Checked = kind.Check(checkCtx, export.Sources[i]), true
 		cancel()
+	}
+	if plan.Chats, err = a.planImportChats(export, choices); err != nil {
+		return WorkspaceImportPlan{}, err
+	}
+	archive, err := workspaces.OpenArchive(file)
+	if err != nil {
+		return WorkspaceImportPlan{}, err
+	}
+	defer archive.Close()
+	if err := a.planImportGroups(archive, &plan); err != nil {
+		return WorkspaceImportPlan{}, err
 	}
 	return plan, nil
 }
@@ -433,11 +461,18 @@ func (a *App) ImportWorkspace(file string, choices []WorkspaceImportChoice) (Wor
 		*s = updated
 		return nil
 	})
-	result.State = a.State()
 	if err != nil {
+		result.State = a.State()
 		return result, err
 	}
 	a.emitSettingsChanged()
+	// The chats follow the main folder, now that it is settled
+	// (workspace_import_chats.go).
+	if err := a.importArchiveChats(file, result.WorkspaceID, choices, &result); err != nil {
+		result.State = a.State()
+		return result, err
+	}
+	result.State = a.State()
 	if result.Existing {
 		a.emitWorkspaceMountChanged("source-attached", result.WorkspaceID, "")
 	} else {

@@ -79,7 +79,20 @@ func harborFixture(t *testing.T) (a *App, harbor, docks WorkspaceRecord) {
 				return err
 			}
 		}
-		return b.SetTeamAllowances(ctx, "window-lead", []bus.TeamAllowance{{Provider: "claude", Unit: "tokens", Allowance: 1000}})
+		if err := b.SetTeamAllowances(ctx, "window-lead", []bus.TeamAllowance{{Provider: "claude", Unit: "tokens", Allowance: 1000}}); err != nil {
+			return err
+		}
+		// Harbor and Docks trust each other, which an export records and an
+		// import only lists.
+		harborName, err := b.WorkspaceNameAt(ctx, ws)
+		if err != nil {
+			return err
+		}
+		docksName, err := b.WorkspaceNameAt(ctx, docksWs)
+		if err != nil {
+			return err
+		}
+		return b.Trust(ctx, harborName, docksName, bus.DefaultLinkHops)
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -191,6 +204,9 @@ func TestExportWorkspaceWritesItsChatsGroupsAndTeams(t *testing.T) {
 	}
 	if m := e.Teams[0].Members; m[0].Chat.Key != "c2" || m[1].Chat.Key != "" || m[1].Chat.Workspace != "Docks" {
 		t.Fatalf("team members: %+v", m)
+	}
+	if len(e.Links) != 1 || e.Links[0].A == "" || e.Links[0].B == "" {
+		t.Fatalf("the trusted link was not recorded: %+v", e.Links)
 	}
 	identity, err := workspaces.ExporterIdentity(configDir())
 	if err != nil || e.Exporter == "" || e.Exporter != identity {

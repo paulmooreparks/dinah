@@ -1146,7 +1146,7 @@
           chatControllers.delete(oldKey); chatControllers.set(key, controller); next.view = controller;
           if (root.closest('[data-win]')) window.dinahWorkbench.rekey(oldKey, item);
           $('logs').replaceChildren(next.log); next.log.hidden = false;
-          providerSwitchRow(next, move.note);
+          if (move.note) providerSwitchRow(next, move.note);
           earlyRows.forEach(function (row) { next.log.appendChild(row); });
           selectChat(next.id); controller.refresh(); loadSkills();
           refreshSessions();
@@ -1420,6 +1420,7 @@
       var t = !s ? 'Start a new chat, or open one from the list.'
         : s.loading ? 'Reopening the session and its history…'
         : s.failed ? agentName() + ' could not open this session.'
+        : s.moved && !s.info.open ? 'This chat moved here from another computer. Send a message to carry it on here.'
         : s.stopping ? 'Stop was asked for. ' + agentName() + ' is finishing what it is doing.'
         : waitingApproval(s.id) ? 'Waiting for your approval.'
         : s.info.switch && s.info.switch.stage ? 'Switching to ' + switchTargetName(s.info.switch) + '. ' + (s.info.switch.label || '')
@@ -1594,7 +1595,7 @@
       historyWarning.hidden = !(s && s.historyWarning);
       historyWarning.textContent = s && s.historyWarning || '';
       var saved = $('saved-note');
-      saved.hidden = !(s && s.saved && !s.info.open && !s.loading && !s.failed);
+      saved.hidden = !(s && s.saved && !s.info.open && !s.loading && !s.failed && !s.moved);
       if (!saved.hidden) $('saved-note-body').textContent = agentName() + ' reconnects by itself in a moment, or at once when you send a message, and then shows its thoughts and the details of its tools too.';
       var note = $('session-note');
       note.hidden = !(s && s.failed && !s.loading);
@@ -2860,8 +2861,28 @@
       if (s && s.holding) return new Promise(function (resolve) {
         (function wait() { if (s.info.open || !s.holding) resolve(s); else setTimeout(wait, 50); })();
       });
+      if (s && s.moved && !s.moved.providerMissing && !s.info.open) return continueMoved(s);
       if (s && !s.info.open) return openSession(active);
       return newSession();
+    }
+    /* continueMoved continues a chat moved here from another computer as
+       its first message here is sent: a new session with its provider and
+       model, briefed from its saved history, takes its place in this window
+       as a switch's does (applyContinuation). The history already shows the
+       line saying the chat moved, so no line is added, and nothing moves. */
+    async function continueMoved(before) {
+      if (!app().ContinueMovedChat) return null;
+      switchingProvider = true; renderComposerOptions(); typed();
+      try {
+        var result = await app().ContinueMovedChat(before.id);
+        if (deleted || active !== before.id) return null;
+        before.moved = null;
+        await applyContinuation(before, { result: result, provider: (result.session && result.session.provider) || sessionProvider(before), recovery: true, note: '' });
+        return sessions[active];
+      } finally {
+        switchingProvider = false;
+        if (!deleted) { renderComposerOptions(); typed(); }
+      }
     }
 
     function restoreSubmission(keep) {

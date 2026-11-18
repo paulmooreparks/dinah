@@ -509,8 +509,41 @@ func (x *workspaceChats) writeArchive(ctx context.Context, w io.Writer, b *bus.B
 			}
 			export.Teams = append(export.Teams, item)
 		}
+		if export.Links, err = x.links(ctx, b, chats); err != nil {
+			return err
+		}
 	}
 	return archive.Finish(export)
+}
+
+// links are the trusted links of the workspaces the bus knows the main
+// folder and the exported chats' folders by, which an import lists as not
+// imported.
+func (x *workspaceChats) links(ctx context.Context, b *bus.Bus, chats []*exportChat) ([]workspaces.ExportLink, error) {
+	names, folders := map[string]bool{}, []string{x.main}
+	for _, chat := range chats {
+		folders = append(folders, chat.folder)
+	}
+	for _, folder := range folders {
+		name, err := b.WorkspaceNameAt(ctx, folder)
+		if err != nil {
+			return nil, err
+		}
+		if name != "" {
+			names[name] = true
+		}
+	}
+	all, err := b.Links(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []workspaces.ExportLink
+	for _, link := range all {
+		if names[link.A] || names[link.B] {
+			out = append(out, workspaces.ExportLink{A: link.A, B: link.B})
+		}
+	}
+	return out, nil
 }
 
 // groupMessages reads a group's conversation for the archive, with the

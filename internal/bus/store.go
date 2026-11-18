@@ -280,6 +280,12 @@ INSERT OR IGNORE INTO decision_start
 CREATE INDEX IF NOT EXISTS deliveries_decision_message ON deliveries(message_id,recipient_kind);
 CREATE INDEX IF NOT EXISTS messages_person_group ON messages(room,id) WHERE from_session='' AND from_name='paul';
 CREATE INDEX IF NOT EXISTS person_requests_open ON person_requests(closed,message_id);
+CREATE TABLE IF NOT EXISTS message_origins (
+	message_id INTEGER PRIMARY KEY,
+	exporter   TEXT NOT NULL,
+	origin     INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS message_origins_source ON message_origins (exporter, origin);
 `
 
 // HostedVar is set in the environment of the agents Dinah's window runs.

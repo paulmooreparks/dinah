@@ -167,7 +167,12 @@ func TranscriptHistory(stateDir func() string, id, workspace string, seen map[st
 		return nil, errors.New("chat continuation cannot cross workspaces")
 	}
 	history := []ConversationMessage{}
-	if tr.ParentSessionID != "" {
+	if StagesElsewhere(tr) {
+		// A chat moved here from another computer has no earlier stages on this
+		// one; the copy of them it keeps is its earlier history
+		// (docs/design/workspace-export.md).
+		history = append(history, tr.ParentHistory...)
+	} else if tr.ParentSessionID != "" {
 		// A chat moved to another workspace records where it came from, so the link
 		// to the chat it continues is one that was chosen and not an accident.
 		parentWorkspace := workspace
@@ -185,6 +190,16 @@ func TranscriptHistory(stateDir func() string, id, workspace string, seen map[st
 		}
 	}
 	return captureHandoffHistory(append(history, tr.Messages...), tr.Unsupported, tr.Provider, tr.SessionID), nil
+}
+
+// StagesElsewhere reports whether a chat's earlier stages are on another
+// computer: a workspace import moved the chat here and marked its saved copy
+// so, and the copy keeps its own record of their history, which then stands
+// in for the earlier stages that cannot be read here. A chat whose earlier
+// stage is merely missing from this computer is not such a chat; its history
+// is unreadable, as before.
+func StagesElsewhere(tr *Transcript) bool {
+	return tr != nil && tr.StagesElsewhere && tr.ParentSessionID != "" && tr.ParentHistory != nil
 }
 
 func SavedSummary(stateDir func() string, id string) string {

@@ -36,7 +36,22 @@ func (a *App) RecoverSessionModel(id, provider, revision, model string) (Session
 		return SessionContinuationResult{}, errors.New("the recovery destination or history changed; review it again")
 	}
 	result, err := a.continuations().RecoverModel(id, provider, p.Revision, model)
-	return a.finishRecovered(id, result, err)
+	return a.finishRecovered(id, result, err, true)
+}
+
+// recoverSessionModelQuietly is RecoverSessionModel without the message that
+// starts the recovered chat, for a chat whose next message is the person's
+// own, such as a chat moved here from another computer (moved_chats.go).
+func (a *App) recoverSessionModelQuietly(id, provider, revision, model string) (SessionContinuationResult, error) {
+	p, err := a.PreviewSessionRecovery(id, provider)
+	if err != nil {
+		return SessionContinuationResult{}, err
+	}
+	if revision != recoveryChoiceRevision(p.Revision, model) {
+		return SessionContinuationResult{}, errors.New("the recovery destination or history changed; review it again")
+	}
+	result, err := a.continuations().RecoverModel(id, provider, p.Revision, model)
+	return a.finishRecovered(id, result, err, false)
 }
 
 // PreviewSessionRecovery reads only local records, even when the original
@@ -51,15 +66,20 @@ func (a *App) PreviewSessionRecovery(id, provider string) (SessionContinuationPr
 
 func (a *App) RecoverSession(id, provider, revision string) (SessionContinuationResult, error) {
 	result, err := a.continuations().Recover(id, provider, revision)
-	return a.finishRecovered(id, result, err)
+	return a.finishRecovered(id, result, err, true)
 }
 
-func (a *App) finishRecovered(id string, result SessionContinuationResult, err error) (SessionContinuationResult, error) {
+// finishRecovered ends a recovery. With prompt, the recovered chat is started
+// at once; without it, the handoff waits for the person's next message, which
+// the caller is about to send.
+func (a *App) finishRecovered(id string, result SessionContinuationResult, err error, prompt bool) (SessionContinuationResult, error) {
 	if err == nil {
 		// Recovery starts the saved conversation immediately. Waiting for the
 		// person's next message would leave another untouched allocation.
-		if sendErr := a.Send(result.Session.ID, "Continue the saved conversation and resume the user's pending task. Preserve its decisions and verify unfinished work before proceeding.", nil, nil); sendErr != nil {
-			return result, sendErr
+		if prompt {
+			if sendErr := a.Send(result.Session.ID, "Continue the saved conversation and resume the user's pending task. Preserve its decisions and verify unfinished work before proceeding.", nil, nil); sendErr != nil {
+				return result, sendErr
+			}
 		}
 		if s := a.session(result.Session.ID); s != nil {
 			result.Session = s.InfoVersioned()

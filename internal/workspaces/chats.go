@@ -137,6 +137,32 @@ type GroupAttachment struct {
 	Extra  map[string]json.RawMessage `json:"-"`
 }
 
+// ExportLink is a trusted link between two workspaces, by the names the
+// exporting computer's bus knew them by. An import lists it as not
+// imported, since a file must not be able to grant agents that trust.
+type ExportLink struct {
+	A     string                     `json:"a"`
+	B     string                     `json:"b"`
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+func (l ExportLink) MarshalJSON() ([]byte, error) {
+	type plain ExportLink
+	return marshalWithExtra(plain(l), l.Extra)
+}
+
+func (l *ExportLink) UnmarshalJSON(data []byte) error {
+	type plain ExportLink
+	var p plain
+	extra, err := unmarshalWithExtra(data, &p)
+	if err != nil {
+		return err
+	}
+	*l = ExportLink(p)
+	l.Extra = extra
+	return nil
+}
+
 func (c ExportChat) MarshalJSON() ([]byte, error) {
 	type plain ExportChat
 	return marshalWithExtra(plain(c), c.Extra)
@@ -411,6 +437,16 @@ func checkChats(out *Export) (map[string]bool, error) {
 			if strings.TrimSpace(allowance.Provider) == "" || strings.TrimSpace(allowance.Unit) == "" || allowance.Allowance < 0 {
 				return nil, errors.New("the workspace export has a team budget that cannot be read")
 			}
+		}
+	}
+	if len(out.Links) > MaxExportTeams {
+		return nil, errors.New("the workspace export lists more trusted links than can be read")
+	}
+	for i := range out.Links {
+		link := &out.Links[i]
+		link.A, link.B = strings.TrimSpace(link.A), strings.TrimSpace(link.B)
+		if link.A == "" || link.B == "" {
+			return nil, errors.New("the workspace export lists a trusted link without its workspaces")
 		}
 	}
 	keys := make(map[string]bool, len(byKey))

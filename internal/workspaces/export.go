@@ -54,6 +54,9 @@ type Export struct {
 	Chats  []ExportChat  `json:"chats,omitempty"`
 	Groups []ExportGroup `json:"groups,omitempty"`
 	Teams  []ExportTeam  `json:"teams,omitempty"`
+	// Links are the trusted links the exporting computer had for the
+	// workspace's folders, which an import never makes and only lists.
+	Links []ExportLink `json:"links,omitempty"`
 }
 
 // ExportSource is a source in an export. Key tells the sources of one
