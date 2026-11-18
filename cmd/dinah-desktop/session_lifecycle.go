@@ -29,15 +29,7 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 			NormalizeProvider: normalizedProvider, PrepareApplets: prepareProviderApplets, Live: func(provider string) (agentConnection, acp.InitializeResult, error) {
 				return a.lifecycle().Live(provider)
 			},
-			Defaults: func(provider string) map[string]json.RawMessage {
-				a.mu.Lock()
-				defer a.mu.Unlock()
-				defaults := copyPreferenceValues(a.settings.Defaults)
-				if providers.For(provider).OwnPreferences {
-					defaults = copyPreferenceValues(a.settings.ProviderDefaults[provider])
-				}
-				return withNewChatOptions(defaults, providers.For(provider).NewChatOptions)
-			},
+			Defaults: a.newChatDefaults,
 			SavedOptions: func(id string) (map[string]json.RawMessage, string) {
 				a.mu.Lock()
 				defer a.mu.Unlock()
@@ -74,6 +66,19 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 		})
 	})
 	return a.sessionsService
+}
+
+// newChatDefaults are the settings a new chat of a provider is given as it is
+// made: the person's saved defaults, then the provider row's own
+// (docs/design/new-chat-options.md).
+func (a *App) newChatDefaults(provider string) map[string]json.RawMessage {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	defaults := copyPreferenceValues(a.settings.Defaults)
+	if providers.For(provider).OwnPreferences {
+		defaults = copyPreferenceValues(a.settings.ProviderDefaults[provider])
+	}
+	return withNewChatOptions(defaults, providers.For(provider).NewChatOptions)
 }
 
 // withNewChatOptions adds the provider's own settings for a new chat to the

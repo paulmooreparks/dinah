@@ -25,7 +25,7 @@ func TestSkillRunStartsAChatWithItsInstructions(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.settings.WorkspaceRecords = []WorkspaceRecord{newWorkspaceRecord(ws)}
-	items := a.SkillCatalog().Skills
+	items := withoutBuiltinSkills(a.SkillCatalog()).Skills
 	if len(items) != 1 {
 		t.Fatalf("%+v", items)
 	}

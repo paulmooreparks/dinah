@@ -118,6 +118,9 @@ func (a *App) providerSkillPrompt(s *Session, text string) (string, error) {
 		}
 		selected = &skill
 	}
+	if selected != nil && selected.Scope == builtinSkillScope {
+		return agents.SkillPrompt(name, text, selected.builtinText), nil
+	}
 	if selected != nil {
 		read, err := (workspaceVFS{service: a.resourceService(), allowedWorkspace: selected.WorkspaceID}).readResource(*selected.Ref)
 		if err != nil {

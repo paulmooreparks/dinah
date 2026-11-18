@@ -37,6 +37,8 @@ type CatalogSkill struct {
 	Ref             *ResourceRef `json:"ref,omitempty"`
 	Revision        string       `json:"revision"`
 	InstructionPath string       `json:"-"`
+	// builtinText is a built-in skill's instructions (builtin_skills.go).
+	builtinText string
 }
 type SkillCatalog struct {
 	Skills   []CatalogSkill `json:"skills"`
@@ -110,6 +112,7 @@ func (a *App) skillCatalog(workspaceID string, personal bool) SkillCatalog {
 		id := "command-" + base64.RawURLEncoding.EncodeToString([]byte(command.Source+"\x00"+command.Name))
 		result.Skills = append(result.Skills, CatalogSkill{Skill: command, ID: id, Scope: "provider", Origin: "Devin Commands"})
 	}
+	result.Skills = append(result.Skills, builtinSkills()...)
 	sort.Slice(result.Skills, func(i, j int) bool {
 		x, y := result.Skills[i], result.Skills[j]
 		if x.Name == y.Name {
@@ -144,6 +147,9 @@ func (a *App) ReadSkill(id string) (SkillPackage, error) {
 			continue
 		}
 		if skill.Ref == nil {
+			if skill.Scope == builtinSkillScope {
+				return SkillPackage{Skill: skill, Text: skill.builtinText}, nil
+			}
 			if skill.InstructionPath != "" {
 				text, err := readAgentSkill(skill.InstructionPath)
 				sum := sha256.Sum256([]byte(text))
@@ -175,6 +181,9 @@ func (a *App) PrepareSkill(id, revision, workspace, command string) (string, err
 	}
 	if pack.Skill.InstructionPath != "" {
 		return agentSkillPrompt(pack, command), nil
+	}
+	if pack.Skill.Scope == builtinSkillScope {
+		return builtinSkillPrompt(pack, command), nil
 	}
 	if pack.Skill.Ref == nil {
 		return command, nil

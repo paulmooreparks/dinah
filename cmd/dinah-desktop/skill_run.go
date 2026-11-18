@@ -40,6 +40,9 @@ func (a *App) StartSkill(id, revision, workspace, provider, model, command strin
 	if err != nil {
 		return SkillChat{}, err
 	}
+	if pack.Skill.Ref == nil && pack.Skill.Scope == builtinSkillScope {
+		return SkillChat{}, errors.New("a built-in skill is used in a chat that already has its work, such as a lead with its team")
+	}
 	if pack.Skill.Ref == nil {
 		return SkillChat{}, errors.New("provider commands must be used in a compatible chat")
 	}

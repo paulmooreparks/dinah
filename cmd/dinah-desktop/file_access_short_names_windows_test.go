@@ -55,7 +55,7 @@ func TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState(t *testing.T)
 	a.settings.WorkspaceRecords = []WorkspaceRecord{{ID: "short-workspace", Name: "Short-name workspace", ExecutionPath: workspace, Sources: []WorkspaceSource{{ID: "source", Kind: "local-folder", Name: "Files", Path: workspace}}}}
 	ctx := builtinTestContext(workspace)
 	t.Run("catalogue", func(t *testing.T) {
-		catalog := a.skillCatalog("short-workspace", false)
+		catalog := withoutBuiltinSkills(a.skillCatalog("short-workspace", false))
 		if len(catalog.Skills) != 1 {
 			t.Fatalf("short-name catalogue: %+v", catalog)
 		}

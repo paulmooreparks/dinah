@@ -31,6 +31,7 @@
     if (skill.scope==='personal') return { key:'personal', title:'My Agent Skills', location:skill.location };
     if (skill.scope==='provider') return { key:'provider', title:ownCommandsTitle(), location:'Commands ' + ownCommandsName() + ' offers in a chat' };
     if (skill.scope==='mine') return { key:'mine', title:'My Skills', location:skill.location };
+    if (skill.scope==='builtin') return { key:'builtin', title:skill.origin, location:skill.location };
     return { key:'workspace:'+skill.workspaceId+':'+skill.location, title:skill.origin.split(' / ')[0], location:skill.location };
   }
   dinahWorkbench.register('skills-browser', { applet: { id: 'dinah.skills', title: 'Skills', glyph: 'document', workspace: false }, singleton:true, title:'Skills', glyph:'document', mode:'dock-left', init:function (root,opts) {

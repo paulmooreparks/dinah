@@ -137,7 +137,14 @@ func (c *testProviderConnection) Call(_ context.Context, method string, params a
 	case "session/set_config_option":
 		p := params.(acp.SetConfigOptionParams)
 		options := append([]acp.ConfigOption(nil), c.options...)
-		options[0].CurrentValue, _ = json.Marshal(p.Value)
+		// The setting asked for changes; the first is changed for an ID the agent does not list, as before.
+		changed := 0
+		for i, o := range options {
+			if o.ID == p.ConfigID {
+				changed = i
+			}
+		}
+		options[changed].CurrentValue, _ = json.Marshal(p.Value)
 		c.options = options
 		*result.(*acp.ConfigOptionsResult) = acp.ConfigOptionsResult{ConfigOptions: options}
 	case "session/prompt":

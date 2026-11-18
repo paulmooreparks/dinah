@@ -34,7 +34,7 @@ func TestSkillCatalogScopesIdentityAndRevision(t *testing.T) {
 	a := service.app
 	a.settings.WorkspaceRecords[0].ExecutionPath = root
 	a.settings.WorkspaceRecords = append(a.settings.WorkspaceRecords, WorkspaceRecord{ID: "other", Name: "Other", ExecutionPath: other, Sources: []WorkspaceSource{{ID: "other-source", Kind: "local-folder", Name: "Files", Path: other}}})
-	catalog := a.SkillCatalog()
+	catalog := withoutBuiltinSkills(a.SkillCatalog())
 	if len(catalog.Problems) > 0 || len(catalog.Skills) != 3 {
 		t.Fatalf("catalog: %+v", catalog)
 	}
@@ -49,7 +49,7 @@ func TestSkillCatalogScopesIdentityAndRevision(t *testing.T) {
 			selected = skill
 		}
 	}
-	scoped := a.skillCatalog("resource-workspace", false)
+	scoped := withoutBuiltinSkills(a.skillCatalog("resource-workspace", false))
 	if len(scoped.Skills) != 1 || scoped.Skills[0].ID != selected.ID {
 		t.Fatalf("scope leak: %+v", scoped)
 	}
@@ -119,7 +119,7 @@ func TestSkillCatalogRejectsPackageSymlink(t *testing.T) {
 		t.Skip("symlinks unavailable", err)
 	}
 	service, _ := resourceTestService(t, WorkspaceSource{ID: "source", Kind: "local-folder", Name: "Files", Path: root})
-	if got := service.app.skillCatalog("resource-workspace", false); len(got.Skills) != 0 {
+	if got := withoutBuiltinSkills(service.app.skillCatalog("resource-workspace", false)); len(got.Skills) != 0 {
 		t.Fatalf("symlink was cataloged: %+v", got)
 	}
 }

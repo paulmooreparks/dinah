@@ -75,6 +75,14 @@ const { press } = require('./lib/commands');
     ok('skills are grouped by the collection they come from, mine first and commands last',await catalog.locator('.browser-group-title').allTextContents().then(v=>v.join(',')==='My Skills,Alpha,Beta,Devin Commands'));
     ok('each group says where its collection is stored',await catalog.locator('.browser-group').filter({hasText:'Alpha'}).locator('.browser-group-where').textContent()==='C:/Alpha/.devin/skills');
     ok('a skill in several collections says in how many',await catalog.locator('.browser-row[data-skill-id=personal] .browser-row-badge').textContent()==='In 3 Places' && await catalog.locator('.browser-row[data-skill-id=command] .browser-row-badge').count()===0);
+    // A skill built into the program is a group of its own that says so, and is read only. It is added for these checks
+    // alone and taken away again.
+    await page.evaluate(()=>{__skills.push({id:'builtin-skill-duplicate-a-team',name:'duplicate-a-team',description:'Duplicate a Team.',hint:'',source:'builtin',scope:'builtin',origin:'Built-in Skills',location:'Part of the program',workspace:'',revision:'b1'});return dinahSkills.refresh();});
+    await catalog.locator('.browser-row[data-skill-id=builtin-skill-duplicate-a-team]').waitFor();
+    const builtinGroup=catalog.locator('.browser-group').filter({has:page.locator('.browser-row[data-skill-id=builtin-skill-duplicate-a-team]')});
+    ok('a built-in skill is grouped under Built-in Skills, which says where it comes from',await builtinGroup.locator('.browser-group-title').textContent()==='Built-in Skills' && await builtinGroup.locator('.browser-group-where').textContent()==='Part of the program' && await builtinGroup.locator('.browser-row').count()===1);
+    await page.evaluate(()=>{__skills.splice(__skills.findIndex(s=>s.scope==='builtin'),1);return dinahSkills.refresh();});
+    await page.waitForFunction(()=>!document.querySelector('[data-win-kind="skills-browser"] .browser-row[data-skill-id=builtin-skill-duplicate-a-team]'));
     await catalog.getByLabel('Skill Scope').selectOption('current');
     await page.waitForFunction(()=>document.querySelectorAll('[data-win-kind="skills-browser"] .browser-row').length===1);
     ok('current workspace filter excludes other collections',await catalog.locator('.browser-row[data-skill-id=workspace]').count()===1);
