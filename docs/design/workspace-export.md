@@ -12,7 +12,9 @@ An export is the workspace's structure and nothing of its content. It is one JSO
 - the pins of resources, kept by the source they belong to and the path within it;
 - for each local folder, the folders inside it, without their files, so that the other computer can show and make the same folders.
 
-It leaves out everything that belongs to the computer or the person. Workspace and source IDs are made afresh by the importing computer. Credentials, chats and chat pins are left out too, since a chat is kept by the agent on the computer it ran on, and so are drafts and the window layout. The workspace's skills are in its main folder's `.devin` folder, so they reach the other computer with the folder itself.
+It leaves out everything that belongs to the computer or the person. Workspace and source IDs are made afresh by the importing computer. Credentials are left out, and so are drafts and the window layout. The workspace's skills are in its main folder's `.devin` folder, so they reach the other computer with the folder itself.
+
+Until November 2026 an export also left out the workspace's chats. Paul decided on 18 November 2026 that a workspace export takes its chats, their history and the groups and teams they belong to, as described under "Chats, Their History and Their Groups" below.
 
 The file's format is a compatibility contract. It has a `format` number, which is 1, fields are only ever added, and a reader ignores fields it does not know. Within a source or a pin, Dinah keeps the fields it does not know rather than ignoring them, as described under "Kinds This Build Does Not Know".
 
@@ -54,6 +56,80 @@ Another build's exports may hold kinds of source and pin that Dinah does not hav
 A local folder is built in and cannot be registered.
 
 A source or pin of a kind nobody registered is kept. The registry's `Source` and `Pin`, and the export's `ExportSource` and `ExportPin`, keep the JSON fields they do not know in `Extra` and write them back unchanged, so the registry in `settings.json` keeps the shape another build wrote, and an export of an imported workspace writes such a source or pin exactly as it came. The import window shows such a source as Kept, Not Checked, says how many pins are of kinds Dinah does not use, and offers nothing else for them. In the Sources tree the source is dimmed, with a Not Available Here badge, and its only command is Remove from Workspace…; the Pinned group leaves such a pin out without removing it from the record.
+
+## Chats, Their History and Their Groups
+
+This section is the design of 18 November 2026 and has not been built. Paul asked to move chats, their history and their hierarchy to another computer, and decided that it is part of workspace export and import. He accepted that a moved chat continues from its saved history rather than from the agent's own session, for the reason given under "Continuing a Moved Chat".
+
+### The Export File Becomes an Archive
+
+A workspace with its chats can run to hundreds of megabytes, which one JSON document cannot hold sensibly. From this design on, an export is a zip archive (Go's `archive/zip`) with the same file extension. Its `workspace.json` entry is the format 1 document described above, with the fields `chats`, `groups` and `teams` added, and the chats' histories and group conversations are entries of their own beside it. A reader tells the two apart by the zip signature at the start of the file and still reads a bare JSON export written by an earlier build. An earlier build cannot read an archive and says the file is not a workspace export.
+
+### Which Chats Go
+
+The export takes every chat listed in the workspace, open or closed, including hidden ones. It never takes a chat in the Recycle Bin. The export window lists the chats with every one ticked, and the person can untick any of them.
+
+### What Each Chat Takes
+
+A chat is recorded in `workspace.json` with a key (`c1`, `c2`…) that groups, teams and chat pins refer to. Its record holds:
+
+- the logical chat ID and the IDs of its stages, oldest first, so that the chat keeps its identity on the other computer;
+- its provider and its options, including the model;
+- its titles, both the one the person gave and the one Dinah judged;
+- whether it is hidden;
+- its folder, relative to the workspace's main folder;
+- its chat pins.
+
+Its history is the newest stage's saved transcript, in the entry `chats/<key>.json`. That one file already contains the whole visible conversation, because each stage's transcript keeps a copy of the stages before it, so the earlier stages' files are not exported. This keeps the archive to a fraction of what Dinah stores, since most of the stored size is those repeated copies. Pictures are inside the transcript and go with it. Files attached to a message were saved in the workspace folder, so they reach the other computer with the folder.
+
+The export leaves out what belongs to the computer or the running agent: the native session records and recovery attempts, the bus identity, queued messages, the composer draft, the full chat log (whose only extra is tool output beyond 16 KB), the journal of message times, prompt recall, and applet invocations.
+
+### Groups and Teams
+
+`groups` lists every group chat with at least one member among the exported chats, with its title, its lead, its turn budget, whether the person is a member, and every member. `teams` lists every lead and member pair in which either chat is exported, and the team budgets of exported leads.
+
+A member in another workspace is recorded by its logical chat ID, its title and its workspace's name. An import adds a member only when its chat is in the archive or is already on the computer. The others are shown as waiting for their workspace, and nothing is stored for them. Each workspace's export lists the whole group, so when the other workspace is imported later, its import adds the members that were waiting. Importing the workspaces in either order gives the same groups and teams.
+
+A group is matched by its title. An import adds its members to a group of the same title that is already on the computer, and otherwise makes the group. A group that already has a lead keeps it, and the window says so when the archive says otherwise. A team pair is added when both chats are on the computer.
+
+The group conversations go too, in `groups/<key>.jsonl`, with the files attached to them. The importing bus gives each message a new ID and records where it came from: a random identity of the exporting Dinah, kept in its settings and made on its first export, and the message's ID there. A second import that brings the same message again, such as the other workspace's export of the same group, skips it. A chat's transcript refers to the bus messages it received and sent, and the import rewrites those references to the new IDs. A reference to a message that did not travel keeps its text and loses its link.
+
+Trusted links are not imported. A trusted link lets agents act on each other's requests as on the person's, and a file should not be able to grant that. The import window lists the links the exporting computer had, so the person can add them again.
+
+### Paths
+
+A chat finds its workspace by its folder's absolute path, which is usually different on the other computer. The import therefore rewrites the paths in each transcript, `workspace` and `parentWorkspace`, from the exporting computer's main folder to the importing computer's, keeping the chat's folder relative to it. It records the chats only once the main folder has been settled, as it already does for the workspace.
+
+### Continuing a Moved Chat
+
+The agent's own session, the part Claude or Codex keeps, stays on the computer it ran on. Neither provider documents a way to move it, so Dinah does not try.
+
+An imported chat is recorded as moved here, with its saved history and its stages, and with no native session. Dinah never asks the provider to load a moved chat. When the person opens it, it shows the saved history. The person's next message starts a new session with the chat's provider and model, and that session receives the handoff built from the saved history. This is the same continuation that Dinah uses when a chat changes provider. The new session becomes the chat's next stage, so the chat keeps its logical ID and its place in every group and team. When the chat's provider is not on this computer, the chat opens on its saved history and asks the person to choose another provider, as it does today when a provider is missing.
+
+### A Chat That Is Already Here
+
+A chat is matched by its logical chat ID, and its stages decide what happens:
+
+- When the archive's stages are the ones on this computer, or older, the chat is already up to date and is left as it is.
+- When the archive's stages continue from this computer's newest stage, the chat has been worked on elsewhere and the import updates it. This is the round trip of a chat moved to a laptop and back. An open chat must be closed before it can be updated, and the window says so.
+- When both computers have stages the other lacks, the chat changed on both. The import leaves this computer's chat as it is. The window offers Import as a Separate Chat, which gives the archive's chat new IDs and adds "(Imported)" to its title.
+
+### The Windows
+
+Export Workspace… opens a window before the file is saved. It shows the workspace's sources, and a list of its chats, each with its title, provider and model, and the size of its history, every one ticked. Below the list it says how many groups and team pairs go with them and how many of their members are in other workspaces. The window warns that the file contains the chats' whole conversations and should be kept as private as the chats are. Export… then asks where to save the file.
+
+The import window gains two sections below the sources. Chats lists each chat with one of these marks: New, Already Up to Date, Updated From the Other Computer, Changed on Both Computers (with Import as a Separate Chat), or Close It to Update It. A chat whose provider is not on this computer also says so. Groups and Teams lists each group as New Group or Joins the Existing Group, with how many members are here and how many wait for another workspace, and then the team pairs. The trusted links that were not imported are listed last.
+
+`dinah workspace export` writes the archive too, with its chats, and gains `--no-chats` to leave them out.
+
+### Questions for Paul
+
+1. The archive is not encrypted. I recommend leaving it so for now, since it is the person's file to keep where they keep the chats. A passphrase could be added later as an archive entry that changes no other part of the format.
+2. A chat changed on both computers is left alone unless the person ticks Import as a Separate Chat. I recommend that default, since it never loses work and never makes a duplicate unasked.
+
+### Before Building
+
+The Engine team has an unmerged design for durable logical chat records (`release/logical-chats-current`) that changes how a chat's identity and stages are stored. The import must write whichever records master has when this is built, and the format above refers only to logical chat IDs and stage IDs, which both models have.
 
 ## What the Person Sees
 

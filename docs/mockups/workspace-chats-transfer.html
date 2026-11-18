@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moving Chats With a Workspace: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* Only the frame around the examples is styled here. The windows use the
+       shipped dialog and import classes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .btn[aria-pressed="true"] { font-weight: 700; }
+    .mock-stage { padding: var(--space-5); display: flex; justify-content: center; }
+    .mock-stage dialog.dialog { position: static; margin: 0; width: min(40rem, 100%); max-height: none; }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-notes { margin: 0 auto var(--space-5); padding: 0 var(--space-5); max-width: 44rem; font-size: var(--text-sm); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+    .mock-section { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: 700; }
+    .mock-total { font-variant-numeric: tabular-nums; }
+    .mock-size { margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+    .mock-chat { width: min(40rem, 100%); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+    .mock-chat-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+    .mock-chat-body { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); }
+    .mock-msg { max-width: 85%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-alt); }
+    .mock-msg.you { align-self: flex-end; }
+    .mock-msg small { display: block; color: var(--text-muted); font-size: var(--text-xs); margin-bottom: var(--space-1); }
+    .mock-moved { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+    .mock-composer { display: flex; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--border); }
+    .mock-composer textarea { flex: 1; min-height: 3rem; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Moving chats with a workspace</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 18 November 2026. Design in docs/design/workspace-export.md.</span>
+  </header>
+
+  <div class="mock-controls" role="group" aria-label="Which window">
+    <button type="button" class="btn btn-sm" data-view="export" aria-pressed="true">1. Export Workspace</button>
+    <button type="button" class="btn btn-sm" data-view="import-new" aria-pressed="false">2. Import on the Laptop</button>
+    <button type="button" class="btn btn-sm" data-view="import-back" aria-pressed="false">3. Import Back on the Desktop</button>
+    <button type="button" class="btn btn-sm" data-view="opened" aria-pressed="false">4. Opening a Moved Chat</button>
+  </div>
+  <p class="mock-said" id="mock-said" role="status"></p>
+
+  <div class="mock-stage" id="mock-stage"></div>
+
+  <ul class="mock-notes" id="mock-notes"></ul>
+
+<script>
+(function () {
+  var stage = document.getElementById('mock-stage');
+  var said = document.getElementById('mock-said');
+  var notes = document.getElementById('mock-notes');
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function glyph(name) {
+    var g = el('span', 'glyph');
+    g.setAttribute('aria-hidden', 'true');
+    g.style.setProperty('--glyph', 'var(--glyph-' + name + ')');
+    return g;
+  }
+  function badge(text, tone) { return el('span', 'badge' + (tone ? ' ' + tone : ''), text); }
+  function say(text) { said.textContent = text; }
+  function setNotes(list) {
+    notes.replaceChildren();
+    list.forEach(function (t) { notes.appendChild(el('li', null, t)); });
+  }
+  function dialog(title) {
+    var d = el('dialog', 'dialog import-dialog');
+    d.setAttribute('open', '');
+    d.appendChild(el('h2', 'dialog-title', title));
+    var body = d.appendChild(el('div', 'dialog-body vstack gap-3'));
+    var actions = el('div', 'dialog-actions');
+    return { d: d, body: body, actions: actions, finish: function () { d.appendChild(actions); stage.replaceChildren(d); } };
+  }
+  function button(text, primary, onClick) {
+    var b = el('button', 'btn' + (primary ? ' btn-primary' : ''), text);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function row(list, glyphName, name, marks) {
+    var li = list.appendChild(el('li', 'import-source'));
+    var head = li.appendChild(el('div', 'import-source-head'));
+    head.appendChild(glyph(glyphName));
+    head.appendChild(el('strong', 'import-source-name', name));
+    (marks || []).forEach(function (m) { head.appendChild(badge(m[0], m[1])); });
+    return { li: li, head: head };
+  }
+  function help(parent, text) { return parent.appendChild(el('p', 'form-help', text)); }
+
+  var chats = [
+    { key: 'c1', title: 'Harbor Lead', program: 'Claude', model: 'Opus 5.5', mb: 41.2, lead: true },
+    { key: 'c2', title: 'Checkout Review', program: 'Codex', model: 'GPT-5.4', mb: 12.8 },
+    { key: 'c3', title: 'Keyboard Research', program: 'Claude', model: 'Sonnet 5.5', mb: 23.5 },
+    { key: 'c4', title: 'Harbor Builder', program: 'Devin', model: 'Adaptive', mb: 66.0 },
+    { key: 'c5', title: 'Release Notes', program: 'Claude', model: 'Haiku 5.5', mb: 3.1, closed: true }
+  ];
+  var ticked = { c1: true, c2: true, c3: true, c4: true, c5: true };
+
+  function exportView() {
+    var w = dialog('Export Workspace');
+    w.body.appendChild(el('p', null, 'This saves the workspace "Harbor" to a file that Import Workspace… reads on another computer.'));
+    w.body.appendChild(el('p', 'form-help', '2 sources and 4 pins go with it: the main folder Harbor and the folder Shared Notes.'));
+    w.body.appendChild(el('h3', 'mock-section', 'Chats'));
+    var list = w.body.appendChild(el('ul', 'import-sources'));
+    list.setAttribute('aria-label', 'Chats');
+    var total = el('p', 'form-help mock-total');
+    var groups = el('p', 'form-help');
+    function redraw() {
+      var n = 0, mb = 0;
+      chats.forEach(function (c) { if (ticked[c.key]) { n++; mb += c.mb; } });
+      total.textContent = n + (n === 1 ? ' chat' : ' chats') + ' with ' + mb.toFixed(1) + ' MB of history.';
+      var members = ['c1', 'c2', 'c3', 'c4'].filter(function (k) { return ticked[k]; }).length;
+      groups.textContent = members ? 'The group Harbor Team goes with them, with its conversation: ' + members + (members === 1 ? ' member is' : ' members are') + ' in this workspace, and Docks Builder is in the workspace Docks. '
+        + (ticked.c1 ? 'Harbor Lead leads a team of ' + members + '.' : 'Harbor Lead stays behind, so its team does not go.')
+        : 'No group goes, because none of its members is ticked.';
+    }
+    chats.forEach(function (c) {
+      var r = row(list, 'comments', '', []);
+      r.head.replaceChildren();
+      var label = r.head.appendChild(el('label', 'check'));
+      var box = label.appendChild(el('input'));
+      box.type = 'checkbox'; box.checked = ticked[c.key];
+      label.appendChild(document.createTextNode(' '));
+      label.appendChild(el('strong', 'import-source-name', c.title));
+      if (c.closed) r.head.appendChild(badge('Closed'));
+      r.head.appendChild(el('span', 'mock-size', c.mb.toFixed(1) + ' MB'));
+      help(r.li, c.program + ' · ' + c.model);
+      box.addEventListener('change', function () {
+        ticked[c.key] = box.checked;
+        redraw();
+        say(box.checked ? c.title + ' goes with the workspace.' : c.title + ' stays on this computer.');
+      });
+    });
+    w.body.appendChild(total);
+    w.body.appendChild(groups);
+    w.body.appendChild(el('p', 'form-help', 'The file contains the chats\' whole conversations, including anything pasted into them. Keep it as private as the chats.'));
+    redraw();
+    w.actions.appendChild(button('Cancel', false, function () { say('Nothing was saved.'); }));
+    w.actions.appendChild(button('Export…', true, function () { say('Next, the save window asks where to put Harbor.dinah-workspace, suggesting the main folder.'); }));
+    w.finish();
+    setNotes([
+      'Export Workspace… opens this window before the save window. Today it goes straight to the save window.',
+      'Every chat listed in the workspace is ticked, open or closed. Chats in the Recycle Bin are never listed.',
+      'The size is the newest stage\'s saved history, which already contains the whole conversation.',
+      'Untick Harbor Lead to see what happens to its team and group.'
+    ]);
+  }
+
+  function importNewView() {
+    var w = dialog('Import Workspace');
+    w.body.appendChild(el('p', null, 'This makes the workspace "Harbor" with these sources and chats.'));
+    var src = w.body.appendChild(el('ul', 'import-sources'));
+    var s = row(src, 'folder', 'Harbor', [['Main Folder'], ['Found', 'positive']]);
+    s.li.appendChild(el('p', 'form-help import-source-where', 'C:\\Users\\sam\\OneDrive\\Harbor'));
+    w.body.appendChild(el('h3', 'mock-section', 'Chats'));
+    var list = w.body.appendChild(el('ul', 'import-sources'));
+    chats.forEach(function (c) {
+      var r = row(list, 'comments', c.title, [['New', 'accent']]);
+      help(r.li, c.program + ' · ' + c.model);
+      if (c.program === 'Codex') help(r.li, 'Codex is not on this computer. The chat opens on its saved history and asks which program continues it.');
+    });
+    w.body.appendChild(el('h3', 'mock-section', 'Groups and Teams'));
+    var gl = w.body.appendChild(el('ul', 'import-sources'));
+    var g = row(gl, 'comments', 'Harbor Team', [['New Group', 'accent']]);
+    help(g.li, '4 members are in this file. Docks Builder waits for the workspace Docks; importing Docks adds it.');
+    help(g.li, 'Its conversation comes too: 312 messages.');
+    var t = row(gl, 'branch', 'Harbor Lead\'s team', [['New Team', 'accent']]);
+    help(t.li, 'Checkout Review, Keyboard Research and Harbor Builder report to Harbor Lead.');
+    w.body.appendChild(el('p', 'form-help', 'Not imported: the trusted link between Harbor and Docks. A file cannot grant agents that trust; add it again in Settings if you want it.'));
+    w.actions.appendChild(button('Cancel', false, function () { say('Nothing was imported.'); }));
+    w.actions.appendChild(button('Import', true, function () { say('Imported the workspace "Harbor" with 5 chats and 1 group.'); }));
+    w.finish();
+    setNotes([
+      'The sources part is today\'s import window. The Chats and Groups and Teams parts are new.',
+      'A chat\'s folder is rewritten from the old computer\'s main folder to this one, so it does not matter that the path differs.',
+      'Import the workspaces in either order: each export lists the whole group, so the second import adds the members that were waiting.'
+    ]);
+  }
+
+  function importBackView() {
+    var w = dialog('Import Workspace');
+    w.body.appendChild(el('p', null, '"Harbor" already works in this main folder, so the import adds what it does not have and updates chats worked on elsewhere.'));
+    w.body.appendChild(el('h3', 'mock-section', 'Chats'));
+    var list = w.body.appendChild(el('ul', 'import-sources'));
+    var a = row(list, 'comments', 'Harbor Lead', [['Updated From the Other Computer', 'positive']]);
+    help(a.li, 'It was continued on the other computer. Its newer history replaces this one\'s.');
+    var b = row(list, 'comments', 'Checkout Review', [['Already Up to Date']]);
+    help(b.li, 'Nothing changed on the other computer.');
+    var c = row(list, 'comments', 'Keyboard Research', [['Changed on Both Computers', 'warn']]);
+    help(c.li, 'Both computers have messages the other lacks. This computer\'s chat is left as it is.');
+    var controls = c.li.appendChild(el('div', 'hstack gap-3 align-center import-source-controls'));
+    var label = controls.appendChild(el('label', 'check'));
+    var box = label.appendChild(el('input'));
+    box.type = 'checkbox';
+    label.appendChild(document.createTextNode(' Import as a Separate Chat'));
+    var sep = help(c.li, '');
+    function drawSep() { sep.textContent = box.checked ? 'It is added as "Keyboard Research (Imported)", with its own place in the group.' : ''; sep.hidden = !box.checked; }
+    box.addEventListener('change', function () { drawSep(); say(box.checked ? 'The other computer\'s copy will be added beside this one.' : 'Only this computer\'s Keyboard Research is kept.'); });
+    drawSep();
+    var d = row(list, 'comments', 'Harbor Builder', [['Close It to Update It', 'warn']]);
+    help(d.li, 'It is open and working here. Close it and import again to take the other computer\'s history.');
+    var e = row(list, 'comments', 'Release Notes', [['Already Up to Date']]);
+    w.body.appendChild(el('h3', 'mock-section', 'Groups and Teams'));
+    var gl = w.body.appendChild(el('ul', 'import-sources'));
+    var g = row(gl, 'comments', 'Harbor Team', [['Joins the Existing Group']]);
+    help(g.li, 'All its members are here already. 18 newer messages are added to its conversation.');
+    w.actions.appendChild(button('Cancel', false, function () { say('Nothing was imported.'); }));
+    w.actions.appendChild(button('Add to the Workspace', true, function () { say('Updated 1 chat and added 18 group messages to "Harbor".' + (box.checked ? ' Added 1 separate chat.' : '')); }));
+    w.finish();
+    setNotes([
+      'This is the round trip: Harbor moved to the laptop, was worked on there, and comes back.',
+      'A chat is matched by its identity, never by its title, so a renamed chat still matches.',
+      'Changed on Both Computers never overwrites. Import as a Separate Chat is off unless you tick it.'
+    ]);
+  }
+
+  function openedView() {
+    var box = el('div', 'mock-chat');
+    var head = box.appendChild(el('div', 'mock-chat-head'));
+    head.appendChild(glyph('comments'));
+    head.appendChild(el('strong', null, 'Harbor Lead'));
+    head.appendChild(el('span', 'mock-size', 'Claude · Opus 5.5'));
+    var body = box.appendChild(el('div', 'mock-chat-body'));
+    var m1 = body.appendChild(el('div', 'mock-msg you'));
+    m1.appendChild(el('small', null, 'You · 17 Nov, 21:04'));
+    m1.appendChild(document.createTextNode('Plan the checkout review for tomorrow.'));
+    var m2 = body.appendChild(el('div', 'mock-msg'));
+    m2.appendChild(el('small', null, 'Harbor Lead · 17 Nov, 21:06'));
+    m2.appendChild(document.createTextNode('Checkout Review takes the payment screens first, then the receipts. I have told the team.'));
+    var moved = body.appendChild(el('div', 'mock-moved'));
+    moved.appendChild(glyph('info'));
+    moved.appendChild(el('span', null, 'This chat moved here from another computer on 18 Nov. Your next message starts a new Claude session here, briefed from the history above.'));
+    var comp = box.appendChild(el('div', 'mock-composer'));
+    var ta = comp.appendChild(el('textarea', 'form-textarea'));
+    ta.setAttribute('aria-label', 'Message');
+    ta.placeholder = 'Message Harbor Lead';
+    comp.appendChild(button('Send', true, function () {
+      say('A new Claude session starts with Opus 5.5 and receives the brief with this message. The note above stays where it is, as a line in the history.');
+    }));
+    stage.replaceChildren(box);
+    setNotes([
+      'Dinah never asks Claude or Codex for the old session on this computer; it continues from the saved history, as when a chat changes program.',
+      'The chat keeps its place in Harbor Team and in Harbor Lead\'s team, because the new session becomes its next stage.',
+      'The note is a line in the history, so nothing moves when the new session starts.'
+    ]);
+  }
+
+  var views = { 'export': exportView, 'import-new': importNewView, 'import-back': importBackView, 'opened': openedView };
+  document.querySelectorAll('[data-view]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-view]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+      say('');
+      views[b.dataset.view]();
+    });
+  });
+  document.getElementById('mock-theme').addEventListener('click', function () {
+    var dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+  });
+  exportView();
+})();
+</script>
+</body>
+</html>
