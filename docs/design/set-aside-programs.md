@@ -1,6 +1,6 @@
 # Removing set-aside programs
 
-The person may remove selected older installed programs from Settings. Nothing removes them automatically. The service owns the product home bin directory and derives its program names from the profile's CommandProgram, WindowProgram, ToolServers and ProgramCommands. It accepts no caller paths. A distribution's existing profile therefore covers its additional programs without product names in the host.
+The person may remove selected older installed programs from Settings. Nothing removes them automatically. The service owns the product home bin directory and derives its program names from the profile's CommandProgram, WindowProgram, ToolServers and ProgramCommands, and from the earlier names of the command line and the tool programs (EarlierCommandPrograms and each server's EarlierPrograms), under which an earlier update set copies aside. It accepts no caller paths. A distribution's existing profile therefore covers its additional programs without product names in the host.
 
 ## Window contract
 

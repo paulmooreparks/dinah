@@ -308,6 +308,9 @@ func (a *App) startup(ctx context.Context) {
 	})
 	logf("core", "info", "%s %s started", product.Name, shownVersion())
 	logRestartWait()
+	// A product that renamed its programs moves an installation to the
+	// current names before any chat starts (program_names.go).
+	a.moveProgramsToCurrentNames()
 	go a.resumePaused(true)
 	a.restoreTerminalShutdownNotice()
 	a.startHostNotices()

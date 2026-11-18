@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -91,50 +92,182 @@ func withPathFirst(env []string, dir string) []string {
 	return out
 }
 
+// earlierDevinSteeringCommands are the hook commands that earlier releases
+// of a product that renamed its command program wrote
+// (profile.EarlierCommandPrograms). An entry with one of them is the
+// window's own, and is replaced by the current command rather than left
+// beside it, since it would run a program that is no longer installed.
+func earlierDevinSteeringCommands() []string {
+	var out []string
+	for _, name := range product.EarlierCommandPrograms {
+		out = append(out, name+" steering-hook")
+	}
+	return out
+}
+
+// devinSteeringEvents are the events the steering hook is registered for.
+var devinSteeringEvents = []string{"UserPromptSubmit", "PostToolUse", "Stop"}
+
 func registerDevinSteeringHooks(path string) error {
+	return registerDevinSteeringHooksFor(path, devinSteeringCommand, earlierDevinSteeringCommands())
+}
+
+// devinHooksRunAny reports whether the Devin hooks file at path has a hook,
+// of any event, that runs one of commands. A file that is not there has
+// none; a file that cannot be read is reported as an error.
+func devinHooksRunAny(path string, commands []string) (bool, error) {
 	devinSteeringMu.Lock()
 	defer devinSteeringMu.Unlock()
+	file, _, err := readDevinHooks(path)
+	if err != nil {
+		return false, err
+	}
+	for event, b := range file {
+		var groups []json.RawMessage
+		if json.Unmarshal(b, &groups) != nil {
+			continue
+		}
+		for _, raw := range groups {
+			g, err := readSteeringHookGroup(raw)
+			if err != nil {
+				return false, fmt.Errorf("read Devin %s hooks: %w", event, err)
+			}
+			for _, hook := range g.hooks {
+				if slices.Contains(commands, hookCommand(hook)) {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+// readDevinHooks reads a Devin hooks file, which may have comments. A file
+// that is not there is an empty object.
+func readDevinHooks(path string) (map[string]json.RawMessage, []byte, error) {
 	file := map[string]json.RawMessage{}
 	original, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
+		return nil, nil, err
 	}
 	if err == nil {
 		standard, err := hujson.Standardize(original)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if err := json.Unmarshal(standard, &file); err != nil || file == nil {
-			return errors.New("Devin hooks must contain a JSON object")
+			return nil, nil, errors.New("Devin hooks must contain a JSON object")
 		}
 	}
-	for _, event := range []string{"UserPromptSubmit", "PostToolUse", "Stop"} {
+	return file, original, nil
+}
+
+// steeringHookGroup is one group of a Devin hooks event, read with every
+// field kept, so that a group written back has what it had.
+type steeringHookGroup struct {
+	fields map[string]json.RawMessage
+	hooks  []map[string]json.RawMessage
+}
+
+func readSteeringHookGroup(raw json.RawMessage) (steeringHookGroup, error) {
+	g := steeringHookGroup{}
+	if err := json.Unmarshal(raw, &g.fields); err != nil {
+		return g, err
+	}
+	if b := g.fields["hooks"]; len(b) > 0 {
+		if err := json.Unmarshal(b, &g.hooks); err != nil {
+			return g, err
+		}
+	}
+	return g, nil
+}
+
+// matcher is the group's matcher, "" when it has none.
+func (g steeringHookGroup) matcher() string {
+	var m string
+	_ = json.Unmarshal(g.fields["matcher"], &m)
+	return m
+}
+
+// hookCommand is the command of a hook of type command, or "".
+func hookCommand(hook map[string]json.RawMessage) string {
+	var kind, command string
+	if json.Unmarshal(hook["type"], &kind) != nil || kind != "command" {
+		return ""
+	}
+	_ = json.Unmarshal(hook["command"], &command)
+	return command
+}
+
+// registerDevinSteeringHooksFor gives each steering event one entry that
+// runs command, and replaces an entry that runs one of the earlier commands:
+// the first such entry takes the current command, keeping its other fields,
+// when the event has no entry with the current command, and every other one
+// is removed. A group left with no hooks by a removal is removed. The
+// person's own hooks, in any group, are kept as they are.
+func registerDevinSteeringHooksFor(path, command string, earlier []string) error {
+	devinSteeringMu.Lock()
+	defer devinSteeringMu.Unlock()
+	file, original, err := readDevinHooks(path)
+	if err != nil {
+		return err
+	}
+	isEarlier := func(c string) bool { return c != "" && c != command && slices.Contains(earlier, c) }
+	for _, event := range devinSteeringEvents {
 		var groups []json.RawMessage
 		if b := file[event]; len(b) > 0 {
 			if err := json.Unmarshal(b, &groups); err != nil {
 				return fmt.Errorf("read Devin %s hooks: %w", event, err)
 			}
 		}
+		read := make([]steeringHookGroup, len(groups))
 		found := false
-		for _, group := range groups {
-			var entry struct {
-				Matcher string `json:"matcher"`
-				Hooks   []struct {
-					Type    string `json:"type"`
-					Command string `json:"command"`
-				} `json:"hooks"`
-			}
-			if err := json.Unmarshal(group, &entry); err != nil {
+		for i, raw := range groups {
+			g, err := readSteeringHookGroup(raw)
+			if err != nil {
 				return err
 			}
-			for _, hook := range entry.Hooks {
-				if entry.Matcher == "" && hook.Type == "command" && hook.Command == devinSteeringCommand {
+			read[i] = g
+			for _, hook := range g.hooks {
+				if g.matcher() == "" && hookCommand(hook) == command {
 					found = true
 				}
 			}
 		}
+		var kept []json.RawMessage
+		for i, g := range read {
+			if g.matcher() != "" {
+				kept = append(kept, groups[i])
+				continue
+			}
+			changed := false
+			var hooks []map[string]json.RawMessage
+			for _, hook := range g.hooks {
+				if !isEarlier(hookCommand(hook)) {
+					hooks = append(hooks, hook)
+					continue
+				}
+				changed = true
+				if !found {
+					hook["command"], _ = json.Marshal(command)
+					hooks = append(hooks, hook)
+					found = true
+				}
+			}
+			if !changed {
+				kept = append(kept, groups[i])
+				continue
+			}
+			if len(hooks) == 0 {
+				continue
+			}
+			g.fields["hooks"], _ = json.Marshal(hooks)
+			raw, _ := json.Marshal(g.fields)
+			kept = append(kept, raw)
+		}
+		groups = kept
 		if !found {
-			group, _ := json.Marshal(map[string]any{"matcher": "", "hooks": []any{map[string]any{"type": "command", "command": devinSteeringCommand, "timeout": 10}}})
+			group, _ := json.Marshal(map[string]any{"matcher": "", "hooks": []any{map[string]any{"type": "command", "command": command, "timeout": 10}}})
 			groups = append(groups, group)
 		}
 		file[event], _ = json.Marshal(groups)

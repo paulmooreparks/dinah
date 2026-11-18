@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	buildpolicy "studio"
@@ -77,6 +78,8 @@ var usage = strings.NewReplacer(
   {cmd} package remove [--personal [--name NAME]] [--workspace DIR]
                        remove an installed package, backing up its files
   {cmd} version        print the version
+  {cmd} identity       print the product, this program's name and the
+                       version as one line of JSON, for the window
 
 {homevar} sets the folder that holds the bus (default: ~/{home}).
 `)
@@ -85,6 +88,11 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
+	}
+	// A command the product hands to another of its programs goes there
+	// before this program's own commands are looked at (forward.go).
+	if program, ok := forwarded(os.Args[1]); ok {
+		os.Exit(forward(program, os.Args[1:]))
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -128,12 +136,11 @@ func main() {
 		err = completion(os.Args[2:])
 	case "version":
 		fmt.Println(product.CommandProgram, mcpserver.Version)
+	case programs.IdentityCommand:
+		fmt.Println(programs.Identity{Product: product.ID, Program: product.CommandProgram, Version: mcpserver.Version}.Line())
 	case "help", "-h", "--help":
 		fmt.Print(usage + forwardedUsage())
 	default:
-		if program, ok := forwarded(os.Args[1]); ok {
-			os.Exit(forward(program, os.Args[1:]))
-		}
 		fmt.Fprintf(os.Stderr, "%s: unknown command %q\n\n%s", product.CommandProgram, os.Args[1], usage+forwardedUsage())
 		os.Exit(2)
 	}
@@ -144,7 +151,7 @@ func main() {
 }
 
 // commands are the first arguments completion offers.
-var commands = []string{"ext", "workspace", "package", "install", "setup", "serve", "open", "send", "claude", "codex", "mcp", "hook", "completion", "version", "help"}
+var commands = []string{"ext", "workspace", "package", "install", "setup", "serve", "open", "send", "claude", "codex", "mcp", "hook", "completion", "version", "identity", "help"}
 
 // completion prints a PowerShell script that registers a completer for
 // dinah's commands, through PowerShell's documented Register-ArgumentCompleter.
@@ -154,7 +161,9 @@ func completion(args []string) error {
 	}
 	all := append([]string{}, commands...)
 	for _, c := range profile.Current().ProgramCommands {
-		all = append(all, c.Name)
+		if !slices.Contains(all, c.Name) {
+			all = append(all, c.Name)
+		}
 	}
 	quoted := make([]string, len(all))
 	for i, c := range all {
