@@ -722,14 +722,47 @@
     }
     return window.dinahRequestChange.open({ ref: c.ref(), draftId: names()[String(context.resource)] || '', title: context.name || 'the document', selection: selection.text });
   }
+  /* The comment commands stand in Review, so that they can be put on the
+     applet's toolbar too (Paul, 18 November 2026). They are the Document
+     menu's own (documents.js) for a window that has a comment margin. The
+     three that choose which comments are shown are always drawn, and the
+     one for the current choice is greyed, so the toolbar never moves when
+     the choice changes. */
+  var COMMENT_COMMANDS = [
+    { id: 'new-comment', label: 'New Comment…', glyph: 'comments', menu: 'review' },
+    { id: 'next-comment', label: 'Next Comment', glyph: 'arrow-down', menu: 'review' },
+    { id: 'previous-comment', label: 'Previous Comment', glyph: 'arrow-up', menu: 'review' },
+    { id: 'show-comments', label: 'Show Open Comments', glyph: 'eye', menu: 'review', shows: 'open', reason: 'The open comments are shown.' },
+    { id: 'show-all-comments', label: 'Show All Comments', glyph: 'eye', menu: 'review', shows: 'all', reason: 'Every comment is shown, the resolved ones too.' },
+    { id: 'hide-comments', label: 'Hide Comments', glyph: 'eye-off', menu: 'review', shows: 'off', reason: 'The comments are hidden.' }
+  ];
+  function commentCommand(id) { return COMMENT_COMMANDS.find(function (d) { return d.id === id; }) || null; }
+  function commentsAt(resource) { var c = controllerOf(resource); return c && c.comments ? c.comments() : null; }
+  function commentState(d, context) {
+    var m = commentsAt(context && context.resource);
+    if (!m) return { present: false };
+    if (d.shows) { var now = m.shown() === d.shows; return { present: true, disabled: now, reason: now ? d.reason : '' }; }
+    if (d.id === 'new-comment') return { present: true, disabled: false, reason: '' };
+    var none = m.count() === 0;
+    return { present: true, disabled: none, reason: none ? 'There are no comments.' : '' };
+  }
+  function runComment(d, context) {
+    var m = commentsAt(context && context.resource);
+    if (!m) return Promise.reject(new Error('This document has no comments here.'));
+    if (d.shows) { m.setShown(d.shows); return Promise.resolve(); }
+    if (d.id === 'new-comment') return Promise.resolve(m.newComment());
+    if (m.count() === 0) return Promise.reject(new Error('There are no comments.'));
+    return Promise.resolve(d.id === 'next-comment' ? m.next() : m.previous());
+  }
   var commandListeners = new Set(), commandStates = '';
   function commandSignature() {
     var parts = [];
     document.querySelectorAll('.content-applet').forEach(function (m) {
       var r = m.dataset.contentResource;
       if (!r || m.dataset.contentPresenter) return;
-      var s = publishState(r);
-      parts.push(r + (s.present ? (s.disabled ? ':off' : ':on') : ':none') + (requestPresent(r) ? ':ask' : ''));
+      var s = publishState(r), comments = commentsAt(r);
+      parts.push(r + (s.present ? (s.disabled ? ':off' : ':on') : ':none') + (requestPresent(r) ? ':ask' : '') +
+        (comments ? ':comments-' + comments.shown() + '-' + (comments.count() ? 'some' : 'none') : ''));
     });
     return parts.join('|');
   }
@@ -756,15 +789,23 @@
          has Publish… in the place of Save as a document has. A diagram has
          no selection of text, so no change is requested on one. */
       if (application === 'diagrams') return [publish];
+      /* The contract takes up to eight; these are eight. The comment
+         commands' keys stay with the Document menu's rows, which hold them
+         whichever window is in front, so they are not declared again here. */
       return application === 'editor' || application === 'docs' ? [publish,
-        { id: 'request-change', label: 'Request a Change…', glyph: 'pencil', shortcut: 'Mod+Shift+E', menu: 'review', context: true }] : [];
+        { id: 'request-change', label: 'Request a Change…', glyph: 'pencil', shortcut: 'Mod+Shift+E', menu: 'review', context: true }]
+        .concat(COMMENT_COMMANDS.map(function (d) { return { id: d.id, label: d.label, glyph: d.glyph, menu: d.menu }; })) : [];
     },
     state: function (id, context) {
       if (id === 'request-change') return requestState(context);
+      var comment = commentCommand(id);
+      if (comment) return commentState(comment, context);
       return id === 'publish' ? publishState(context && context.resource) : { present: false };
     },
     run: function (id, context) {
       if (id === 'request-change') return requestChange(context);
+      var comment = commentCommand(id);
+      if (comment) return runComment(comment, context);
       var c = id === 'publish' ? controllerOf(context && context.resource) : null;
       if (!c || !c.canPublish || !c.canPublish()) return Promise.reject(new Error('There are no changes to publish.'));
       return Promise.resolve(c.publish());

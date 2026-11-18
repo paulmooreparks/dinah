@@ -210,7 +210,11 @@
       return c;
     }
     /* Going to a comment selects its words where the applet shows them,
-       through the page's own find, and marks its card. */
+       through the page's own find, marks its card, and scrolls the words
+       into view (Paul, 18 November 2026: the words were selected out of
+       sight). The scroll is the selection's own rectangle against the box
+       of the nearest ancestor that scrolls, so it rests on no browser's
+       choice of whether find scrolls. */
     function goTo(t) {
       currentId = t.id;
       cards.querySelectorAll('.document-comment').forEach(function (c) { if (c.dataset.thread === currentId) c.dataset.current = 'true'; else delete c.dataset.current; });
@@ -219,7 +223,20 @@
         var sel = window.getSelection();
         if (sel) { sel.removeAllRanges(); var start = document.createRange(); start.setStart(options.applet, 0); start.collapse(true); sel.addRange(start); }
         window.find(words, true, false, false, false, false, false);
+        if (sel && sel.rangeCount && options.applet.contains(sel.getRangeAt(0).startContainer)) reveal(sel.getRangeAt(0));
       }
+    }
+    function reveal(range) {
+      var at = range.getBoundingClientRect(), el = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+      for (; el && el !== document.documentElement; el = el.parentElement) {
+        var overflow = getComputedStyle(el).overflowY;
+        if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) break;
+      }
+      if (!el || el === document.documentElement) return;
+      var box = el.getBoundingClientRect();
+      // Words already in view stay where they are; others come to a third of the way down.
+      if (at.top >= box.top && at.bottom <= box.bottom) return;
+      el.scrollBy({ top: at.top - box.top - box.height / 3 });
     }
     function step(direction) {
       if (shown === 'off' && list.some(function (t) { return !t.resolved; })) { setShownAll('open'); }

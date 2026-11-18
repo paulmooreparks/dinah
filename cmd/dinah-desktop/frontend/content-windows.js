@@ -241,7 +241,7 @@
       if (!commentsAside && !presenter && !opts.embedded && window.dinahDocumentComments) {
         commentsAside = document.createElement('aside'); commentsAside.className = 'content-comments'; commentsAside.setAttribute('aria-label', 'Comments');
         body.appendChild(commentsAside);
-        comments = window.dinahDocumentComments.mount(commentsAside, { draftId: draft.id, api: api, host: host, applet: body, flush: flush, changed: function () { if (window.pudlCommands) window.pudlCommands.changed(); } });
+        comments = window.dinahDocumentComments.mount(commentsAside, { draftId: draft.id, api: api, host: host, applet: body, flush: flush, changed: function () { if (window.pudlCommands) window.pudlCommands.changed(); if (window.dinahCommands) window.dinahCommands.changed(); } });
       }
       /* The applet reports its state (file, view and caret line) at every
          change, and the workbench keeps every window's state in the address
