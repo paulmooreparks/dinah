@@ -85,6 +85,34 @@ func checkRelaysNow(t *testing.T, a *App) {
 	}
 }
 
+// A turn keeps every relay it was given: the one its first prompt brought, and those steered into it later,
+// including after a steer that brought none. Until 18 November 2026 each steer replaced the turn's list, and a
+// relay given before a steer stayed pending, its member waiting for its lead for good.
+func TestATurnSettlesTheRelaysGivenBeforeAndAfterASteer(t *testing.T) {
+	a, lead, _, _, _, mention := teamApp(t)
+	first, second := mention("First question."), mention("Second question.")
+	given := func(id int64) *prompt {
+		p := sessionhost.NewPrompt("x", nil).WithDelivery("From a chat", []ConversationMessage{{Role: "delivered", Delivered: &sessionhost.DeliveredMessage{ID: id}}}, nil)
+		return &p
+	}
+	a.noteRelayTurnStart(lead, given(first.ID))
+	plain := sessionhost.NewPrompt("a steer from the person", nil)
+	a.noteRelayTurnStart(lead, &plain)
+	a.noteRelayTurnStart(lead, given(second.ID))
+	a.relayTurnEnded(lead, nil)
+	for _, m := range []bus.Message{first, second} {
+		if err := a.busHost().With(func(b *bus.Bus) error {
+			r, _, err := b.RelayOf(context.Background(), m.ID)
+			if err == nil && r.State != bus.RelayHandled {
+				t.Errorf("the relay of message %d is %q after the turn ended well", m.ID, r.State)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // A relay whose delivery to the lead could not be made, whose lead's turn on it ended in an error, or whose
 // lead cannot run, makes one card for the person with the member's message and the reason; a relay that is
 // delivered and simply not relayed makes none.

@@ -146,14 +146,69 @@ func (b *Bus) RelaysHandledIn(ctx context.Context, lead string, messages []int64
 // given: the relays of turns still running, which end by themselves. A window calls it once as it starts,
 // when a relay taken before it started belongs to a turn that is over. It returns their message numbers.
 func (b *Bus) HandleTakenRelays(ctx context.Context, running []int64) ([]int64, error) {
+	return b.handleTakenRelays(ctx, "", running)
+}
+
+// HandleTakenRelaysBy marks handled the pending relays one lead has taken, but
+// for the ones given. A lead's turn that ends well calls it, so that a relay
+// the turn was given by any route is settled with it: the turn's prompt, a
+// message steered into the turn, or one the agent fetched while it ran. A
+// relay is taken only by a turn, and the lead's next turn has not begun when
+// this one ends, so every relay it has taken belongs to a turn that is over.
+func (b *Bus) HandleTakenRelaysBy(ctx context.Context, lead string, running []int64) ([]int64, error) {
+	if lead == "" {
+		return nil, nil
+	}
+	return b.handleTakenRelays(ctx, lead, running)
+}
+
+// HandleReadRelays marks handled the pending relays of the group messages the
+// person has read. A team member's message for the person goes to its lead so
+// that the lead can pass on what the person needs; once the person has read it
+// in the group, nothing is left to pass on, and the member no longer waits.
+// The person has read a group message when its delivery to them is made,
+// which the group's window does as it shows the messages (MarkRoomRead).
+func (b *Bus) HandleReadRelays(ctx context.Context) ([]int64, error) {
+	var handled []int64
+	err := b.tx(ctx, func(t *sql.Tx) error {
+		rows, err := t.Query(`SELECT r.message_id FROM relays r WHERE r.state = 'pending' AND EXISTS
+			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = ? AND d.delivered_at IS NOT NULL AND d.cancelled_at IS NULL)`, humanRoom)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			handled = append(handled, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, id := range handled {
+			if _, err := t.Exec(`UPDATE relays SET state = 'handled' WHERE message_id = ? AND state = 'pending'`, id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return handled, err
+}
+
+// handleTakenRelays is HandleTakenRelays for every lead when lead is "", and
+// for one lead otherwise.
+func (b *Bus) handleTakenRelays(ctx context.Context, lead string, running []int64) ([]int64, error) {
 	skip := map[int64]bool{}
 	for _, id := range running {
 		skip[id] = true
 	}
 	var handled []int64
 	err := b.tx(ctx, func(t *sql.Tx) error {
-		rows, err := t.Query(`SELECT r.message_id FROM relays r WHERE r.state = 'pending' AND EXISTS
-			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NOT NULL)`)
+		rows, err := t.Query(`SELECT r.message_id FROM relays r WHERE r.state = 'pending' AND (? = '' OR r.lead = ?) AND EXISTS
+			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NOT NULL)`, lead, lead)
 		if err != nil {
 			return err
 		}

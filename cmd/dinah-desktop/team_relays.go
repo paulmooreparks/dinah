@@ -23,7 +23,11 @@ var relayTurns = struct {
 	byChat map[string][]int64
 }{byChat: map[string][]int64{}}
 
-// noteRelayTurnStart remembers the bus messages a chat's turn was given.
+// noteRelayTurnStart remembers the bus messages a chat's turn was given. It is
+// called for the prompt that starts a turn and again for each prompt steered
+// into it, so the messages are added to the turn's list, which relayTurnEnded
+// clears. Replacing the list lost a relay given to the turn before a steer, and
+// its member waited for its lead for good (Paul's report of 18 November 2026).
 func (a *App) noteRelayTurnStart(s *Session, p *prompt) {
 	noteTurnResult(s.ID(), nil)
 	var ids []int64
@@ -32,13 +36,12 @@ func (a *App) noteRelayTurnStart(s *Session, p *prompt) {
 			ids = append(ids, e.Delivered.ID)
 		}
 	}
-	relayTurns.Lock()
-	defer relayTurns.Unlock()
 	if len(ids) == 0 {
-		delete(relayTurns.byChat, s.ID())
 		return
 	}
-	relayTurns.byChat[s.ID()] = ids
+	relayTurns.Lock()
+	defer relayTurns.Unlock()
+	relayTurns.byChat[s.ID()] = append(relayTurns.byChat[s.ID()], ids...)
 }
 
 // relayTurnEnded settles the relays a chat's turn was given. A turn that ended in an error fails them, and the
@@ -53,10 +56,11 @@ func (a *App) relayTurnEnded(s *Session, err error) {
 	relayTurns.Lock()
 	ids := relayTurns.byChat[s.ID()]
 	delete(relayTurns.byChat, s.ID())
-	relayTurns.Unlock()
-	if len(ids) == 0 {
-		return
+	var running []int64
+	for _, other := range relayTurns.byChat {
+		running = append(running, other...)
 	}
+	relayTurns.Unlock()
 	if !a.teamsOpen() {
 		return
 	}
@@ -65,10 +69,20 @@ func (a *App) relayTurnEnded(s *Session, err error) {
 		return
 	}
 	if err == nil {
+		// Besides the messages this turn was noted as given, every relay the
+		// lead has taken is settled: a message can reach a turn by a route that
+		// is not noted here, such as the agent fetching its messages while it
+		// runs, and no later turn would settle it.
 		_ = a.withTeamBus(func(b *bus.Bus) error {
-			_, herr := b.RelaysHandledIn(context.Background(), busID, ids)
+			if _, herr := b.RelaysHandledIn(context.Background(), busID, ids); herr != nil {
+				return herr
+			}
+			_, herr := b.HandleTakenRelaysBy(context.Background(), busID, running)
 			return herr
 		})
+		return
+	}
+	if len(ids) == 0 {
 		return
 	}
 	reason := fmt.Sprintf("%s's turn on it ended in an error: %v", a.relayLeadName(s.ID()), err)
@@ -156,6 +170,14 @@ func (a *App) checkRelays(ctx context.Context, b *bus.Bus) {
 			a.chatStatesChanged()
 		}
 	})
+	// A member's message the person has read in its group needs no relay, and
+	// the member stops waiting for its lead.
+	if read, err := b.HandleReadRelays(ctx); err != nil {
+		logf("bus", "error", "settling the relays of messages the person has read: %v", err)
+	} else if len(read) > 0 {
+		a.teamsChanged()
+		a.chatStatesChanged()
+	}
 	pending, err := b.PendingRelays(ctx)
 	if err != nil {
 		logf("bus", "error", "looking for relays that wait for their lead: %v", err)

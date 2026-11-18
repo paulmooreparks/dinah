@@ -380,6 +380,55 @@ func TestARelayThatFailsIsMarkedAndReportedOnce(t *testing.T) {
 	}
 }
 
+// A lead's turn that ends well settles every relay that lead has taken, however it took it, and none of another
+// lead's; and a relay whose message the person has read in the group is settled too, so its member stops waiting
+// (Paul's report of 18 November 2026: a relay taken before a steer stayed pending for good).
+func TestRelaysSettleByTheirLeadAndWhenThePersonReadsThem(t *testing.T) {
+	ctx := context.Background()
+	b, review, lead, docs, parser, _ := teamBus(t)
+	for _, m := range []Session{docs, parser} {
+		if _, err := b.SetLead(ctx, m.ID, lead.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	one := sendTo(t, b, docs, review.Name, "One.", "paul")
+	if settled, err := b.HandleTakenRelaysBy(ctx, lead.ID, nil); err != nil || len(settled) != 0 {
+		t.Fatalf("relays the lead has not taken were settled: %v %v", settled, err)
+	}
+	if _, _, err := b.Deliver(ctx, lead.ID, DoorbellTurn); err != nil {
+		t.Fatal(err)
+	}
+	if settled, err := b.HandleTakenRelaysBy(ctx, docs.ID, nil); err != nil || len(settled) != 0 {
+		t.Fatalf("another lead's turn settled this lead's relays: %v %v", settled, err)
+	}
+	if settled, err := b.HandleTakenRelaysBy(ctx, lead.ID, nil); err != nil || !slices.Equal(settled, []int64{one.ID}) {
+		t.Fatalf("HandleTakenRelaysBy %v %v", settled, err)
+	}
+	if _, waiting, _ := b.PendingRelayFrom(ctx, docs.ID); waiting {
+		t.Fatal("the member still waits for a lead whose turn took its message")
+	}
+	// A relay the lead has not taken yet is settled once the person has read the message in the group.
+	two := sendTo(t, b, parser, review.Name, "Two.", "paul")
+	if settled, err := b.HandleReadRelays(ctx); err != nil || len(settled) != 0 {
+		t.Fatalf("a relay of an unread message was settled: %v %v", settled, err)
+	}
+	if _, waiting, _ := b.PendingRelayFrom(ctx, parser.ID); !waiting {
+		t.Fatal("the member of an unread relayed message is not waiting")
+	}
+	if err := b.MarkRoomRead(ctx, review.Name); err != nil {
+		t.Fatal(err)
+	}
+	if settled, err := b.HandleReadRelays(ctx); err != nil || !slices.Equal(settled, []int64{two.ID}) {
+		t.Fatalf("HandleReadRelays %v %v", settled, err)
+	}
+	if r, _, _ := b.RelayOf(ctx, two.ID); r.State != RelayHandled {
+		t.Fatalf("the relay of a read message is %+v", r)
+	}
+	if _, waiting, _ := b.PendingRelayFrom(ctx, parser.ID); waiting {
+		t.Fatal("the member still waits for its lead after the person read its message")
+	}
+}
+
 // The group of a deleted lead keeps a line that says its members now reach the person directly.
 func TestADeletedLeadsGroupKeepsALineSayingSo(t *testing.T) {
 	ctx := context.Background()
