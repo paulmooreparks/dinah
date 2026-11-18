@@ -850,6 +850,9 @@
         if (!s) return;
         history.forEach(function (entry) {
           var restored = null;
+          // A history imported before 18 November 2026 ends with a line saying
+          // the chat moved here from another computer, which Paul asked to go.
+          if (entry.role === 'provider_switch' && entry.kind === 'moved') return;
           if (entry.role === 'provider_switch') providerSwitchRow(s, entry.text);
           else if (entry.role === 'user' || entry.role === 'you') restored = message(s, 'you', entry.text, 'You');
           else if (entry.role === 'assistant' || entry.role === 'agent') restored = message(s, 'agent', entry.text, providerName(entry.provider));
@@ -1419,7 +1422,6 @@
       var t = !s ? 'Start a new chat, or open one from the list.'
         : s.loading ? 'Reopening the session and its history…'
         : s.failed ? agentName() + ' could not open this session.'
-        : s.moved && !s.info.open ? 'This chat moved here from another computer. Send a message to carry it on here.'
         : s.stopping ? 'Stop was asked for. ' + agentName() + ' is finishing what it is doing.'
         : waitingApproval(s.id) ? 'Waiting for your approval.'
         : s.info.switch && s.info.switch.stage ? 'Switching to ' + switchTargetName(s.info.switch) + '. ' + (s.info.switch.label || '')

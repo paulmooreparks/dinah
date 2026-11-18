@@ -185,12 +185,10 @@ func (a *App) planImportChats(export workspaces.Export, choices []WorkspaceImpor
 	return out, nil
 }
 
-// movedLine is the line a moved chat's history ends with, which the window
-// shows where the chat was moved, as a line of its history, so that nothing
-// moves when the new session starts.
-func movedLine(provider string, at time.Time) string {
-	return "This chat moved here from another computer on " + at.Format("2 Jan") + ". Your next message starts a new " + providerName(provider) + " session here, briefed from the history above."
-}
+// A moved chat's history is imported as it was. Until 18 November 2026 it
+// ended with a line saying the chat had moved here, which Paul asked to be
+// removed; the chat window leaves that line out of histories imported
+// before then (chat-applet.js, prependContinuation).
 
 // rebase rewrites a path recorded on the exporting computer, from inside its
 // main folder there, oldMain, to the same place inside newMain. A path
@@ -366,7 +364,6 @@ func (a *App) importChats(archive *workspaces.Archive, file, workspaceID string,
 		// The chat's earlier stages stay on the other computer, and the copy
 		// of them this history keeps stands in for them here.
 		tr.StagesElsewhere = tr.ParentSessionID != "" && tr.ParentHistory != nil
-		tr.Messages = append(tr.Messages, ConversationMessage{Role: "provider_switch", Kind: "moved", Text: movedLine(from.Provider, now), Provider: from.Provider, SessionID: tr.SessionID})
 		chat.history = &tr
 		chats = append(chats, chat)
 		result.Recipients[from.ChatID] = chat.recipient

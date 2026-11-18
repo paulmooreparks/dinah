@@ -117,9 +117,12 @@ func TestImportMovesChatsToAnotherComputer(t *testing.T) {
 	if lead.Workspace != main {
 		t.Fatalf("the lead's history was not moved to this computer's main folder: %s", lead.Workspace)
 	}
-	last := lead.Messages[len(lead.Messages)-1]
-	if last.Role != "provider_switch" || !strings.Contains(last.Text, "This chat moved here from another computer on") || !strings.Contains(last.Text, "new Claude session") {
-		t.Fatalf("the moved line is missing: %+v", last)
+	// The history is imported as it was, with no line saying the chat moved
+	// (Paul, 18 November 2026).
+	for _, m := range lead.Messages {
+		if m.Kind == "moved" || strings.Contains(m.Text, "moved here from another computer") {
+			t.Fatalf("the imported history has a moved line: %+v", m)
+		}
 	}
 	review, err := readTranscript("codex:review")
 	if err != nil || review.Workspace != filepath.Join(main, "Checkout") {
@@ -312,7 +315,7 @@ func TestAMovedChatContinuesWithItsFirstMessage(t *testing.T) {
 		t.Fatalf("opening a moved chat: %v", err)
 	}
 	view := a.SavedConversation("codex:second")
-	if !view.Available || len(view.Messages) != 6 || !strings.Contains(view.Messages[5].Text, "moved here from another computer") {
+	if !view.Available || len(view.Messages) != 5 || view.Messages[4].Text != "Receipts after the payment screens." {
 		t.Fatalf("saved history: %+v", view)
 	}
 	result, err := a.ContinueMovedChat("codex:second")
