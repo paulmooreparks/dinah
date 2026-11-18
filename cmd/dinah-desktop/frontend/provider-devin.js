@@ -38,10 +38,7 @@
     // The usage page's address; an empty field clears it.
     function usagePage(state) { $('usage-page').value = state.usagePage || ''; }
     $('usage-save').addEventListener('click', function () {
-      app().SetUsagePage($('usage-page').value).then(function () { return app().State(); }).then(function (state) {
-        usagePage(state);
-        toast(state.usagePage ? 'The Devin usage page is now ' + state.usagePage + '.' : 'The Devin usage page is cleared.', 'positive');
-      }).catch(fail);
+      app().SetUsagePage($('usage-page').value).then(function () { return app().State(); }).then(usagePage).catch(fail);
     });
 
     // What State says, at start and after each save.

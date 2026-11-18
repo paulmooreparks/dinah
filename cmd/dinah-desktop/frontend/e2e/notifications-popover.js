@@ -37,9 +37,9 @@ const {openStatus}=require('./lib/status');
     // A report of each kind, then two questions.
     const long = 'The workspace index could not be rebuilt because the folder C:/Fixture/very/deep/path/with/many/parts/that/goes/on/and/on was locked by another program while Dinah was reading it, so the search results may be stale until it is rebuilt.';
     await page.evaluate(long => {
-      dinahHost.toast('Saved "notes.md".', 'positive');
-      dinahHost.toast('Choose a workspace first.', 'warn');
-      dinahHost.toast('The export finished.', 'info');
+      dinahHost.toast('Saved "notes.md".', 'positive', { keep: true });
+      dinahHost.toast('Choose a workspace first.', 'warn', { keep: true });
+      dinahHost.toast('The export finished.', 'info', { keep: true });
       dinahHost.toast(long, 'danger');
       __emit('agent:session', { sessionId: 'chat-a', cwd: 'C:/Fixture', provider: 'codex', title: 'Release Notes', open: true });
       __emit('agent:session', { sessionId: 'chat-b', cwd: 'C:/Fixture', provider: 'codex', title: 'Parser Work', open: true });
@@ -101,7 +101,7 @@ const {openStatus}=require('./lib/status');
     // Live: a new entry while the list is open appears in place, and the
     // focused row keeps focus.
     await page.keyboard.press('ArrowDown');
-    await page.evaluate(() => dinahHost.toast('A new report arrived.', 'info'));
+    await page.evaluate(() => dinahHost.toast('A new report arrived.', 'info', { keep: true }));
     await menu.locator('.notices-row', { hasText: 'A new report arrived.' }).waitFor();
     ok('a new entry appears while the list is open', (await rows.nth(2).textContent()) === 'A new report arrived.');
     ok('the focused row keeps focus as the list changes', await page.evaluate(() => document.activeElement.dataset.noticeId === 'question-qa'));

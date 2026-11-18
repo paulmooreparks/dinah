@@ -58,7 +58,7 @@ const rowTimes = (li = 'li') => ['> ' + li + ' > time', '> ' + li + ' > * > .msg
   }
   // A notification's time, and its time as the regional format writes it.
   async function noticeTime(p, kind) {
-    await p.evaluate(() => { if (!document.querySelector('#questions time.notices-time')) dinahHost.toast('The export finished.', 'info'); dinahWorkbench.open('needs-you'); });
+    await p.evaluate(() => { if (!document.querySelector('#questions time.notices-time')) dinahHost.toast('The export finished.', 'info', { keep: true }); dinahWorkbench.open('needs-you'); });
     await p.waitForFunction(() => document.querySelector('#questions time.notices-time'));
     return p.evaluate(tag => {
       const t = document.querySelector('#questions time.notices-time');

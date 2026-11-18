@@ -70,13 +70,18 @@
     return new Promise(function (resolve) { queueAgentEvent('', null, resolve); });
   }
   /* An error is shown as a toast and kept under Notifications, always
-     both, so an error the person missed can be found again. options may
-     give the draft the error is about, which its card reopens, and a title
-     for the card; noted says the caller has made the card itself. */
+     both, so an error the person missed can be found again. Any other toast
+     passes and is not kept, unless keep says it reports something the
+     person may have missed and needs to find again. A toast that only
+     confirms what the person can already see is not made at all (see
+     docs/design/notifications.md). options may give the draft the error
+     is about, which its card reopens, and a title for the card; noted says
+     the caller has made the card itself. */
   function toast(msg, kind, options) {
     options = options || {};
     var element = window.pudlToast && window.pudlToast(options.title ? options.title + ' ' + msg : msg, { kind: kind || 'info' });
-    if (!options.noted) noteEntry(String(msg), kind || 'info', options);
+    var error = kind === 'danger' || kind === 'error';
+    if (!options.noted && (error || options.keep)) noteEntry(String(msg), kind || 'info', options);
     // What the page shows as an error or a warning is in the log too.
     var level = kind === 'danger' || kind === 'error' ? 'error' : kind === 'warn' || kind === 'warning' ? 'warning' : 'info';
     if (app() && app().Log) Promise.resolve().then(function () { return app().Log('ui', level, (options.title ? options.title + ' ' : '') + String(msg)); }).catch(function () {});

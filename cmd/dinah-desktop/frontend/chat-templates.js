@@ -88,7 +88,7 @@
       // A renamed template replaces the old one, once the new one is saved.
       var old = editing && editing.toLowerCase() !== name.toLowerCase() ? editing : null;
       var go = app().SaveTemplate(name, text).then(function (l) { return old ? app().DeleteTemplate(old) : l; });
-      go.then(function (l) { setTemplates(l); templateForm(null, ''); toast('Saved the template "' + name + '".', 'positive'); }).catch(fail);
+      go.then(function (l) { setTemplates(l); templateForm(null, ''); }).catch(fail);
     });
     $('template-new').addEventListener('click', function () { templateForm(null, ''); });
 

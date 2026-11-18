@@ -271,10 +271,7 @@
         productName() + ' forgets this workspace: its sources, pins and place in Recent. Its folders and files are not touched, and New Workspace… on its main folder makes it a workspace again.',
         'Remove', true).then(function (yes) {
         if (!yes) return;
-        return Promise.resolve(app().RemoveWorkspace(record.id)).then(function (st) {
-          switchTo(st);
-          toast('Removed the workspace "' + record.name + '".', 'positive');
-        });
+        return Promise.resolve(app().RemoveWorkspace(record.id)).then(function (st) { switchTo(st); });
       }).catch(function (err) { drawWorkspaceLabels(); fail(err); });
     }
     /* Export Workspace… and Import Workspace… (docs/design/workspace-export.md):

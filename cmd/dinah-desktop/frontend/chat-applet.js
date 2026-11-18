@@ -464,7 +464,6 @@
       show(front);
       (app().AgentRestart ? app().AgentRestart(provider) : app().Restart()).then(function () {
         restarting = false;
-        toast(providerName(provider) + ' restarted.', 'positive');
         currentChat()?.loadSkills();
         if (front) return openSession(front);
         refreshSessions();
@@ -1265,7 +1264,7 @@
             workspace: folder,
             note: 'Continued in ' + (record.name || folder) + '.'
           });
-          if (result.optionsNotCarried && result.optionsNotCarried.length) toast('The provider did not take: ' + result.optionsNotCarried.join(', ') + '.', 'warn');
+          if (result.optionsNotCarried && result.optionsNotCarried.length) toast('The provider did not take: ' + result.optionsNotCarried.join(', ') + '.', 'warn', { keep: true });
         } catch (error) {
           if (!deleted && epoch === switchEpoch && active === id) {
             localSwitch = { sessionId: id, kind: 'workspace', to: folder, failed: String(error) };
@@ -1800,7 +1799,7 @@
         open.type = 'button'; open.className = 'btn btn-sm'; open.textContent = 'Show Saved Chat History';
         open.title = 'Create a full saved-history snapshot and reveal its Markdown file in the file manager.';
         open.addEventListener('click', function () {
-          Promise.resolve().then(function () { if (!app().ShowSavedChatHistory) throw new Error('Saved-history snapshots are unavailable in this build.'); return app().ShowSavedChatHistory(s.id); }).catch(function (err) { toast(String(err && err.message || err), 'warn'); });
+          Promise.resolve().then(function () { if (!app().ShowSavedChatHistory) throw new Error('Saved-history snapshots are unavailable in this build.'); return app().ShowSavedChatHistory(s.id); }).catch(function (err) { toast(String(err && err.message || err), 'warn', { keep: true }); });
         });
         marker.appendChild(open);
         s.log.insertBefore(marker, s.log.firstElementChild);

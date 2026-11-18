@@ -86,7 +86,7 @@
           sel.appendChild(opt);
         });
         sel.addEventListener('change', function () {
-          app().SetDefault(o.id, sel.value ? sel.value : null).then(function (d) { adapter.setDefaults(d || {}); toast('New sessions will start with this.', 'positive'); }).catch(fail);
+          app().SetDefault(o.id, sel.value ? sel.value : null).then(function (d) { adapter.setDefaults(d || {}); }).catch(fail);
         });
         host.appendChild(g);
       });
@@ -537,9 +537,7 @@
     }
     $('default-provider').addEventListener('change', function () {
       var select = $('default-provider'); select.disabled = true;
-      app().SetDefaultProvider(select.value).then(refreshSettingsPreferences).then(function () {
-        toast('New chats will use ' + providerName(adapter.defaultProvider()) + '.', 'positive');
-      }).catch(function (error) { select.value = adapter.defaultProvider(); fail(error); }).finally(function () { select.disabled = false; });
+      app().SetDefaultProvider(select.value).then(refreshSettingsPreferences).catch(function (error) { select.value = adapter.defaultProvider(); fail(error); }).finally(function () { select.disabled = false; });
     });
 
     // The Default and Favorite Models dialog, over Settings.

@@ -212,7 +212,8 @@
             if (window.pudlCommands) window.pudlCommands.changed();
             if (host()) {
               host().toast('"' + (draft.title || 'The document') + '" was published.', 'success');
-              (saved.notes || []).forEach(function (note) { host().toast(note, 'info'); });
+              // A publish's notes say what did not go with it, so they are kept.
+              (saved.notes || []).forEach(function (note) { host().toast(note, 'warn', { keep: true }); });
             }
             if (comments) comments.reload();
             return current().then(retitle).then(function () { return draft; });
@@ -610,7 +611,7 @@
     function draftChanged(e) {
       if (!e || e.id !== draft.id || disposed || !mount) return;
       if (e.kind === 'discarded') {
-        if (host()) host().toast('The draft of "' + (draft.title || 'the document') + '" was discarded elsewhere, so its window has closed.', 'warn');
+        if (host()) host().toast('The draft of "' + (draft.title || 'the document') + '" was discarded elsewhere, so its window has closed.', 'warn', { keep: true });
         allowClose = true;
         window.pudlWindows.close(key);
         return;

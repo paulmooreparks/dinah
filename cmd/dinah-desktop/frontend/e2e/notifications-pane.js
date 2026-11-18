@@ -1,4 +1,5 @@
-// Notifications: every toast is an entry, the
+// Notifications: an error toast, or one kept on purpose, is an entry and any
+// other toast is not, the
 // entries filter by type and by text, Clear All dismisses the reports and
 // leaves the questions, the count is of questions and errors, a repeated
 // report is one entry, and a document's report reopens it.
@@ -25,15 +26,26 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     await p.evaluate(() => dinahWorkbench.open('needs-you'));
     const entries = () => p.locator('#questions > .notice:not([hidden])');
 
-    // Every kind of toast is an entry, in stable arrival order, and is kept.
+    // A toast that is not an error passes and is not kept, unless its
+    // caller says it reports something the person may have missed.
     await p.evaluate(() => {
-      dinahHost.toast('Saved "notes.md".', 'positive');
-      dinahHost.toast('The workspace could not be read.', 'danger');
+      dinahHost.toast('Renamed "a.md" to "b.md".', 'positive');
       dinahHost.toast('Choose a workspace first.', 'warn');
-      dinahHost.toast('The export finished.', 'info');
+      dinahHost.toast('Saved a copy.', 'info');
+    });
+    await p.waitForTimeout(150);
+    ok('a toast that is not an error is not kept', await entries().count() === 0 && await p.evaluate(() => __store.length) === 0 && await p.locator('.toast', { hasText: 'Saved a copy.' }).count() >= 1);
+
+    // An error, and any toast kept on purpose, is an entry, in stable
+    // arrival order, with its severity.
+    await p.evaluate(() => {
+      dinahHost.toast('Saved "notes.md".', 'positive', { keep: true });
+      dinahHost.toast('The workspace could not be read.', 'danger');
+      dinahHost.toast('Choose a workspace first.', 'warn', { keep: true });
+      dinahHost.toast('The export finished.', 'info', { keep: true });
     });
     await p.waitForFunction(() => __store.length === 4);
-    ok('every toast is an entry, kept with its severity', await entries().count() === 4 && (await p.evaluate(() => __store.map(n => n.severity).join(','))) === 'success,error,warning,info');
+    ok('an error, and a toast kept on purpose, is an entry with its severity', await entries().count() === 4 && (await p.evaluate(() => __store.map(n => n.severity).join(','))) === 'success,error,warning,info');
     ok('arrival preserves the first report position', (await entries().first().textContent()).startsWith('Saved'));
     ok('the count is of questions and errors only', await p.textContent('#status-needs .badge') === '1');
 

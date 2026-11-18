@@ -556,7 +556,6 @@
             Object.assign(r, fresh);
             drawRows();
             drawDetail();
-            host().toast('Your correction is kept with the call.', 'positive');
           }, function (error) {
             status.textContent = 'The correction could not be saved: ' + error;
           }).finally(function () { save.disabled = false; });

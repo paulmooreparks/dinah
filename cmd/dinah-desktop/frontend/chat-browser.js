@@ -121,7 +121,6 @@
       Promise.resolve().then(function () { return app().RemoveChat(id); }).then(function () {
         $('remove').close();
         removed(id);
-        toast('The chat is in the Recycle Bin for 30 days.', 'positive');
       }).catch(function (error) {
         $('remove-title').textContent = 'The Chat Was Not Deleted';
         $('remove-body').textContent = window.dinahHelpers.message(error, 'sentence');

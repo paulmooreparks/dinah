@@ -81,7 +81,7 @@
       { id: 'edit-text', label: 'Edit as Text', hidden: !item.ref || !has(item, 'edit-text'), run: run(function () { return dinahEditor.openResource(item.ref, 'text'); }) },
       { id: 'open-external', label: has(item, 'reveal') ? 'Show in Folder' : 'Open Externally', hidden: !has(item, 'reveal') && !has(item, 'open-external'), run: run(function () { return item.ref ? app().OpenWorkspaceResource(item.ref) : app().OpenWorkspaceMount(item.path); }) },
       // An item on a site has an address, which Copy Link puts on the clipboard.
-      { id: 'copy-link', label: 'Copy Link', hidden: !item.url, run: run(function () { host().copy(item.url); host().toast('Link copied.', 'info'); return item.url; }) },
+      { id: 'copy-link', label: 'Copy Link', hidden: !item.url, run: run(function () { host().copy(item.url); return item.url; }) },
       { id: 'copy-path', label: 'Copy Path', hidden: !item.ref || !item.writable, run: run(function () { return copyPath(item); }) },
       { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: !renames(item), run: run(function () { return renameFile(item); }) }
     ].filter(function (command) { return !command.hidden; });
@@ -255,7 +255,8 @@
     if (done) parts.push((done === 1 ? '1 file' : done + ' files') + ' uploaded to ' + where + '.');
     if ((r.skipped || []).length) parts.push('Skipped: ' + names(r.skipped) + '.');
     if ((r.refused || []).length) parts.push('Not uploaded: ' + r.refused.join('; ') + '.');
-    host().toast(parts.join(' ') || 'Nothing was uploaded.', (r.refused || []).length ? 'warn' : 'info');
+    var refused = (r.refused || []).length > 0;
+    host().toast(parts.join(' ') || 'Nothing was uploaded.', refused ? 'warn' : 'info', { keep: refused });
     return r;
   }
   function chooseAndUpload(dir) {
@@ -374,7 +375,6 @@
       help: 'The file keeps its folder. A document open in the Editor follows it, with its changes.',
       commit: function (next) { return app().RenameDocumentFile(item.ref, next); } }).then(function (renamed) {
       if (!renamed) return null;
-      host().toast('Renamed "' + name + '" to "' + renamed.name + '".', 'positive');
       notify({ kind: 'renamed', from: item.ref, ref: renamed.ref });
       return renamed;
     });

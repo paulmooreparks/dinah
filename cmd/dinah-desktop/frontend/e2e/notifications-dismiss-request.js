@@ -39,7 +39,7 @@ async function requests() {
     await p.evaluate(() => dinahWorkbench.open('needs-you'));
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) await d.notify('card-r' + n, n, 'Review r' + n, { requestId: 'r' + n });
     await d.notify('card-plain', 900, 'Plain Chat');
-    await p.evaluate(() => dinahHost.toast('The export finished.', 'info'));
+    await p.evaluate(() => dinahHost.toast('The export finished.', 'info', { keep: true }));
     await d.card('card-r8').waitFor(); await d.card('card-plain').waitFor();
     const report = p.locator('#questions .notification-report', { hasText: 'The export finished.' });
     await report.waitFor();
