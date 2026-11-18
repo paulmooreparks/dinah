@@ -17,8 +17,9 @@
 .document-comment[data-resolved] { opacity: .8; }
 .document-comment-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--text-xs); margin-bottom: var(--space-1); }
 .document-comment-state { color: var(--text-muted); }
-.document-comment-quote { display: block; width: 100%; margin: 0 0 var(--space-2); padding: 0; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-style: italic; text-align: start; cursor: pointer; overflow-wrap: anywhere; }
-button.document-comment-quote:hover { color: var(--text); }
+/* The quote goes to the words, so it is drawn as PUDL's link (button.link),
+   with only its layout and its italics here. */
+.document-comment-quote { display: block; width: 100%; margin: 0 0 var(--space-2); font-style: italic; text-align: start; overflow-wrap: anywhere; }
 .document-comment-lost { margin: 0 0 var(--space-2); color: var(--warn); }
 .document-comment-message { margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
 .document-comment-when { color: var(--text-muted); font-size: var(--text-xs); }

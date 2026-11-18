@@ -10,7 +10,7 @@ A thread is anchored by its words, the quoted passage with the text around it, n
 
 ## The window
 
-`document-comments.js` draws a document's threads in a margin beside the window's applet, hidden until there is a comment. Each card has the thread's kind and state, its quoted words (which go to the words in the text), its messages, and Reply and Resolve, or Reply to Reopen. New Comment… (Ctrl+Alt+M, in the Document menu) opens a thread on the words selected in the applet; Next and Previous Comment (F8, Shift+F8) walk the cards. Which comments are shown is one preference for every window: the open ones, all of them, or none; the count is shown whatever the choice, so hiding comments never hides that there are some.
+`document-comments.js` draws a document's threads in a margin beside the window's applet, hidden until there is a comment. Each card has the thread's kind and state, its quoted words, drawn as a link because they go to the words in the text, its messages, and Reply and Resolve, or Reply to Reopen. New Comment… (Ctrl+Alt+M, in the Document menu) opens a thread on the words selected in the applet; Next and Previous Comment (F8, Shift+F8) walk the cards. Which comments are shown is one preference for every window: the open ones, all of them, or none; the count is shown whatever the choice, so hiding comments never hides that there are some.
 
 The applets are yavc.app's and do not know the threads, so the margin stands beside them and finds a thread's words with the page's own find. Marking the commented words inside the applet waits for a decoration service from yavc.app.
 

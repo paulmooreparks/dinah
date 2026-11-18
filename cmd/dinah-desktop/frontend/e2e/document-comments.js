@@ -49,6 +49,15 @@ const { launch } = require('./lib/page');
     await quote.waitFor();
     await p.waitForFunction(() => [...document.querySelectorAll('.content-applet p')].some(e => e.textContent.includes('needle phrase')));
 
+    // The quote goes somewhere, so it is drawn as PUDL's link: the accent
+    // colour and an underline, as an anchor is.
+    ok('the quote is drawn as a link', await quote.evaluate(q => {
+      const a = document.createElement('a'); a.href = '#'; a.textContent = 'x'; q.parentElement.appendChild(a);
+      const s = getComputedStyle(q), l = getComputedStyle(a), same = s.color === l.color && s.textDecorationLine.includes('underline');
+      a.remove(); return q.classList.contains('link') && same;
+    }));
+    await quote.locator('xpath=..').screenshot({ path: require('path').join(require('./lib/page').OUT, 'document-comment-card.png') });
+
     // The words are far below the top, out of sight, until the quote is chosen.
     const inView = () => p.evaluate(() => {
       const el = [...document.querySelectorAll('.content-applet p')].find(e => e.textContent.includes('needle phrase'));

@@ -100,7 +100,7 @@
       var state = node('span', 'document-comment-state', t.resolved ? 'Resolved' : t.unsent ? 'Not sent yet' : t.waiting ? 'Waiting on you' : t.due && !(last && last.brought) ? 'For the agent' : 'Open');
       headRow.append(kind, state);
       c.appendChild(headRow);
-      var quote = node('button', 'document-comment-quote', '“' + (t.quote.length > 140 ? t.quote.slice(0, 140) + '…' : t.quote) + '”');
+      var quote = node('button', 'link document-comment-quote', '“' + (t.quote.length > 140 ? t.quote.slice(0, 140) + '…' : t.quote) + '”');
       quote.type = 'button'; quote.title = 'Go to the passage';
       quote.addEventListener('click', function () { goTo(t); });
       c.appendChild(quote);
