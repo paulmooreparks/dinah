@@ -697,6 +697,9 @@ type toolServerEntry struct {
 	Entry appletRegistrationEntry
 	// Earlier are the folders an earlier installation ran the program from.
 	Earlier []string
+	// EarlierFiles are the file names the program had in earlier releases
+	// (profile.ToolServer.EarlierPrograms).
+	EarlierFiles []string
 }
 
 // toolServerBackup ends the name of the copy kept of a settings file before
@@ -705,11 +708,17 @@ const toolServerBackup = ".before-tool-servers"
 
 // installed reports whether command is the server's program in a folder an
 // installation of the product puts it in: where it is now, or where an
-// earlier installation had it. The file's name alone does not say so, since
-// a person may run a build of their own that has the same name.
+// earlier installation had it, under its name now or a name an earlier
+// release gave it. The file's name alone does not say so, since a person
+// may run a build of their own that has the same name.
 func (s toolServerEntry) installed(command string) bool {
 	command = filepath.Clean(filepath.FromSlash(command))
-	if !strings.EqualFold(filepath.Base(command), filepath.Base(s.Entry.Command)) {
+	base := filepath.Base(command)
+	named := strings.EqualFold(base, filepath.Base(s.Entry.Command))
+	for _, earlier := range s.EarlierFiles {
+		named = named || strings.EqualFold(base, earlier)
+	}
+	if !named {
 		return false
 	}
 	for _, folder := range append([]string{filepath.Dir(s.Entry.Command)}, s.Earlier...) {
@@ -740,7 +749,11 @@ func installedToolServers() []toolServerEntry {
 				earlier = append(earlier, filepath.Join(home, filepath.FromSlash(folder)))
 			}
 		}
-		out = append(out, toolServerEntry{Name: s.Name, Entry: appletRegistrationEntry{Command: program, Args: args}, Earlier: earlier})
+		var files []string
+		for _, name := range s.EarlierPrograms {
+			files = append(files, programs.FileName(name))
+		}
+		out = append(out, toolServerEntry{Name: s.Name, Entry: appletRegistrationEntry{Command: program, Args: args}, Earlier: earlier, EarlierFiles: files})
 	}
 	return out
 }

@@ -71,6 +71,15 @@ type Profile struct {
 
 	// CommandProgram is the command line's file name, without ".exe".
 	CommandProgram string
+	// EarlierCommandPrograms are the file names, without ".exe", that the
+	// command line had in earlier releases of a product that renamed it.
+	// Every place that writes the command line's name into another
+	// program's settings, such as a Devin steering hook, treats an entry
+	// with one of these names as its own and replaces it, and the window
+	// moves an installation's command line to its current name on its
+	// first start (cmd/dinah-desktop/program_names.go). None of them may be
+	// the name of a program the product has now. Dinah has none.
+	EarlierCommandPrograms []string
 	// WindowProgram is the window program's file name, without ".exe".
 	WindowProgram string
 	// InstanceLock is the name of the window's single-instance lock.
@@ -111,7 +120,11 @@ type Profile struct {
 	// program of the product, installed beside it, carries out, so that a
 	// person has one program to type. The command program starts that
 	// program with the command and its arguments and ends as it ends
-	// (cmd/dinah/forward.go). Dinah has none.
+	// (cmd/dinah/forward.go). A command listed here is handed on even when
+	// the command program has a command of its own by that name, so that a
+	// product that gives one of its program names to another program can
+	// still have what was written for the earlier program reach it. Dinah
+	// has none.
 	ProgramCommands []ProgramCommand
 
 	// DefaultProvider is the agent provider a new chat uses until the person
@@ -156,6 +169,17 @@ type ToolServer struct {
 	// and is brought to the program's place now. An entry that runs it
 	// from anywhere else is a person's own.
 	EarlierFolders []string
+	// EarlierPrograms are the names, without an extension, the program had
+	// in earlier releases of a product that renamed it. An entry that runs
+	// one of them, from the program's folder or an earlier folder, with the
+	// server's arguments and nothing else, was written by an earlier
+	// installation and is brought to the program's current name, and the
+	// window moves an installed copy to that name on its first start. An
+	// earlier name may be the command program's name now; the command
+	// program must then hand the server's first argument to this program
+	// (ProgramCommands), so that an entry nobody has rewritten yet still
+	// reaches the server and never the command program's own command.
+	EarlierPrograms []string
 }
 
 // ProgramCommand is one command the command program hands to another
@@ -227,6 +251,7 @@ func Current() Profile {
 	p := current
 	p.Providers = slices.Clone(current.Providers)
 	p.ReservedPrograms = slices.Clone(current.ReservedPrograms)
+	p.EarlierCommandPrograms = slices.Clone(current.EarlierCommandPrograms)
 	return p
 }
 
@@ -239,6 +264,7 @@ func Source() Profile {
 	p := dinah
 	p.Providers = slices.Clone(dinah.Providers)
 	p.ReservedPrograms = slices.Clone(dinah.ReservedPrograms)
+	p.EarlierCommandPrograms = slices.Clone(dinah.EarlierCommandPrograms)
 	return p
 }
 

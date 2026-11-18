@@ -24,6 +24,18 @@ func TestSetAsideProgramsFollowTheProductProfile(t *testing.T) {
 	}
 }
 
+// A product that renamed its programs lists the copies an earlier update
+// set aside under the earlier names too.
+func TestSetAsideProgramsIncludeEarlierNames(t *testing.T) {
+	p := profile.Profile{
+		CommandProgram: "command", EarlierCommandPrograms: []string{"cmd"}, WindowProgram: "window",
+		ToolServers: []profile.ToolServer{{Program: "tools", EarlierPrograms: []string{"command"}}},
+	}
+	if got := setAsideProgramNames(p); !reflect.DeepEqual(got, []string{"command", "window", "cmd", "tools", "command"}) {
+		t.Fatalf("program names: %v", got)
+	}
+}
+
 func TestSetAsidePageUsesOnlyTheConfiguredProductHome(t *testing.T) {
 	home := t.TempDir()
 	previous := configOverride

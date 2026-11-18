@@ -145,6 +145,7 @@ func (p Profile) check() error {
 			break
 		}
 	}
+	problems = append(problems, p.earlierNameProblems()...)
 	if len(p.Providers) == 0 {
 		problems = append(problems, "Providers must list at least one agent provider")
 	} else if p.DefaultProvider != "" && !slices.Contains(p.Providers, p.DefaultProvider) {
@@ -160,4 +161,48 @@ func (p Profile) check() error {
 		return nil
 	}
 	return errors.New(strings.Join(problems, "; "))
+}
+
+// earlierNameProblems says what is wrong with the earlier names of the
+// product's programs. An earlier name of the command program must not be a
+// program the product has now, since the window removes the file of that
+// name once nothing uses it. An earlier name of a tool server's program may
+// be the command program's name now, provided the command program hands
+// the server's first argument on to the server's program; otherwise an
+// agent's entry that still runs the earlier name would start the command
+// program's own command.
+func (p Profile) earlierNameProblems() []string {
+	var problems []string
+	current := []string{p.CommandProgram, p.WindowProgram}
+	for _, s := range p.ToolServers {
+		current = append(current, s.Program)
+	}
+	for _, c := range p.ProgramCommands {
+		current = append(current, c.Program)
+	}
+	for _, name := range p.EarlierCommandPrograms {
+		if !providerID.MatchString(name) || slices.Contains(current, name) {
+			problems = append(problems, "each of EarlierCommandPrograms must be lowercase letters, digits and hyphens, and not the name of a program the product has now")
+			break
+		}
+	}
+	for _, s := range p.ToolServers {
+		for _, name := range s.EarlierPrograms {
+			if !providerID.MatchString(name) || name == s.Program || name == p.WindowProgram {
+				problems = append(problems, "each of a tool server's EarlierPrograms must be lowercase letters, digits and hyphens, and neither its Program nor WindowProgram")
+				break
+			}
+			if name == p.CommandProgram && len(s.Args) > 0 && !p.handsOn(s.Args[0], s.Program) {
+				problems = append(problems, "a tool server whose earlier program is CommandProgram needs a ProgramCommand that hands its first argument, "+s.Args[0]+", to "+s.Program)
+				break
+			}
+		}
+	}
+	return problems
+}
+
+// handsOn reports whether the command program hands the command name to
+// program.
+func (p Profile) handsOn(name, program string) bool {
+	return slices.ContainsFunc(p.ProgramCommands, func(c ProgramCommand) bool { return c.Name == name && c.Program == program })
 }

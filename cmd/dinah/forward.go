@@ -20,8 +20,12 @@ import (
    program cannot be started. */
 
 // forwarded is the program that carries out a command, when the product
-// hands that command to one. A command of the command program's own is
-// never handed on: this is asked only for a command it does not have.
+// hands that command to one. It is asked before the command program's own
+// commands are looked at, so a handed-on command goes to the other program
+// even when the command program has one by the same name. A product that
+// gave the command program the name another program had relies on this:
+// an agent's settings written for that program still start it with its
+// own command, such as "serve", and must reach it.
 func forwarded(name string) (string, bool) {
 	for _, c := range profile.Current().ProgramCommands {
 		if c.Name == name {
@@ -62,6 +66,7 @@ func forwardFrom(dir, program string, args []string) int {
 	}
 	cmd := exec.Command(path, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	withoutNewConsole(cmd)
 	err := cmd.Run()
 	var ended *exec.ExitError
 	switch {
