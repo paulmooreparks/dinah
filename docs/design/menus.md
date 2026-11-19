@@ -5,7 +5,7 @@ Paul asked on 19 November 2026 for every menu to be listed and compared with the
 ## The rules
 
 1. The host's menus are Chat, Workspace, Documents, View, Settings, Window and Help, in that order. They are for what the product itself keeps: chats, workspaces, and the finding and opening of documents.
-2. File is an application's menu and the host has none (Paul, 19 November 2026: an application's window is the only place there is ever a file). Edit follows it, since the document applications draw both and two menus cannot have one title in the bar; this second part is taken from the first and waits for Paul's word.
+2. File is an application's menu and the host has none (Paul, 19 November 2026: an application's window is the only place there is ever a file). Edit follows it, since the document applications draw both and two menus cannot have one title in the bar (confirmed by Paul the same day).
 3. A host menu has the same rows whatever window is in front, and the window in front adds nothing to it (Paul, 19 November 2026: the window in front should not change the host's menus, as far as that is possible and practical). A row that needs something in front, as Chat's Rename… needs a chat, is greyed with the reason when it is not there.
 4. The window in front adds its own menus after Help, so the host's titles never move. Its first menu has the application's name and holds what belongs to the application as a whole. A document application then has File and Edit and the menus of its own objects. What the host carries out for the document in front (Rename…, Discard Draft…, Publish…) is in the application's File. No menu is called Actions, and none repeats the window commands.
 5. View shows and hides. It starts nothing and changes nothing that is kept.
@@ -16,7 +16,7 @@ Paul asked on 19 November 2026 for every menu to be listed and compared with the
 10. The launcher lists what opens in a window or a pane of its own, one entry each, in alphabetical order. It lists no commands. The panes are in it, under a category of their own, so that a pane can be found and pinned from it.
 11. Ctrl+P is Print…, and Find and Open… takes Ctrl+Shift+O (decided 19 November 2026; both wait until the document applications give Print… the key, since a freed Ctrl+P would otherwise do nothing).
 12. The settings menu is called Settings.
-13. The way out of the program is called Exit on every system. With no File in the host it is in the launcher, which opens from the product's name at the start of the bar, and Alt+F4 does it too.
+13. The way out of the program is called Exit on every system. With no File in the host it is in the launcher, which opens from the product's name at the start of the bar, and Alt+F4 does it too. Paul confirmed on 19 November 2026 that the launcher is enough.
 
 ## Where the work is
 
@@ -48,8 +48,7 @@ The command registry gained two things for this (`commands.js`). An entry may sa
 
 ## Questions still open
 
-1. Whether Edit stays with the applications, as rule 2 assumes, or the host has an Edit for the clipboard.
-2. Whether F1 stays the list of keys or opens a help page.
+1. Whether F1 stays the list of keys or opens a help page.
 
 ## Tests
 
