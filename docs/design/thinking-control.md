@@ -18,3 +18,22 @@ The [ACP configuration protocol](https://agentclientprotocol.com/protocol/sessio
 ## Persistence
 
 The existing host saves all selected option IDs and values per chat. On reopen it applies the model first, then the remaining choices. When a model no longer offers an effort choice, the existing substitution path keeps the saved choice, uses the offered default and explains the substitution. The toolbar reads the returned options and adds no second persistence store.
+
+## Showing the thinking
+
+Paul reported on 20 November 2026 that thinking was not shown although Show the Agent's Thinking was on, and required that the fix hold for every agent program. Two things were wrong.
+
+A thought was a line inside the Working block, which starts closed, so nobody saw one without opening the block. A thought is now a row of the transcript, where it arrived, with the word Thinking and its time, and the Working block has the tool calls only. Paul approved this from a mockup (docs/mockups/thinking-in-transcript). The page does this for every program alike. With the setting off no thought is shown.
+
+Claude sent thinking for about one answer in ten. Codex and Devin send it with their steps, and the Ollama adapter passes on what a model sends. The newest Claude models leave the text of their thinking out unless asked for a summary: the API's [thinking display](https://platform.claude.com/docs/en/build-with-claude/thinking) is "omitted" by default on them. The Agent SDK documents the option `thinking: { type: "adaptive", display: "summarized" }`, and the pinned adapter takes SDK options from a session request's `_meta.claudeCode.options`, as its README says. Dinah sends that with a Claude session's request while the setting is on (`claudeSessionParams`). The same documentation says the display value does not change what a turn costs.
+
+The option is given when a session is made or opened, and no documentation says how to change it afterwards. The API rejects adaptive thinking on the models it lists as taking extended thinking only, which in the catalogue is Haiku 4.5, and nothing says what the SDK does when a session with the option turns to such a model. Dinah therefore keeps to this:
+
+- A chat whose saved model is one of those, or a new chat when the provider's default is one, is opened without the option.
+- A session that was opened with the option is not let turn to such a model. The choice is refused with the reason and the way round, which is to turn the setting off and restart Claude (`internal/claudeagent/thinking.go`).
+- The setting reaches a chat when its session is next made or opened.
+
+Paul had agreed that a chat turned to Haiku 4.5 would be opened again without the option. Dinah has no step that opens one chat's session again while its adapter runs, only a restart of every Claude chat, and the adapter keeps a session it already has. The refusal stands in for that until such a step exists.
+
+The adapter also reads an environment variable for the same option. No documentation mentions it, and Dinah does not use it.
+

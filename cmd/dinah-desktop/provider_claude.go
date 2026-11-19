@@ -20,11 +20,12 @@ import (
 
 func init() {
 	registerProviderModule("claude", providerModule{
-		Info:       func(a *App, p *AgentProviderInfo, workspaces []string) { a.claudeInfo(p, workspaces) },
-		Adapter:    claudeAdapter,
-		Picture:    claudePicture,
-		Judge:      acpJudgeModule(),
-		SignInHelp: "Claude signs in through your own Claude Code. Run claude in a terminal and sign in there with /login, or store an API key in Settings > Agents. This notice goes away when Claude next answers.",
+		Info:          func(a *App, p *AgentProviderInfo, workspaces []string) { a.claudeInfo(p, workspaces) },
+		Adapter:       claudeAdapter,
+		Picture:       claudePicture,
+		SessionParams: claudeSessionParams,
+		Judge:         acpJudgeModule(),
+		SignInHelp:    "Claude signs in through your own Claude Code. Run claude in a terminal and sign in there with /login, or store an API key in Settings > Agents. This notice goes away when Claude next answers.",
 		SignIn: func(*App) error {
 			// Dinah never offers a Claude login of its own
 			// (docs/proposals/claude-agent-integration.md, Authentication).
@@ -454,4 +455,49 @@ func (a *App) claudeAccountReport(params json.RawMessage) {
 	acct := ProviderAccount{Provider: "claude", Kind: n.AuthStatus.Kind, Label: strings.TrimSpace(n.AuthStatus.Label),
 		Subscription: n.AuthStatus.Kind == "account"}
 	a.reportAccount(acct)
+}
+
+// claudeSessionParams ask Claude for summaries of its thinking in a session
+// that is made or opened while Show the Agent's Thinking is on, since its
+// newest models send none unless asked (claudeagent/thinking.go). A chat
+// whose model rejects the request is not asked: its saved choice says which
+// model it uses, and a new chat uses the provider's default. A new chat whose
+// model is chosen before its first message is made with the default all the
+// same, and if that choice is a model that rejects the request the choice is
+// refused with the reason.
+func claudeSessionParams(a *App, p acp.LoadSessionParams) any {
+	a.mu.Lock()
+	ask := a.settings.ShowThinking && !claudeagent.ExtendedThinkingOnly(claudeModelLocked(a, p.SessionID))
+	a.mu.Unlock()
+	var meta map[string]any
+	if ask {
+		meta = claudeagent.SummariesMeta()
+	}
+	if p.SessionID == "" {
+		return claudeNewSession{NewSessionParams: acp.NewSessionParams{Cwd: p.Cwd, McpServers: p.McpServers}, Meta: meta}
+	}
+	return claudeOpenSession{LoadSessionParams: p, Meta: meta}
+}
+
+type claudeNewSession struct {
+	acp.NewSessionParams
+	Meta map[string]any `json:"_meta,omitempty"`
+}
+
+type claudeOpenSession struct {
+	acp.LoadSessionParams
+	Meta map[string]any `json:"_meta,omitempty"`
+}
+
+// claudeModelLocked is the model option's value a chat will have: the choice
+// saved for it, or the provider's default, or "" when the adapter chooses.
+func claudeModelLocked(a *App, id string) string {
+	var model string
+	if id != "" {
+		_ = json.Unmarshal(a.settings.SessionOptions[id]["model"], &model)
+	}
+	if model == "" {
+		_ = json.Unmarshal(a.settings.ProviderDefaults["claude"]["model"], &model)
+	}
+	return model
 }

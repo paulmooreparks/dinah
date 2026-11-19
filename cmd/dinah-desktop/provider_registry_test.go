@@ -252,15 +252,17 @@ func TestProviderModulesAreReachedByTheirIDs(t *testing.T) {
 	// A provider that is installed but cannot be asked has its own session
 	// parameters only when its module gives them.
 	base := acp.LoadSessionParams{SessionID: "x", Cwd: t.TempDir()}
-	for _, id := range []string{"codex", "ollama"} {
+	// Claude has its own since 20 November 2026, for the request for thinking
+	// summaries (provider_claude.go), so Devin is the provider with none here.
+	for _, id := range []string{"codex", "ollama", "claude"} {
 		if _, plain := a.providerSessionParams(id, "x", base.Cwd, nil).(acp.LoadSessionParams); plain {
 			t.Errorf("%s has its own session parameters", id)
 		}
 	}
-	if _, plain := a.providerSessionParams("claude", "x", base.Cwd, nil).(acp.LoadSessionParams); !plain {
+	if _, plain := a.providerSessionParams("devin", "x", base.Cwd, nil).(acp.LoadSessionParams); !plain {
 		t.Error("a provider with no module parameters has more than the protocol's")
 	}
-	if _, fresh := a.providerSessionParams("claude", "", base.Cwd, nil).(acp.NewSessionParams); !fresh {
+	if _, fresh := a.providerSessionParams("devin", "", base.Cwd, nil).(acp.NewSessionParams); !fresh {
 		t.Error("a new session has no new-session parameters")
 	}
 	// A refused request of a provider with no module of its own for it says to

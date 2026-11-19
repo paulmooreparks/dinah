@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -435,6 +436,9 @@ func Env(base []string, apiKey string) []string {
 type Conn struct {
 	*acp.Conn
 	steering atomic.Bool
+	// summaries has the sessions that asked for thinking summaries when
+	// they were made or opened, by the adapter's session ID (thinking.go).
+	summaries sync.Map
 }
 
 // Start runs the pinned adapter with node in dir. apiKey, when not empty, is
@@ -468,9 +472,17 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 	if err != nil {
 		return err
 	}
+	if method == "session/set_config_option" {
+		if err := c.refusedModel(p); err != nil {
+			return err
+		}
+	}
 	var raw json.RawMessage
 	if err := c.Conn.Call(ctx, method, p, &raw); err != nil {
 		return err
+	}
+	if method == "session/new" || method == "session/load" || method == "session/resume" {
+		c.noteSession(p, raw)
 	}
 	if method == "initialize" {
 		var offered struct {
