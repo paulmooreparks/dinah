@@ -158,11 +158,17 @@ func associationsChanged() {
 // https://learn.microsoft.com/windows/win32/shell/knownfolderid
 // https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/windows-scripting/xk6kst2k(v=vs.84)
 func documentShortcut(app documentInstalled, remove bool) error {
+	return startMenuShortcut(app.Name, app.Program, remove)
+}
+
+// startMenuShortcut makes, or removes, the shortcut called name to program
+// in the person's Start menu programs, as documentShortcut says.
+func startMenuShortcut(name, program string, remove bool) error {
 	folder, err := windows.KnownFolderPath(windows.FOLDERID_Programs, 0)
 	if err != nil {
 		return err
 	}
-	link := filepath.Join(folder, app.Name+".lnk")
+	link := filepath.Join(folder, name+".lnk")
 	if remove {
 		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
 			return err
@@ -193,8 +199,8 @@ func documentShortcut(app documentInstalled, remove bool) error {
 	}
 	shortcut := made.ToIDispatch()
 	defer shortcut.Release()
-	for name, value := range map[string]string{"TargetPath": app.Program, "Description": app.Name, "WorkingDirectory": filepath.Dir(app.Program)} {
-		if _, err := oleutil.PutProperty(shortcut, name, value); err != nil {
+	for property, value := range map[string]string{"TargetPath": program, "Description": name, "WorkingDirectory": filepath.Dir(program)} {
+		if _, err := oleutil.PutProperty(shortcut, property, value); err != nil {
 			return err
 		}
 	}

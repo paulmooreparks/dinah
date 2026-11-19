@@ -124,6 +124,10 @@ func main() {
 	if len(os.Args) >= 2 && os.Args[1] == documentOption {
 		os.Exit(runDocumentWindow(os.Args[2:]))
 	}
+	// The last step of an installation (install_step.go).
+	if len(os.Args) == 2 && os.Args[1] == installOption {
+		os.Exit(runInstall())
+	}
 	if len(os.Args) == 2 && (os.Args[1] == documentInstallOption || os.Args[1] == documentUninstallOption) {
 		os.Exit(runDocumentInstall(os.Args[1] == documentUninstallOption))
 	}

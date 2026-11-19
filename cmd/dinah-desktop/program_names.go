@@ -248,15 +248,18 @@ func identifyProgram(path string) (programs.Identity, error) {
 // moveProgramsToCurrentNames runs the move for the installed window, before
 // any chat starts, since a chat's start needs the command line under its
 // current name (devin_steering.go). A window started from anywhere else
-// than the product's bin folder, such as a build in a source folder, moves
-// nothing.
+// than the product's program folder, such as a build in a source folder,
+// moves nothing.
 func (a *App) moveProgramsToCurrentNames() {
 	p := profile.Current()
 	if !renamesPrograms(p) {
 		return
 	}
 	self, err := os.Executable()
-	bin := filepath.Join(configDir(), "bin")
+	if err != nil {
+		return
+	}
+	bin, err := programs.Folder(p)
 	if err != nil || !layout.SamePath(filepath.Dir(self), bin) {
 		return
 	}

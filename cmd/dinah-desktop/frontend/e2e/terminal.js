@@ -48,6 +48,7 @@ const { launch } = require('./lib/page');
       let values = JSON.parse(localStorage.getItem('fixture-ui') || '{}');
       window.dinahUIState = { ready: Promise.resolve(), get: (key, fallback) => values[key] || fallback, set: (key, value) => { values[key] = value; localStorage.setItem('fixture-ui', JSON.stringify(values)); }, flush: async () => {} };
       window.__calls = [];
+      window.dinahProduct = { name: 'Dinah', host: 'dinah' };
       window.__listeners = new Set();
       window.dinahResources = {
         open: async (item, isCurrent) => { if (window.__holdOpen) await new Promise(resolve => { window.__finishOpen = resolve; }); if (!isCurrent || isCurrent()) __calls.push(['open', item.path]); },

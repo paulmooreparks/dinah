@@ -1,8 +1,6 @@
 package main
 
 import (
-	"path/filepath"
-
 	"studio/internal/profile"
 	"studio/internal/programs"
 )
@@ -24,10 +22,27 @@ func setAsideProgramNames(p profile.Profile) []string {
 	return names
 }
 
+// The set-aside copies are beside the programs, in the program folder.
+func setAsideService() (*programs.SetAsideService, error) {
+	dir, err := programs.CurrentFolder()
+	if err != nil {
+		return nil, err
+	}
+	return programs.NewSetAsideService(dir, setAsideProgramNames(profile.Current())), nil
+}
+
 func (a *App) ListSetAsidePrograms() (programs.SetAsideList, error) {
-	return programs.NewSetAsideService(filepath.Join(configDir(), "bin"), setAsideProgramNames(profile.Current())).List()
+	s, err := setAsideService()
+	if err != nil {
+		return programs.SetAsideList{}, err
+	}
+	return s.List()
 }
 
 func (a *App) RemoveSetAsidePrograms(in programs.RemoveSetAsideInput) (programs.RemoveSetAsideResult, error) {
-	return programs.NewSetAsideService(filepath.Join(configDir(), "bin"), setAsideProgramNames(profile.Current())).Remove(in)
+	s, err := setAsideService()
+	if err != nil {
+		return programs.RemoveSetAsideResult{}, err
+	}
+	return s.Remove(in)
 }

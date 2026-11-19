@@ -6,17 +6,19 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"studio/internal/bus"
+	"studio/internal/acp"
 	"studio/internal/layout"
 	"studio/internal/profile"
+	"studio/internal/programs"
 )
 
 // Restart to Update. `dinah install` puts a new build at the installed
@@ -107,16 +109,11 @@ func (a *App) admitWrite() (func(), error) {
 // updatePoll is how often the installed program is looked at.
 const updatePoll = 15 * time.Second
 
+// installedDesktop is the window program in the product's program folder
+// (internal/programs), which is where an installation and every update put
+// it.
 func installedDesktop() (string, error) {
-	home, err := bus.Home()
-	if err != nil {
-		return "", err
-	}
-	name := product.WindowProgram
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-	return filepath.Join(home, "bin", name), nil
+	return programs.FolderOf(profile.Current(), product.WindowProgram)
 }
 
 func fileHash(path string) ([32]byte, error) {
@@ -147,7 +144,16 @@ func (a *App) watchUpdates(stop <-chan struct{}) {
 		return
 	}
 	self, err := os.Executable()
-	if err != nil || !layout.SamePath(self, installed) {
+	if err != nil {
+		return
+	}
+	if !layout.SamePath(self, installed) {
+		// A window started from the home folder's bin, where installations
+		// put the programs until 19 November 2026, moves the installation to
+		// the program folder and offers to restart from there.
+		if layout.SamePath(filepath.Dir(self), filepath.Join(configDir(), "bin")) {
+			a.moveInstallation(self, installed)
+		}
 		return
 	}
 	info, err := os.Stat(installed)
@@ -174,6 +180,64 @@ func (a *App) watchUpdates(stop <-chan struct{}) {
 		}
 		a.checkUpdate()
 	}
+}
+
+// moveInstallation is for a window running from the home folder's bin, as
+// one does that an earlier release's updater installed, or that the person
+// started from a shortcut made before the program folder. When the program
+// folder has no window program yet, the programs beside this one are
+// placed there, and the new window program finishes the installation
+// (install_step.go), which moves what is left in the bin. Either way the
+// window then offers Restart to Update into the program folder's window, so
+// every later update is seen (docs/design/installation.md). A copy started
+// with a home or program folder of its own does nothing.
+func (a *App) moveInstallation(self, installed string) {
+	if os.Getenv(product.HomeVar()) != "" || os.Getenv(programs.FolderVar(product)) != "" {
+		return
+	}
+	if _, err := os.Stat(installed); errors.Is(err, os.ErrNotExist) {
+		dir := filepath.Dir(installed)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			logf("core", "error", "the program folder %s could not be made: %v", dir, err)
+			return
+		}
+		// The window program goes last, as an update places it.
+		for _, name := range setAsideProgramNames(product) {
+			if name == product.WindowProgram {
+				continue
+			}
+			src := filepath.Join(filepath.Dir(self), programs.FileName(name))
+			if _, err := os.Stat(src); err != nil {
+				continue
+			}
+			if err := programs.Place(src, filepath.Join(dir, programs.FileName(name))); err != nil {
+				logf("core", "error", "%s could not be placed in %s: %v", programs.FileName(name), dir, err)
+				return
+			}
+		}
+		if err := programs.Place(self, installed); err != nil {
+			logf("core", "error", "%s could not be placed in %s: %v", product.WindowProgram, dir, err)
+			return
+		}
+		finish := exec.Command(installed, installOption)
+		acp.HideWindow(finish)
+		out, err := finish.CombinedOutput()
+		if err != nil {
+			logf("core", "warning", "the installation in %s was not finished: %v: %s", dir, err, strings.TrimSpace(string(out)))
+		} else {
+			logf("core", "info", "the installation moved to %s: %s", dir, strings.TrimSpace(string(out)))
+		}
+	} else if err != nil {
+		return
+	}
+	a.updMu.Lock()
+	if a.update == nil {
+		a.update = &updateWatch{}
+	}
+	a.update.path, a.update.ready = installed, true
+	a.updMu.Unlock()
+	logf("core", "info", "%s runs from %s, and offers to restart from %s", product.Name, filepath.Dir(self), installed)
+	a.emitUpdate()
 }
 
 // checkUpdate looks at the installed program and says whether it changed.

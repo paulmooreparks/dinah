@@ -730,12 +730,18 @@ func (s toolServerEntry) installed(command string) bool {
 }
 
 // installedToolServers are the product's tool servers whose programs are
-// in the product's bin folder, which is where an installation and every
-// update put them. A program that is not there is not registered.
+// in the product's program folder, which is where an installation and every
+// update put them. A program that is not there is not registered. An entry
+// that runs the program from the home folder's bin, where installations put
+// it until 19 November 2026, is an earlier entry to correct.
 func installedToolServers() []toolServerEntry {
 	var out []toolServerEntry
+	dir, err := programs.CurrentFolder()
+	if err != nil {
+		return nil
+	}
 	for _, s := range profile.Current().ToolServers {
-		program := filepath.Join(configDir(), "bin", programs.FileName(s.Program))
+		program := filepath.Join(dir, programs.FileName(s.Program))
 		if st, err := os.Stat(program); err != nil || st.IsDir() {
 			continue
 		}
@@ -743,7 +749,7 @@ func installedToolServers() []toolServerEntry {
 		if args == nil {
 			args = []string{}
 		}
-		var earlier []string
+		earlier := []string{filepath.Join(configDir(), "bin")}
 		if home, err := os.UserHomeDir(); err == nil {
 			for _, folder := range s.EarlierFolders {
 				earlier = append(earlier, filepath.Join(home, filepath.FromSlash(folder)))

@@ -53,6 +53,7 @@ const fs = require('fs');
     init: () => {
       window.dinahUIState = { ready: Promise.resolve(), get: (k, f) => f, set: () => {}, flush: async () => {} };
       window.__calls = [];
+      window.dinahProduct = { name: 'Dinah', host: 'dinah' };
       window.dinahAppletSDK = { catalog: async () => [] };
       window.dinahResources = {
         commands: () => [{ name: 'applets', description: 'Discover applet actions and invoke them.', usage: 'applets ...' }],

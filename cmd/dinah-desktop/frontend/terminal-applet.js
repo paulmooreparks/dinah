@@ -860,7 +860,9 @@
       if (!altScreen) save();
     }
     function display(path) { return path === home ? '~' : path.startsWith(home + '/') ? '~' + path.slice(home.length) : path; }
-    function prompt() { return paint('green', safe(user) + '@dinah') + ':' + paint('blue', C.bold + safe(display(cwd)).replace(/\n|\t/g, ' ')) + '$ '; }
+    // The prompt says user@host with the product's short name as the host,
+    // as in paul@dinah (product.js), and the user alone until it is known.
+    function prompt() { var host = window.dinahProduct && dinahProduct.host; return paint('green', safe(user) + (host ? '@' + safe(host) : '')) + ':' + paint('blue', C.bold + safe(display(cwd)).replace(/\n|\t/g, ' ')) + '$ '; }
     function redraw() {
       var value = line, position = cursor;
       visualTail = visualTail.then(function () { return new Promise(function (done) {

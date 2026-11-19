@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -109,7 +108,11 @@ func (a *App) withDiagramServers(channel *appletChannel, provider, workspace str
 			d.revoke()
 			return nil, errors.New("the product's restricted drawing registration is incomplete")
 		}
-		command := filepath.Join(configDir(), "bin", programs.FileName(server.Program))
+		command, err := programs.FolderOf(product, server.Program)
+		if err != nil {
+			d.revoke()
+			return nil, errors.New("the installed tools program for drawing is unavailable")
+		}
 		if info, err := os.Stat(command); err != nil || !info.Mode().IsRegular() {
 			d.revoke()
 			return nil, errors.New("the installed tools program for drawing is unavailable")

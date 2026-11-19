@@ -13,7 +13,7 @@
   'use strict';
   var root = document.documentElement;
   var initial = root.getAttribute('data-product-name') || '';
-  var product = { name: initial, defaultTheme: root.getAttribute('data-product-theme') || '' };
+  var product = { name: initial, defaultTheme: root.getAttribute('data-product-theme') || '', host: '' };
   // The attributes as the markup wrote them, split where its name stood.
   var templates = new WeakMap();
 
@@ -40,11 +40,15 @@
   window.dinahProduct = {
     get name() { return product.name; },
     get defaultTheme() { return product.defaultTheme; },
+    // The short name the product's own shell shows as the computer's, as in
+    // paul@dinah, or '' until State has said it.
+    get host() { return product.host; },
     // apply takes State's product and fills the page with it.
     apply: function (info) {
       if (!info) return;
       if (info.name) product.name = info.name;
       if (info.defaultTheme) product.defaultTheme = info.defaultTheme;
+      if (info.host) product.host = info.host;
       fill(document);
       // The menu bar reads its titles from the markup when it is built.
       if (window.pudlMenubar && window.pudlMenubar.refresh) window.pudlMenubar.refresh();

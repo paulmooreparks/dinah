@@ -318,7 +318,11 @@
     register({ id: 'chat-browser', menu: 'view', inline: true, label: 'Chats', run: () => { window.dinahWorkbench.open('chat-browser').catch(fail); } });
     register({ id: 'skills-browser', menu: 'view', inline: true, label: 'Skills', run: () => { window.dinahWorkbench.open('skills-browser').catch(fail); } });
     register({ id: 'files', menu: 'view', inline: true, label: 'Files', run: () => { dinahResources.currentPath().then(dinahResources.openFiles).catch(fail); } });
-    register({ id: 'terminal', menu: 'view', inline: true, label: 'Terminal', run: () => { dinahResources.currentPath().then(dinahResources.openTerminal).catch(fail); } });
+    // New Terminal runs the shell chosen in Settings › Terminal; the other
+    // runs the product's own shell, over its files and applets, whichever
+    // shell is chosen (docs/design/installation.md, Paul, 19 November 2026).
+    register({ id: 'terminal', menu: 'view', mnemonic: 'T', glyph: 'terminal', label: 'New Terminal', run: () => { dinahResources.currentPath().then(dinahResources.openTerminal).catch(fail); } });
+    register({ id: 'own-shell', menu: 'view', mnemonic: 'S', glyph: 'script', label: () => 'New ' + window.dinahProduct.name + ' Shell', run: () => { dinahResources.currentPath().then(path => dinahResources.openTerminal(path, null, 'dinah')).catch(fail); } });
     register({ id: 'clear-notifications', menu: 'view', inline: true, label: 'Clear All…', enabled: () => notices.list(entry => entry.clearable).length > 0, danger: true, run: () => { clearNotifications(); } });
     register({ id: 'refresh-workspace', menu: 'view', inline: true, label: 'Refresh Workspace', enabled: () => workspaceCommands('refresh-workspace'), run: () => { app().State().then(function (st) { drawWorkspaces(st); refreshSessions(); }).catch(fail); } });
     register({ id: 'settings', menu: 'dinah', inline: true, label: 'Settings…', run: () => { openSettings(); } });

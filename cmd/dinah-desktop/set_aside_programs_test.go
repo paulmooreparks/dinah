@@ -36,13 +36,21 @@ func TestSetAsideProgramsIncludeEarlierNames(t *testing.T) {
 	}
 }
 
-func TestSetAsidePageUsesOnlyTheConfiguredProductHome(t *testing.T) {
+// The set-aside copies are listed from the program folder, and a copy left
+// in the home folder's bin, where installations put programs until
+// 19 November 2026, is not listed (the installation moves it).
+func TestSetAsidePageUsesOnlyTheProgramFolder(t *testing.T) {
 	home := t.TempDir()
 	previous := configOverride
 	configOverride = home
 	t.Cleanup(func() { configOverride = previous })
-	bin := filepath.Join(home, "bin")
+	bin := filepath.Join(t.TempDir(), "Programs", profile.Current().Name)
+	t.Setenv(programs.FolderVar(profile.Current()), bin)
 	if err := os.MkdirAll(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(home, "bin"), 0o700)
+	if err := os.WriteFile(filepath.Join(home, "bin", programs.FileName(profile.Current().WindowProgram)+".old-20261113120000000"), []byte("left"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	name := programs.FileName(profile.Current().WindowProgram) + ".old-20261114120000000"

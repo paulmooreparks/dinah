@@ -260,14 +260,15 @@ func send(ctx context.Context, args []string) error {
 	})
 }
 
-// install copies the running binary to bin in Dinah's home folder and, when
-// run from Dinah's source folder, builds the window program there too.
+// install copies the running binary to the product's program folder
+// (internal/programs) and, when run from Dinah's source folder, builds the
+// window program there too, which then finishes the installation
+// (cmd/dinah-desktop/install_step.go).
 func install() error {
-	home, err := bus.Home()
+	dir, err := programs.CurrentFolder()
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(home, "bin")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -318,16 +319,17 @@ func install() error {
 	if err := installPrograms(list, required); err != nil {
 		return err
 	}
-	// The stand-alone document applications are the window program under
-	// names of their own, which it installs for the person itself
-	// (cmd/dinah-desktop/document_install.go). A failure there leaves the
-	// window installed and is reported.
-	apps := exec.Command(dst, "--document-install")
-	apps.Stdout, apps.Stderr = os.Stdout, os.Stderr
-	if err := apps.Run(); err != nil {
-		fmt.Printf("The stand-alone document applications were not installed: %v\n", err)
+	// The window finishes the installation itself: the stand-alone document
+	// applications, the Start menu, the programs an earlier installation
+	// left in the home folder's bin, and the PATH
+	// (cmd/dinah-desktop/install_step.go). A failure there leaves the
+	// programs installed and is reported.
+	finish := exec.Command(dst, "--install")
+	finish.Stdout, finish.Stderr = os.Stdout, os.Stderr
+	if err := finish.Run(); err != nil {
+		fmt.Printf("The installation was not finished: %v\n", err)
 	}
-	fmt.Printf("Close the %s window and start it again to use it.\n", product.Name)
+	fmt.Printf("Installed in %s. Close the %s window and start it again to use it.\n", dir, product.Name)
 	return nil
 }
 
