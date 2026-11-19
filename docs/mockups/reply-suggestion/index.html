@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A suggested reply in the prompt box: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame around the example and the transcript's two messages are
+       styled here. The composer uses the shipped classes, and the styles
+       under "Proposed" are the ones the product would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .form-group { margin: 0; }
+    .mock-stage { padding: var(--space-4) var(--space-5); }
+    .mock-chat { display: flex; flex-direction: column; width: 720px; max-width: 100%; height: 420px; resize: both; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); }
+    .mock-log { flex: 1 1 auto; overflow: auto; padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+    .mock-msg { max-width: 46rem; }
+    .mock-msg .who { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); }
+    .mock-msg p { margin: var(--space-1) 0 0; white-space: pre-wrap; }
+    .mock-msg.you { align-self: flex-end; background: var(--surface-alt); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+    .mock-state { padding: 0 var(--space-5) var(--space-1); min-height: 1.6em; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-said { margin: var(--space-2) var(--space-5) 0; min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-notes { margin: var(--space-4) var(--space-5) var(--space-5); max-width: 56rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+    .mock-chat .composer { max-height: none; }
+
+    /* ---- Proposed -------------------------------------------------------
+       The suggestion is drawn over the empty box and is not the box's text.
+       It has the placeholder's colour. It is cut to the lines the box
+       already has, so the box does not grow when a suggestion arrives; the
+       whole of it is there once it is accepted. */
+    .composer-field { position: relative; display: grid; }
+    /* It lies over the box and takes no room of its own, so it cannot make
+       the box taller. Its padding and line height are the box's (the script
+       copies them), and what does not fit in the box's lines is cut. */
+    .reply-suggestion { position: absolute; inset: 0; pointer-events: none; margin: 0; border: 1px solid transparent; font: inherit; color: var(--text-muted); opacity: .5;
+      white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+    .reply-suggestion[hidden] { display: none; }
+    .reply-suggestion-key { position: absolute; inset-block-start: 7px; inset-inline-end: 8px; pointer-events: none; font-size: var(--text-xs); color: var(--text-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-2); background: var(--surface); }
+    .reply-suggestion-key[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>A suggested reply in the prompt box</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 19 November 2026. Click in the box and press Tab.</span>
+  </header>
+
+  <div class="mock-controls">
+    <div class="form-group">
+      <label class="form-label" for="mock-case">What the agent said last</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-case"></select></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mock-hint">How Tab is shown</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-hint">
+        <option value="key">A Tab key cap in the box (recommended)</option>
+        <option value="none">Nothing; the box's tooltip and Help say it</option>
+      </select></span>
+    </div>
+    <button type="button" class="btn" id="mock-turn">A Turn Ends</button>
+  </div>
+
+  <div class="mock-stage">
+    <div class="mock-chat">
+      <div class="mock-log" id="mock-log"></div>
+      <div class="mock-state" id="mock-state" role="status"></div>
+      <form class="composer" id="composer" onsubmit="return false">
+        <div class="composer-row">
+          <label class="visually-hidden" for="prompt">What should the agent do?</label>
+          <div class="composer-field">
+            <textarea class="form-textarea composer-input" id="prompt" rows="2" aria-describedby="reply-suggestion-help"></textarea>
+            <p class="reply-suggestion" id="reply-suggestion" aria-hidden="true" hidden></p>
+            <span class="reply-suggestion-key" id="reply-suggestion-key" aria-hidden="true" hidden>Tab</span>
+            <span class="visually-hidden" id="reply-suggestion-help"></span>
+          </div>
+          <div class="composer-actions">
+            <button type="submit" class="btn btn-primary" id="send" disabled title="Send (Ctrl+Enter)">Send</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <p class="mock-said" id="mock-said" role="status"></p>
+
+  <div class="mock-notes">
+    <h2>What it does</h2>
+    <ul>
+      <li>When a turn ends and the chat waits for you, a judge reads the end of the conversation and proposes what you might say next. The proposal appears in the empty prompt box in the placeholder's colour. It arrives a moment after the turn ends, and nothing else on the screen changes when it does.</li>
+      <li><strong>Tab</strong> makes it the box's text, with the caret at its end, and Send comes alive. Nothing is sent until you send it.</li>
+      <li><strong>Esc</strong> drops the suggestion, and the ordinary placeholder returns. So does a new turn, which makes the suggestion out of date.</li>
+      <li>Typing anything hides it. If you empty the box again before the next turn, it comes back.</li>
+      <li>When the judge has nothing worth proposing, the box shows its ordinary placeholder. The fourth case in the list above is one.</li>
+      <li>A long suggestion is cut to the two lines the box already has, so the box does not grow when it arrives. Tab gives you all of it. The third case shows this.</li>
+    </ul>
+    <h2>Why it is built this way</h2>
+    <ul>
+      <li><strong>The suggestion is never the box's text until you take it.</strong> The box's text is saved as your draft, goes into your prompt history and enables Send. A suggestion that was only drawn there can do none of that by accident.</li>
+      <li><strong>It is drawn over the box, and is not the placeholder itself.</strong> The prompt box sizes itself to its placeholder when it is empty, so a long suggestion set as the placeholder would make the box jump taller as it arrived.</li>
+      <li><strong>Only Tab takes it, and Enter does not.</strong> Claude Code also sends a suggestion on Enter. Here an empty box and Enter does nothing today, and a suggestion that could be sent by one stray key is a message you did not write.</li>
+      <li><strong>It follows the judgement agents' rule that a judge never interrupts.</strong> It shows only in a box you are already looking at, opens nothing and moves nothing.</li>
+    </ul>
+    <h2>Alternatives</h2>
+    <ul>
+      <li><strong>No key cap.</strong> The second choice under "How Tab is shown". It is the plainest and matches Claude Code, which shows nothing. Someone who has not been told cannot find out that Tab does anything, which is why I recommend the key cap.</li>
+      <li><strong>A button beside the box</strong> ("Use Suggestion"). It would be easy to find, and it would have to appear and disappear with the suggestion, which moves the row.</li>
+      <li><strong>A row of two or three short replies above the box</strong>, as phone keyboards have. It gives a choice, and it costs a row of the chat and one more call or a longer answer each time.</li>
+    </ul>
+    <h2>What Tab stops doing</h2>
+    <ul>
+      <li>Tab moves to the next control today. While a suggestion shows it takes the suggestion instead. Shift+Tab still moves back, and after Esc, Tab moves on as before. With the list of skills or of mentions open, Tab still picks from the list, as it does today.</li>
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var PLACEHOLDER = 'Say what you want the agent to do, or type / for a skill.';
+      var CASES = [
+        { name: 'A yes-or-no question',
+          you: 'Rename the launcher entry for the default shell to Terminal.',
+          agent: 'Done. The entry is called Terminal and sits in alphabetical order with the shells.\n\nShall I rename the pinned one too?',
+          suggestion: 'Yes, rename the pinned one too.' },
+        { name: 'Two numbered questions',
+          you: 'Where do PUDL and yavc.app stand?',
+          agent: 'Neither has been asked for anything yet.\n\n1. May I send the two requests now?\n2. Do you want the old chat deleted or renamed?',
+          suggestion: '1. Yes\n2. Renamed' },
+        { name: 'A long suggestion',
+          you: 'Summarize the review findings.',
+          agent: 'There are four findings. Two are about the installer on a locked-down laptop, one is about the update check, and one is about the wording of the first-start card.\n\nWhich should I take first?',
+          suggestion: 'Take the two installer findings first, since they block the trial on the locked-down laptop, then the update check. Leave the wording of the first-start card until the others are in, and tell me before you change any text the tests pin.' },
+        { name: 'Nothing worth proposing',
+          you: 'Thanks.',
+          agent: 'You are welcome.',
+          suggestion: '' }
+      ];
+      var $ = function (id) { return document.getElementById(id); };
+      var box = $('prompt'), ghost = $('reply-suggestion'), key = $('reply-suggestion-key'), help = $('reply-suggestion-help');
+      var suggestion = '', timer = 0;
+
+      function say(words) { $('mock-said').textContent = words; }
+      // The suggestion shows only over an empty box.
+      function draw() {
+        var shown = !!suggestion && !box.value;
+        ghost.hidden = !shown;
+        ghost.textContent = shown ? suggestion : '';
+        // The suggestion's text starts where the box's own text would.
+        var cs = getComputedStyle(box);
+        ghost.style.padding = cs.paddingTop + ' 4.2rem ' + cs.paddingBottom + ' ' + cs.paddingLeft;
+        ghost.style.lineHeight = cs.lineHeight;
+        key.hidden = !shown || $('mock-hint').value !== 'key';
+        box.placeholder = shown ? '' : PLACEHOLDER;
+        box.title = shown && $('mock-hint').value === 'none' ? 'Press Tab to use the suggested reply' : '';
+        help.textContent = shown ? 'Suggested reply: ' + suggestion + '. Press Tab to use it, or Escape to drop it.' : '';
+        $('send').disabled = !box.value.trim();
+      }
+      function transcript(c) {
+        var log = $('mock-log'); log.replaceChildren();
+        [['you', 'You', c.you], ['agent', 'Agent', c.agent]].forEach(function (m) {
+          var el = document.createElement('div'); el.className = 'mock-msg ' + m[0];
+          var who = document.createElement('div'); who.className = 'who'; who.textContent = m[1];
+          var p = document.createElement('p'); p.textContent = m[2];
+          el.append(who, p); log.append(el);
+        });
+      }
+      function turnEnds() {
+        var c = CASES[Number($('mock-case').value)];
+        clearTimeout(timer); suggestion = ''; draw();
+        transcript(c);
+        $('mock-state').textContent = 'The turn has ended.';
+        say('The judge is reading the end of the conversation. Nothing shows while it does.');
+        timer = setTimeout(function () {
+          suggestion = c.suggestion; draw();
+          say(c.suggestion ? 'A suggestion arrived. Press Tab in the box to take it, Esc to drop it, or type over it.' : 'The judge proposed nothing, so the box is as it always is.');
+        }, 1200);
+      }
+      box.addEventListener('input', function () { draw(); if (suggestion) say(box.value ? 'You typed, so the suggestion is hidden. Empty the box and it returns.' : 'The box is empty again, so the suggestion is back.'); });
+      box.addEventListener('keydown', function (e) {
+        if (!suggestion || box.value) return;
+        if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          box.value = suggestion; suggestion = '';
+          box.setSelectionRange(box.value.length, box.value.length);
+          draw();
+          say('Taken. It is your text now: edit it, or send it with Ctrl+Enter.');
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          suggestion = ''; draw();
+          say('Dropped. Tab moves to the next control again.');
+        }
+      });
+      $('composer').addEventListener('submit', function () {
+        if (!box.value.trim()) return;
+        say('Sent: ' + JSON.stringify(box.value));
+        box.value = ''; suggestion = ''; draw();
+        $('mock-state').textContent = 'The agent is working.';
+      });
+      box.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('composer').requestSubmit(); } });
+      CASES.forEach(function (c, i) { $('mock-case').appendChild(new Option(c.name, String(i))); });
+      $('mock-case').addEventListener('change', turnEnds);
+      $('mock-hint').addEventListener('change', draw);
+      $('mock-turn').addEventListener('click', turnEnds);
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+        this.textContent = dark ? 'Dark Theme' : 'Light Theme';
+      });
+      turnEnds();
+      box.focus();
+    })();
+  </script>
+</body>
+</html>
