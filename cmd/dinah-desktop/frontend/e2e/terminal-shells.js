@@ -128,7 +128,8 @@ const { launch } = require('./lib/page');
     await p.locator('[data-start-category-key="terminals"]').click();
     // Four since 19 November 2026: Refresh Shells left the launcher, which lists no commands (docs/design/menus.md).
     ok('launcher offers a Terminals category',await p.locator('#dinah-launcher [data-start-item]:visible').count()===4);
-    ok('Default Shell precedes specific shell choices',await p.locator('#dinah-launcher [data-start-item]:visible').first().innerText()==='Default Shell');
+    // The entry for the shell chosen in Settings is called Terminal, and it stands in the list's alphabetical order with the shells (docs/design/menus.md).
+    ok('the launcher lists Terminal among the shells, and nothing called Default Shell',await p.evaluate(()=>{const names=[...document.querySelectorAll('#dinah-launcher [data-start-item] .start-name')].filter(n=>n.offsetParent).map(n=>n.textContent.trim());return names.includes('Terminal')&&!names.includes('Default Shell')&&names.join('|')===names.slice().sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).join('|');}));
     await p.keyboard.press('Escape');
 
     await p.evaluate(() => window.dinahWorkbench.open('settings'));

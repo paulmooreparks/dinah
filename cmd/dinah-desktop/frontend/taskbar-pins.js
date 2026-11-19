@@ -6,7 +6,7 @@
   function shellInfo(id) {
     var item = bench.item(id);
     if (!item || item.kind !== 'shell') return null;
-    var shell = item.path === 'default' ? {id:'default',name:'Default Shell'} : dinahShellTerminal.shells().find(function (s) { return s.id === item.path; });
+    var shell = item.path === 'default' ? {id:'default',name:'Terminal'} : dinahShellTerminal.shells().find(function (s) { return s.id === item.path; });
     if (!shell) return null;
     return {label:shell.name,glyph:'terminal',open:function () {
       return dinahResources.currentPath().then(function (path) { return dinahResources.openTerminal(path,null,shell.id === 'default' ? undefined : shell.id); });

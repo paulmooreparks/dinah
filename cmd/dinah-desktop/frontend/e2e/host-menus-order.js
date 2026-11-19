@@ -59,7 +59,7 @@ const { launch } = require('./lib/page');
       categories: Array.from(document.querySelectorAll('#dinah-launcher [data-start-category-key]')).map((a) => a.dataset.startCategoryKey)
     }));
     t.ok('the launcher lists no commands', !launcher.names.some((n) => /^New |Import Workspace|Open Document|Find a Tool|Keyboard Shortcuts|^About |Refresh Shells/.test(n)));
-    t.ok('the launcher keeps its applications, panes and the Terminal', ['Docs', 'Editor', 'Files', 'Chats', 'Workspace', 'Default Shell', 'Install Packages…'].every((n) => launcher.names.includes(n)));
+    t.ok('the launcher keeps its applications, panes and the Terminal', ['Docs', 'Editor', 'Files', 'Chats', 'Workspace', 'Terminal', 'Install Packages…'].every((n) => launcher.names.includes(n)));
     t.ok('the launcher has no Help category', !launcher.categories.includes('help'));
     // Its categories (Paul, 19 November 2026): the panes have one of their own, and one with nothing in it is not listed.
     const cats = await p.evaluate(() => {

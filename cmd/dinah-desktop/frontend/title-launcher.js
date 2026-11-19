@@ -40,7 +40,8 @@
     });
     dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || CATEGORY[tool.id] || 'tools',tool.glyph,tool.run); });
     var terminal = dinahWorkbench.launchers().find(function (tool) { return tool.id === 'terminal'; });
-    add('terminal:default','Default Shell','terminals','terminal',terminal ? terminal.run : function () {},!terminal);
+    // The entry is called for what it starts, a Terminal running the shell chosen in Settings (docs/design/menus.md).
+    add('terminal:default','Terminal','terminals','terminal',terminal ? terminal.run : function () {},!terminal);
     if (window.dinahShellTerminal) {
       dinahShellTerminal.shells().forEach(function (shell) {
         add('terminal:'+shell.id,shell.name,'terminals','terminal',function () {
