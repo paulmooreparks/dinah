@@ -2200,13 +2200,25 @@
         if (kind === 'agent') s.current = message(s, 'agent', '');
         else if (kind === 'you') s.current = message(s, 'you', '');
         else {
+          /* A thought is a row of the transcript, where it arrived, with
+             the word Thinking and its time, and it is shown when Show
+             Thinking is on (app.css). Until 20 November 2026 it was a line
+             inside the Working block, which starts closed, so with the
+             setting on nobody saw one without opening the block; Paul
+             approved the transcript on that day
+             (docs/mockups/thinking-in-transcript). The Working block has
+             the tool calls only, and a turn with none has no block. This is
+             the same for every agent program. */
           var li = row(s, 'thought-row');
+          var label = document.createElement('span');
+          label.className = 'thought-label';
+          label.textContent = 'Thinking';
           var span = document.createElement('span');
           span.className = 'thought';
+          li.appendChild(label);
           li.appendChild(span);
           s.current = { kind: 'thought', li: li, text: '', el: span };
           li._thought = s.current;
-          group(s, li);
         }
         s.current.s = s;
       }
@@ -2352,9 +2364,11 @@
       workHeading(g); g.querySelector('.tool-group-now').textContent = ''; untrackWork(g);
       if (!s.log.contains(g)) {
         // Provider text has no portable final-answer flag. Keep the trailing
-        // response sequence after the completed work block.
+        // response sequence after the completed work block. A thought is
+        // part of that sequence, whether it is shown or not, so the block's
+        // place does not depend on the Show Thinking setting.
         var before = null, tail = s.log.lastElementChild;
-        while (tail && tail._msg && tail._msg.kind === 'agent') { before = tail; tail = tail.previousElementSibling; }
+        while (tail && (tail._thought || (tail._msg && tail._msg.kind === 'agent'))) { before = tail; tail = tail.previousElementSibling; }
         s.log.insertBefore(g, before);
       }
       s.workGroup = null;

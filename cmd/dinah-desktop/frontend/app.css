@@ -307,7 +307,14 @@
 .session-note { flex: none; padding: var(--space-3) var(--space-5) 0; background: var(--surface); border-top: 1px solid var(--border); }
 /* Open With… lists the values the agent offers under the note's buttons. */
 .session-open-with { margin-top: var(--space-3); }
+/* A thought is a row of the transcript (chat-applet.js). It is flat, since
+   it is only read: no card, and a line at its start in place of a border
+   around it, so that an answer still stands out from it. The word Thinking
+   is in the row's first line with its time, and the text is under them. */
 .thought { color: var(--text-muted); font-style: italic; white-space: pre-wrap; }
+.run-log .thought-row { row-gap: 2px; padding-inline-start: var(--space-3); border-bottom: 0; border-inline-start: 2px solid var(--border); }
+.run-log .thought-row > .thought-label { grid-column: 1; grid-row: 1; font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); }
+.run-log .thought-row > .thought { grid-column: 1 / -1; grid-row: 2; }
 body:not(.show-thoughts) .thought-row { display: none; }
 .run-empty { margin: 0; }
 

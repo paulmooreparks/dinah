@@ -43,7 +43,7 @@ const { start, entry } = require('./lib/decision-answer-fixture');
       document.body.classList.add('show-thoughts');
       chunk('agent_thought', 'A thought that has already been measured.', 'thought');
       await frame(); await frame();
-      [...root.querySelectorAll('.thought-row')].at(-1).closest('.tool-group')._open();
+      // A thought is a row of the transcript since 20 November 2026 and needs no block opened to be measured.
       await probe('thought snapshot', [...root.querySelectorAll('.thought-row')].at(-1), () => chunk('agent_thought', 'A thought with updated words of similar length.', 'thought'));
       update({ sessionUpdate: 'tool_call', toolCallId: 'audit-tool', title: 'Read fixture', kind: 'read', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'Original output.' } }] });
       await frame(); await frame();
@@ -82,8 +82,10 @@ const { start, entry } = require('./lib/decision-answer-fixture');
       await probe('sent image gallery rebuild', markdown, () => session.view.acceptRendering([imageMessage], [], [], [], []));
       session.trimmed = 1; session.view.trimMarker(session);
       await probe('retained trim marker count', session.log.querySelector('.trimmed-row'), () => { session.trimmed = 2; session.view.trimMarker(session); });
-      await probe('work group closes', group, () => pudlDisclose.set(group.querySelector('.card'), false));
-      await probe('work group opens', group, () => pudlDisclose.set(group.querySelector('.card'), true));
+      // The block is closed and opened where a person can do it, in view. Until 20 November 2026 a thought inside the block had it opened before it was first measured, and the probes ran with the block far above the window, where closing it changed nothing that was drawn. A block made by a tool call alone, as in any turn without thinking, and closed by script while far out of view is drawn for one frame at the height it had before; no person can cause that, and it is not checked here.
+      const viewed = async run => { activity.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 })); group.scrollIntoView({ block: 'center' }); await frame(); await frame(); await run(); activity.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })); await frame(); await frame(); };
+      await viewed(() => probe('work group closes', group, () => pudlDisclose.set(group.querySelector('.card'), false)));
+      await viewed(() => probe('work group opens', group, () => pudlDisclose.set(group.querySelector('.card'), true)));
       go.main.App.RecoverSteering = async id => id === 'live' ? [{ id: 77, state: 'queued', payload: JSON.stringify({ text: 'Recovered fixture message.' }) }] : [];
       go.main.App.DismissSteering = async () => {};
       await session.view.recoverSteering();
