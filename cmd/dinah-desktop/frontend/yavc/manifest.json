@@ -1,5 +1,5 @@
 {
-  "digest": "e801cba8f7fd6af8ecb3e27a43891afeb477b754a2ff0faa6d1958fc60d05287",
+  "digest": "ae4c74d1ac2e56806b221a58dc26f6fea50616d00c7ca23214d9059d573d6f51",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -1825,13 +1825,13 @@
     },
     {
       "path": "pudl/min/pudl-menu.js",
-      "bytes": 27490,
-      "sha256": "27c85d02345a68864b77fe5828285839087ff3aaa49ddfa0aa005f8da1b3f62f"
+      "bytes": 27754,
+      "sha256": "dff56f7f3be7d62fc37218da03b600caff6f92c9b7bdbd9ff11e19692361d818"
     },
     {
       "path": "pudl/min/pudl-menu.js.map",
-      "bytes": 33492,
-      "sha256": "2abb7bfb7754f86a093cdd255322f3f07215d5bd6511f702e97ee254faa053b0"
+      "bytes": 33776,
+      "sha256": "d8f09da6ffd6a2abb2b30ce534a7b759bf4e7d791286058d5ff51338d9023ed5"
     },
     {
       "path": "pudl/min/pudl-menubar.js",
@@ -2115,13 +2115,13 @@
     },
     {
       "path": "pudl/min/pudl.css",
-      "bytes": 175314,
-      "sha256": "1369b0b0e9c2ceb4a9293b8fcd0b4ac9d2d5ff27de27b9b351676958d9fb0378"
+      "bytes": 174910,
+      "sha256": "f2999f35a6bbeaf4ece7bbdfef8fb8b9c2640b838448c572394e6da911828448"
     },
     {
       "path": "pudl/min/pudl.css.map",
-      "bytes": 132334,
-      "sha256": "3de90a8e856e2d49b8a1eada7a24e79de302fe048ff2054c5a1f3095fc197f69"
+      "bytes": 132034,
+      "sha256": "02ebeef38628ef882b1337814d676d9282ac9f8f47fb0e6e884d99cd0adf1c84"
     },
     {
       "path": "pudl/pudl-actions-core.js",
@@ -2220,8 +2220,8 @@
     },
     {
       "path": "pudl/pudl-menu.js",
-      "bytes": 56790,
-      "sha256": "581623e445c7ac22e24ee1a368a1ffe61b10c1aba4c69afdc635643d3a78717c"
+      "bytes": 56989,
+      "sha256": "b26c3007bc370a80cb946c84d93547a57c9668f3615d2e81a044307eeee92e42"
     },
     {
       "path": "pudl/pudl-menubar.js",
@@ -2370,8 +2370,8 @@
     },
     {
       "path": "pudl/pudl.css",
-      "bytes": 266678,
-      "sha256": "cdde6e41ab0a387789ed94395253bd032e9ddba320c78a2da6200a89219ee5f7"
+      "bytes": 265721,
+      "sha256": "2a8d2f666b4f828048f6660973df050c1fee3cb44602bd9fc19eaca75d4389af"
     },
     {
       "path": "pudl/vendor/cfworker-json-schema-4.1.1/NOTICE.txt",

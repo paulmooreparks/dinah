@@ -102,3 +102,11 @@ The release is PUDL's answer to the scaling findings Dinah sent on 17 November (
 Every headless suite was run on it, 318 in all. Twenty-eight failed, and each of them failed in the same way on 0.107.1 or reads a window that was redrawn the same day; none failed because of this release. The real window was not seen, and Firefox and WebKit were not checked here.
 
 This adoption and yavc.app v0.2.103, which is v0.2.102 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
+
+## Published 0.108.1 adoption, 20 November 2026
+
+Both bundles contain all 196 distribution files of the published release v0.108.1, release commit 3a77a4cba54bde35e34522af176be7645f01b962. The archive `pudl-0.108.1.zip` has SHA-256 `26df8249c560360a9a56c3cc249169f6268b4aa03a69fdbd2c084184762b9114` and its distribution manifest `5fa112285fff66f81b31f4b913be1c2f62aed2fc74f7fa3c956dd54cf8d0321f`, and every file was checked against that manifest before it replaced the copy here. Six files differ from 0.108.0: `pudl.css` and `pudl-menu.js`, each with its minified copy and map.
+
+The release carries Paul's ruling of 16 November that a row's actions button is always shown and is an ordinary Tab stop, everywhere. PUDL no longer hides the button until hover or focus, and no longer takes it out of the Tab order or hides it from assistive technology. A button with no name of its own is labelled Actions. Dinah's row buttons are PUDL's, so they change with no code here. The Org Chart's actions buttons are ordinary buttons, and the rules that forced them visible were removed because nothing hides them.
+
+This adoption and yavc.app v0.2.107, which is v0.2.106 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.

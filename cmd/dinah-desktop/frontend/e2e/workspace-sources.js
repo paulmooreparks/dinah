@@ -96,9 +96,9 @@ const { launch, PAGE } = require('./lib/page');
     const actions = title => resource(title).locator('xpath=../button[@data-row-actions]');
     const openActions = async title => { await resource(title).hover(); await actions(title).click(); await page.locator('.context-menu').waitFor(); };
     await sources.getByRole('button', { name: 'Expand Working Files', exact: true }).waitFor();
+    // PUDL 0.108.1: the button is always shown and is an ordinary Tab stop (Paul, 16 November 2026).
     const quiet = await actions('Shared Drive').evaluate(button => ({ hidden: getComputedStyle(button).visibility === 'hidden', aria: button.getAttribute('aria-hidden'), tab: button.tabIndex, width: button.getBoundingClientRect().width }));
-    await resource('Shared Drive').hover();
-    ok('source rows use PUDL row actions buttons, shown only on the row under the pointer', quiet.hidden && quiet.aria === 'true' && quiet.tab === -1 && quiet.width >= 24 && await actions('Shared Drive').isVisible());
+    ok('source rows use PUDL row actions buttons, shown without the pointer and reached with Tab', !quiet.hidden && quiet.aria === null && quiet.tab === 0 && quiet.width >= 24 && await actions('Shared Drive').isVisible());
     const treeStyle = await resource('Working Files').evaluate(link => {
       const reference = document.createElement('ul'); reference.className = 'tree';
       reference.innerHTML = '<li><a href="#"><span class="tree-toggle"></span>Reference</a></li>'; document.body.appendChild(reference);
