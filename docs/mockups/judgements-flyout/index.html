@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Judgements flyout: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/judgements-applet.css">
+  <style>
+    /* The frame around the two flyouts is styled here. "Today" uses the
+       shipped markup and stylesheet. "Proposed" is PUDL's popover, its
+       key-value table, its notice and its buttons, and the few rules under
+       "Proposed" are what the product would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .form-group { margin: 0; }
+    .mock-stage { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-6); padding: var(--space-4) var(--space-5); }
+    .mock-stage figure { margin: 0; }
+    .mock-stage figcaption { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: 600; }
+    /* A flyout is shown in the page here, where the product opens it over the status bar. */
+    .mock-stage .popover { position: static; margin: 0; display: block; }
+    .mock-today .popover { display: flex; inline-size: 258px; block-size: 150px; overflow: hidden; }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-notes { margin: var(--space-4) var(--space-5) var(--space-5); max-width: 58rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* ---- Proposed -------------------------------------------------------
+       The flyout has one width. Every row is there from the moment it
+       opens, so nothing arrives later to change its size. Only the warnings
+       scroll, in a region whose height is fixed, so the buttons below never
+       move and never scroll out of sight. */
+    .judgements-flyout { inline-size: 22rem; max-inline-size: calc(100vw - 16px); }
+    .judgements-flyout-state { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-weight: 600; }
+    /* The line that says why has room for two lines whether it has words or not, so the rows under it keep their places. */
+    .judgements-flyout-why { margin: 0 0 var(--space-2); color: var(--text-muted); font-size: var(--text-sm); block-size: 2lh; overflow: hidden; }
+    .judgements-flyout .kv-table { font-size: var(--text-sm); }
+    .judgements-flyout .kv-table :is(th, td) { padding-block: var(--space-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 0; }
+    .judgements-flyout .kv-table th { max-inline-size: none; }
+    .judgements-flyout-warnings-head { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
+    .judgements-flyout-warnings-head .md-section-label { flex: 1; margin: 0; padding: 0; }
+    .judgements-flyout-warnings { display: flex; flex-direction: column; gap: var(--space-2); block-size: 8.5rem; overflow: auto; overflow-anchor: none; margin: 0; padding: 0; list-style: none; }
+    .judgements-flyout-warnings[data-room="none"] { block-size: 2.25rem; }
+    .judgements-flyout-warnings .notice { flex: none; font-size: var(--text-sm); padding: var(--space-2) var(--space-3); }
+    .judgements-flyout-none { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>The Judgements flyout</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 19 November 2026. The buttons in the proposed flyout work.</span>
+  </header>
+
+  <div class="mock-controls">
+    <div class="form-group">
+      <label class="form-label" for="mock-state">The judges' state</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-state"></select></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mock-room">Room for warnings</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-room">
+        <option value="fixed">Always room for two (recommended)</option>
+        <option value="none">One line when it opens with none</option>
+      </select></span>
+    </div>
+    <button type="button" class="btn" id="mock-warn">A Warning Arrives</button>
+    <button type="button" class="btn" id="mock-call">A Call Is Made</button>
+  </div>
+
+  <div class="mock-stage">
+    <figure class="mock-today">
+      <figcaption>Today</figcaption>
+      <nav class="popover" aria-label="Judgements (today)"><div id="today-list" style="display:flex;flex-direction:column;gap:var(--space-2);min-width:0;min-block-size:0;flex:1"></div></nav>
+    </figure>
+    <figure>
+      <figcaption>Proposed</figcaption>
+      <div class="popover judgements-flyout" id="flyout" role="dialog" aria-labelledby="flyout-title">
+        <div class="popover-head">
+          <h2 class="popover-title" id="flyout-title">Judgements</h2>
+          <button class="icon-btn popover-close" type="button" id="flyout-close" aria-label="Close"></button>
+        </div>
+        <p class="judgements-flyout-state"><span class="glyph" id="flyout-glyph" aria-hidden="true"></span><span id="flyout-word"></span></p>
+        <p class="judgements-flyout-why" id="flyout-why"></p>
+        <table class="kv-table" aria-label="The judges now">
+          <tr><th>Judge</th><td id="flyout-judge"></td></tr>
+          <tr><th>Today</th><td id="flyout-today"></td></tr>
+          <tr><th>Latest</th><td id="flyout-latest"></td></tr>
+          <tr><th>Budget</th><td id="flyout-budget"></td></tr>
+          <tr><th>Pool</th><td id="flyout-pool"></td></tr>
+        </table>
+        <div class="judgements-flyout-warnings-head">
+          <div class="md-section-label" id="flyout-warnings-title">Warnings</div>
+          <button type="button" class="btn btn-sm" id="flyout-dismiss-all">Dismiss All</button>
+        </div>
+        <ul class="judgements-flyout-warnings" id="flyout-warnings" aria-labelledby="flyout-warnings-title" tabindex="0"></ul>
+        <div class="popover-actions">
+          <button type="button" class="btn btn-sm" id="flyout-settings">Judgement Settings…</button>
+          <button type="button" class="btn btn-sm btn-primary" id="flyout-open">Open Judgements</button>
+        </div>
+      </div>
+    </figure>
+  </div>
+  <p class="mock-said" id="mock-said" role="status"></p>
+
+  <div class="mock-notes">
+    <h2>What is wrong with today's flyout</h2>
+    <ul>
+      <li><strong>It has no title and no way to close it by a button.</strong> PUDL's popover has a head with both.</li>
+      <li><strong>Everything it says is a paragraph of help text.</strong> The state, the day's count, the latest call, the budget and the pool are five facts written as run-on sentences, and the day's count is said twice.</li>
+      <li><strong>Its categories are mixed.</strong> A raised button shares a line with the sentence it does not belong to, and the two ways out are rows of a list, drawn like a menu's, among paragraphs.</li>
+      <li><strong>It keeps the size it opened with, and what arrives later is cut off.</strong> The day's line is read after the flyout opens, so it lands in a strip a few pixels tall with a scroll bar of its own. Your screenshot shows the last word of it, "now."</li>
+      <li><strong>A warning is a home-made row.</strong> PUDL has a notice for exactly this, with its own colour, glyph and Dismiss button.</li>
+    </ul>
+    <h2>What I propose</h2>
+    <ul>
+      <li><strong>PUDL's popover, whole:</strong> a head with the title and Close, the content, and the two ways out as buttons in its foot, with Open Judgements as the primary one.</li>
+      <li><strong>The state as a glyph, a colour and one word</strong> (On, Warning, Paused, Off, Reading), which is how the status bar's own item shows it, and one line under it that says why when it is not simply on.</li>
+      <li><strong>The five facts as a key-value table.</strong> Every row is there from the start, and a value that is still being read says so, so nothing arrives later to change the flyout's size.</li>
+      <li><strong>Warnings as notices</strong> under their own heading, with Dismiss All beside the heading it belongs to. Only the warnings scroll.</li>
+      <li><strong>Nothing moves.</strong> The flyout has one width and one height for as long as it is open. Dismissing a warning moves the ones below it up inside their region and moves nothing else. This also removes the script that measures the flyout as it opens and freezes its size.</li>
+    </ul>
+    <h2>Alternatives</h2>
+    <ul>
+      <li><strong>Room for warnings.</strong> I recommend that the region always has room for two warnings, which costs about nine lines of empty space on a quiet day and means a warning that arrives while the flyout is open has somewhere to go. The other choice above gives the region one line when the flyout opens with no warnings, which is tidier on a quiet day. A warning that arrives while it is open is then seen one at a time in that line.</li>
+      <li><strong>No warnings in the flyout at all,</strong> only a row "Warnings: 2" and the button to the Judgements page, where they would be dismissed. It is the smallest flyout. It takes away dismissing a warning from where you first see it, which was asked for before.</li>
+      <li><strong>A menu in place of a popover,</strong> as the workspace's and the agent's status items have. Those are lists of commands with a line of state above them. This one is mostly facts with two commands, which is what a popover is for.</li>
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var $ = function (id) { return document.getElementById(id); };
+      var STATES = [
+        { name: 'On, a quiet day', word: 'On', glyph: 'tick', colour: 'positive', why: '', judge: 'Devin · SWE-2 Flash Medium', calls: 8, rule: 1, latest: '2 minutes ago', budget: 'None set', pool: '1 at once (may grow to 4)', warnings: [] },
+        { name: 'On, most answered by the rule', word: 'On', glyph: 'tick', colour: 'positive', why: '', judge: 'Devin · kimi-k2-7', calls: 8, rule: 6, latest: 'Just now', budget: 'None set', pool: '1 at once (may grow to 4)', warnings: [] },
+        { name: 'Warning, three warnings', word: 'Warning', glyph: 'warning', colour: 'warn', why: 'The last 3 calls were answered by the rule.', judge: 'Devin · kimi-k2-7', calls: 11, rule: 9, latest: 'Just now',
+          budget: 'Devin: 12 of 100 ACUs this week', pool: '2 at once (may grow to 4)',
+          warnings: [['10:57 pm', 'reply-suggestion was answered by the rule 3 times in a row: the answer was not in form.'], ['10:36 pm', 'reply-suggestion was late: no answer within 10 seconds.'], ['9:12 pm', 'chat-title was answered by the rule 3 times in a row: the judge failed.']] },
+        { name: 'Paused', word: 'Paused', glyph: 'warning', colour: 'warn', why: 'Until 11:20 pm. Devin failed 3 times in a row: the process ended.', judge: 'Devin · SWE-2 Flash Medium', calls: 14, rule: 5, latest: '6 minutes ago', budget: 'Devin: 31 of 100 ACUs this week', pool: '1 at once (may grow to 4)',
+          warnings: [['11:10 pm', 'Devin was paused for 10 minutes after 3 failures in a row.']] },
+        { name: 'Off: no model chosen', word: 'Off', glyph: 'ring', colour: 'text-muted', why: 'No model is chosen. Choose one in Judgement Settings, or run a calibration there.', judge: 'None', calls: 0, rule: 0, latest: 'Never', budget: 'None set', pool: 'Idle', warnings: [] },
+        { name: 'Off: turned off', word: 'Off', glyph: 'ring', colour: 'text-muted', why: 'Judging is turned off. Every decision uses its rule.', judge: 'Ollama · gemma3:4b', calls: 0, rule: 0, latest: 'Yesterday, 6:40 pm', budget: 'None set', pool: 'Idle', warnings: [] },
+        { name: 'Choosing a model', word: 'On', glyph: 'tick', colour: 'positive', why: 'A calibration is choosing the judge’s model now.', judge: 'Ollama · gemma3:4b', calls: 3, rule: 0, latest: '1 minute ago', budget: 'None set', pool: '1 at once (may grow to 4)', warnings: [] },
+        { name: 'Still being read', word: 'Reading', glyph: 'ring', colour: 'text-muted', why: '', judge: 'Reading…', calls: null, rule: 0, latest: 'Reading…', budget: 'Reading…', pool: 'Reading…', warnings: [] }
+      ];
+      var state = null, warnings = [], serial = 0;
+      function say(words) { $('mock-said').textContent = words; }
+      function node(tag, cls, text) { var el = document.createElement(tag); if (cls) el.className = cls; if (text != null) el.textContent = text; return el; }
+      function todayWords() { return state.calls == null ? 'Reading…' : state.calls === 0 ? 'No calls' : state.calls + (state.calls === 1 ? ' call, ' : ' calls, ') + state.rule + ' answered by the rule'; }
+
+      function drawProposed() {
+        var glyph = $('flyout-glyph');
+        glyph.style.setProperty('--glyph', 'var(--glyph-' + state.glyph + ')');
+        glyph.style.color = 'var(--' + state.colour + ')';
+        $('flyout-word').textContent = state.word;
+        $('flyout-why').textContent = state.why;
+        $('flyout-judge').textContent = state.judge;
+        $('flyout-today').textContent = todayWords();
+        $('flyout-latest').textContent = state.latest;
+        $('flyout-budget').textContent = state.budget;
+        $('flyout-pool').textContent = state.pool;
+        drawWarnings();
+      }
+      function drawWarnings() {
+        var list = $('flyout-warnings');
+        list.replaceChildren();
+        $('flyout-warnings-title').textContent = warnings.length ? 'Warnings (' + warnings.length + ')' : 'Warnings';
+        $('flyout-dismiss-all').disabled = !warnings.length;
+        if (!warnings.length) { var li = node('li'); li.appendChild(node('p', 'judgements-flyout-none', 'No warnings.')); list.appendChild(li); return; }
+        warnings.forEach(function (w) {
+          var li = node('li', 'notice warn'); li.setAttribute('role', 'status');
+          var content = node('div', 'notice-content');
+          content.appendChild(node('p', 'notice-body', w.at + ': ' + w.text));
+          var close = node('button', 'notice-close'); close.type = 'button'; close.setAttribute('aria-label', 'Dismiss warning: ' + w.text);
+          close.addEventListener('click', function () {
+            var at = warnings.indexOf(w);
+            warnings.splice(at, 1); drawWarnings();
+            var buttons = list.querySelectorAll('.notice-close');
+            (buttons[Math.min(at, buttons.length - 1)] || $('flyout-open')).focus();
+            say('Dismissed. The warnings below moved up inside their region, and nothing else moved.');
+          });
+          li.append(content, close); list.appendChild(li);
+        });
+      }
+      function drawToday() {
+        var list = $('today-list'); list.replaceChildren();
+        var line = state.word === 'Off' ? 'Judgements: off, ' + (state.judge === 'None' ? 'no model chosen' : 'turned off') : state.word === 'Paused' ? 'Judgements: paused until 11:20 pm, Devin: the process ended'
+          : state.word === 'Warning' ? 'Judgements: warning, the judge is failing' : state.word === 'Reading' ? 'Judgements: reading' : 'Judgements: on, ' + state.calls + ' calls today, ' + state.rule + ' answered by the rule';
+        var summary = node('div', 'judgements-popup-summary'); summary.appendChild(node('p', 'form-help judgements-popup-line', line + '.'));
+        var all = node('button', 'btn btn-sm judgements-dismiss-all', 'Dismiss All'); all.type = 'button'; all.disabled = !warnings.length; summary.appendChild(all);
+        list.appendChild(summary);
+        var body = node('div', 'judgements-popup-body'); list.appendChild(body);
+        if (warnings.length) {
+          var ul = node('ul', 'judgements-warnings vstack gap-3');
+          warnings.forEach(function (w) { var li = node('li', 'judgements-warning vstack gap-2'); li.appendChild(node('p', 'form-help', w.at + ': ' + w.text)); var b = node('button', 'btn btn-sm', 'Dismiss'); b.type = 'button'; li.appendChild(b); ul.appendChild(li); });
+          body.appendChild(ul);
+        } else body.appendChild(node('p', 'form-help judgements-warnings-empty', 'No warnings.'));
+        if (state.calls) body.appendChild(node('p', 'form-help judgements-popup-today', 'Today: ' + state.calls + ' calls, ' + state.rule + ' by the rule. The latest was ' + state.latest.toLowerCase() + '.'));
+        body.appendChild(node('p', 'form-help judgements-popup-pool', 'Pool: 1 with the judge at once, between 1 and 4.'));
+        ['Open Judgements', 'Judgement Settings…'].forEach(function (words) { var row = node('div', 'md-row'), a = node('a', 'md-item'); a.href = '#'; a.appendChild(node('span', null, words)); a.addEventListener('click', function (e) { e.preventDefault(); }); row.appendChild(a); body.appendChild(row); });
+      }
+      function choose() {
+        state = Object.assign({}, STATES[Number($('mock-state').value)]);
+        warnings = state.warnings.map(function (w) { return { id: ++serial, at: w[0], text: w[1] }; });
+        room();
+        drawProposed(); drawToday();
+        say('');
+      }
+      // The second choice gives the region one line when the flyout opens with no warnings, and keeps that for the opening.
+      function room() { $('flyout-warnings').dataset.room = $('mock-room').value === 'none' && !warnings.length ? 'none' : 'fixed'; }
+      STATES.forEach(function (s, i) { $('mock-state').appendChild(new Option(s.name, String(i))); });
+      $('mock-state').addEventListener('change', choose);
+      $('mock-room').addEventListener('change', choose);
+      $('mock-warn').addEventListener('click', function () {
+        warnings.unshift({ id: ++serial, at: 'Just now', text: 'reply-suggestion was answered by the rule 3 times in a row: the answer was not in form.' });
+        drawWarnings(); drawToday();
+        say('A warning arrived while the flyout was open. It is first in its region, and the flyout is the size it was.');
+      });
+      $('mock-call').addEventListener('click', function () {
+        if (state.calls == null) state.calls = 0;
+        state.calls++; state.latest = 'Just now';
+        $('flyout-today').textContent = todayWords(); $('flyout-latest').textContent = state.latest; drawToday();
+        say('A call was made. Two values changed in place.');
+      });
+      $('flyout-dismiss-all').addEventListener('click', function () { warnings = []; drawWarnings(); drawToday(); $('flyout-open').focus(); say('All dismissed. The region keeps its room, and the keyboard goes to Open Judgements.'); });
+      $('flyout-open').addEventListener('click', function () { say('The Judgements window would open, and the flyout would close.'); });
+      $('flyout-settings').addEventListener('click', function () { say('Settings would open at Judgements, and the flyout would close.'); });
+      $('flyout-close').addEventListener('click', function () { say('The flyout would close. Esc and a click outside close it too, as today.'); });
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+        this.textContent = dark ? 'Dark Theme' : 'Light Theme';
+      });
+      $('mock-state').value = '1';
+      choose();
+    })();
+  </script>
+</body>
+</html>
