@@ -2,7 +2,7 @@ const {start} = require('./lib/org-chart-fixture');
 (async()=>{
   const t=await start(),p=t.page,chart=t.chart,ok=t.ok;
   try {
-    ok('Org Chart is an applet launcher and command, outside the Window menu',await p.evaluate(()=>dinahWorkbench.launchers().some(r=>r.id==='org-chart' && r.glyph==='subagents') && !dinahCommands.rows('window').some(r=>r.label==='Org Chart') && dinahCommands.rows('view').some(r=>r.label==='Org Chart')));
+    ok('Org Chart is an applet launcher and command, outside the Window menu',await p.evaluate(()=>dinahWorkbench.launchers().some(r=>r.id==='org-chart' && r.glyph==='subagents') && !dinahCommands.rows('window').some(r=>r.label==='Org Chart') && !dinahCommands.rows('view').some(r=>r.label==='Org Chart') && dinahCommands.searchable().some(c=>c.label==='Org Chart' && c.menu==='Tools'))); // not in View since 19 November 2026 (docs/design/menus.md)
     ok('Clean Up Chats is in the launcher and Chats header',await p.evaluate(()=>dinahWorkbench.launchers().some(r=>r.id==='chat-cleanup') && !!document.querySelector('#chat-browser-view [data-cmd="clean-up-chats"]') && !!document.querySelector('#chat-browser-view [data-cmd="org-chart"]')));
     ok('legend is in the toolbar and count is in the status bar',await chart.locator('.org-chart-toolbar .org-chart-legend').count()===1 && await chart.locator('.org-chart-statusbar-count').innerText()==='11 chats, some in folded teams');
     ok('chats appear once and repair rows have no opening or action authority',await chart.locator('[data-org-chat]').evaluateAll(rows=>new Set(rows.map(r=>r.dataset.orgChat)).size===rows.length) && await chart.locator('[data-org-chat="repair"] a, [data-org-chat="repair"] button').count()===0);

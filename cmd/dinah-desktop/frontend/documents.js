@@ -195,7 +195,7 @@
     run: function () { var f = front(); if (f) return f.discard(); } });
   C.register({ id: 'documents-sep-recent', menu: 'documents', separator: true });
   C.register({ id: 'recent-documents', glyph: 'list', menu: 'documents', mnemonic: 'R', label: 'Recent', items: function () { return recentRows(); } });
-  C.register({ id: 'in-progress', glyph: 'pencil', menu: 'documents', mnemonic: 'I', label: 'In Progress', run: function () { return window.dinahWorkbench.open('in-progress'); } });
+  C.register({ id: 'in-progress', glyph: 'pencil', menu: 'view', inline: true, mnemonic: 'I', label: 'In Progress', run: function () { return window.dinahWorkbench.open('in-progress'); } });
 
   /* ---- Work in progress ----------------------------------------------------
      The words and the Discard question the In Progress pane uses for a

@@ -693,8 +693,8 @@
     // called when a card is drawn. Each change is announced on the document as dinah:request-dismissal.
     dismissal: cardDismissal, dismissRequest: dismissFromCard, checkDismissal: checkFromCard, shown: cardShown };
   function open(state) { return window.dinahWorkbench.open('decisions', state || '').catch(window.dinahHost.fail); }
-  // The three rows have letters of their own in the View menu; without them Broadcast to All took the letter Show the Agent's Thinking asks for.
-  window.dinahCommands.register({ id: 'decisions', menu: 'view', mnemonic: 'D', label: 'Decisions', visible: available, run: function () { return open(); } });
-  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'view', mnemonic: scope === 'active' ? 'V' : 'B', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
+  // Decisions is a tool, opened from the launcher, and Broadcast is a chat command drawn in the Chats pane's Actions; none of the three is in View since 19 November 2026 (docs/design/menus.md).
+  window.dinahCommands.register({ id: 'decisions', menu: 'tools', mnemonic: 'D', label: 'Decisions', visible: available, run: function () { return open(); } });
+  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'chat', mnemonic: scope === 'active' ? 'V' : 'B', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
     enabled: function () { return !!(app().PreviewDecisionBroadcast && app().ConfirmDecisionBroadcast); }, run: function () { return open('view=broadcast-' + scope); } }); });
 }());

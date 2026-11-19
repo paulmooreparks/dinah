@@ -41,14 +41,14 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     await page.goto(PAGE);
     await page.waitForFunction(() => window.dinahAppearance && window.dinahWorkbench);
     await page.evaluate(() => dinahAppearance.ready);
-    ok('View exposes built-in themes and direct editor access', await page.locator('#host-themes').evaluate(el => el.textContent.includes('Mineral (built in)') && el.textContent.includes('Linen (built in)') && el.textContent.includes('Edit Current Theme')));
+    ok('View exposes built-in themes and direct editor access', await page.locator('#host-themes').evaluate(el => el.children[0].textContent === 'Built In' && el.hasAttribute('data-menu-radio') && el.textContent.includes('Mineral') && el.textContent.includes('Linen') && !el.textContent.includes('(built in)') && el.textContent.includes('Edit Current Theme'))); // a heading and radio marks since 19 November 2026 (docs/design/menus.md)
     ok('an existing Mineral selection is preserved', await page.evaluate(() => dinahAppearance.snapshot().state.active === 'mineral'));
     // Solarized, Nord, Gruvbox and Graphite are built in too (27 October
     // 2026), and One Dark Pro, Dracula, Catppuccin, Tokyo Night and GitHub
     // (28 October 2026), each passing the page's own contrast check in both
     // modes.
     const added = { solarized: 'Solarized', nord: 'Nord', gruvbox: 'Gruvbox', graphite: 'Graphite', 'one-dark-pro': 'One Dark Pro', dracula: 'Dracula', catppuccin: 'Catppuccin', 'tokyo-night': 'Tokyo Night', github: 'GitHub' };
-    ok('the View menu lists the added themes', await page.locator('#host-themes').evaluate((el, names) => names.every(n => el.textContent.includes(n + ' (built in)')), Object.values(added)));
+    ok('the View menu lists the added themes', await page.locator('#host-themes').evaluate((el, names) => names.every(n => Array.from(el.querySelectorAll('button')).some(b => b.textContent === n)), Object.values(added)));
     ok('every built-in theme passes the contrast check', await page.evaluate(() => Object.values(dinahAppearance.builtins).every(doc => dinahAppearance.contrast(doc).length === 0)));
     // Diff tints (PUDL 0.93.0): the dark syntax colours of Solarized, Nord,
     // Gruvbox, One Dark Pro, Dracula and GitHub were lightened on 28 October

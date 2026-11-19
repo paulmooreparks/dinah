@@ -126,7 +126,8 @@ const { launch } = require('./lib/page');
 
     await p.evaluate(()=>pudlMenubar.launcherButton().click());
     await p.locator('[data-start-category-key="terminals"]').click();
-    ok('launcher offers a Terminals category',await p.locator('#dinah-launcher [data-start-item]:visible').count()===5);
+    // Four since 19 November 2026: Refresh Shells left the launcher, which lists no commands (docs/design/menus.md).
+    ok('launcher offers a Terminals category',await p.locator('#dinah-launcher [data-start-item]:visible').count()===4);
     ok('Default Shell precedes specific shell choices',await p.locator('#dinah-launcher [data-start-item]:visible').first().innerText()==='Default Shell');
     await p.keyboard.press('Escape');
 

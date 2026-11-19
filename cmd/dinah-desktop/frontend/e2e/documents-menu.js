@@ -118,11 +118,14 @@ const { launch } = require('./lib/page');
     ok('the Editor opens maximized while Open New Windows is Floating', await editor.getAttribute('data-win-mode') === 'maximized');
 
     // A redraw while the menu is open leaves its rows working.
-    await openMenu('Documents');
+    // In Progress left Documents for View on 19 November 2026
+    // (docs/design/menus.md); Notifications is a row View draws from the
+    // registry, as In Progress was in Documents.
+    await openMenu('View');
     await p.evaluate(() => dinahCommands.changed());
     await p.waitForTimeout(150);
-    await p.locator('.menubar-panel .menu-action').filter({ hasText: /^In Progress/ }).click();
-    await p.locator('.in-progress-browser').waitFor();
+    await p.locator('.menubar-panel .menu-action').filter({ hasText: /^Notifications/ }).click();
+    await p.waitForFunction(() => pudlWindows.state().open.includes('needs-you'));
     ok('a row still works after the rows changed while its menu was open', true);
     await p.evaluate(() => pudlWindows.raise([...document.querySelectorAll('.win[data-win-kind="editor"]')].pop().dataset.win));
 

@@ -24,13 +24,15 @@ const { launch } = require('./lib/page');
     const TOOLS = 'button:not(.win-layer *):not(.win-bar *):not([data-menubar] *)';
     const tool = name => p.locator(TOOLS + ':visible').filter({ hasText: new RegExp('^' + name + '$') });
     const title = name => p.locator('[data-menubar] .menubar-title').filter({ hasText: new RegExp('^' + name + '$') });
-    ok('the ribbon is off until the person turns it on', (await tool('In Progress').count()) === 0);
+    // In Progress left Documents for View on 19 November 2026
+    // (docs/design/menus.md), so the tool tried here is a View row.
+    ok('the ribbon is off until the person turns it on', (await tool('Notifications').count()) === 0);
     await toggle.click();
-    await title('Documents').click();
-    await tool('In Progress').first().waitFor();
+    await title('View').click();
+    await tool('Notifications').first().waitFor();
     ok('turned on, a menu title is a tab whose rows are tools', true);
-    await tool('In Progress').first().click();
-    await p.waitForFunction(() => pudlWindows.state().open.includes('in-progress'));
+    await tool('Notifications').first().click();
+    await p.waitForFunction(() => pudlWindows.state().open.includes('needs-you'));
     ok('a tool runs its command', true);
 
     await title('Window').click();

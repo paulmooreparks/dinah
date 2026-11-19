@@ -168,13 +168,13 @@
       if (section !== current) { current = section; if (window.dinahCommands) window.dinahCommands.changed(); }
     });
     if (window.dinahCommands) {
-      window.dinahCommands.register({ id: 'workspace-section-up', menu: 'view', inline: true,
+      window.dinahCommands.register({ id: 'workspace-section-up', menu: 'workspace', inline: true,
         label: function () { return current ? 'Move ' + nameOf(current) + ' Up' : 'Move Section Up'; },
         enabled: function () { return canMove(current, -1); }, run: function () { if (current) move(current, -1); } });
-      window.dinahCommands.register({ id: 'workspace-section-down', menu: 'view', inline: true,
+      window.dinahCommands.register({ id: 'workspace-section-down', menu: 'workspace', inline: true,
         label: function () { return current ? 'Move ' + nameOf(current) + ' Down' : 'Move Section Down'; },
         enabled: function () { return canMove(current, 1); }, run: function () { if (current) move(current, 1); } });
-      window.dinahCommands.register({ id: 'workspace-sections-reorder', menu: 'view', inline: true, label: 'Reorder Sections',
+      window.dinahCommands.register({ id: 'workspace-sections-reorder', menu: 'workspace', inline: true, label: 'Reorder Sections',
         enabled: function () { return !!window.pudlReorder && !reordering() && movable().filter(shown).length > 1; }, run: startReorder });
     }
     // Actions draws its rows for the heading that last had focus as it opens.

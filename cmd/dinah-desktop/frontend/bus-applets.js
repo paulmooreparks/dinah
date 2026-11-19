@@ -1904,7 +1904,7 @@
     return { setState: function () { pendingTarget = true; showTarget(); }, destroy: function () { watch.disconnect(); if (targetFrame) cancelAnimationFrame(targetFrame); c.destroy(); }, commands: function () { return [{ label: 'Refresh', run: c.draw }]; } };
   } });
 
-  window.dinahCommands.register({ id: 'bus', glyph: 'inbox', menu: 'view', mnemonic: 'R', label: 'Group Chats', run: function () { return window.dinahWorkbench.open('bus'); } });
+  window.dinahCommands.register({ id: 'bus', glyph: 'inbox', menu: 'view', group: 'panes', mnemonic: 'R', label: 'Group Chats', run: function () { return window.dinahWorkbench.open('bus'); } });
 
   /* The pane opens once by itself, as a tab behind the one in front of the
      right-hand dock, so a layout saved before it existed finds it; a person

@@ -8,7 +8,8 @@ const {launch}=require('./lib/page');
   await p.locator('#dinah-launcher [data-cmd="settings"]').click();
   await p.locator('[data-win="settings"] #settings').waitFor();
   t.ok('settings uses existing command handler',await p.locator('[data-win="settings"] #settings').isVisible());
-  t.ok('workspace menu keeps creation and workspace commands',await p.locator('[data-command-menu="workspace"] [data-cmd]').count()===6);
+  // Eight since 19 November 2026: Refresh Workspace and Remove Workspace… joined the six (docs/design/menus.md).
+  t.ok('workspace menu keeps creation and workspace commands',await p.locator('[data-command-menu="workspace"] [data-cmd]').count()===8);
   t.ok('recent workspaces retain their named navigation group',await p.locator('[data-command-menu="workspace"] [data-recent-menu]').count()===1);
   t.ok('Tools menu is removed and package installation remains in launcher', await p.locator('[data-menubar-id=tools]').count()===0 && await p.locator('[data-launcher-action=install-packages-file]').count()===1);
   await p.waitForFunction(()=>pudlLauncher.state(document.getElementById('dinah-launcher')).presentation==='closed');

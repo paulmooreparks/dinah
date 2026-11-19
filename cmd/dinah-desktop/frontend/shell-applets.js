@@ -123,8 +123,11 @@
             return button.dataset.cmd ? window.dinahCommands.describe(button.dataset.cmd, label) : { label: label, disabled: button.disabled || button.getAttribute('aria-disabled') === 'true', run: function () { button.click(); } };
           });
           function hostCommand(label, cmd) { commands.push(window.dinahCommands.describe(cmd, label)); }
-          if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Clean Up Chats', 'clean-up-chats'); }
-          return commands;
+          // Broadcast is a command about chats, and its row is here since
+          // View stopped holding commands that do something (docs/design/menus.md).
+          if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Clean Up Chats', 'clean-up-chats'); hostCommand('Broadcast to Active…', 'broadcast-active'); hostCommand('Broadcast to All…', 'broadcast-all'); }
+          // A button with no words, such as a colour swatch, is no command.
+          return commands.filter(function (command) { return command && command.label; });
         }
         return { state: state, setState: setState, commands: commands, destroy: function () {
           if (kind === 'settings') {

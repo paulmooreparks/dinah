@@ -7,7 +7,7 @@
 
    An entry is
      { id, menu, label, shortcut, enabled, visible, checked, danger, items,
-       run, help, reason, inline }
+       run, help, reason, inline, group, after }
    where label, enabled, visible, checked, items and reason may be
    functions read each time the menus are drawn. reason says why a disabled
    entry cannot run now, which command search shows beside it. items makes the entry a flyout of rows
@@ -30,6 +30,12 @@
   var entries = [], byId = new Map(), aliases = new Map(), timer = 0;
   // "document" is the Editor's own Document menu, drawn in its window's bar.
   var MENUS = { workspace: 'Workspaces', tools: 'Tools', documents: 'Documents', document: 'Document', view: 'View', window: 'Window', help: 'Help' };
+  // "chat" has no title in the bar yet: its commands are drawn in a chat's
+  // window and the Chats pane, and Commands… files them under this name
+  // (docs/design/menus.md). It is kept apart from MENUS because Keyboard
+  // Shortcuts takes a group with a menu's name for the bar's own keys, and
+  // the chat window's keys are a group called Chat.
+  var FILED = { chat: 'Chat' };
 
   function value(v) { return typeof v === 'function' ? v() : v; }
   function modalOpen() {
@@ -149,10 +155,28 @@
       return { label: row.label, disabled: !!row.disabled, run: guarded(row.run) };
     });
   }
-  function rows(menu) {
+  /* A menu's entries in the order they are drawn: the order they were
+     registered in, except that an entry with after stands straight after
+     the entry of that ID, so a command registered in another file can take
+     its place in a group. */
+  function ordered(menu) {
+    var own = entries.filter(function (entry) { return entry.menu === menu; });
+    var late = own.filter(function (entry) { return entry.after; });
+    var out = own.filter(function (entry) { return !entry.after; });
+    late.forEach(function (entry) {
+      var at = -1;
+      out.forEach(function (other, i) { if (other.id === entry.after || other.after === entry.after) at = i; });
+      if (at < 0) out.push(entry); else out.splice(at + 1, 0, entry);
+    });
+    return out;
+  }
+  /* With group given, only the entries of that group ('' for those with
+     none), for a list that has a place for each group (host-menus.js). */
+  function rows(menu, group) {
     var out = [];
-    entries.forEach(function (entry) {
-      if (entry.menu !== menu || entry.inline || !visible(entry)) return;
+    ordered(menu).forEach(function (entry) {
+      if (entry.inline || !visible(entry)) return;
+      if (group !== undefined && (entry.group || '') !== group) return;
       if (entry.separator) { if (out.length && out[out.length - 1] !== '-') out.push('-'); return; }
       if (entry.expand) { out = out.concat(expanded(entry)); return; }
       var on = enabled(entry);
@@ -175,7 +199,7 @@
     var out = [];
     entries.forEach(function (entry) {
       if (entry.separator || entry.items || !visible(entry) || entry.search === false) return;
-      var menu = MENUS[entry.menu] || entry.menu;
+      var menu = MENUS[entry.menu] || FILED[entry.menu] || entry.menu;
       if (entry.expand) {
         expanded(entry).forEach(function (row) { out.push({ label: row.label, menu: menu, shortcut: '', enabled: !row.disabled, run: row.run }); });
         return;
@@ -304,11 +328,11 @@
       clearNotifications, drawWorkspaces, refreshSessions, openSettings, startRename,
       openRemove, signIn, frontProvider, restartAgent, saveThinking, flushNotifications,
       workspaceCommands, chatCommands, thinking } = adapter;
-    register({ id: 'show-chat', menu: 'view', inline: true, label: 'Show Chat', run: () => { showChat(); } });
-    register({ id: 'find-tool', menu: 'view', inline: true, label: 'Find a Tool…', run: () => { openGoTo('tools'); } });
+    register({ id: 'show-chat', menu: 'chat', inline: true, label: 'Show Chat', run: () => { showChat(); } });
+    register({ id: 'find-tool', menu: 'tools', inline: true, label: 'Find a Tool…', run: () => { openGoTo('tools'); } });
     register({ id: 'show-workspace', menu: 'view', inline: true, label: 'Workspace', run: () => { window.dinahWorkbench.open('workspace').catch(fail); } });
     register({ id: 'rename-workspace', menu: 'workspace', inline: true, label: 'Rename Workspace…', enabled: () => workspaceCommands('rename-workspace'), run: () => { openWorkspaceRename(); } });
-    register({ id: 'remove-workspace', menu: 'view', inline: true, label: 'Remove Workspace…', enabled: () => workspaceCommands('remove-workspace'), danger: true, run: () => { removeWorkspace(); } });
+    register({ id: 'remove-workspace', menu: 'workspace', inline: true, label: 'Remove Workspace…', enabled: () => workspaceCommands('remove-workspace'), danger: true, run: () => { removeWorkspace(); } });
     register({ id: 'export-workspace', menu: 'workspace', inline: true, label: 'Export Workspace…', enabled: () => workspaceCommands('export-workspace'), run: () => { exportWorkspace(); } });
     register({ id: 'import-workspace', menu: 'workspace', inline: true, label: 'Import Workspace…', enabled: () => workspaceCommands('import-workspace'), run: () => { importWorkspace(); } });
     register({ id: 'install-packages-file', menu: 'tools', inline: true, label: 'Install Packages…', run: () => { installPackages(); } });
@@ -317,31 +341,31 @@
     register({ id: 'new-empty-workspace', menu: 'workspace', inline: true, label: 'New Empty Workspace', enabled: () => workspaceCommands('new-empty-workspace'), run: () => { createWorkspace(true); } });
     register({ id: 'chat-browser', menu: 'view', inline: true, label: 'Chats', run: () => { window.dinahWorkbench.open('chat-browser').catch(fail); } });
     register({ id: 'skills-browser', menu: 'view', inline: true, label: 'Skills', run: () => { window.dinahWorkbench.open('skills-browser').catch(fail); } });
-    register({ id: 'files', menu: 'view', inline: true, label: 'Files', run: () => { dinahResources.currentPath().then(dinahResources.openFiles).catch(fail); } });
+    register({ id: 'files', menu: 'tools', inline: true, label: 'Files', run: () => { dinahResources.currentPath().then(dinahResources.openFiles).catch(fail); } });
     // New Terminal runs the shell chosen in Settings › Terminal; the other
     // runs the product's own shell, over its files and applets, whichever
     // shell is chosen. Neither is drawn in a menu: View is for showing
     // things, and no menu is for starting programs, so they are started from
     // the launcher's Terminals and found by Commands… (Paul, 19 November
     // 2026).
-    register({ id: 'terminal', menu: 'view', inline: true, glyph: 'terminal', label: 'New Terminal', run: () => { dinahResources.currentPath().then(dinahResources.openTerminal).catch(fail); } });
-    register({ id: 'own-shell', menu: 'view', inline: true, glyph: 'script', label: () => 'New ' + window.dinahProduct.name + ' Shell', run: () => { dinahResources.currentPath().then(path => dinahResources.openTerminal(path, null, 'dinah')).catch(fail); } });
+    register({ id: 'terminal', menu: 'tools', inline: true, glyph: 'terminal', label: 'New Terminal', run: () => { dinahResources.currentPath().then(dinahResources.openTerminal).catch(fail); } });
+    register({ id: 'own-shell', menu: 'tools', inline: true, glyph: 'script', label: () => 'New ' + window.dinahProduct.name + ' Shell', run: () => { dinahResources.currentPath().then(path => dinahResources.openTerminal(path, null, 'dinah')).catch(fail); } });
     register({ id: 'clear-notifications', menu: 'view', inline: true, label: 'Clear All…', enabled: () => notices.list(entry => entry.clearable).length > 0, danger: true, run: () => { clearNotifications(); } });
-    register({ id: 'refresh-workspace', menu: 'view', inline: true, label: 'Refresh Workspace', enabled: () => workspaceCommands('refresh-workspace'), run: () => { app().State().then(function (st) { drawWorkspaces(st); refreshSessions(); }).catch(fail); } });
+    register({ id: 'refresh-workspace', menu: 'workspace', inline: true, label: 'Refresh Workspace', enabled: () => workspaceCommands('refresh-workspace'), run: () => { app().State().then(function (st) { drawWorkspaces(st); refreshSessions(); }).catch(fail); } });
     register({ id: 'settings', menu: 'dinah', inline: true, label: 'Settings…', run: () => { openSettings(); } });
-    register({ id: 'rename-session', menu: 'view', inline: true, label: 'Rename Chat…', enabled: () => chatCommands('rename-session'), run: () => { startRename(chats.active(), 'head'); } });
-    register({ id: 'remove-session', menu: 'view', inline: true, label: 'Delete Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
-    register({ id: 'refresh-sessions', menu: 'view', inline: true, label: 'Refresh Chats', run: () => { chatBrowser.refreshNativeSessions(); } });
-    register({ id: 'all-models', menu: 'view', inline: true, label: 'All Models…', enabled: () => chatCommands('all-models'), run: () => { chats.current()?.openModels(); } });
-    register({ id: 'history', menu: 'view', inline: true, label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });
-    register({ id: 'templates', menu: 'view', inline: true, label: 'My Templates…', run: () => { chats.current()?.openTemplates(null); } });
-    register({ id: 'sign-in', menu: 'view', inline: true, label: 'Sign In…', run: () => { signIn(); } });
-    register({ id: 'usage-page', menu: 'view', inline: true, label: 'Usage…', run: () => { var usageItem = window.dinahWorkbench.item(window.pudlWindows.state().top);
+    register({ id: 'rename-session', menu: 'chat', inline: true, label: 'Rename Chat…', enabled: () => chatCommands('rename-session'), run: () => { startRename(chats.active(), 'head'); } });
+    register({ id: 'remove-session', menu: 'chat', inline: true, label: 'Delete Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
+    register({ id: 'refresh-sessions', menu: 'chat', inline: true, label: 'Refresh Chats', run: () => { chatBrowser.refreshNativeSessions(); } });
+    register({ id: 'all-models', menu: 'chat', inline: true, label: 'All Models…', enabled: () => chatCommands('all-models'), run: () => { chats.current()?.openModels(); } });
+    register({ id: 'history', menu: 'chat', inline: true, label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });
+    register({ id: 'templates', menu: 'chat', inline: true, label: 'My Templates…', run: () => { chats.current()?.openTemplates(null); } });
+    register({ id: 'sign-in', menu: 'chat', inline: true, label: 'Sign In…', run: () => { signIn(); } });
+    register({ id: 'usage-page', menu: 'chat', inline: true, label: 'Usage…', run: () => { var usageItem = window.dinahWorkbench.item(window.pudlWindows.state().top);
         var usageProvider = usageItem && (usageItem.kind === 'chat' || usageItem.kind === 'chat-session') ? frontProvider() : chats.defaultProvider();
         Promise.resolve().then(function () { return app().OpenProviderUsage ? app().OpenProviderUsage(usageProvider) : Promise.reject('No usage page is available for this provider.'); }).catch(fail); } });
-    register({ id: 'save-run', menu: 'view', inline: true, label: 'Export Chat…', enabled: () => chatCommands('save-run'), run: () => { chats.current()?.saveRun(); } });
-    register({ id: 'cancel', menu: 'view', inline: true, label: 'Stop', enabled: () => chatCommands('cancel'), run: () => { chats.current()?.stopTurn(); } });
-    register({ id: 'restart', menu: 'view', inline: true, label: 'Restart Agent', run: () => { restartAgent(); } });
+    register({ id: 'save-run', menu: 'chat', inline: true, label: 'Export Chat…', enabled: () => chatCommands('save-run'), run: () => { chats.current()?.saveRun(); } });
+    register({ id: 'cancel', menu: 'chat', inline: true, label: 'Stop', enabled: () => chatCommands('cancel'), run: () => { chats.current()?.stopTurn(); } });
+    register({ id: 'restart', menu: 'chat', inline: true, label: 'Restart Agent', run: () => { restartAgent(); } });
     register({ id: 'thoughts', menu: 'view', inline: true, label: "Show the Agent's Thinking", enabled: () => !thinking().busy, checked: () => thinking().checked, run: () => { saveThinking(!thinking().checked); } });
     register({ id: 'about', menu: 'help', inline: true, label: () => 'About ' + productName(), run: () => { document.getElementById('about').showModal(); } });
     register({ id: 'quit', menu: 'dinah', inline: true, label: () => 'Quit ' + productName(), run: () => { Promise.all([flushNotifications(), window.dinahUIState ? window.dinahUIState.flush() : null]).then(function () { if (window.runtime) window.runtime.Quit(); }).catch(fail); } });

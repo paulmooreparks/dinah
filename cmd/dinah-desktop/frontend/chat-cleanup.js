@@ -459,5 +459,5 @@
   function open() { return window.dinahWorkbench.open('chat-cleanup'); }
   window.dinahWorkbench.register('chat-cleanup', { applet: { id: 'dinah.chat-cleanup', title: 'Clean Up Chats', glyph: 'bin', workspace: false }, launcher: { run: open }, singleton: true, title: 'Clean Up Chats', glyph: 'bin', mode: 'maximized', init: init });
   window.dinahChatCleanup = { open: open };
-  window.dinahCommands.register({ id: 'clean-up-chats', menu: 'view', mnemonic: 'U', label: 'Clean Up Chats', glyph: 'bin', run: open });
+  window.dinahCommands.register({ id: 'clean-up-chats', menu: 'tools', mnemonic: 'U', label: 'Clean Up Chats', glyph: 'bin', run: open });
 }());

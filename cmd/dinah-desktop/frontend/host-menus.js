@@ -40,12 +40,19 @@
     var list = document.getElementById('host-themes'), appearance = window.dinahAppearance;
     if (!list || !appearance) return;
     list.replaceChildren();
+    // One theme is on, so the themes are a set with one mark, not a row of
+    // switches (docs/design/menus.md). The person's own themes stand under
+    // a heading of their own, which says what "(built in)" after every
+    // name used to.
+    list.setAttribute('data-menu-radio', '');
     var state = appearance.snapshot().state;
-    Object.entries(appearance.builtins).forEach(function (entry) { command(list, { label: entry[1].name + ' (built in)', checked: state.active === entry[0], run: function () { return appearance.select(entry[0]); } }); });
-    if (state.themes.length) command(list, '-');
+    command(list, { heading: 'Built In' });
+    Object.entries(appearance.builtins).forEach(function (entry) { command(list, { label: entry[1].name, checked: state.active === entry[0], run: function () { return appearance.select(entry[0]); } }); });
+    if (state.themes.length) { command(list, '-'); command(list, { heading: 'Yours' }); }
     state.themes.forEach(function (theme) { command(list, { label: theme.document.name, checked: state.active === theme.id, run: function () { return appearance.select(theme.id); } }); });
     command(list, '-');
-    command(list, { label: 'Edit Current Theme…', run: function () { document.getElementById('appearance-edit').click(); } });
+    // It opens the Theme Editor and asks for nothing more, so it has no ellipsis.
+    command(list, { label: 'Edit Current Theme', run: function () { document.getElementById('appearance-edit').click(); } });
     command(list, { label: 'Appearance Settings…', run: function () { return bench.open('settings').then(function () { document.getElementById('settings-tab-appearance').click(); }); } });
   }
   function drawSkins() {
@@ -62,15 +69,18 @@
   }
   /* A registry menu's rows go into its host list: all of it, or after the
      list's placeholder (li[data-commands]) where some rows are written in
-     the page. */
+     the page. A list may have a placeholder for each group of rows
+     (data-commands="panes"), and the one with no name takes the rows that
+     have no group. */
   function drawRegistry(menu) {
     var list = document.querySelector('[data-command-menu="' + CSS.escape(String(menu)) + '"]');
     if (!list) return;
     list.querySelectorAll(':scope > li[data-generated]').forEach(function (li) { li.remove(); });
-    var marker = list.querySelector(':scope > li[data-commands]'), at = marker ? marker.nextSibling : null;
-    window.dinahCommands.rows(menu).forEach(function (row) {
-      var li = command(list, row);
-      if (marker) list.insertBefore(li, at);
+    var markers = Array.from(list.querySelectorAll(':scope > li[data-commands]'));
+    if (!markers.length) { window.dinahCommands.rows(menu).forEach(function (row) { command(list, row); }); return; }
+    markers.forEach(function (marker) {
+      var at = marker.nextSibling;
+      window.dinahCommands.rows(menu, marker.getAttribute('data-commands') || '').forEach(function (row) { list.insertBefore(command(list, row), at); });
     });
   }
   function drawWindows() {

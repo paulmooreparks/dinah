@@ -2,7 +2,13 @@ const {setup}=require('./lib/decisions-fixture');
 (async()=>{const t=await setup([], {noOpen:true});const {page:p,ok}=t;
 try{
  const rows=await p.evaluate(()=>({view:dinahCommands.rows('view').map(r=>r.label),app:[...dinahCommands.rows('dinah').map(r=>r.label),dinahCommands.describe('settings').label],help:dinahCommands.rows('help').map(r=>r.label)}));
- for(const label of ['Decisions','Broadcast to Active','Broadcast to All','Notifications'])ok('View contains '+label,rows.view.some(s=>s&&s.replace(/\u2026/g,'')===label),JSON.stringify(rows.view));
+ // Since 19 November 2026 View shows and hides and starts nothing (docs/design/menus.md):
+ // Decisions is in the launcher, and Broadcast in the Chats pane's Actions, which is where the help now sends the reader.
+ ok('View contains Notifications',rows.view.includes('Notifications'),JSON.stringify(rows.view));
+ ok('View no longer holds Decisions or Broadcast',!rows.view.some(s=>/Decisions|Broadcast/.test(s||'')),JSON.stringify(rows.view));
+ ok('the launcher has Decisions',await p.evaluate(()=>dinahWorkbench.launchers().some(l=>l.id==='decisions')));
+ ok('Broadcast is a chat command',await p.evaluate(()=>['Broadcast to Active…','Broadcast to All…'].every(l=>dinahCommands.searchable().some(c=>c.label===l&&c.menu==='Chat'))));
+ ok('the help sends the reader to those places',await p.evaluate(()=>{const t=document.getElementById('help-chats-content').content.textContent;return t.includes('Open Decisions from the launcher')&&t.includes('in the Actions menu of the Chats pane');}));
  for(const label of ['Settings','Pause Chats and Restart'])ok('Application contains '+label,rows.app.some(s=>s&&s.replace('…','')===label),JSON.stringify(rows.app));
  ok('Help contains Working with Chats',rows.help.includes('Working with Chats'));
  await p.evaluate(()=>dinahWorkbench.open('settings','chat'));await p.locator('#set-background-chat-limit').waitFor({state:'visible'});

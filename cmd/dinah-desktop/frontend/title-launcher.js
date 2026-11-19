@@ -21,13 +21,15 @@
       list.append(li);
     }
     [
-      ['new-chat','chat','comments'], ['chat-browser','chat','comments'],
+      // The launcher lists what opens in a window or a pane of its own. The
+      // commands it used to list (New Chat, the workspace commands, Open
+      // Document…, Find a Tool…, Keyboard Shortcuts, About) each have
+      // a row in a menu (docs/design/menus.md). Install Packages… stays
+      // until a menu has a place for it.
+      ['chat-browser','chat','comments'],
       ['skills-browser','tools','document'], ['in-progress','documents','pencil'], ['needs-you','tools','warning','Notifications'],
-      ['show-workspace','workspace','folder'], ['new-workspace','workspace','folder'],
-      ['new-empty-workspace','workspace','folder'], ['import-workspace','workspace','upload'],
-      ['open-document','documents','open','Open Document…'],
-      ['install-packages-file','tools','download'], ['find-tool','tools','search'],
-      ['keyboard-shortcuts','help','info'], ['about','help','info']
+      ['show-workspace','workspace','folder'],
+      ['install-packages-file','tools','download']
     ].forEach(function (entry) {
       var cmd = dinahCommands.describe(entry[0],entry[3]); add(entry[0],cmd.label,entry[1],entry[2],cmd.run,cmd.disabled);
       list.lastElementChild.querySelector('button').dataset.launcherCommand = entry[0];
@@ -41,7 +43,6 @@
           return dinahResources.currentPath().then(function (path) { return dinahResources.openTerminal(path,null,shell.id); });
         });
       });
-      add('terminal:refresh','Refresh Shells','terminals','reload',dinahShellTerminal.refresh);
     }
     // The entries are in alphabetical order, whichever category is chosen (Paul, 9 November 2026).
     Array.from(list.children).sort(function (a, b) { return a.querySelector('.start-name').textContent.localeCompare(b.querySelector('.start-name').textContent, undefined, { sensitivity: 'base' }); }).forEach(function (li) { list.append(li); });

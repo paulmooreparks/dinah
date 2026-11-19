@@ -227,22 +227,34 @@
             <li><button type="button" data-cmd="rename-workspace" data-mnemonic="R" disabled data-command-label></button></li>
             <li><button type="button" data-cmd="export-workspace" data-mnemonic="X" disabled data-command-label></button></li>
             <li><button type="button" data-cmd="import-workspace" data-mnemonic="I" data-command-label></button></li>
+            <li><button type="button" data-cmd="refresh-workspace" data-mnemonic="F" disabled data-command-label></button></li>
             <li data-commands></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="remove-workspace" data-mnemonic="M" data-menu-danger disabled data-command-label></button></li>
+            <li>-</li>
             <li data-mnemonic="C">Recent Workspaces
               <ul data-recent-menu data-menu-radio><li><button type="button" disabled>None yet</button></li></ul></li>
           </ul></li>
         <!-- Documents, and the rows after a list's data-commands marker, are
              drawn from the command registry (commands.js, documents.js). -->
         <li data-menubar-id="documents" data-mnemonic="D" data-menu-glyph="document">Documents<ul data-command-menu="documents"></ul></li>
+        <!-- View shows and hides, and starts nothing (docs/design/menus.md):
+             the panes under their heading, the two display switches, and
+             the colours. The registry's rows of the group "panes" follow
+             the panes written here, and its other View rows follow the
+             agent's thinking. The comment stands outside the item, since
+             PUDL reads everything in an item before its list as its title. -->
         <li data-menubar-id="view" data-mnemonic="V" data-menu-glyph="eye">View
           <ul data-command-menu="view">
+            <li>Panes</li>
             <li><button type="button" data-cmd="show-workspace" data-mnemonic="W" data-command-label></button></li>
             <li><button type="button" data-cmd="chat-browser" data-mnemonic="C" data-command-label></button></li>
-            <li><button type="button" data-cmd="skills-browser" data-mnemonic="S" data-command-label></button></li>
             <li><button type="button" data-cmd="in-progress" data-mnemonic="I" data-command-label></button></li>
-            <li data-commands></li>
+            <li><button type="button" data-cmd="skills-browser" data-mnemonic="S" data-command-label></button></li>
+            <li data-commands="panes"></li>
             <li>-</li>
             <li><button type="button" data-cmd="thoughts" data-mnemonic="T" aria-checked="false" data-command-label></button></li>
+            <li data-commands></li>
             <li>-</li>
             <li data-mnemonic="L">Color Mode
               <ul data-menu-radio>
@@ -625,7 +637,6 @@
       <li class="md-row"><a class="md-item start-category" href="?launcher-category=workspace" data-start-category-key="workspace"><span data-start-label>Workspace</span><span data-start-category-count aria-hidden="true"></span></a></li>
       <li class="md-row"><a class="md-item start-category" href="?launcher-category=terminals" data-start-category-key="terminals"><span data-start-label>Terminals</span><span data-start-category-count aria-hidden="true"></span></a></li>
 <li class="md-row"><a class="md-item start-category" href="?launcher-category=documents" data-start-category-key="documents"><span data-start-label>Documents</span><span data-start-category-count aria-hidden="true"></span></a></li>
-<li class="md-row"><a class="md-item start-category" href="?launcher-category=help" data-start-category-key="help"><span data-start-label>Help</span><span data-start-category-count aria-hidden="true"></span></a></li>
       <li class="md-row"><a class="md-item start-category" href="?launcher-category=tools" data-start-category-key="tools"><span data-start-label>Tools</span><span data-start-category-count aria-hidden="true"></span></a></li>
     </ul></nav><div class="split-handle" aria-label="Resize launcher categories" data-split-min="90" data-split-max="40%"></div><div class="split-pane start-items-pane"><ul class="row-list start-items" data-start-items></ul><p class="empty-state" data-start-empty hidden>No matching tools or applets.</p></div></div>
     <footer class="popover-actions start-footer"><span role="status" aria-live="polite">Results: <span data-start-count></span></span><button class="btn btn-sm" type="button" data-launcher-size popovertarget="launcher-size">Size</button></footer>
@@ -652,11 +663,11 @@
     <article class="doc-scroll">
       <h2>Working with Chats</h2>
       <h3>Decisions</h3>
-      <p>Open Decisions from the View menu or its count in the status bar to find questions that need your answer. Each question shows the asking chat, the destination of your reply and the chat's recommendation. Write an answer or choose As recommended, then press Send; choosing a recommendation alone sends nothing. Your draft stays with the request when you close the window or reload, and you can answer some questions while leaving the others open.</p>
+      <p>Open Decisions from the launcher or its count in the status bar to find questions that need your answer. Each question shows the asking chat, the destination of your reply and the chat's recommendation. Write an answer or choose As recommended, then press Send; choosing a recommendation alone sends nothing. Your draft stays with the request when you close the window or reload, and you can answer some questions while leaving the others open.</p>
       <h3>Clean Up Chats</h3>
       <p>Choose Clean Up Chats above the Chats list or in the chat's Actions menu to review chats across workspaces. Filter the list, select the chats you no longer need and choose Delete Chats. Deleted chats receive no further messages and stay in the Recycle Bin for 30 days, where you can restore them as closed chats or delete them permanently. The Recycle Bin explains whether an agent program still has a loaded chat and what will happen to its own history at final deletion.</p>
       <h3>Broadcast</h3>
-      <p>Choose Broadcast to Active or Broadcast to All in the View menu to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
+      <p>Choose Broadcast to Active or Broadcast to All in the Actions menu of the Chats pane to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
       <h3>Pause Chats and Restart</h3>
       <p>Choose Pause Chats and Restart in the application menu to ask working chats whose agents accept input during a turn to pause. The program waits for other working chats to finish. After restarting, the program tells the chats from before the restart to carry on. If a chat cannot reopen, including one whose first turn was cut short, Notifications lists it for you to open. You can restart the current program without an update waiting; when a newer build is installed, the restart uses it. If chats have not paused after two minutes, Notifications shows which ones are still working and offers Restart Now or Cancel the Restart. Restart Now can cut their turns short, while cancelling tells paused chats to carry on.</p>
       <h3>Kept Attention Cards</h3>
