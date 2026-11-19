@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thinking shown in the transcript: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame around the example is styled here. The styles under
+       "Proposed" are the ones the product would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .form-group { margin: 0; }
+    .mock-stage { padding: var(--space-4) var(--space-5); }
+    .mock-chat { display: flex; flex-direction: column; width: 760px; max-width: 100%; height: 560px; resize: both; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); }
+    .mock-log { flex: 1 1 auto; overflow: auto; padding: var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+    .mock-live { flex: none; border-top: 1px solid var(--border); background: var(--surface); padding: var(--space-2) var(--space-5); }
+    .mock-live[hidden] { display: none; }
+    .mock-msg { border: 1px solid var(--border); background: var(--surface); padding: var(--space-3) var(--space-4); }
+    .mock-msg.you { background: var(--surface-alt); }
+    .mock-msg .who { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-msg p { margin: var(--space-2) 0 0; }
+    .mock-work-head { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+    .mock-work-head .work-title { font-size: var(--text-sm); }
+    .mock-work-head .words { font-size: var(--text-xs); color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mock-work-head time { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); flex: none; }
+    .mock-work-list { list-style: none; margin: var(--space-1) 0 0 7px; padding: 0 0 0 var(--space-3); border-left: 2px solid var(--border); }
+    .mock-work-list[hidden] { display: none; }
+    .mock-work-list li { display: flex; align-items: center; gap: var(--space-2); padding: 4px 0; font-size: var(--text-xs); }
+    .mock-work-list li .badge { margin-inline-start: auto; }
+    .mock-work-list li.inner-thought { display: block; color: var(--text-muted); font-style: italic; font-size: var(--text-sm); }
+    .mock-notes { margin: var(--space-2) var(--space-5) var(--space-5); max-width: 58rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* ---- Proposed -------------------------------------------------------
+       A thought is a row of the transcript, in the order it arrived, as a
+       progress message is. It is flat, since it is only read: no card and
+       no border but a line at its start, muted and italic as a thought is
+       today, with the word Thinking and its time. Pieces of one thought
+       join into one row. */
+    .thought-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); padding: 0 0 0 var(--space-3); border-inline-start: 2px solid var(--border); }
+    .thought-line .thought-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); }
+    .thought-line time { font-size: var(--text-sm); color: var(--text-muted); }
+    .thought-line .thought { grid-column: 1 / -1; margin: 2px 0 0; }
+    /* The other design: the newest thought is one clipped line in the
+       Working block's head, and nothing is added to the transcript. The
+       line has its room from the start, so the head does not change size
+       when a thought arrives. */
+    .mock-work-head .now-thought { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); font-style: italic; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Thinking shown in the transcript</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 20 November 2026. Change the controls, then press Run a Turn.</span>
+  </header>
+
+  <div class="mock-controls">
+    <div class="form-group">
+      <label class="form-label" for="mock-design">Where thinking is shown</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-design">
+        <option value="transcript">In the transcript, in order (recommended)</option>
+        <option value="head">The newest thought, in the Working block's head</option>
+        <option value="today">Inside the Working block, which starts closed (today)</option>
+      </select></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mock-setting">Settings, Show Thinking</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-setting">
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mock-agent">What the agent sends</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-agent">
+        <option value="thinks">Thinking with its steps</option>
+        <option value="none">No thinking at all</option>
+      </select></span>
+    </div>
+    <button type="button" class="btn" id="mock-run">Run a Turn</button>
+  </div>
+
+  <div class="mock-stage">
+    <div class="mock-chat">
+      <div class="mock-log" id="mock-log"></div>
+      <div class="mock-live" id="mock-live" hidden></div>
+    </div>
+  </div>
+
+  <section class="mock-notes">
+    <h2>What is proposed</h2>
+    <ul>
+      <li>With Show Thinking on, each thought is a row of the transcript, where it arrived, between the agent's messages. Nothing has to be opened to read it.</li>
+      <li>The Working block keeps the tool calls only, and still starts closed.</li>
+      <li>With Show Thinking off, no thought is shown anywhere, as today.</li>
+      <li>A thought row is flat and muted, so an answer still stands out from it.</li>
+      <li>The rule is the same for every agent program. A program that sends no thinking shows none, and the chat does not pretend otherwise.</li>
+    </ul>
+    <h2>What it costs</h2>
+    <ul>
+      <li>A transcript is longer with the setting on. One agent program in use sends more thoughts than answers. The setting is the way to have less.</li>
+      <li>The second design adds nothing to the transcript, but it shows only the newest thought and only while the turn runs. To read the earlier ones the block is opened, as today.</li>
+    </ul>
+  </section>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var log = $('mock-log'), live = $('mock-live'), timers = [];
+      var STEPS = [
+        { thought: 'The setting is read in two places. I should find both before changing either.' },
+        { tool: 'Searched the code', kind: 'Explored' },
+        { thought: 'Only the second place keeps a copy. Changing the first is enough, and the copy follows on the next read.' },
+        { say: 'I found where the setting is read. I am changing the first place now.' },
+        { tool: 'Edited settings.go', kind: 'Edited 1 file' },
+        { tool: 'Ran the tests', kind: 'Ran 1 command' },
+        { thought: 'The tests pass. One of them covered the copy, so nothing else is needed.' },
+        { say: 'The change is made and the tests pass.', last: true }
+      ];
+      function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+      function clock(n) { return '10:0' + (2 + Math.floor(n / 3)) + ' am'; }
+      function message(who, text, n, you) {
+        var m = el('div', 'mock-msg' + (you ? ' you' : ''));
+        var head = el('div', 'who'); head.appendChild(el('span', '', who)); head.appendChild(el('time', '', clock(n)));
+        m.appendChild(head); m.appendChild(el('p', '', text));
+        return m;
+      }
+      function thoughtLine(text, n) {
+        var t = el('div', 'thought-line');
+        t.appendChild(el('span', 'thought-label', 'Thinking')); t.appendChild(el('time', '', clock(n)));
+        t.appendChild(el('p', 'thought', text));
+        return t;
+      }
+      function workBlock() {
+        var w = el('div', 'mock-work');
+        var head = el('div', 'mock-work-head');
+        var toggle = el('button', 'card-toggle'); toggle.type = 'button'; toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Show work');
+        var title = el('span', 'work-title', 'Working... 0 s'), words = el('span', 'words', ''), now = el('span', 'now-thought', ''), time = el('time', '', clock(0));
+        head.appendChild(toggle); head.appendChild(title); head.appendChild(words); head.appendChild(now); head.appendChild(time);
+        var list = el('ol', 'mock-work-list'); list.hidden = true;
+        toggle.addEventListener('click', function () {
+          var open = toggle.getAttribute('aria-expanded') !== 'true';
+          toggle.setAttribute('aria-expanded', String(open)); list.hidden = !open;
+        });
+        w.appendChild(head); w.appendChild(list);
+        return { el: w, title: title, words: words, now: now, list: list, kinds: [] };
+      }
+      function toolLine(step) {
+        var li = el('li');
+        li.appendChild(el('span', 'tree-toggle')); li.appendChild(el('span', '', step.tool));
+        var b = el('span', 'badge positive', 'finished'); li.appendChild(b);
+        return li;
+      }
+      function end() { log.scrollTop = log.scrollHeight; }
+      function run() {
+        timers.forEach(clearTimeout); timers = [];
+        var design = $('mock-design').value, shown = $('mock-setting').value === 'on', thinks = $('mock-agent').value === 'thinks';
+        log.innerHTML = ''; live.innerHTML = ''; live.hidden = false;
+        log.appendChild(message('You', 'Make the setting apply without a restart.', 0, true));
+        var work = workBlock();
+        live.appendChild(work.el);
+        if (design !== 'head') work.now.remove();
+        var started = Date.now();
+        var tick = setInterval(function () { work.title.textContent = 'Working... ' + Math.round((Date.now() - started) / 1000) + ' s'; }, 1000);
+        STEPS.forEach(function (step, i) {
+          timers.push(setTimeout(function () {
+            if (step.thought) {
+              if (!thinks || !shown) return;
+              if (design === 'transcript') log.appendChild(thoughtLine(step.thought, i));
+              else {
+                work.list.appendChild(el('li', 'inner-thought', step.thought));
+                if (design === 'head') work.now.textContent = step.thought;
+              }
+            } else if (step.tool) {
+              work.list.appendChild(toolLine(step));
+              work.kinds.push(step.kind); work.words.textContent = work.kinds.join(' · ');
+            } else {
+              log.appendChild(message('Agent', step.say, i));
+              if (step.last) {
+                clearInterval(tick);
+                work.title.textContent = 'Worked for ' + Math.max(1, Math.round((Date.now() - started) / 1000)) + ' s';
+                if (design === 'head') work.now.textContent = '';
+                // Finished work goes back into the transcript, ahead of the answers that followed its start.
+                log.insertBefore(work.el, log.children[1]); live.hidden = true;
+              }
+            }
+            end();
+          }, 900 * (i + 1)));
+        });
+      }
+      $('mock-run').addEventListener('click', run);
+      ['mock-design', 'mock-setting', 'mock-agent'].forEach(function (id) { $(id).addEventListener('change', run); });
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+      });
+      run();
+    })();
+  </script>
+</body>
+</html>
