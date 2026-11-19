@@ -17,6 +17,7 @@ Paul asked on 19 November 2026 for every menu to be listed and compared with the
 11. Ctrl+P is Print…, and Find and Open… takes Ctrl+Shift+O (decided 19 November 2026; both wait until the document applications give Print… the key, since a freed Ctrl+P would otherwise do nothing).
 12. The settings menu is called Settings.
 13. The way out of the program is called Exit on every system. With no File in the host it is in the launcher, which opens from the product's name at the start of the bar, and Alt+F4 does it too. Paul confirmed on 19 November 2026 that the launcher is enough.
+14. F1 opens the list of keys, Keyboard Shortcuts, and not a help page (Paul, 19 November 2026).
 
 ## Where the work is
 
@@ -67,7 +68,7 @@ Two keys changed hands. Ctrl+N is New Chat everywhere, except where the applicat
 
 ## Questions still open
 
-1. Whether F1 stays the list of keys or opens a help page.
+None. Paul settled the last one, what F1 opens, on 19 November 2026 (rule 14).
 
 ## Tests
 
