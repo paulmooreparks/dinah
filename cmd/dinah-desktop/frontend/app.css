@@ -230,6 +230,8 @@
    its head. */
 .msg-foot { display: flex; justify-content: flex-end; margin-top: var(--space-1); }
 .msg-foot[hidden] { display: none; }
+/* The size of every glyph button of a chat's log: a message's, and the copy
+   button of a work line's inspector (chat-applet.js). */
 .msg-act { width: 24px; height: 24px; --glyph-size: 13px; }
 
 /* The last message sent, pinned at the top of the run once it scrolls out
@@ -983,10 +985,19 @@ details.tool-detail > summary:focus-visible > .tree-toggle { box-shadow: var(--r
 .page-body .run-log details.tool-detail > summary::after { content: none; }
 details.tool-detail > summary:hover > .tree-toggle { color: var(--text); background: var(--raise-grad-hover); border-color: var(--raise-border-hover); }
 details.tool-detail > summary:active > .tree-toggle { background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow); }
-.tool-inspector { max-height: 20rem; overflow: auto; padding: var(--space-2); background: var(--surface-alt); }
+/* The inspector has a head, with the call's status and the copy button, and
+   a body with the command and its output, and only the body scrolls. The
+   button is the glyph every other copy button of a chat has. It was a
+   floated button with the word Copy, which lay over the first lines of the
+   text, and in one case under them, where it could not be pressed (Paul, 20
+   November 2026). In the head it is over no text, wherever the body is
+   scrolled to, up and down or sideways. */
+.tool-inspector { display: flex; flex-direction: column; max-height: 20rem; background: var(--surface-alt); }
+.tool-inspector-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.tool-inspector-body { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--space-2) var(--space-2); }
 .run-log .tool-inspector pre { max-height: none; overflow: visible; white-space: pre; overflow-wrap: normal; }
-.tool-copy { float: right; }
-.tool-outcome { color: var(--text-muted); font-size: var(--text-xs); }
+.tool-copy { flex: none; }
+.tool-outcome { min-width: 0; color: var(--text-muted); font-size: var(--text-xs); }
 .work-group .tool-group-words, .work-group .tool-group-now { font-size: var(--text-xs); color: var(--text-muted); }
 
 /* Live tool activity remains reachable while responses scroll independently. */
@@ -1000,7 +1011,11 @@ details.tool-detail > summary:active > .tree-toggle { background: var(--raise-ac
 .live-work-note[hidden] { display: none; }
 .live-work .activity-time { display: none; }
 .live-work .activity-row { grid-template-columns: minmax(0, 1fr); }
-.live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
+/* A line of live work has the spacing a line of finished work has in the
+   transcript, where the page's disclosure rule gives it (dinah.css). Without
+   it the toggle stood against the block's left line, and each line grew by
+   8 pixels when the work finished (Paul, 20 November 2026). */
+.live-work .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; padding: 4px 10px; border: 1px solid transparent; }
 .live-work .activity-row > :not(.activity-time) { grid-column: 1 / -1; }
 
 /* Settings, Applet Actions Allowed Always: one group for each workspace, its

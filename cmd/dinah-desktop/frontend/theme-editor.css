@@ -30,7 +30,7 @@
    and a delivered or arriving message's card (13 for its title, the text itself at
    the chat size). */
 :is(.chat-instance, .group-window) :is(.msg-label, .turn-meta, .run-log .tool-detail pre, .delivered-card > .card-head > .card-title, .arriving-card > .card-head > .card-title) { font-size:calc(var(--msg-size) * 13 / 15); }
-:is(.chat-instance, .group-window) .page-body .run-log details.tool-detail > summary { font-size:calc(var(--msg-size) * 12 / 15); }
+:is(.chat-instance, .group-window) :is(.page-body, .live-work) .run-log details.tool-detail > summary { font-size:calc(var(--msg-size) * 12 / 15); }
 :is(.chat-instance, .group-window) :is(.delivered-card, .arriving-card) > .card-body { font-size:var(--msg-size); }
 :is(.chat-instance, .group-window) .msg-text :is(code,pre),:is(.chat-instance, .group-window) .thought-row .msg-text, .chat-instance .tool-detail pre { font-family:var(--mono); }
 .dinah-window .doc-page { font-family:var(--preview-font,var(--reading-font,var(--font))); font-size:var(--preview-size,14px); }

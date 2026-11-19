@@ -2262,7 +2262,7 @@
         s.current = null;
         var li = row(s, 'tool-row');
         // Added after the row's time, so that the time the row keeps (row) is the one on the page.
-        li.insertAdjacentHTML('beforeend', '<details class="tool-detail"><summary><span class="tree-toggle" aria-hidden="true"></span><span class="tool-title"></span><span class="badge"></span></summary><div class="tool-inspector"><div class="tool-outcome"></div><button type="button" class="btn btn-sm tool-copy">Copy</button><pre class="tool-command"></pre><pre class="tool-output"></pre></div></details>');
+        li.insertAdjacentHTML('beforeend', '<details class="tool-detail"><summary><span class="tree-toggle" aria-hidden="true"></span><span class="tool-title"></span><span class="badge"></span></summary><div class="tool-inspector"><div class="tool-inspector-head"><span class="tool-outcome"></span><button type="button" class="icon-btn msg-act tool-copy" aria-label="Copy the command and its output" title="Copy the command and its output"><span class="glyph" style="--glyph: var(--glyph-copy)" aria-hidden="true"></span></button></div><div class="tool-inspector-body"><pre class="tool-command"></pre><pre class="tool-output"></pre></div></div></details>');
         r = s.rows[u.toolCallId] = { s: s, li: li, title: li.querySelector('.tool-title'), name: '', badge: li.querySelector('.badge'), detail: li.querySelector('.tool-detail'), pre: li.querySelector('.tool-output'), commandText: li.querySelector('.tool-command'), outcome: li.querySelector('.tool-outcome'), text: '', kind: '', status: 'pending' };
         li._tool = r;
         li.querySelector('.tool-copy').addEventListener('click', function (event) {
