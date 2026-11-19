@@ -9,7 +9,7 @@ const { launch } = require('./lib/page');
     viewport: { width: 1280, height: 900 },
     app: () => {
       const saved = {
-        'saved-one': [{ role: 'you', text: 'Summarise the plan.', images: [{ name: 'plan.png', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG1kAAAAASUVORK5CYII=' }] }, { role: 'tool', text: 'Read file\nStatus: completed\nThe plan text.' }, { role: 'agent', text: 'The plan asks for a config reload.' }, { role: 'status', text: 'Turn ended: end_turn' }],
+        'saved-one': [{ role: 'you', text: 'Summarise the plan.', images: [{ name: 'plan.png', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG1kAAAAASUVORK5CYII=' }] }, { role: 'tool', text: 'Read file\nStatus: completed\nThe plan text.' }, { role: 'tool', text: 'Run the check' }, { role: 'tool', text: 'Status: completed\nAll passed.' }, { role: 'agent', text: 'The plan asks for a config reload.' }, { role: 'status', text: 'Turn ended: end_turn' }],
         'saved-two': [{ role: 'you', text: 'Second chat.' }, { role: 'agent', text: 'Second answer.' }],
         'saved-three': [{ role: 'you', text: 'Third chat.' }, { role: 'agent', text: 'Third answer.' }],
         'saved-far': [{ role: 'you', text: 'A chat elsewhere.' }, { role: 'agent', text: 'Far answer.' }]
@@ -57,6 +57,10 @@ const { launch } = require('./lib/page');
     await front().locator('.activity-row', { hasText: 'Summarise the plan.' }).waitFor();
     const log = await front().locator('.activity-row').allTextContents();
     ok('a restored chat shows its saved history at once', log.join(' ').includes('Summarise the plan.') && log.join(' ').includes('The plan asks for a config reload.') && log.join(' ').includes('Read file'));
+    // A call the Claude adapter saved as two rows, the call and then how it ended, is one finished line (Paul's picture of 20 November 2026: finished lines read "running", beside lines with the title "Status: completed").
+    await page.waitForFunction(() => [...document.querySelectorAll('.tool-detail .badge')].some(b => b.textContent === 'finished'));
+    const savedTools = await front().locator('.tool-detail').evaluateAll(list => list.map(d => ({ title: d.querySelector('.tool-title').textContent, badge: d.querySelector('.badge').textContent, output: d.querySelector('.tool-output').textContent })));
+    ok('a saved call and its saved ending are one finished line with the ending\'s output', savedTools.length === 2 && savedTools[1].title === 'Run the check' && savedTools[1].badge === 'finished' && savedTools[1].output.includes('All passed.') && !savedTools.some(x => /^Status:/.test(x.title)), JSON.stringify(savedTools));
     // Then it reconnects by itself, so it answers the bus without the
     // person touching it (23 October 2026); the saved copy stays in sight,
     // with no "Reopening" line, while the agent replays.

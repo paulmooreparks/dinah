@@ -239,7 +239,7 @@
       // Drawn as a replay is, so that the rows take their times from the
       // session's journal (stampReplay) rather than the time of drawing.
       s.loading = true; s.replayed = 0; s.drawingSaved = true; // what is drawn here is Dinah's copy, not a replay to count
-      var index = Math.max(0, messages.length - SAVED_DRAW_MESSAGES), job = {}, limit = messages.length;
+      var index = Math.max(0, messages.length - SAVED_DRAW_MESSAGES), job = {}, limit = messages.length, openTool = null;
       mine.job = job;
       s.trimmed = index;
       ensureChat(s).trimMarker(s);
@@ -266,9 +266,28 @@
               // A line Dinah said keeps its kind (a warning is drawn as one); a turn's end note has none and is drawn plain.
               else if (m.role === 'status' && m.kind) u = { sessionUpdate: 'dinah_status', text: m.text, kind: m.kind };
               else if (m.role === 'tool') {
-                var lines = (m.text || '').slice(0, 4096).split('\n', 2), st = (lines[1] || '').match(/^Status: (\w+)/);
-                u = { sessionUpdate: 'tool_call', toolCallId: 'saved-' + i, title: lines[0], status: st ? st[1] : undefined };
+                /* The Claude adapter's calls are saved as two rows: the call,
+                   and right after it how the call ended, which starts with
+                   its status and has no title (RecordToolLocked in
+                   sessionhost/history.go). The ending belongs to the call's
+                   line. Drawn as a line of its own, it left the call reading
+                   "running" for good, beside a line with the title "Status:
+                   completed" (Paul's picture of 20 November 2026). An ending
+                   with no unfinished call before it, as when the call is
+                   older than what is drawn, is a line of its own, and is
+                   drawn only if it has output or failed. */
+                var saved = (m.text || '').slice(0, 4096), ending = saved.match(/^Status: (\w+)(?:\n|$)/);
+                if (ending) {
+                  var out = saved.slice(ending[0].length);
+                  u = { sessionUpdate: 'tool_call_update', toolCallId: openTool || 'saved-' + i, status: ending[1], content: out ? [{ type: 'content', content: { type: 'text', text: out } }] : undefined };
+                  openTool = null;
+                } else {
+                  var lines = saved.split('\n', 2), st = (lines[1] || '').match(/^Status: (\w+)/);
+                  u = { sessionUpdate: 'tool_call', toolCallId: 'saved-' + i, title: lines[0], status: st ? st[1] : undefined };
+                  openTool = st && (st[1] === 'completed' || st[1] === 'failed') ? null : 'saved-' + i;
+                }
               }
+              if (m.role !== 'tool') openTool = null;
               if (u) { ensureChat(s).restoreSavedUpdate(s, u); if (m.images && s.current) ensureChat(s).restoreMessageImages(s.current, m.images); }
               else if (m.text) ensureChat(s).prependContinuation([m], s);
             }

@@ -970,6 +970,19 @@ details.tool-detail > summary { list-style: none; cursor: pointer; }
 details.tool-detail > summary::-webkit-details-marker { display: none; }
 details.tool-detail[open] > summary > .tree-toggle::before { transform: none; }
 details.tool-detail > summary:focus-visible > .tree-toggle { box-shadow: var(--raise-shadow), 0 0 0 var(--focus-ring-width, 3px) var(--focus-ring); }
+/* The toggle is the one raised thing in a line. The line was drawn as a
+   disclosure button too, with a chevron at its end, which made a button on
+   a button that both said the line opens (Paul, 20 November 2026). The line
+   is flat now, in the weight of text, and has no chevron. Its border stays
+   as a transparent one, so no line changes its height. The whole line still
+   opens it, so pointing at the line or pressing it shows on the toggle. */
+.page-body .run-log details.tool-detail > summary,
+.page-body .run-log details.tool-detail > summary:hover,
+.page-body .run-log details.tool-detail > summary:active,
+.page-body .run-log details.tool-detail > summary:focus-visible { border-color: transparent; background: none; box-shadow: none; font-weight: 400; }
+.page-body .run-log details.tool-detail > summary::after { content: none; }
+details.tool-detail > summary:hover > .tree-toggle { color: var(--text); background: var(--raise-grad-hover); border-color: var(--raise-border-hover); }
+details.tool-detail > summary:active > .tree-toggle { background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow); }
 .tool-inspector { max-height: 20rem; overflow: auto; padding: var(--space-2); background: var(--surface-alt); }
 .run-log .tool-inspector pre { max-height: none; overflow: visible; white-space: pre; overflow-wrap: normal; }
 .tool-copy { float: right; }
