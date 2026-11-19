@@ -19,9 +19,11 @@ import (
 // sending or of typing. The rule proposes nothing, so with no judge, or a
 // late or wrong one, the box is as it always is.
 //
-// The kind starts off: a call is made for every turn that ends in a chat
-// with a window, which costs nothing on a local model and a great deal on a
-// hosted agent program (docs/plans/judgement-agents.md has the measurements).
+// The kind is on wherever a judge is set up (Paul, 19 November 2026). A call
+// is made for every turn that ends in a chat with a window, which costs
+// nothing on a local model and a great deal on a hosted agent program
+// (docs/plans/judgement-agents.md has the measurements); the weekly budget in
+// Settings bounds it, and the kind's own switch turns it off.
 
 // replySuggestionIn is everything a judge is shown to propose a reply.
 type replySuggestionIn struct {
@@ -66,10 +68,12 @@ var replySuggestionKind = judge.Declare(judge.Kind[replySuggestionIn, replySugge
 		}
 		return nil
 	},
-	Deadline:   10 * time.Second,
-	Rule:       func(replySuggestionIn) replySuggestionOut { return replySuggestionOut{} },
-	InputCap:   8000,
-	DefaultOff: true,
+	// Nobody waits for a suggestion, so it may take a while: a hosted agent
+	// program as the judge took four to seven seconds on 19 November 2026 and
+	// was late at ten.
+	Deadline: 20 * time.Second,
+	Rule:     func(replySuggestionIn) replySuggestionOut { return replySuggestionOut{} },
+	InputCap: 8000,
 })
 
 func init() {

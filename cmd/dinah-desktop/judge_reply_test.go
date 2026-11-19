@@ -15,10 +15,8 @@ func replyApp(t *testing.T, on bool, messages ...ConversationMessage) (*App, *ju
 	t.Helper()
 	a, _ := calibrationApp(t)
 	choose(t, a, func(s *JudgementSettings) { s.Model = "tiny:4b" })
-	if on {
-		choose(t, a, func(s *JudgementSettings) {
-			s.KindsOff = slices.DeleteFunc(slices.Clone(s.KindsOff), func(n string) bool { return n == replySuggestionKindName })
-		})
+	if !on {
+		choose(t, a, func(s *JudgementSettings) { s.KindsOff = append(slices.Clone(s.KindsOff), replySuggestionKindName) })
 	}
 	info, err := a.NewSessionAt(t.TempDir())
 	if err != nil {
@@ -46,13 +44,17 @@ func replyRecords(t *testing.T, a *App) []judge.Record {
 	return rows.Records
 }
 
-// The kind starts off, and while it is off the page's asking makes no call
-// and leaves nothing in the record.
-func TestASuggestedReplyStartsOffAndThenNothingIsAskedOrRecorded(t *testing.T) {
-	a, set, id := replyApp(t, false)
-	k := kindNamed(t, a, replySuggestionKindName)
-	if k.Enabled || !k.DefaultOff || k.InputCap != 8000 || k.DeadlineMs != 10000 {
+// The kind is on wherever a judge is set up. Turned off, the page's asking
+// makes no call and leaves nothing in the record, and so it is while no
+// judge is set.
+func TestASuggestedReplyIsOnByDefaultAndTurnedOffNothingIsAskedOrRecorded(t *testing.T) {
+	on, _, _ := replyApp(t, true)
+	if k := kindNamed(t, on, replySuggestionKindName); !k.Enabled || k.DefaultOff || k.InputCap != 8000 || k.DeadlineMs != 20000 {
 		t.Fatalf("the kind is %+v", k)
+	}
+	a, set, id := replyApp(t, false)
+	if k := kindNamed(t, a, replySuggestionKindName); k.Enabled {
+		t.Fatalf("the kind is on after it was turned off: %+v", k)
 	}
 	set.SetJudge(&answering{`{"reply":"Yes."}`}, "test", "tokens")
 	got, err := a.SuggestReply(id)
@@ -61,6 +63,11 @@ func TestASuggestedReplyStartsOffAndThenNothingIsAskedOrRecorded(t *testing.T) {
 	}
 	if n := len(replyRecords(t, a)); n != 0 {
 		t.Fatalf("%d calls were recorded with the kind off", n)
+	}
+	b, unset, other := replyApp(t, true)
+	unset.SetJudge(nil, "", "")
+	if got, _ := b.SuggestReply(other); got.Text != "" || got.Call != 0 || len(replyRecords(t, b)) != 0 {
+		t.Fatalf("with no judge set, %+v was offered and %d calls recorded", got, len(replyRecords(t, b)))
 	}
 }
 
@@ -89,6 +96,21 @@ func TestASuggestedReplyIsMadeOnceForAConversationAsItStands(t *testing.T) {
 	again, _ := a.SuggestReply(id)
 	if again != got || len(replyRecords(t, a)) != 1 {
 		t.Fatalf("asking again gave %+v with %d calls recorded, want the first suggestion and one call", again, len(replyRecords(t, a)))
+	}
+}
+
+// A judge that writes its JSON in a Markdown code block, as the hosted ones
+// did on 19 November 2026, is read all the same.
+func TestASuggestedReplyInACodeBlockIsRead(t *testing.T) {
+	a, set, id := replyApp(t, true)
+	fence := strings.Repeat("`", 3)
+	set.SetJudge(&answering{fence + "json\n{\n  \"reply\": \"Yes, the pinned one too.\"\n}\n" + fence}, "test", "tokens")
+	got, err := a.SuggestReply(id)
+	if err != nil || got.Text != "Yes, the pinned one too." || got.Call == 0 {
+		t.Fatalf("the suggestion is %+v %v", got, err)
+	}
+	if rec, _ := set.Store().Get(got.Call); rec.Used != judge.UsedJudge || rec.Why != "" {
+		t.Fatalf("the record is %+v", rec)
 	}
 }
 

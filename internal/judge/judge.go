@@ -88,14 +88,18 @@ func ParagraphsForm() Form[string] {
 }
 
 // JSONForm is a JSON document that decodes into Out with no unknown fields.
-// doc says what it holds.
+// doc says what it holds. The document may stand alone or be the whole of
+// one Markdown code block, which is how many models write JSON however they
+// are asked: three of the first five suggested replies of 19 November 2026
+// were right and were refused for their fence. Anything before or after the
+// document or its block is still refused.
 func JSONForm[Out any](doc string) Form[Out] {
 	return Form[Out]{
 		Doc:  "JSON: " + doc,
 		JSON: true,
 		Parse: func(text string) (Out, error) {
 			var out Out
-			dec := json.NewDecoder(strings.NewReader(strings.TrimSpace(text)))
+			dec := json.NewDecoder(strings.NewReader(unfenced(text)))
 			dec.DisallowUnknownFields()
 			if err := dec.Decode(&out); err != nil {
 				return out, err
@@ -106,6 +110,23 @@ func JSONForm[Out any](doc string) Form[Out] {
 			return out, nil
 		},
 	}
+}
+
+// unfenced is an answer without the Markdown code fence around it, where the
+// answer is one fenced block and nothing else: a first line of three
+// backquotes, with or without a word such as json after them, and a last
+// line of three backquotes. Any other text is returned trimmed and unchanged.
+func unfenced(text string) string {
+	text = strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n"))
+	const fence = "```"
+	if !strings.HasPrefix(text, fence) || !strings.HasSuffix(text, fence) || len(text) < 2*len(fence) {
+		return text
+	}
+	first, rest, ok := strings.Cut(text, "\n")
+	if !ok || strings.ContainsAny(strings.TrimPrefix(first, fence), " `{[") {
+		return text
+	}
+	return strings.TrimSpace(strings.TrimSuffix(rest, fence))
 }
 
 // Kind is a declared kind of call. In is the structure the judge is shown, and

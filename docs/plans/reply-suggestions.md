@@ -1,6 +1,6 @@
 # A suggested reply in the prompt box
 
-Status: Paul approved the mockup (`docs/mockups/reply-suggestion/index.html`) on 19 November 2026, and steps 1 and 2 below were built that day. Step 3, the measurement, is not done. The kind is off until it is turned on in Settings, Judgements.
+Status: Paul approved the mockup (`docs/mockups/reply-suggestion/index.html`) on 19 November 2026, and steps 1 and 2 below were built that day. Step 3, the measurement, is not done. The kind is on wherever a judge is set up, which Paul decided on 19 November 2026 after it had shipped off; its switch in Settings, Judgements turns it off.
 
 Paul asked on 19 November 2026 for a feature he has seen in Claude Code. A judgement agent reads the most recent message of a chat, or more if that works better, and proposes his reply in the prompt box. The proposal looks like the box's placeholder. Tab makes it the box's text, with the caret at its end.
 
@@ -47,7 +47,7 @@ The answer is a short text of a few lines at most. An empty answer means "propos
 
 ### What it costs
 
-One call is made for each turn that ends in a chat with a window. With the default judge, a local model in Ollama, a call costs nothing and takes about a second. With Claude Code or Codex as the judge, a call was measured at about 41,000 and 27,000 tokens, nearly all of it the agent's own instructions to itself, so a suggestion at every turn would be costly there. The kind is therefore off until it is turned on, its description says what it costs on a hosted judge, and the weekly budget applies to it as to every kind.
+One call is made for each turn that ends in a chat with a window. With the default judge, a local model in Ollama, a call costs nothing and takes about a second. With Claude Code or Codex as the judge, a call was measured at about 41,000 and 27,000 tokens, nearly all of it the agent's own instructions to itself, so a suggestion at every turn would be costly there. The proposal had the kind off until it was turned on for that reason. Paul decided on 19 November 2026 that it is on wherever a judge is set up, since the feature was asked for and the weekly budget bounds what it spends. Its description says a call is made at each turn's end.
 
 Every call is kept in the judgements' record for 90 days with its input, which is the end of the conversation. That is the same record a chat's title has, and the Judgements page shows it.
 
@@ -63,13 +63,15 @@ Every call is kept in the judgements' record for 90 days with its input, which i
 
 Paul's answers to the three questions: the mockup is right, with the Tab key cap; a suggestion is made for every chat with a window; group chats and team rooms are left out.
 
-- **The kind** is `reply-suggestion` (`cmd/dinah-desktop/judge_reply.go`). The judge is given the person's last message, 600 characters from its start, and the agent's answer, 2,000 characters from its end. It answers with JSON holding one field, the reply, and an empty reply proposes nothing, which is also the rule. A reply over 400 characters or 6 lines is refused. The deadline is 10 seconds. It has three calibration cases.
+- **The kind** is `reply-suggestion` (`cmd/dinah-desktop/judge_reply.go`). The judge is given the person's last message, 600 characters from its start, and the agent's answer, 2,000 characters from its end. It answers with JSON holding one field, the reply, and an empty reply proposes nothing, which is also the rule. A reply over 400 characters or 6 lines is refused. The deadline is 20 seconds. It has three calibration cases.
 - **The page asks, and Go answers.** The page knows which chats have a window and whether one waits for the person, so it asks (`SuggestReply`) when a turn ends of itself in a chat with a window, and once when a window shows a chat that is idle. A turn the person stopped or steered, or one that ended in an error, asks for nothing. A chat that reports to a lead asks for nothing.
-- **One call for a turn.** Go looks in the judgements' record first. A suggestion already made for the conversation as it stands is given again from the record, so a window that is closed and opened, or a program that is restarted, makes no second call. While the kind is off, or no judge is set, nothing is asked and nothing is recorded.
+- **One call for a turn.** Go looks in the judgements' record first. A suggestion already made for the conversation as it stands is given again from the record, so a window that is closed and opened, or a program that is restarted, makes no second call. While the kind is turned off, or no judge is set, nothing is asked and nothing is recorded.
 - **What became of it** is kept beside the call's record (`internal/judge/outcomes.go`): taken (Tab), dropped (Esc), or passed over, which is recorded when the person's next message starts a turn. The first outcome stands. A suggestion that was taken or dropped is not offered again for the same conversation.
 - **On the page** (`chat-applet.js`, "A suggested reply") the suggestion is kept on the session and drawn over the empty box. It lies in the box's cell of the composer's row and is taken out of the flow, so the box is no taller for it, in a wide window and in a narrow one where Send is on a row of its own.
 
 The browser suite `e2e/reply-suggestion.js` and the Go tests in `judge_reply_test.go` cover it.
+
+**The first evening's fault.** Paul turned the kind on in the evening of 19 November 2026 with a hosted agent program as the judge, and no suggestion showed. The record said why: the judge's answers were right and were refused as not in form, because each was written inside a Markdown code block, and one was late at ten seconds. A JSON answer may now be the whole of one code block (`internal/judge/judge.go`, `unfenced`), which holds for every kind that answers in JSON, and the deadline is 20 seconds, since nobody waits for a suggestion.
 
 Not built: a view of the outcomes. They can be counted (`judge.Store.Outcomes`), and the Judgements page does not show them yet.
 
