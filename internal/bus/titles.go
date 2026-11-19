@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"studio/internal/appletcontext"
 )
@@ -231,9 +232,11 @@ func (b *Bus) LabelWorkspace(ctx context.Context, path, label string) (Workspace
 // runs of spaces made one.
 func fold(s string) string { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
 
-// chat is a session as an address finds it. open is whether it is open now.
+// chat is a session as an address finds it. open is whether it is open now,
+// and lastSeen when the bus last saw it.
 type chat struct {
 	id, title, workspace, wsName, wsLabel string
+	lastSeen                              string
 	open                                  bool
 }
 
@@ -243,7 +246,7 @@ func (c chat) display() string { return DisplayTitle(c.title, c.wsLabel) }
 // name in parentheses.
 func (c chat) address() string { return c.display() + " (" + c.wsName + ")" }
 
-const chatSelect = `SELECT s.id, s.title, s.workspace, w.name, w.label, s.ended_at IS NULL FROM sessions s
+const chatSelect = `SELECT s.id, s.title, s.workspace, w.name, w.label, s.last_seen, s.ended_at IS NULL FROM sessions s
 	JOIN workspaces w ON w.key = s.workspace`
 
 func scanChats(rows *sql.Rows, err error) ([]chat, error) {
@@ -254,7 +257,7 @@ func scanChats(rows *sql.Rows, err error) ([]chat, error) {
 	var out []chat
 	for rows.Next() {
 		var c chat
-		if err := rows.Scan(&c.id, &c.title, &c.workspace, &c.wsName, &c.wsLabel, &c.open); err != nil {
+		if err := rows.Scan(&c.id, &c.title, &c.workspace, &c.wsName, &c.wsLabel, &c.lastSeen, &c.open); err != nil {
 			return nil, err
 		}
 		if c.wsLabel == "" {
@@ -318,7 +321,9 @@ func findKnownChat(t *sql.Tx, address string) (chat, error) {
 // workspace in parentheses, as "Title (studio)" or "Title (workspace
 // studio)", by the workspace's name or label, for two chats that share a
 // title. A title that more than one chat has is refused with the chats it
-// could be.
+// could be, each written as it can be sent to: with its workspace, or, for
+// chats of one workspace that share the title, by its ID on the bus, which
+// is an address too (findKnownChat).
 func matchChat(chats []chat, address string) (chat, error) {
 	q := fold(address)
 	var matches []chat
@@ -365,12 +370,46 @@ func splitWorkspace(address string) (title, workspace string, ok bool) {
 }
 
 func ambiguous(address string, matches []chat) error {
-	var names []string
+	// How many of the matches each workspace has: a workspace with one is
+	// enough to tell that chat from the others, and one with several is not.
+	shared := map[string]int{}
 	for _, c := range matches {
-		names = append(names, fmt.Sprintf("%q (workspace %s)", c.display(), c.wsName))
+		shared[c.workspace]++
 	}
-	return fmt.Errorf("%d chats are called %q: %s. Add the workspace in parentheses, such as %q",
-		len(matches), strings.TrimSpace(address), strings.Join(names, ", "), matches[0].display()+" ("+matches[0].wsName+")")
+	var names []string
+	byWorkspace, byID := "", ""
+	for _, c := range matches {
+		if shared[c.workspace] == 1 {
+			names = append(names, fmt.Sprintf("%q (workspace %s)", c.display(), c.wsName))
+			if byWorkspace == "" {
+				byWorkspace = c.address()
+			}
+			continue
+		}
+		names = append(names, fmt.Sprintf("%q (workspace %s, address %s, last seen %s)", c.display(), c.wsName, c.id, seenWords(c.lastSeen)))
+		if byID == "" {
+			byID = c.id
+		}
+	}
+	var how []string
+	if byWorkspace != "" {
+		how = append(how, fmt.Sprintf("Add the workspace in parentheses, such as %q", byWorkspace))
+	}
+	if byID != "" {
+		how = append(how, fmt.Sprintf("Where chats of one workspace share the title, send to the chat's address, such as %q", byID))
+	}
+	return fmt.Errorf("%d chats are called %q: %s. %s",
+		len(matches), strings.TrimSpace(address), strings.Join(names, ", "), strings.Join(how, ". "))
+}
+
+// seenWords is when the bus last saw a chat, for a sender choosing between
+// chats that share a title: the day and the minute, in UTC.
+func seenWords(stamp string) string {
+	at, err := time.Parse(time.RFC3339Nano, stamp)
+	if err != nil {
+		return "at an unknown time"
+	}
+	return at.UTC().Format("2 Jan 2006 15:04 UTC")
 }
 
 // workspaceByLabel finds the workspace whose label is the address, when

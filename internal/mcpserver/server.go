@@ -216,6 +216,7 @@ func (s *Server) Run(ctx context.Context) error {
 		case <-ctx.Done():
 		}
 	}()
+	go s.heartbeat(ctx)
 	return ss.Wait()
 }
 
@@ -230,6 +231,29 @@ func (t *channelTransport) Connect(ctx context.Context) (mcp.Connection, error) 
 	c, err := t.inner.Connect(ctx)
 	t.conn = c
 	return c, err
+}
+
+// heartbeat tells the bus that this program is still running, for the chat
+// it serves, once it knows which that is. The bus takes a chat started
+// outside the window as ended when it has not been seen for a week
+// (bus.StaleAfter), and a chat that sits idle is seen only through this.
+func (s *Server) heartbeat(ctx context.Context) {
+	tick := time.NewTicker(bus.HeartbeatEvery)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+		s.mu.Lock()
+		bound, ambiguous := s.bound, s.ambiguous
+		s.mu.Unlock()
+		if bound == "" || ambiguous {
+			continue
+		}
+		_ = s.bus.TouchSession(ctx, bound)
+	}
 }
 
 // ring watches the bus and sends a channel event whenever a message newer
@@ -354,7 +378,7 @@ type empty struct{}
 // message asks to answer (bus.SendMentioning).
 type sendIn struct {
 	ActionRecipients []string `json:"actionRecipients,omitempty" jsonschema:"group members expected to act, by chat title (workspace), everyone, or paul to notify the person; omitted or empty wakes only the members active in the group lately, or its lead. Cannot be combined with mentions. Only valid for group messages"`
-	To               string   `json:"to" jsonschema:"a chat's title, with its workspace in parentheses when two chats share the title (Fix the Parser (studio)); a workspace's name; # and a group chat's name; or paul"`
+	To               string   `json:"to" jsonschema:"a chat's title, with its workspace in parentheses when two chats share the title (Fix the Parser (studio)); for chats of one workspace that share a title, the chat's address as the sessions tool gives it; a workspace's name; # and a group chat's name; or paul"`
 	Text             string   `json:"text" jsonschema:"the message"`
 	Mentions         []string `json:"mentions,omitempty" jsonschema:"legacy alias for actionRecipients; do not provide both. For a message to a group chat, the members it asks to answer: each a chat's title, with its workspace in parentheses when two chats share the title; everyone, for every member chat, closed ones too; or paul, to notify the person and put the message in their inbox. Only the group's members can be mentioned, and writing @ and a title in the text mentions nobody"`
 	Attachments      []string `json:"attachments,omitempty" jsonschema:"paths of files in your own workspace to send as live links"`
@@ -827,7 +851,9 @@ func Whoami(me bus.Session) string {
 
 // Directory describes who is on the bus, marking the session given. Each
 // chat is written as an agent addresses it, by its title with its
-// workspace's name in parentheses.
+// workspace's name in parentheses. Where chats of one workspace share a
+// title, that does not tell them apart, so each is given with its ID on the
+// bus, which is an address too, and when the bus last saw it.
 func Directory(ctx context.Context, b *bus.Bus, self string) (string, error) {
 	ws, err := b.Workspaces(ctx)
 	if err != nil {
@@ -842,8 +868,12 @@ func Directory(ctx context.Context, b *bus.Bus, self string) (string, error) {
 		return "", err
 	}
 	live := map[string]int{}
+	shared := map[string]int{}
+	for _, x := range ss {
+		shared[strings.ToLower(x.Address())]++
+	}
 	var sb strings.Builder
-	sb.WriteString("Chats open now (send to a chat by its title; add the workspace in parentheses, as below, when two chats share a title):\n")
+	sb.WriteString("Chats open now (send to a chat by its title; add the workspace in parentheses, as below, when two chats share a title; where an address is given, send to that address):\n")
 	if len(ss) == 0 {
 		sb.WriteString("- none\n")
 	}
@@ -853,7 +883,11 @@ func Directory(ctx context.Context, b *bus.Bus, self string) (string, error) {
 		if x.ID == self {
 			you = ", which is you"
 		}
-		fmt.Fprintf(&sb, "- %s%s\n", x.Address(), you)
+		same := ""
+		if n := shared[strings.ToLower(x.Address())]; n > 1 {
+			same = fmt.Sprintf(", one of %d chats with this title in its workspace: its address is %s, and it was last seen %s", n, x.ID, seenWords(x.LastSeen))
+		}
+		fmt.Fprintf(&sb, "- %s%s%s\n", x.Address(), you, same)
 	}
 	sb.WriteString("Workspaces (send to a workspace by its name to reach every chat open in it):\n")
 	for _, w := range ws {
@@ -893,6 +927,15 @@ func Directory(ctx context.Context, b *bus.Bus, self string) (string, error) {
 	}
 	fmt.Fprintf(&sb, "%s is reached as %s.", bus.SentenceStart(person), bus.Human)
 	return sb.String(), nil
+}
+
+// seenWords is when the bus last saw a chat, as the day and the minute in UTC.
+func seenWords(stamp string) string {
+	at, err := time.Parse(time.RFC3339Nano, stamp)
+	if err != nil {
+		return "at an unknown time"
+	}
+	return at.UTC().Format("2 Jan 2006 15:04 UTC")
 }
 
 // sendRouted keeps legacy callers working while rejecting ambiguous routing.

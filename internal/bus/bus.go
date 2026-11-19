@@ -175,6 +175,12 @@ func (b *Bus) RegisterSession(ctx context.Context, id, workspacePath, title stri
 			return err
 		}
 		now := b.stamp()
+		// A chat that starts is also when the bus clears away the chats
+		// started outside the window that it has not seen for a week
+		// (stale.go), so the list this chat is given has none of them.
+		if _, err := endStale(t, b.now(), now); err != nil {
+			return err
+		}
 		if taken(t, `SELECT 1 FROM sessions WHERE id=? AND removed_at IS NOT NULL`, id) {
 			return errors.New("the recipient chat was removed")
 		}

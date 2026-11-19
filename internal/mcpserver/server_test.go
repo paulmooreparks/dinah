@@ -96,6 +96,43 @@ func TestTheDirectoryGivesChatsByTitle(t *testing.T) {
 	}
 }
 
+// Chats of one workspace that share a title cannot be told apart by the
+// workspace, so the directory gives each one's ID on the bus, which is an
+// address, and when it was last seen. A chat with a title of its own is
+// given by the title alone.
+func TestTheDirectoryGivesAnAddressToChatsThatShareATitle(t *testing.T) {
+	ctx := context.Background()
+	b, err := bus.OpenAt(filepath.Join(t.TempDir(), "bus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	dir := filepath.Join(t.TempDir(), "parser")
+	me, _ := b.RegisterSession(ctx, "s-me", dir, "Parser Release")
+	for _, id := range []string{"twin-1", "twin-2"} {
+		if _, err := b.RegisterSession(ctx, id, dir, "Development"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	who, err := Directory(ctx, b, me.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"where an address is given, send to that address",
+		"- Development (parser), one of 2 chats with this title in its workspace: its address is twin-1, and it was last seen ",
+		"- Development (parser), one of 2 chats with this title in its workspace: its address is twin-2, and it was last seen ",
+		"- Parser Release (parser), which is you\n",
+	} {
+		if !strings.Contains(who, want) {
+			t.Fatalf("the directory lacks %q:\n%s", want, who)
+		}
+	}
+	if strings.Contains(who, me.ID) {
+		t.Fatalf("the directory gives an address to a chat whose title is its own:\n%s", who)
+	}
+}
+
 // connect serves the window's bus tools for a chat and returns a client
 // session on them.
 func connect(t *testing.T, b *bus.Bus, id string) *mcp.ClientSession {
