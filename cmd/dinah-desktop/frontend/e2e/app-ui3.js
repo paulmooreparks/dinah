@@ -36,6 +36,13 @@ const { choose, shows, rowsOf } = require('./lib/commands');
         SetWorkspace: async (p) => { ws = p; return state(); }, ForgetWorkspace: async () => state(), ChooseWorkspace: async () => state(), SetApprovals: rec('SetApprovals'),
         SessionOptions: async (id) => opts[id],
         SetSessionOption: async (id, o, v) => { window.__calls.push(['SetSessionOption', id, o, v]); opts[id] = opts[id].map(x => x.id === o ? Object.assign({}, x, { currentValue: v }) : x); return opts[id]; },
+        // The stub says one model needs the chat opened again, as the host says of a model that rejects the request a chat made when it was opened.
+        SessionOptionNeedsReopen: async (id, o, v) => o === 'model' && v === 'adaptive',
+        ReopenSessionWith: async (workspace, id, o, v) => { window.__calls.push(['ReopenSessionWith', id, o, v]); opts[id] = mkOpts(v);
+          emit('agent:update', { sessionId: id, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Draft the Note 14 design doc.' } } });
+          emit('agent:update', { sessionId: id, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Here is the draft.' } } });
+          emit('agent:options', { sessionId: id, options: opts[id] });
+          return { sessionId: id, provider: 'devin', cwd: ws, title: 'Draft Note 14 design doc', open: true, working: false, queued: [] }; },
         SetDefault: async (o, v) => { if (v === null) delete defaults[o]; else defaults[o] = v; window.__calls.push(['SetDefault', o, v]); return defaults; },
         SetPinned: async (v, p) => { pinned = pinned.filter(x => x !== v); if (p) pinned.push(v); return pinned; },
         ProviderModelPreferences: async provider => ({provider,catalog:mkOpts('swe-1-6'),defaults,pinned}),
@@ -110,6 +117,16 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.waitForTimeout(200);
   ok('choosing a favorite sets this session only', JSON.stringify(await p.evaluate(() => window.__calls.filter(c => c[0] === 'SetSessionOption').pop())) === JSON.stringify(['SetSessionOption', 'old-1', 'model', 'gpt-6-sol-high']));
   ok('the button follows', await shows(chat(), 'model', 'GPT-6 Sol High'));
+  // A choice the host says needs the chat opened again closes and opens the chat with it, and sets nothing on the open session (Paul, 20 November 2026: a model that rejects the request for thinking summaries which the chat made when it was opened).
+  await choose(p, chat(), 'model', 'All Models…');
+  await p.waitForTimeout(300);
+  await p.fill('.win[data-chat-current] [data-view-id=models-filter]', 'adaptive');
+  await p.click('.win[data-chat-current] [data-view-id=models-list] a:has-text("Adaptive")');
+  await p.waitForFunction(() => window.__calls.some(c => c[0] === 'ReopenSessionWith'));
+  await p.waitForTimeout(400);
+  const again = await p.evaluate(() => ({ reopen: window.__calls.filter(c => c[0] === 'ReopenSessionWith'), set: window.__calls.filter(c => c[0] === 'SetSessionOption' && c[3] === 'adaptive').length }));
+  ok('a choice that needs it opens the chat again with that choice, and sets nothing on the open session', JSON.stringify(again.reopen) === JSON.stringify([['ReopenSessionWith', 'old-1', 'model', 'adaptive']]) && again.set === 0, JSON.stringify(again));
+  ok('the chat shows the choice and its history afterwards', await shows(chat(), 'model', 'Adaptive') && (await p.textContent('.win[data-chat-current] [data-view-id=logs]')).includes('Here is the draft.'));
   await choose(p, chat(), 'model', 'All Models…');
   await p.waitForTimeout(300);
   ok('All Models opens its own dialog', await p.evaluate(() => document.querySelector('.win[data-chat-current] [data-view-id=models]').open && !document.getElementById('settings').open));

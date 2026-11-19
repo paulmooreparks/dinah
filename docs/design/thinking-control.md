@@ -30,10 +30,13 @@ Claude sent thinking for about one answer in ten. Codex and Devin send it with t
 The option is given when a session is made or opened, and no documentation says how to change it afterwards. The API rejects adaptive thinking on the models it lists as taking extended thinking only, which in the catalogue is Haiku 4.5, and nothing says what the SDK does when a session with the option turns to such a model. Dinah therefore keeps to this:
 
 - A chat whose saved model is one of those, or a new chat when the provider's default is one, is opened without the option.
-- A session that was opened with the option is not let turn to such a model. The choice is refused with the reason and the way round, which is to turn the setting off and restart Claude (`internal/claudeagent/thinking.go`).
+- A session that was opened with the option is not turned to such a model as it is. When the person chooses one in the chat, the window closes the chat's session and opens it again without the option, with that model, and the chat draws its history again. This is the step Load Full History uses (`SessionLifecycle.ReopenWith`, `ReopenSessionWith`), and like it, it waits for a turn to end. The page asks the host first whether a choice needs it (`SessionOptionNeedsReopen`).
+- A choice that reaches the adapter all the same, such as one a task makes for its own turn, is refused with the reason (`internal/claudeagent/thinking.go`).
 - The setting reaches a chat when its session is next made or opened.
 
-Paul had agreed that a chat turned to Haiku 4.5 would be opened again without the option. Dinah has no step that opens one chat's session again while its adapter runs, only a restart of every Claude chat, and the adapter keeps a session it already has. The refusal stands in for that until such a step exists.
+Paul asked for the reopening on 20 November 2026. The first build of that day refused the choice outright, on my mistaken belief that Dinah could not open one chat's session again while its adapter runs.
+
+A live test (`TestLiveThinkingSummariesArriveWhenAsked`, opt-in) sends the turns to Claude: the session that asks gets its thinking and one that does not ask gets none, and the session that asked answers on Haiku 4.5 after it is closed and opened again without the request.
 
 The adapter also reads an environment variable for the same option. No documentation mentions it, and Dinah does not use it.
 

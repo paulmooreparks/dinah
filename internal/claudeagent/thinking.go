@@ -26,9 +26,11 @@ import (
 // the models it lists as taking extended thinking only, which are Haiku 4.5,
 // Opus 4.5 and Sonnet 4.5, and nothing says what the SDK does when a session
 // that has the option turns to one of them. So a session that was opened
-// with the option is not let turn to such a model: the choice is refused
-// with the reason and the way round. The adapter has an environment variable
-// for the same option, which no documentation mentions, and it is not used.
+// with the option is not let turn to such a model. The window closes the
+// chat's session and opens it again without the option for that choice
+// (NeedsReopen), and a choice that reaches the adapter all the same is
+// refused with the reason. The adapter has an environment variable for the
+// same option, which no documentation mentions, and it is not used.
 
 // SummariesMeta is the _meta of a session request that asks Claude for
 // summaries of its thinking.
@@ -56,7 +58,15 @@ func ExtendedThinkingOnly(model string) bool {
 
 // ErrSummariesModel is why a chat that asks for thinking summaries is not
 // let turn to a model that rejects the request.
-var ErrSummariesModel = errors.New("That model does not take the request for a summary of its thinking, which this chat made of Claude when it was opened. To use the model, turn off Show the Agent's Thinking in Settings and restart Claude.")
+var ErrSummariesModel = errors.New("That model does not take the request for a summary of its thinking, which this chat made of Claude when it was opened. Choose the model in the chat's own list of models, which opens the chat again for it.")
+
+// NeedsReopen says a session cannot be turned to a model as it is, and has
+// to be closed and opened again without the request for thinking summaries.
+// session is the ID on Dinah's side.
+func (c *Conn) NeedsReopen(session, model string) bool {
+	_, asks := c.summaries.Load(strip(session))
+	return asks && ExtendedThinkingOnly(model)
+}
 
 // asksSummaries says a session request asks for thinking summaries.
 func asksSummaries(params json.RawMessage) bool {
@@ -110,4 +120,15 @@ func (c *Conn) refusedModel(params json.RawMessage) error {
 		return ErrSummariesModel
 	}
 	return nil
+}
+
+// forgetSession forgets a session the adapter has closed, which a later
+// request makes anew.
+func (c *Conn) forgetSession(params json.RawMessage) {
+	var id struct {
+		SessionID string `json:"sessionId"`
+	}
+	if json.Unmarshal(params, &id) == nil && id.SessionID != "" {
+		c.summaries.Delete(id.SessionID)
+	}
 }

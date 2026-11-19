@@ -77,6 +77,7 @@ func TestLiveThinkingSummariesArriveWhenAsked(t *testing.T) {
 	if err := c.Call(ctx, "initialize", acp.InitializeParams{ProtocolVersion: 1}, nil); err != nil {
 		t.Fatal(err)
 	}
+	var asking, askingCwd string
 	turn := func(meta map[string]any) (thought, said int) {
 		cwd := filepath.Join(t.TempDir(), "w")
 		os.MkdirAll(cwd, 0o700)
@@ -87,6 +88,9 @@ func TestLiveThinkingSummariesArriveWhenAsked(t *testing.T) {
 		prompt := "Use no tools. Which is larger, 37 to the power 5 or 5 to the power 11? Work it out carefully before you answer, then answer in one short line."
 		if err := c.Call(ctx, "session/prompt", acp.PromptParams{SessionID: created.SessionID, Prompt: []acp.ContentBlock{{Type: "text", Text: prompt}}}, nil); err != nil {
 			t.Fatal(err)
+		}
+		if meta != nil {
+			asking, askingCwd = created.SessionID, cwd
 		}
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -100,5 +104,34 @@ func TestLiveThinkingSummariesArriveWhenAsked(t *testing.T) {
 	}
 	if asked == 0 {
 		t.Fatal("the session that asked for summaries sent no thinking")
+	}
+	// The session that asked is turned to a model that rejects the request
+	// as the window does it: closed, opened again without the request, and
+	// only then given the model. A turn on that model then has to answer.
+	const old = "claude-haiku-4-5-20251001"
+	if !c.NeedsReopen(asking, old) {
+		t.Fatal("the session that asked does not need opening again for a model that rejects the request")
+	}
+	if err := c.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: asking}, nil); err != nil {
+		t.Fatalf("closing the session: %v", err)
+	}
+	if err := c.Call(ctx, "session/load", sessionWithMeta{SessionID: asking, Cwd: askingCwd, McpServers: []any{}}, nil); err != nil {
+		t.Fatalf("opening the session again: %v", err)
+	}
+	if err := c.Call(ctx, "session/set_config_option", acp.SetConfigOptionParams{SessionID: asking, ConfigID: "model", Value: old}, nil); err != nil {
+		t.Fatalf("choosing %s after opening again: %v", old, err)
+	}
+	r.mu.Lock()
+	before := r.said[asking]
+	r.mu.Unlock()
+	if err := c.Call(ctx, "session/prompt", acp.PromptParams{SessionID: asking, Prompt: []acp.ContentBlock{{Type: "text", Text: "Use no tools. Reply with the one word: done."}}}, nil); err != nil {
+		t.Fatalf("a turn on %s after opening again: %v", old, err)
+	}
+	r.mu.Lock()
+	after := r.said[asking]
+	r.mu.Unlock()
+	t.Logf("opened again without the request and turned to %s: %d characters of answer", old, after-before)
+	if after == before {
+		t.Fatalf("the turn on %s gave no answer", old)
 	}
 }

@@ -204,7 +204,7 @@
       catchUpLog: function (id) { return adapter.catchUpLog ? adapter.catchUpLog(id) : Promise.resolve(); }
     });
     const { openSession, openSavedRecovery, restoreChat, reconnectChat, reportChatWindows,
-      reconnectSaved, openResolvedSession, loadFullHistory } = sessionLifecycle;
+      reconnectSaved, openResolvedSession, loadFullHistory, setOption: setChatOption } = sessionLifecycle;
     on('chat:connect', sessionLifecycle.connect);
     document.addEventListener('pudl:windows-change', reportChatWindows);
     document.addEventListener('dinah:ui-state-restored', function () { setTimeout(reportChatWindows, 0); });
@@ -1330,7 +1330,7 @@
           $('logs').appendChild(s.log); s.log.hidden = false;
           if (root.closest('[data-win]')) window.dinahWorkbench.rekey(old, item);
           return Object.keys(chosen).reduce(function (promise, id) {
-            return promise.then(function () { return app().SetSessionOption(info.sessionId, id, chosen[id]).then(function (options) { s.options = options || s.options; }); });
+            return promise.then(function () { return setChatOption(info.sessionId, id, chosen[id]).then(function (options) { s.options = options || s.options; }); });
           }, Promise.resolve()).then(function () {
             selectChat(s.id);
             controller.refresh();
@@ -3763,7 +3763,7 @@
       /* The chat the change was asked for keeps the answer, even if another
          chat is in front by the time it arrives. */
       var owner = active;
-      return app().SetSessionOption(owner, id, value).then(function (opts) {
+      return setChatOption(owner, id, value).then(function (opts) {
         if (sessions[owner]) sessions[owner].options = opts || sessions[owner].options;
         if (owner === active) { renderComposerOptions(); if ($('models').open) drawModelsDialog(); }
       }).catch(fail);

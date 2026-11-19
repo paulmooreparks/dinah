@@ -501,3 +501,58 @@ func claudeModelLocked(a *App, id string) string {
 	}
 	return model
 }
+
+// SessionOptionNeedsReopen says that choosing value for a chat's option
+// needs the chat's session closed and opened again: a Claude chat that asked
+// for thinking summaries, turned to a model that rejects them, since nothing
+// documented takes the request back from a session that is open
+// (claudeagent/thinking.go). The page asks before it sets an option.
+func (a *App) SessionOptionNeedsReopen(id, option string, value json.RawMessage) bool {
+	var model string
+	if option != "model" || json.Unmarshal(value, &model) != nil {
+		return false
+	}
+	conn, ok := a.sessionConn(a.session(id)).(*claudeagent.Conn)
+	return ok && conn.NeedsReopen(id, model)
+}
+
+// ReopenSessionWith closes a chat's session and opens it again with value
+// for option, for a choice SessionOptionNeedsReopen says needs it. The value
+// is saved as the chat's own first, since the request the session is opened
+// with depends on it (claudeSessionParams), and the earlier one is put back
+// if the chat could not be closed.
+func (a *App) ReopenSessionWith(ws, id, option string, value json.RawMessage) (SessionInfo, error) {
+	if !a.SessionOptionNeedsReopen(id, option, value) {
+		return SessionInfo{}, errors.New("this chat does not have to be opened again for that choice")
+	}
+	var earlier json.RawMessage
+	save := func(v json.RawMessage) error {
+		return a.updateSettings(func(s *Settings) error {
+			if s.SessionOptions == nil {
+				s.SessionOptions = map[string]map[string]json.RawMessage{}
+			}
+			values := copyPreferenceValues(s.SessionOptions[id])
+			if v == nil {
+				delete(values, option)
+			} else {
+				values[option] = append(json.RawMessage(nil), v...)
+			}
+			s.SessionOptions[id] = values
+			return nil
+		})
+	}
+	a.mu.Lock()
+	if v, ok := a.settings.SessionOptions[id][option]; ok {
+		earlier = append(json.RawMessage(nil), v...)
+	}
+	a.mu.Unlock()
+	if err := save(value); err != nil {
+		return SessionInfo{}, err
+	}
+	info, err := a.sessionsLifecycle().ReopenWith(ws, id, map[string]json.RawMessage{option: value})
+	// A chat that is still open was not closed, and keeps its earlier choice.
+	if err != nil && a.session(id) != nil && a.SessionOptionNeedsReopen(id, option, value) {
+		_ = save(earlier)
+	}
+	return info, err
+}

@@ -89,4 +89,22 @@ func TestASessionThatAsksForSummariesIsNotTurnedToAModelThatRejectsThem(t *testi
 	if err := set("claude:asked", "claude-sonnet-4-5-20250929"); !errors.Is(err, ErrSummariesModel) {
 		t.Fatalf("a session that asked once, opened again without: %v", err)
 	}
+	// The window is told which choice needs the chat opened again, and a
+	// session the adapter has closed is made anew by the next request, so it
+	// no longer counts as asking.
+	if !c.NeedsReopen("claude:asked", "claude-haiku-4-5-20251001") || c.NeedsReopen("claude:asked", "claude-opus-5-5-medium") || c.NeedsReopen("claude:plain", "claude-haiku-4-5-20251001") {
+		t.Fatal("NeedsReopen is wrong for a session that asked, a model that takes the request, or a session that did not ask")
+	}
+	if err := c.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: "claude:asked"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if c.NeedsReopen("claude:asked", "claude-haiku-4-5-20251001") {
+		t.Fatal("a closed session still counts as asking")
+	}
+	if err := c.Call(ctx, "session/load", sessionWithMeta{SessionID: "claude:asked", Cwd: "C:/W"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := set("claude:asked", "claude-haiku-4-5-20251001"); err != nil {
+		t.Fatalf("a session closed and opened again without the request: %v", err)
+	}
 }

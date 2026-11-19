@@ -275,7 +275,13 @@
         s.holding = true;
         if (openWith) return app().OpenSessionWith(s.info.cwd || workspace(), id, openWith.option, openWith.value, openWith.always);
         // Load Full History: the agent replays the whole conversation, as a chat closed and opened again.
-        if (s.loadFull) { s.loadFull = false; return app().LoadFullHistory(s.info.cwd || workspace(), id); }
+        // A choice the agent takes only when a session is made closes and opens the chat in the same way,
+        // with that choice (reopenWith).
+        if (s.loadFull) {
+          s.loadFull = false;
+          var again = s.reopenWith; s.reopenWith = null;
+          return again ? app().ReopenSessionWith(s.info.cwd || workspace(), id, again.option, again.value) : app().LoadFullHistory(s.info.cwd || workspace(), id);
+        }
         return app().OpenSessionAt(s.info.cwd || workspace(), id);
       }).then(async function (info) {
         s.holding = false;
@@ -446,6 +452,26 @@
       return openResolvedSession(id, false, false, true, true);
     }
 
+    /* A choice an agent takes only when a session is made cannot be given to a chat that is open, so the
+       chat is closed and opened again with it, as Load Full History closes and opens one. The host says
+       which choices these are (SessionOptionNeedsReopen): today, a model that rejects the request for
+       thinking summaries a chat made when it was opened. */
+    function reopenWith(id, option, value) {
+      var s = S(id);
+      if (!s.info.open || s.loading || s.working) return Promise.reject('Wait for this chat to finish its turn, then make the choice again. The chat has to be opened again for it.');
+      s.loadFull = true; s.reopenWith = { option: option, value: value }; s.info.open = false; s.info.resumed = false; s.saved = true;
+      return openResolvedSession(id, false, false, true, true);
+    }
+    /* Sets a chat's option, opening the chat again where the choice needs it, and gives the chat's
+       options as they are afterwards. */
+    function setOption(id, option, value) {
+      var needs = app().SessionOptionNeedsReopen ? app().SessionOptionNeedsReopen(id, option, value) : false;
+      return Promise.resolve(needs).then(function (again) {
+        if (!again) return app().SetSessionOption(id, option, value);
+        return reopenWith(id, option, value).then(function (opened) { return opened && opened.options; });
+      });
+    }
+
     function newSession() {
       if (!workspace()) { noWorkspaceYet(); return Promise.reject('no workspace'); }
       return app().NewSessionAt(workspace()).then(function (info) {
@@ -458,7 +484,7 @@
 
 
     return { openSession, openSavedRecovery, restoreChat, reconnectChat, connect, reportChatWindows,
-      reconnectSaved, openResolvedSession, newSession, loadFullHistory };
+      reconnectSaved, openResolvedSession, newSession, loadFullHistory, setOption };
   }
 
   window.dinahSessionLifecycle = { create };

@@ -484,6 +484,9 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 	if method == "session/new" || method == "session/load" || method == "session/resume" {
 		c.noteSession(p, raw)
 	}
+	if method == "session/close" {
+		c.forgetSession(p)
+	}
 	if method == "initialize" {
 		var offered struct {
 			Meta struct {

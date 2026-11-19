@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -568,5 +569,58 @@ func TestTwoOpensOfOneChatAtOnceAskTheAgentOnce(t *testing.T) {
 	}
 	if countCalls(c, "session/load") != 1 {
 		t.Fatalf("the agent was asked %d times", countCalls(c, "session/load"))
+	}
+}
+
+// A chat is closed and opened again for a choice its agent takes only when a
+// session is made, as Load Full History closes and opens it, and not while
+// it is working.
+func TestReopenWithClosesAndOpensTheChatAgain(t *testing.T) {
+	a, c := providerTestApp(t)
+	withResume(a)
+	withSessionClose(a)
+	ws := t.TempDir()
+	id := wholeCopy(t, ws, nil)
+	first, err := a.OpenSessionAt(ws, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := a.sessionsLifecycle().ReopenWith(ws, id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countCalls(c, "session/close") != 1 || countCalls(c, "session/load") != 1 || info.StreamGen == first.StreamGen {
+		t.Fatalf("%d closes, %d loads, generation %v then %v", countCalls(c, "session/close"), countCalls(c, "session/load"), first.StreamGen, info.StreamGen)
+	}
+	s := a.session(id)
+	s.StartWork()
+	if _, err := a.sessionsLifecycle().ReopenWith(ws, id, nil); err == nil || !strings.Contains(err.Error(), "finish its turn before opening it again") {
+		t.Fatalf("a working chat: %v", err)
+	}
+	if a.session(id) != s || countCalls(c, "session/close") != 1 {
+		t.Fatal("the working chat was closed")
+	}
+}
+
+// Only a choice that needs it opens a chat again: a chat of an agent with no
+// such choice is never opened again for an option.
+func TestReopenSessionWithIsOnlyForAChoiceThatNeedsIt(t *testing.T) {
+	a, c := providerTestApp(t)
+	withResume(a)
+	ws := t.TempDir()
+	id := wholeCopy(t, ws, nil)
+	if _, err := a.OpenSessionAt(ws, id); err != nil {
+		t.Fatal(err)
+	}
+	value := json.RawMessage(`"claude-haiku-4-5-20251001"`)
+	before := string(a.settings.SessionOptions[id]["model"])
+	if a.SessionOptionNeedsReopen(id, "model", value) || a.SessionOptionNeedsReopen("claude:none", "model", value) || a.SessionOptionNeedsReopen(id, "effort", value) {
+		t.Fatal("a chat that asked for nothing needs to be opened again")
+	}
+	if _, err := a.ReopenSessionWith(ws, id, "model", value); err == nil {
+		t.Fatal("the chat was opened again for a choice that does not need it")
+	}
+	if after := string(a.settings.SessionOptions[id]["model"]); countCalls(c, "session/close") != 0 || after != before {
+		t.Fatalf("the refusal changed the chat: %d closes, saved model %s, was %s", countCalls(c, "session/close"), after, before)
 	}
 }

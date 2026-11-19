@@ -496,6 +496,21 @@ func (l *SessionLifecycle) Open(ws, id string, override map[string]json.RawMessa
 // the chat is working or switching, since closing would cut the turn
 // (docs/plans/session-resume.md).
 func (l *SessionLifecycle) LoadFullHistory(ws, id string) (Info, error) {
+	return l.reopen(ws, id, nil, "loading the full history")
+}
+
+// ReopenWith closes the chat if it is open and opens it again with the
+// option values given in place of its saved ones, as Load Full History closes
+// and opens it. It is for a choice that an agent takes only when a session is
+// made, which a session already open cannot be given. It refuses while the
+// chat is working or switching, for the same reason.
+func (l *SessionLifecycle) ReopenWith(ws, id string, override map[string]json.RawMessage) (Info, error) {
+	return l.reopen(ws, id, override, "opening it again")
+}
+
+// reopen is the closing and opening both share; what says, in an error,
+// what the chat was to be closed for.
+func (l *SessionLifecycle) reopen(ws, id string, override map[string]json.RawMessage, what string) (Info, error) {
 	id = l.current(id)
 	if s := l.conversation(id); s != nil {
 		if !layout.SamePath(s.Cwd(), ws) {
@@ -506,11 +521,11 @@ func (l *SessionLifecycle) LoadFullHistory(ws, id string) (Info, error) {
 			return Info{}, errors.New("this chat is still being restored")
 		}
 		if !s.BeginSwitch() {
-			return Info{}, errors.New("wait for the provider change to finish before loading the full history")
+			return Info{}, errors.New("wait for the provider change to finish before " + what)
 		}
 		if s.Working() {
 			s.SetSwitching(false)
-			return Info{}, errors.New("wait for this chat to finish its turn before loading the full history")
+			return Info{}, errors.New("wait for this chat to finish its turn before " + what)
 		}
 		// The agent is asked to close the session where it can be, so that the
 		// load is not made on a session it still holds active. A close it
@@ -524,7 +539,7 @@ func (l *SessionLifecycle) LoadFullHistory(ws, id string) (Info, error) {
 		l.Forget(id)
 		s.SetSwitching(false)
 	}
-	return l.open(ws, id, nil, true)
+	return l.open(ws, id, override, true)
 }
 
 // current is the chat to open for one that was asked for: the newest chat that

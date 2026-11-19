@@ -47,7 +47,7 @@ var pageMethods = func() map[string]pageMethodClass {
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
  NativeWindowState NativeWindowAction State Sessions SessionsAt SavedChats DeclaredProviders RefreshProviderSessions History SavedConversation
- AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer
+ AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer SessionOptionNeedsReopen
  AppletArtifactAt AppletAttention AppletCatalog AppletGrants AppletInvocationAt AppletInvocationsAt
  AppletRequests AppletResults BusOverview BusInboxPage BusInboxMessage BusGroup BusResolveGroup BusGroupMessages BusGroupMessagesFrom BusGroupMessageContext BusThread BusGroupReach BusGroupAttentionSettings
  ChatLogPath CheckSkillDraft ClipboardRead CompareDraft DocumentRefAt DraftStamp
@@ -88,7 +88,7 @@ var pageMethods = func() map[string]pageMethodClass {
  EnableExtension ExportThemeFile ExportWorkspace FindPackageUpdates ForgetAppletGrant
  ForgetWorkspace HideSession ImportThemeFile ImportWorkspace InstallClaudeAdapter
  InstallExtension InstallPackages InstallPersonalPackages InvokeAppletAt
- LoadFullHistory MakeWorkspaceDirectory MarkBusInboxRead MergeIntoDraft MoveWorkspaceMount
+ LoadFullHistory ReopenSessionWith MakeWorkspaceDirectory MarkBusInboxRead MergeIntoDraft MoveWorkspaceMount
  MoveWorkspacePin NewEmptyDraft NewSession NewSessionAt NewSessionWithProviderAt 
  OpenComputerDocument OpenComputerFile OpenDraft OpenPath OpenProviderUsage
  OpenSession OpenSessionAt OpenSessionWith OpenWaitingSession RetryWaitingSession ReloadWaitingChatState OpenSkillDraft OpenUsage OpenWorkspaceMount

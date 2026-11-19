@@ -98,7 +98,7 @@ func fakeAdapter() {
 				continue
 			}
 			out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": map[string]any{"sessionId": "abc", "nested": []any{map[string]any{"sessionId": "def", "count": 12345678901234567}}}})
-		case "session/load", "session/resume", "session/set_config_option":
+		case "session/load", "session/resume", "session/close", "session/set_config_option":
 			out.Encode(map[string]any{"jsonrpc": "2.0", "id": m.ID, "result": map[string]any{"configOptions": []any{}}})
 		case "session/prompt":
 			out.Encode(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": m.Params.SessionID, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "the sessionId is " + m.Params.SessionID}}}})
