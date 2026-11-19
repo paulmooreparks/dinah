@@ -46,6 +46,89 @@ func TestTheWindowsHooksHandOverASteer(t *testing.T) {
 	}
 }
 
+// While a subagent of the agent is running, a tool call's hook may be the
+// subagent's, so it is handed nothing and the steer waits. The agent takes
+// it once the subagent has stopped, and its own Stop hands a waiting steer
+// over even while a subagent runs, since a subagent does not fire Stop.
+func TestASteerIsNotHandedToASubagentsToolCall(t *testing.T) {
+	ctx := context.Background()
+	b, err := bus.OpenAt(filepath.Join(t.TempDir(), "bus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	chat, _ := b.RegisterSession(ctx, "window-1", t.TempDir(), "")
+	s := NewIdle(b)
+	s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "UserPromptSubmit", Prompt: "Build it.\n" + bus.SteerMarker(chat.ID)})
+	if out := s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "SubagentStart", AgentID: "sub-a"}); out != "{}" {
+		t.Fatalf("a subagent's start gave %s", out)
+	}
+	b.QueueSteer(ctx, chat.ID, "Use port 8081.")
+	for range 3 {
+		if out := s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "PostToolUse"}); out != "{}" {
+			t.Fatalf("a tool call was handed the steer while a subagent ran: %s", out)
+		}
+	}
+	if out := s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "SubagentStop", AgentID: "sub-a"}); out != "{}" {
+		t.Fatalf("a subagent's stop gave %s", out)
+	}
+	var post map[string]map[string]string
+	out := s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "PostToolUse"})
+	if json.Unmarshal([]byte(out), &post) != nil || !strings.Contains(post["hookSpecificOutput"]["additionalContext"], "Use port 8081.") {
+		t.Fatalf("after the subagent stopped, PostToolUse gave %s", out)
+	}
+	s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "SubagentStart", AgentID: "sub-b"})
+	b.QueueSteer(ctx, chat.ID, "Then stop.")
+	var stop map[string]string
+	out = s.hostedHook(ctx, hookIn{SessionID: "claude-1", Event: "Stop"})
+	if json.Unmarshal([]byte(out), &stop) != nil || stop["decision"] != "block" || !strings.Contains(stop["reason"], "Then stop.") {
+		t.Fatalf("the agent's own Stop gave %s while a subagent ran", out)
+	}
+}
+
+// A chat outside the window is handed its messages by the same hook, and
+// they wait in the same way while a subagent runs. A subagent's start and
+// stop do not make the server take a session as its own.
+func TestAMessageIsNotHandedToASubagentsToolCall(t *testing.T) {
+	ctx := context.Background()
+	b, err := bus.OpenAt(filepath.Join(t.TempDir(), "bus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	s := New(b)
+	dir := t.TempDir()
+	if _, err := s.hookDeliver(ctx, hookIn{SessionID: "one", Event: "UserPromptSubmit", Cwd: dir}); err != nil {
+		t.Fatal(err)
+	}
+	// Another session's subagent events reach this process and are kept, and
+	// the process still serves its one session.
+	if out, err := s.hookDeliver(ctx, hookIn{SessionID: "other", Event: "SubagentStart", AgentID: "x", Cwd: dir}); err != nil || out != "{}" {
+		t.Fatalf("a subagent's start gave %q, %v", out, err)
+	}
+	if me, err := s.current(ctx); err != nil || me.ID != "one" {
+		t.Fatalf("after another session's subagent event the server serves %+v, %v", me, err)
+	}
+	sender, _ := b.RegisterSession(ctx, "sender", dir, "Sender")
+	me, _ := s.current(ctx)
+	if _, err := s.hookDeliver(ctx, hookIn{SessionID: "one", Event: "SubagentStart", AgentID: "sub-a", Cwd: dir}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(ctx, bus.Sender{Session: &sender}, me.ID, "Please look at the parser.", nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := s.hookDeliver(ctx, hookIn{SessionID: "one", Event: "PostToolUse", Cwd: dir}); err != nil || out != "{}" {
+		t.Fatalf("a tool call was handed the message while a subagent ran: %q, %v", out, err)
+	}
+	if _, err := s.hookDeliver(ctx, hookIn{SessionID: "one", Event: "SubagentStop", AgentID: "sub-a", Cwd: dir}); err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.hookDeliver(ctx, hookIn{SessionID: "one", Event: "PostToolUse", Cwd: dir})
+	if err != nil || !strings.Contains(out, "Please look at the parser.") {
+		t.Fatalf("after the subagent stopped, PostToolUse gave %q, %v", out, err)
+	}
+}
+
 func TestHookOutputShapes(t *testing.T) {
 	msgs := []bus.Message{{ID: 1, FromName: "alpha-1", ToLabel: "beta", Text: "hi", Kind: "text"}}
 	out, _ := HookOutput("UserPromptSubmit", msgs, false, bus.PersonFallback)

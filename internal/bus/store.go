@@ -344,7 +344,7 @@ func OpenAt(path string) (*Bus, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(schema + subagentSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("prepare the bus database: %w", err)
 	}

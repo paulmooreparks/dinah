@@ -367,9 +367,10 @@ func (s *Server) current(ctx context.Context) (bus.Session, error) {
 
 type hookIn struct {
 	SessionID string `json:"session_id" jsonschema:"the session's ID, supplied by the hook"`
-	Event     string `json:"event" jsonschema:"the hook event: UserPromptSubmit, PostToolUse or Stop"`
+	Event     string `json:"event" jsonschema:"the hook event: UserPromptSubmit, PostToolUse, Stop, SubagentStart or SubagentStop"`
 	Cwd       string `json:"cwd,omitempty" jsonschema:"the session's working folder"`
 	Prompt    string `json:"prompt,omitempty" jsonschema:"the prompt, on UserPromptSubmit"`
+	AgentID   string `json:"agent_id,omitempty" jsonschema:"the subagent's ID, on SubagentStart and SubagentStop"`
 }
 
 type empty struct{}
@@ -727,6 +728,13 @@ func (s *Server) hookDeliver(ctx context.Context, in hookIn) (string, error) {
 	if s.launched {
 		return "{}", nil
 	}
+	// A subagent's start and stop are kept before anything else, and are no
+	// reason to take the session as this server's: they say only that what
+	// waits for the agent must not be handed to a tool call meanwhile, which
+	// may be the subagent's (bus/subagents.go).
+	if held, err := subagentHook(ctx, s.bus, in.SessionID, in.Event, in.AgentID); held || err != nil {
+		return "{}", err
+	}
 	s.bind(in.SessionID)
 	if _, err := s.bus.Session(ctx, in.SessionID); errors.Is(err, bus.ErrNotFound) {
 		if in.Cwd == "" {
@@ -759,7 +767,29 @@ func (s *Server) hookDeliver(ctx context.Context, in hookIn) (string, error) {
 // hand over the chat's waiting steers. It never fails the hook: anything
 // it cannot do leaves the turn as it is.
 func (s *Server) hostedHook(ctx context.Context, in hookIn) string {
+	if held, _ := subagentHook(ctx, s.bus, in.SessionID, in.Event, in.AgentID); held {
+		return "{}"
+	}
 	return HostedHook(ctx, s.bus, in.SessionID, in.Event, in.Prompt)
+}
+
+// subagentHook keeps a subagent's start and stop, and says whether a hook
+// call is to hand nothing over: the two subagent events, which only report,
+// and a PostToolUse while any subagent of the agent is running, since the
+// tool call may be the subagent's and what the hook returns would go to it
+// (bus/subagents.go). The agent takes what waits at a later PostToolUse or
+// at its own Stop.
+func subagentHook(ctx context.Context, b *bus.Bus, sessionID, event, agentID string) (held bool, err error) {
+	switch event {
+	case "SubagentStart":
+		return true, b.SubagentStarted(ctx, sessionID, agentID)
+	case "SubagentStop":
+		return true, b.SubagentStopped(ctx, sessionID, agentID)
+	case "PostToolUse":
+		n, err := b.SubagentsRunning(ctx, sessionID)
+		return err == nil && n > 0, nil
+	}
+	return false, nil
 }
 
 // HostedHook implements the documented context and Stop hook outputs shared

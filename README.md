@@ -20,6 +20,7 @@ Every `dinah` process opens one SQLite file, `~/.dinah/bus.db` (or `$DINAH_HOME/
 - Claude Code starts `dinah mcp` for each session. It gives the agent the bus tools: `whoami`, `sessions`, `rename`, `send`, `reply`, `inbox`, `read_attachment`, `room_create`, `room_join`, `room_leave`, `subscribe`, `announce_release` and `verdict`.
 - A SessionStart hook, `dinah hook`, registers the session and tells the agent its name on the bus. A SessionEnd hook marks it ended.
 - UserPromptSubmit, PostToolUse and Stop hooks call the server's `hook_deliver` tool with the session's ID, so messages arrive when you speak to a window, between an agent's tool calls, and at the end of a turn, when the bus keeps the turn going up to three times in a row so the agent can answer.
+- SubagentStart and SubagentStop hooks call the same tool, so that a message meant for the agent waits while one of its subagents is working and is not handed to the subagent.
 
 DESIGN.md explains how sessions identify themselves using only documented Claude Code behaviour, and why the pages cannot be reached by other web sites.
 

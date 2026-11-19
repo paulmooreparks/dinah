@@ -44,6 +44,8 @@ func Run(ctx context.Context, b *bus.Bus, r io.Reader, w io.Writer) error {
 	case "SessionStart":
 		return sessionStart(ctx, b, in, w)
 	case "SessionEnd":
+		// A session that ends has no subagents left to wait for.
+		_ = b.ForgetSubagents(ctx, in.SessionID)
 		return b.EndSession(ctx, in.SessionID)
 	default:
 		return fmt.Errorf("%s hook handles SessionStart and SessionEnd, not %q", profile.Current().CommandProgram, in.HookEventName)

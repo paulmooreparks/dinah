@@ -429,6 +429,13 @@ func HookConfig(exe string) map[string]any {
 		if event == "UserPromptSubmit" {
 			input["prompt"] = "${prompt}"
 		}
+		// A subagent's start and stop say which subagent, so that what waits
+		// for the agent is not handed to a subagent's tool call
+		// (bus/subagents.go). The field is in the input of these two events
+		// and is asked for in no other, where it may be absent.
+		if event == "SubagentStart" || event == "SubagentStop" {
+			input["agent_id"] = "${agent_id}"
+		}
 		return []any{map[string]any{"hooks": []any{map[string]any{
 			"type": "mcp_tool", "server": "dinah", "tool": "hook_deliver", "input": input,
 		}}}}
@@ -439,6 +446,8 @@ func HookConfig(exe string) map[string]any {
 		"UserPromptSubmit": deliver("UserPromptSubmit"),
 		"PostToolUse":      deliver("PostToolUse"),
 		"Stop":             deliver("Stop"),
+		"SubagentStart":    deliver("SubagentStart"),
+		"SubagentStop":     deliver("SubagentStop"),
 	}
 }
 

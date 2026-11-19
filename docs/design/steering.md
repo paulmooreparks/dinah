@@ -65,3 +65,20 @@ Each hosted hook turn receives a fresh random marker. The bus records the active
 Devin's helper also passes the documented prompt_id through binding and delivery. Events from a previous prompt cannot consume a current prompt's guidance, and an old UserPromptSubmit cannot replace a newer binding. Claude continues using its existing synchronous hosted hooks and session identity. Dinah does not invent a Claude prompt_id or assume that one exists. Its host-turn marker protects binding and delivery windows; it cannot identify an arbitrary delayed Claude event after a newer binding solely from a session ID.
 
 Regression coverage includes restart recovery of attachment payloads, explicit dismissal, delayed Devin events, closed hook turns, cancellation, unresolved persistence without replay, model image capability, and guidance submitted while an approval is unanswered. Browser coverage checks recovery controls, preservation of newer drafts, rejected submissions, uncertain delivery, and attachment restoration.
+
+## Subagents
+
+Paul reported on 19 November 2026 that a steering message could reach an agent's subagent and not the agent he was looking at. The PostToolUse hook that hands a steer over as context also fires for a subagent's tool calls, and what it returned went to whichever called next. While a subagent works, that is the subagent. A message for a chat outside the window is handed over by the same hook and had the same fault.
+
+Claude Code documents a SubagentStart and a SubagentStop hook, each of which has the subagent's `agent_id` in its input. The bus keeps an agent's running subagents by the agent's own session (`internal/bus/subagents.go`). While any is running, a PostToolUse hook is handed nothing, for a steer and for a message alike (`subagentHook` in `internal/mcpserver/server.go`). The agent takes what waits at a PostToolUse after its last subagent has stopped, or at its own Stop, which a subagent does not fire. An agent that started a subagent in the foreground is waiting for it and could not have acted on a steer sooner. With a subagent in the background the agent goes on working, and its steer then waits for the subagent or for the end of the turn, which is later than it could be and is never the wrong reader.
+
+The set-up `dinah setup` prints has the two hooks, and a person who set the hooks up before 19 November 2026 adds them to the same settings file. Without them the bus knows of no subagents and hands over as before.
+
+Three things about this are held to what the documentation says.
+
+- A hook's input also says, on a tool call, whether a subagent made it. That is not used. These hooks are given their input by substitution, and what the substitution gives where the field is absent, as it is in the agent's own calls, is not documented. The two subagent events always have the field.
+- Whether a subagent's hooks have the agent's session ID or one of their own is not documented. The design is right either way: with the agent's, the hand-over is held; with its own, the subagent's tool calls find no chat and are handed nothing, which was already so.
+- A subagent whose stop is never reported, as when the program is killed, stops counting after six hours (`SubagentStaleAfter`), and a session that ends forgets its own.
+
+Devin's steering hooks are a different program's and were not changed.
+
