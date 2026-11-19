@@ -962,6 +962,14 @@ dialog.dialog.transfer-dialog .dialog-actions { position: static; flex: none; al
 .page-body .run-log details.tool-detail > summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); width: 100%; }
 .run-log .tool-detail .tool-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tool-detail .badge { flex: none; }
+/* A line of a work block opens to show its command and output, and says so
+   with the raised toggle a tree and a disclosure card have, at its start
+   (Paul, 19 November 2026: nothing showed that a line could be opened). The
+   line's own marker is not drawn, since the toggle stands for it. */
+details.tool-detail > summary { list-style: none; cursor: pointer; }
+details.tool-detail > summary::-webkit-details-marker { display: none; }
+details.tool-detail[open] > summary > .tree-toggle::before { transform: none; }
+details.tool-detail > summary:focus-visible > .tree-toggle { box-shadow: var(--raise-shadow), 0 0 0 var(--focus-ring-width, 3px) var(--focus-ring); }
 .tool-inspector { max-height: 20rem; overflow: auto; padding: var(--space-2); background: var(--surface-alt); }
 .run-log .tool-inspector pre { max-height: none; overflow: visible; white-space: pre; overflow-wrap: normal; }
 .tool-copy { float: right; }

@@ -142,43 +142,39 @@ const path = require('path');
     }
    }
    await p.evaluate(()=>{for(const entry of dinahHost.notices.list()) dinahHost.notices.remove(entry.id); __emit('agent:state',{provider:'codex',state:'ready',detail:'Ready',stateGen:'badge',stateVer:__warningVer*10+9});});
-   await p.evaluate(()=>{window.__lateSummary=true;});
    await openStatus(p,'status-judgements');
    await popup.waitFor();
    await popup.locator('.judgements-warning').nth(2).waitFor();
    const inset=await popup.evaluate(el=>{
-    const panel=el.getBoundingClientRect(),first=el.querySelector('.judgements-popup-line').getBoundingClientRect();
+    const panel=el.getBoundingClientRect(),first=el.querySelector('.judgements-flyout-state').getBoundingClientRect();
     return {left:first.left-panel.left,right:panel.right-first.right,padding:getComputedStyle(el).paddingLeft};
    });
    t.ok('the shared popover inset surrounds the state line at '+theme+'/'+width+'/'+scale,inset.left>=parseFloat(inset.padding)&&parseFloat(inset.padding)>0,JSON.stringify(inset));
-   t.ok('the current condition is visible independently of its warning count',/paused until.*provider quota reached/i.test(await popup.locator('.judgements-popup-line').textContent()));
+   t.ok('the current condition is visible independently of its warning count',(await popup.locator('#judgements-flyout-word').textContent())==='Paused'&&/^Until .*provider quota reached/i.test(await popup.locator('#judgements-flyout-why').textContent()));
    await t.shot('judgements-warnings-'+theme+'-'+width+'-'+scale);
    await popup.evaluate(el=>{
     window.__popupTrace={before:null,frames:[],active:true};
     function sample(){
-     return Object.fromEntries([['panel',el],['summary',el.querySelector('.judgements-popup-summary')],['line',el.querySelector('.judgements-popup-line')],['all',el.querySelector('.judgements-dismiss-all')]].map(([key,node])=>[key,node.getBoundingClientRect().toJSON()]));
+     return Object.fromEntries([['panel',el],['head',el.querySelector('.popover-head')],['line',el.querySelector('.judgements-flyout-state')],['all',el.querySelector('.judgements-dismiss-all')],['foot',el.querySelector('.popover-actions')]].map(([key,node])=>[key,node.getBoundingClientRect().toJSON()]));
     }
     __popupTrace.before=sample();
     function frame(){if(!__popupTrace.active)return;__popupTrace.frames.push(sample());requestAnimationFrame(frame);}
     requestAnimationFrame(frame);
    });
-   await p.waitForFunction(()=>!!window.__resolveSummary);
-   await p.evaluate(()=>{__lateSummary=false;__resolveSummary({calls:9,fallbacks:5,latest:new Date().toISOString()});delete window.__resolveSummary;});
-   await p.waitForFunction(()=>document.querySelector('.judgements-popup-today').textContent.includes('Today: 9 calls'));
    for(const [id,next,count] of [[2,3,2],[3,1,1],[1,null,0]]) {
     await popup.locator('[data-warning-id="'+id+'"] button').focus();
     const removedAt=await popup.locator('[data-warning-id="'+id+'"] button').boundingBox();
     await p.keyboard.press('Enter');
     await p.waitForFunction(count=>document.querySelectorAll('#judgements-status-menu .judgements-warning').length===count,count);
     await p.evaluate(()=>new Promise(resolve=>{let n=0;function frame(){if(++n===8)resolve();else requestAnimationFrame(frame);}requestAnimationFrame(frame);}));
-    const target=next?popup.locator('[data-warning-id="'+next+'"] button'):popup.getByRole('link',{name:'Open Judgements',exact:true});
+    const target=next?popup.locator('[data-warning-id="'+next+'"] button'):popup.getByRole('button',{name:'Open Judgements',exact:true});
     t.ok('keyboard dismissal '+id+' retains focus at '+theme+'/'+width+'/'+scale,await target.evaluate(el=>el===document.activeElement));
     if(id===2) {
      const movedTo=await target.boundingBox();
      t.ok('the following Dismiss occupies the removed control position at '+theme+'/'+width+'/'+scale,Math.abs(movedTo.x-removedAt.x)<.02&&Math.abs(movedTo.y-removedAt.y)<.02,JSON.stringify({removedAt,movedTo}));
     }
    }
-   t.ok('the empty state retains Dismiss All in place',await popup.locator('.judgements-warnings-empty').isVisible()&&await popup.getByRole('button',{name:'Dismiss All',exact:true}).isDisabled());
+   t.ok('the empty state retains Dismiss All in place',await popup.locator('#judgements-flyout-none').isVisible()&&await popup.getByRole('button',{name:'Dismiss All',exact:true}).isDisabled());
    await t.shot('judgements-empty-'+theme+'-'+width+'-'+scale);
    await p.evaluate(()=>{__warnings=Array.from({length:10},(_,i)=>i+1).map(id=>({id,at:new Date().toISOString(),reason:'another provider warning ('+id+')'}));__publishWarnings();});
    await popup.locator('[data-warning-id="10"]').waitFor();
@@ -192,7 +188,7 @@ const path = require('path');
    trace.frames.forEach((frame,index)=>Object.keys(trace.before).forEach(key=>{
     if(['x','y','width','height'].some(axis=>Math.abs(frame[key][axis]-trace.before[key][axis])>.02))popupFailures.push({index,key,before:trace.before[key],after:frame[key]});
    }));
-   t.ok('popup, summary and Dismiss All stay fixed on every dismissal frame at '+theme+'/'+width+'/'+scale,trace.frames.length>=24&&popupFailures.length===0,JSON.stringify(popupFailures.slice(0,6)));
+   t.ok('the flyout, its head, its state, Dismiss All and its foot stay fixed on every dismissal frame at '+theme+'/'+width+'/'+scale,trace.frames.length>=24&&popupFailures.length===0,JSON.stringify(popupFailures.slice(0,6)));
    t.ok('the full-tray paused glyph stays a warning after dismissal',await opener.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph')==='var(--glyph-warning)'&&el.style.color==='var(--warn)'));
    if(folded) {
     // The paused judge gives the folded Status item the waiting tone itself
@@ -200,15 +196,14 @@ const path = require('path');
     await p.waitForFunction(()=>document.querySelector('.status-area > .status-fold .badge').textContent==='0');
     t.ok('a paused judge keeps the folded waiting tone after its count clears',await foldedControl.getAttribute('data-tone')==='waiting'&&await foldedControl.locator('.badge').evaluate(el=>!el.hidden&&el.textContent==='0'&&!el.classList.contains('warn'))&&await neutralZero(p.locator('#status-judgements [data-status-badge]')));
    }
-   t.ok('dismissing all clears the badge while retaining the condition',await popup.locator('.judgements-warning').count()===0&&/provider quota reached/.test(await popup.locator('.judgements-popup-line').textContent()));
+   t.ok('dismissing all clears the badge while retaining the condition',await popup.locator('.judgements-warning').count()===0&&/provider quota reached/.test(await popup.locator('#judgements-flyout-why').textContent()));
    await p.evaluate(()=>__resync());
    await p.waitForFunction(()=>__bridgeCalls.filter(c=>c[0]==='JudgementState').length>1);
    await p.evaluate(()=>__publishWarnings());
    t.ok('a state refresh does not restore dismissed counts',await neutralZero(opener.locator('[data-status-badge]')));
    await p.keyboard.press('Escape');
    await openStatus(p,'status-judgements');
-   await p.waitForFunction(()=>document.querySelector('#judgements-status-menu').style.getPropertyValue('--judgements-popup-height'));
-   t.ok('reopening sizes to the empty content at '+theme+'/'+width+'/'+scale,(await popup.boundingBox()).height<trace.before.panel.height);
+   t.ok('reopened with no warnings, the flyout is the size it was with three at '+theme+'/'+width+'/'+scale,await popup.evaluate((el,before)=>{const box=el.getBoundingClientRect();return Math.abs(box.width-before.width)<.02&&Math.abs(box.height-before.height)<.02;},trace.before.panel),JSON.stringify(await popup.boundingBox()));
    t.ok('reopening keeps the warnings dismissed',await popup.locator('.judgements-warning').count()===0&&await neutralZero(opener.locator('[data-status-badge]')));
    await p.evaluate(()=>{__warnings=[{id:4,at:new Date().toISOString(),kind:'chat-title',why:'error',reason:'the next provider probe failed'}];__publishWarnings();});
    await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').textContent==='1'&&!document.querySelector('#status-judgements .badge').hidden);

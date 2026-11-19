@@ -63,11 +63,11 @@ const { launch } = require('./lib/page');
     await win.getByLabel('Reason', { exact: true }).selectOption('budget');
     await p.waitForFunction(() => __recordArgs[__recordArgs.length - 1].why === 'budget');
     ok('the Reason filter finds the calls the budget refused', (await win.locator('.judgements-list [data-judgement]').count()) === 1 && /rule: budget/.test(await win.locator('.judgements-list').textContent()));
-    // The widget's popup has the budget and pool lines.
+    // The widget's flyout has the budget and the pool in their rows, each with its whole line as the tooltip.
     await p.locator('#status-judgements').click();
-    await p.locator('#judgements-status-list .judgements-popup-budget').waitFor();
-    ok('the popup carries the budget line', /Ollama: 1,200 of 10,000 tokens spent this week, 8,800 left, 2,300 allowed by now/.test(await p.locator('#judgements-status-list .judgements-popup-budget').textContent()));
-    ok('and the pool line', /Pool: 2 with the judge at once/.test(await p.locator('#judgements-status-list .judgements-popup-pool').textContent()));
+    await p.locator('#judgements-status-menu:popover-open').waitFor();
+    ok('the flyout has the budget in its row', (await p.locator('#judgements-flyout-budget').textContent()) === 'Ollama: 1,200 of 10,000 tokens this week' && /Ollama: 1,200 of 10,000 tokens spent this week, 8,800 left, 2,300 allowed by now/.test(await p.locator('#judgements-flyout-budget').getAttribute('title')), await p.locator('#judgements-flyout-budget').textContent());
+    ok('and the pool', /^2 at once \(may grow to 4\)/.test(await p.locator('#judgements-flyout-pool').textContent()) && /Pool: 2 with the judge at once/.test(await p.locator('#judgements-flyout-pool').getAttribute('title')), await p.locator('#judgements-flyout-pool').textContent());
     await p.keyboard.press('Escape');
 
     // The Settings rows: budget, week, pool, each saved in the envelope.

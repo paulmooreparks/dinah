@@ -26,11 +26,16 @@ const { launch } = require('./lib/page');
     await win.locator('[data-view-id="activity"]').evaluate(el => { el.scrollTop = 0; });
     await group.locator('.card-toggle').focus(); await p.keyboard.press('Enter');
     t.ok('inner command starts collapsed with a compact heading', !(await step.getAttribute('open')) && (await step.locator('summary').textContent()).includes('Running command'));
+    // A line says that it opens with the raised toggle a tree has, turned to the side while the line is closed (Paul, 19 November 2026).
+    const toggle = () => step.locator('summary > .tree-toggle').evaluate(el => ({ shown: el.getBoundingClientRect().width > 0, raised: getComputedStyle(el).boxShadow !== 'none', turn: getComputedStyle(el, '::before').transform }));
+    const closedToggle = await toggle();
+    t.ok('a closed line shows a raised toggle at its start, turned to the side', closedToggle.shown && closedToggle.raised && closedToggle.turn !== 'none', JSON.stringify(closedToggle));
     await step.locator('summary').focus(); await p.keyboard.press('Enter');
     await emit({ sessionUpdate: 'tool_call_update', toolCallId: 'one', content: [{ type: 'content', content: { type: 'text', text: 'OUTPUT\n' + 'line\n'.repeat(400) } }] });
     await emit({ sessionUpdate: 'tool_call_update', toolCallId: 'one', status: 'completed' });
     await p.waitForFunction(() => document.querySelector('.tool-title')?.textContent === 'Ran command');
     t.ok('successful command uses finished label', await step.locator('summary .badge').textContent() === 'finished');
+    t.ok('an open line has its toggle turned down', (await toggle()).turn === 'none');
     t.ok('completion preserves both expansion choices', await step.evaluate(el => el.open) && await group.locator('.card-toggle').getAttribute('aria-expanded') === 'true');
     t.ok('full command and output are retained in a bounded inspector', await step.locator('.tool-command').textContent() === command && (await step.locator('.tool-output').textContent()).includes('OUTPUT') && (await step.locator('.tool-inspector').boundingBox()).height <= 330);
     await step.locator('.tool-copy').focus(); await p.keyboard.press('Enter');

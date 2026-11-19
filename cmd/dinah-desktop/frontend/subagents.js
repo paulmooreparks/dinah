@@ -352,7 +352,7 @@
       if (!r) {
         current = null;
         var li = row('tool-row');
-        li.insertAdjacentHTML('beforeend', '<span><span class="tool-title"></span><span class="badge"></span></span><details class="tool-detail" hidden><summary>Details</summary><pre></pre></details>');
+        li.insertAdjacentHTML('beforeend', '<span><span class="tool-title"></span><span class="badge"></span></span><details class="tool-detail" hidden><summary><span class="tree-toggle" aria-hidden="true"></span>Details</summary><pre></pre></details>');
         r = rows[u.toolCallId] = { li: li, title: li.querySelector('.tool-title'), badge: li.querySelector('.badge'), detail: li.querySelector('.tool-detail'), pre: li.querySelector('pre'), name: '', text: '', status: 'pending', tool: true };
       }
       if (u.title) r.name = u.title;

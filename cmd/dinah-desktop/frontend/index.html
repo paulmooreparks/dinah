@@ -325,9 +325,37 @@
   </nav>
 
 
-    <nav class="popover" id="judgements-status-menu" popover aria-label="Judgements" data-menu-anchor="status-judgements">
-    <div id="judgements-status-list"></div>
-  </nav>
+    <!-- The Judgements flyout is PUDL's popover: a head, what there is to
+         read, and its two ways out in the foot. Every row is here from the
+         start and only the warnings scroll, so the flyout has one size for as
+         long as it is open (docs/design/judgements-popup-stability.md). -->
+    <div class="popover judgements-flyout" id="judgements-status-menu" popover role="dialog" aria-labelledby="judgements-flyout-title" data-menu-anchor="status-judgements">
+      <div class="popover-head">
+        <h2 class="popover-title" id="judgements-flyout-title">Judgements</h2>
+        <button class="icon-btn popover-close" type="button" popovertarget="judgements-status-menu" popovertargetaction="hide" aria-label="Close"></button>
+      </div>
+      <p class="judgements-flyout-state"><span class="glyph" id="judgements-flyout-glyph" aria-hidden="true"></span><span id="judgements-flyout-word">Reading</span></p>
+      <p class="judgements-flyout-why" id="judgements-flyout-why"></p>
+      <table class="kv-table" aria-label="The judges now">
+        <tr><th>Judge</th><td id="judgements-flyout-judge">Reading…</td></tr>
+        <tr><th>Today</th><td id="judgements-flyout-today">Reading…</td></tr>
+        <tr><th>Latest</th><td id="judgements-flyout-latest">Reading…</td></tr>
+        <tr><th>Budget</th><td id="judgements-flyout-budget">Reading…</td></tr>
+        <tr><th>Pool</th><td id="judgements-flyout-pool">Reading…</td></tr>
+      </table>
+      <div class="judgements-flyout-warnings-head">
+        <div class="md-section-label" id="judgements-flyout-warnings-title">Warnings</div>
+        <button type="button" class="btn btn-sm judgements-dismiss-all" id="judgements-dismiss-all" disabled>Dismiss All</button>
+      </div>
+      <div class="judgements-flyout-warnings" role="group" aria-labelledby="judgements-flyout-warnings-title" tabindex="0">
+        <ul class="judgements-flyout-list" id="judgements-flyout-warnings" aria-labelledby="judgements-flyout-warnings-title"></ul>
+        <p class="judgements-flyout-none" id="judgements-flyout-none">No warnings.</p>
+      </div>
+      <div class="popover-actions">
+        <button type="button" class="btn btn-sm" id="judgements-flyout-settings">Judgement Settings…</button>
+        <button type="button" class="btn btn-sm btn-primary" id="judgements-flyout-open">Open Judgements</button>
+      </div>
+    </div>
 
 <nav class="menu-panel agent-menu" id="agent-menu" popover aria-label="Agent" data-menu-anchor="status-agent">
     <p class="menu-note agent-state" id="agent-state">The agent is not started.</p>

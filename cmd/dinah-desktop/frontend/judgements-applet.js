@@ -104,18 +104,6 @@
   function acceptState(s) {
     if (window.dinahStateOrder.accept('judgements:changed', '', s, false)) { state = s; drawWidget(); }
   }
-  /* A row of the widget's popup: the day's line, or a link that opens the
-     page or its Settings section, since no state lives only in this popup. */
-  function menuRow(text, meta, run) {
-    var row = node('div', 'md-row');
-    var link = node('a', 'md-item');
-    link.href = '#';
-    link.appendChild(node('span', null, text));
-    if (meta) link.appendChild(node('span', 'md-meta', meta));
-    if (run) link.addEventListener('click', function (e) { e.preventDefault(); $('judgements-status-menu').hidePopover(); run(); });
-    row.appendChild(link);
-    return row;
-  }
   function openPage() { return window.dinahWorkbench.open('judgements').catch(host().fail); }
   function openSection() {
     return window.dinahWorkbench.open('settings').then(function () {
@@ -123,80 +111,95 @@
       if (tab) tab.click();
     }).catch(host().fail);
   }
-  var popupSummary = '';
   function dismissWarning(id, button) {
     button.disabled = true;
     Promise.resolve().then(function () {
       return id == null ? app().DismissJudgementWarnings() : app().DismissJudgementWarning(id);
     }).then(readState).catch(host().fail).finally(function () {
-      button.disabled = button.classList.contains('judgements-dismiss-all') && !(state && state.warnings && state.warnings.length);
+      if (button.isConnected) button.disabled = button.id === 'judgements-dismiss-all' && !(state && state.warnings && state.warnings.length);
     });
   }
+  /* The flyout (docs/mockups/judgements-flyout, index.html). Its rows are in
+     the page, and this writes their values: the state as a glyph, a colour
+     and a word, a line that says why when the state is not simply on, five
+     facts, and the warnings as notices. Nothing here changes the flyout's
+     size. A value is written only when it changes. */
+  // A time as the flyout says it: the hour and minute for today, and the
+  // day with them for any other day. The whole of it is the tooltip.
+  function whenShort(iso) {
+    var at = Date.parse(iso);
+    if (!iso || !isFinite(at)) return 'never';
+    var d = new Date(at), today = new Date().toDateString() === d.toDateString();
+    return today ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  }
+  function words(el, text, title) {
+    if (el.textContent !== text) el.textContent = text;
+    var tip = title || text;
+    if (el.title !== tip) el.title = tip;
+  }
+  function flyoutWhy(s) {
+    if (!s) return '';
+    if (s.paused) return 'Until ' + whenShort(s.paused.until) + '. ' + providerDisplayName(s.paused.provider) + ': ' + s.paused.reason;
+    if (s.state === 'warning') { var why = s.why || 'the judge is failing'; return why.charAt(0).toUpperCase() + why.slice(1) + '.'; }
+    if (s.state === 'off') return s.model ? 'Judging is turned off. Every decision uses its rule.' : 'No model is chosen. Choose one in Judgement Settings, or run a calibration there.';
+    if (s.calibration && s.calibration.state === 'running') return 'A calibration is choosing the judge’s model now.';
+    return '';
+  }
+  function flyoutBudget(s) {
+    var rows = s.budget || [];
+    if (!rows.length) return ['None set', 'No weekly budget is set. Set one in Judgement Settings.'];
+    var first = rows[0], short = providerDisplayName(first.provider) + ': ' + (first.unmeasured ? 'not measured this week' : first.spent.toLocaleString() + ' of ' + first.limit.toLocaleString() + ' ' + first.unit + ' this week');
+    if (rows.length > 1) short += ', and ' + (rows.length - 1) + ' more';
+    return [short, rows.map(budgetLine).join(' ')];
+  }
+  function flyoutPool(s) {
+    var p = s.pool;
+    if (!p || !p.max) return ['Not running', 'No call is with a judge.'];
+    return [p.size + ' at once (may grow to ' + p.max + ')' + (p.inFlight ? ', ' + p.inFlight + ' in flight' : ''), poolLine(p)];
+  }
   function syncPopup() {
-    var list = $('judgements-status-list'), first = list.querySelector('.judgements-popup-line');
-    if (!first) return;
-    first.textContent = stateWords(state) + '.';
-    list.querySelector('.judgements-popup-today').textContent = popupSummary;
-    var warnings = state && state.warnings || [], rows = list.querySelector('.judgements-warnings');
+    var s = state, item = $('status-judgements'), glyph = $('judgements-flyout-glyph');
+    glyph.style.setProperty('--glyph', 'var(--glyph-' + (item.dataset.statusGlyph || 'ring') + ')');
+    glyph.style.color = 'var(--' + (item.dataset.statusColour || 'text-muted') + ')';
+    words($('judgements-flyout-word'), item.dataset.statusText || 'Reading');
+    words($('judgements-flyout-why'), flyoutWhy(s));
+    var reading = 'Reading…';
+    words($('judgements-flyout-judge'), !s ? reading : s.model ? providerDisplayName(s.provider) + ' · ' + s.model : 'None chosen');
+    words($('judgements-flyout-today'), !s ? reading : !s.calls ? 'No calls' : s.calls + (s.calls === 1 ? ' call, ' : ' calls, ') + s.fallbacks + ' answered by the rule');
+    words($('judgements-flyout-latest'), !s ? reading : s.latest ? ago(s.latest).replace(/^./, function (c) { return c.toUpperCase(); }) : 'Never', s && s.latest ? whenFull(s.latest) : '');
+    var budget = s ? flyoutBudget(s) : [reading, ''], pool = s ? flyoutPool(s) : [reading, ''];
+    words($('judgements-flyout-budget'), budget[0], budget[1]);
+    words($('judgements-flyout-pool'), pool[0], pool[1]);
+    var warnings = s && s.warnings || [], rows = $('judgements-flyout-warnings'), all = $('judgements-dismiss-all');
+    words($('judgements-flyout-warnings-title'), warnings.length ? 'Warnings (' + warnings.length + ')' : 'Warnings');
     var focused = document.activeElement;
-    // The popup draws its list afresh when it opens, so the rows drawn are
-    // read back from the list.
+    // The rows drawn are read back from the list, so a flyout opened again starts from what it shows.
     var drawn = new Map(Array.from(rows.children).map(function (row) { return [row.dataset.warningId, { node: row }]; }));
     window.dinahHelpers.reconcile(rows, warnings, { rows: drawn, key: function (warning) { return String(warning.id); },
       create: function (warning, id) {
-        var row = node('li', 'judgements-warning vstack gap-2'); row.dataset.warningId = id;
-        var text = node('p', 'form-help');
-        var dismiss = node('button', 'btn btn-sm', 'Dismiss'); dismiss.type = 'button';
+        var row = node('li', 'notice warn judgements-warning'); row.dataset.warningId = id; row.setAttribute('role', 'status');
+        var content = node('div', 'notice-content'); content.appendChild(node('p', 'notice-body'));
+        var dismiss = node('button', 'notice-close'); dismiss.type = 'button';
         dismiss.addEventListener('click', function () { dismissWarning(warning.id, dismiss); });
-        row.append(text, dismiss);
+        row.append(content, dismiss);
         return { node: row };
       },
       update: function (view, warning) {
         var reason = warning.reason || warning.why;
-        view.node.querySelector('p').textContent = whenFull(warning.at) + ': ' + reason;
+        words(view.node.querySelector('.notice-body'), whenShort(warning.at) + ': ' + reason, whenFull(warning.at) + ': ' + reason);
         view.node.querySelector('button').setAttribute('aria-label', 'Dismiss warning: ' + reason);
       },
       // A dismissed warning's focus goes to the warning now in its place,
-      // or the one before it, or the link when none is left.
+      // or the one before it, or to Open Judgements when none is left.
       lost: function (index) {
-        var buttons = rows.querySelectorAll('button');
-        (buttons[Math.min(index, buttons.length - 1)] || list.querySelector('a')).focus();
+        var buttons = rows.querySelectorAll('.notice-close');
+        (buttons[Math.min(index, buttons.length - 1)] || $('judgements-flyout-open')).focus();
       } });
-    rows.hidden = !warnings.length;
-    list.querySelector('.judgements-warnings-empty').hidden = !!warnings.length;
-    var all = list.querySelector('.judgements-dismiss-all'); all.disabled = !warnings.length;
-    if (focused === all && all.disabled) list.querySelector('a').focus();
+    $('judgements-flyout-none').hidden = !!warnings.length;
+    all.disabled = !warnings.length;
+    if (focused === all && all.disabled) $('judgements-flyout-open').focus();
   }
-  function drawPopup() {
-    var list = $('judgements-status-list');
-    list.replaceChildren();
-    if (!available()) return;
-    popupSummary = '';
-    var first = node('p', 'form-help judgements-popup-line', stateWords(state) + '.');
-    var summary = node('div', 'judgements-popup-summary'); summary.appendChild(first);
-    list.appendChild(summary);
-    var warnings = node('ul', 'judgements-warnings vstack gap-3'); warnings.setAttribute('aria-label', 'Judgement warnings');
-    var all = node('button', 'btn btn-sm judgements-dismiss-all', 'Dismiss All'); all.type = 'button';
-    all.addEventListener('click', function () { dismissWarning(null, all); });
-    summary.appendChild(all);
-    var body = node('div', 'judgements-popup-body'); list.appendChild(body);
-    body.appendChild(warnings);
-    body.appendChild(node('p', 'form-help judgements-warnings-empty', 'No warnings.'));
-    body.appendChild(node('p', 'form-help judgements-popup-today'));
-    Promise.resolve().then(function () { return app().JudgementSummary('', ''); }).then(function (sum) {
-      if (!list.isConnected || !first.isConnected) return;
-      var line = sum.calls ? 'Today: ' + sum.calls + (sum.calls === 1 ? ' call' : ' calls') + ', ' + sum.fallbacks + ' by the rule. The latest was ' + ago(sum.latest) + '.'
-        : 'Nothing has been judged yet. The records will appear on the Judgements page.';
-      popupSummary = line; syncPopup();
-    }).catch(function () {});
-    if (state && state.calibration && state.calibration.state === 'running') body.appendChild(node('p', 'form-help judgements-popup-calibration', 'Calibration is choosing the judge’s model now.'));
-    (state && state.budget || []).forEach(function (b) { body.appendChild(node('p', 'form-help judgements-popup-budget', budgetLine(b))); });
-    var pool = state && state.pool && poolLine(state.pool);
-    if (pool) body.appendChild(node('p', 'form-help judgements-popup-pool', pool));
-    body.appendChild(menuRow('Open Judgements', '', openPage));
-    body.appendChild(menuRow('Judgement Settings…', '', openSection));
-    syncPopup();
-  }
+  function drawPopup() { if (available()) syncPopup(); }
 
   /* ---- The Judgements page ---- */
   var WARN = { judge: 'positive', rule: 'warn' };
@@ -1019,22 +1022,13 @@
       readState().catch(function () {});
       if (pageApi && pageApi.refresh) pageApi.refresh();
     });
-    $('judgements-status-menu').addEventListener('beforetoggle', function (e) {
-      if (e.newState !== 'open') return;
-      this.style.removeProperty('--judgements-popup-width');
-      this.style.removeProperty('--judgements-popup-height');
-      this.style.removeProperty('--judgements-summary-height');
-      drawPopup();
-    });
-    $('judgements-status-menu').addEventListener('toggle', function (e) {
-      if (e.newState !== 'open' || !this.matches(':popover-open')) return;
-      // The public placement call completes opening before we retain its size.
-      window.pudlMenu.place(this);
-      var box = this.getBoundingClientRect(), summary = this.querySelector('.judgements-popup-summary');
-      this.style.setProperty('--judgements-popup-width', box.width + 'px');
-      this.style.setProperty('--judgements-popup-height', box.height + 'px');
-      this.style.setProperty('--judgements-summary-height', summary.getBoundingClientRect().height + 'px');
-    });
+    // The flyout's values are written as it opens, and again whenever the
+    // state changes while it is open (drawWidget). Its size is its own
+    // stylesheet's, so nothing is measured here.
+    $('judgements-status-menu').addEventListener('beforetoggle', function (e) { if (e.newState === 'open') drawPopup(); });
+    $('judgements-dismiss-all').addEventListener('click', function () { dismissWarning(null, this); });
+    $('judgements-flyout-open').addEventListener('click', function () { $('judgements-status-menu').hidePopover(); openPage(); });
+    $('judgements-flyout-settings').addEventListener('click', function () { $('judgements-status-menu').hidePopover(); openSection(); });
     $('status-judgements').addEventListener('keydown', function (event) {
       if (event.key !== 'ArrowDown' || event.altKey || event.ctrlKey || event.metaKey) return;
       event.preventDefault();

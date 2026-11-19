@@ -110,6 +110,10 @@ type JudgementState struct {
 	Streak     int    `json:"streak"`
 	WarnStreak int    `json:"warnStreak"`
 	Latest     string `json:"latest"`
+	// Provider and Model are the judge that is chosen, for the flyout's Judge
+	// row; Model is empty while none is.
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
 	// Warnings are the calls the rule answered because the judge could not that have not been dismissed, newest first,
 	// and Unseen how many there are: the number the badge shows. Paused is the provider the judge uses when repeated errors
 	// have paused it, which is a condition and not a count (internal/judge/health.go).
@@ -504,7 +508,7 @@ func parseJudgementTime(text string, fallback time.Time) (time.Time, error) {
 
 // stateOf is the state the widget shows for the settings and a day's summary.
 func stateOf(s JudgementSettings, sum judge.Summary) JudgementState {
-	st := JudgementState{State: "on", Calls: sum.Calls, Fallbacks: sum.Fallbacks, Streak: sum.Streak, WarnStreak: s.WarnStreak}
+	st := JudgementState{State: "on", Calls: sum.Calls, Fallbacks: sum.Fallbacks, Streak: sum.Streak, WarnStreak: s.WarnStreak, Provider: s.Provider, Model: s.Model}
 	if sum.Latest != nil {
 		st.Latest = sum.Latest.Format(time.RFC3339)
 	}

@@ -45,17 +45,16 @@ const { launch } = require('./lib/page');
     const neutralZero = () => item.locator('[data-status-badge]').evaluate(el => !el.hidden && el.textContent === '0' && !el.classList.contains('warn'));
     ok('without undismissed warnings, the badge is a neutral 0', await neutralZero());
     ok('and its name says the counts', /on, 12 calls today, 3 answered by the rule/.test(await item.getAttribute('aria-label')), await item.getAttribute('aria-label'));
-    // The popup: the day in words, then the two ways in.
+    // The flyout: the day and the latest call in their rows, then the two ways in.
     await item.click();
-    await p.locator('#judgements-status-list .judgements-popup-line').waitFor();
-    await p.waitForFunction(() => /Today: 12 calls, 3 by the rule/.test(document.querySelector('#judgements-status-list .judgements-popup-today').textContent));
-    ok('the popup gives the day in words, ending with the latest call', /Today: 12 calls, 3 by the rule\. The latest was/.test(await p.locator('#judgements-status-list .judgements-popup-today').textContent()));
-    await p.locator('#judgements-status-list').getByText('Open Judgements').click();
+    await p.locator('#judgements-status-menu:popover-open').waitFor();
+    ok('the flyout gives the state as a word, and the day and the latest call in their rows', (await p.locator('#judgements-flyout-word').textContent()) === 'On' && (await p.locator('#judgements-flyout-today').textContent()) === '12 calls, 3 answered by the rule' && /ago$|^Just now$/.test(await p.locator('#judgements-flyout-latest').textContent()), await p.locator('#judgements-flyout-latest').textContent());
+    await p.locator('#judgements-flyout-open').click();
     await p.locator('.win[data-win-kind="judgements"]').waitFor({ state: 'attached' });
     ok('Open Judgements opens the page', true);
     await p.locator('.win[data-win-kind="judgements"] .win-head button[aria-label="Close"]').click().catch(() => {});
     await item.click();
-    await p.locator('#judgements-status-list').getByText('Judgement Settings…').click();
+    await p.locator('#judgements-flyout-settings').click();
     await p.locator('.win[data-win-kind="settings"]').waitFor({ state: 'attached' });
     await p.waitForFunction(() => { const tab = document.querySelector('[data-settings-section="judgements"]'); return tab && tab.getAttribute('aria-selected') === 'true' && !document.getElementById('settings-judgements').hidden; });
     ok('Judgement Settings… opens Settings at the section', true);
