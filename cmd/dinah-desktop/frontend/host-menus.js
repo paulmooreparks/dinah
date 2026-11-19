@@ -92,7 +92,14 @@
     /* The commands for the window in front are one block, and this menu is
        the one place in the bar that has them (docs/design/menus.md). They
        are PUDL's, except Close, which is the registry's and has the key. */
-    if (state.top && !state.min[state.top]) api.menuCommands(state.top).filter(function (item) { return !['page', 'copy-link', 'close'].includes(item.id); }).forEach(function (item) { command(windows, item); });
+    /* A set of which one is on has radio marks: the zones a window snaps
+       to and the edges it docks at, which are PUDL's flyouts, and the list
+       of open windows below, of which one is in front. The list's rows are
+       the only ones of this menu's own level that have a mark. */
+    windows.setAttribute('data-menu-radio', '');
+    if (state.top && !state.min[state.top]) api.menuCommands(state.top).filter(function (item) { return !['page', 'copy-link', 'close'].includes(item.id); }).forEach(function (item) {
+      command(windows, item.id === 'snap' || item.id === 'dock' ? Object.assign({}, item, { radio: true }) : item);
+    });
     window.dinahCommands.rows('window', 'front').forEach(function (row) { command(windows, row); });
     var rows = window.dinahCommands.rows('window', '');
     if (windows.children.length && rows.length && rows[0] !== '-') command(windows, '-');

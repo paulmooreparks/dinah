@@ -11,7 +11,7 @@ await p.evaluate(()=>pudlMenubar.launcherButton().click());
 const row=p.locator('[data-win-pin-target="app-theme-editor"]');
 await row.hover();
 await row.locator('[data-row-actions]').click();
-await p.getByRole('menuitem',{name:'Pin to taskbar',exact:true}).click();
+await p.getByRole('menuitem',{name:'Pin to Taskbar',exact:true}).click();
 await p.waitForFunction(()=>pudlWindows.taskbarState().pins.includes('app-theme-editor'));
 t.ok('unopened launcher row pins without opening or closing launcher',await p.locator('#dinah-launcher').isVisible()&&await p.locator('[data-win="theme-editor"]').count()===0);
 await p.keyboard.press('Escape');

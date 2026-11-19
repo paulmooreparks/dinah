@@ -99,6 +99,16 @@ const { launch } = require('./lib/page');
     const withChat = await rows('#host-windows');
     const close = withChat.indexOf('Close');
     t.ok('Close ends the block of commands for the window in front', close > 0 && withChat[close + 1] === '-' && withChat[close + 2] === 'Next Window' && withChat.slice(0, close).every((r) => r !== '-'), withChat.slice(0, close + 3).join('|'));
+    // PUDL's window rows are in title case, as every label is, and a set of which one is on has radio marks.
+    t.ok('the window rows are in title case', ['Pin to Taskbar', 'Reset Size and Position', 'Snap to a Zone >', 'Dock >'].every((r) => withChat.includes(r)) && !withChat.some((r) => /^(Pin to taskbar|Reset size|Snap to a zone)/.test(r)), withChat.slice(0, close).join('|'));
+    const marks = await p.evaluate(() => {
+      const list = document.getElementById('host-windows'), sub = (name) => { const li = Array.from(list.children).find((li) => li.querySelector(':scope > ul') && li.textContent.trim().startsWith(name)); return li ? li.querySelector(':scope > ul') : null; };
+      const snap = sub('Snap to a Zone'), dock = sub('Dock');
+      return { list: list.hasAttribute('data-menu-radio'), marked: Array.from(list.querySelectorAll(':scope > li > button[aria-checked]')).map((b) => b.textContent.trim()), on: list.querySelectorAll(':scope > li > button[aria-checked="true"]').length,
+        snap: !!snap && snap.hasAttribute('data-menu-radio'), dock: !!dock && dock.hasAttribute('data-menu-radio'), zones: snap ? Array.from(snap.querySelectorAll('button')).map((b) => b.textContent.trim()).slice(0, 5).join('|') : '' };
+    });
+    t.ok('the list of open windows is a set with one mark, and only its rows are marked', marks.list && marks.on === 1 && marks.marked.length > 1 && marks.marked.every((l) => /^[1-9][.] /.test(l)), JSON.stringify(marks));
+    t.ok('the zones and the dock edges are sets with radio marks, in title case', marks.snap && marks.dock && marks.zones === 'Left Half|Right Half|Top Half|Bottom Half|Top Left Quarter', JSON.stringify(marks));
     // The panes add no menu, and View, Refresh reads a list again where the window in front has one.
     const refresh = async () => (await state('view')).find((r) => r.label === 'Refresh');
     t.ok('Refresh is greyed over a chat and says why', (await refresh()).greyed && (await refresh()).reason === 'Nothing in front is a list that can be read again.' && (await refresh()).key === 'F5');
@@ -123,7 +133,7 @@ const { launch } = require('./lib/page');
     t.ok('Group Chats adds one menu with its name', (await frontTitles()) === 'Group Chats', await frontTitles());
     await p.locator('nav.menubar .menubar-front .menubar-title', { hasText: 'Group Chats' }).click();
     const own = await p.evaluate(() => Array.from(document.querySelectorAll('#menubar-panel > .menu-action .menubar-words')).map((w) => w.textContent.trim()));
-    t.ok('its menu has its own commands and no window commands', own.includes('New Message…') && own.includes('Trust a Link…') && !own.includes('New Group Chat…') && !own.some((l) => /^(Close|Dock|Minimize|Pin to taskbar)/.test(l)), own.join('|'));
+    t.ok('its menu has its own commands and no window commands', own.includes('New Message…') && own.includes('Trust a Link…') && !own.includes('New Group Chat…') && !own.some((l) => /^(Close|Dock|Minimize|Pin to Taskbar)/.test(l)), own.join('|'));
     await p.keyboard.press('Escape');
     await p.evaluate(() => window.dinahCommands.run('own-shell'));
     await p.waitForFunction(() => Array.from(document.querySelectorAll('nav.menubar .menubar-front .menubar-title')).some((b) => b.textContent.trim() === 'Terminal'));

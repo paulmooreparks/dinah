@@ -18,7 +18,7 @@ try{
  t.ok('narrow Pinned heading folds its label',await p.locator('.win-taskbar-heading-text').evaluate(n=>getComputedStyle(n).display==='none'));
  await t.shot('candidate-narrow');await p.setViewportSize({width:1280,height:900});
  await p.locator('.menubar-title[data-menu-id=view]').click({button:'right'});
- await p.getByRole('menuitem',{name:'Pin to taskbar',exact:true}).click();
+ await p.getByRole('menuitem',{name:'Pin to Taskbar',exact:true}).click();
  await p.locator('.win-bar [data-win-menu-id=view]').waitFor();
  t.ok('site menu pin uses built-in provider',await p.evaluate(()=>pudlWindows.taskbarState().references.some(r=>r.provider==='pudl-site-menus')));
  await p.locator('.win-bar [data-win-menu-id=view]').click();
@@ -36,7 +36,7 @@ try{
  await arrange.click();await p.locator('.win-taskbar-arrangement').waitFor();
  const panel=p.locator('.win-taskbar-arrangement');
  await panel.locator('select').selectOption('pin:app-settings');
- await panel.getByRole('button',{name:'Move later',exact:true}).click();
+ await panel.getByRole('button',{name:'Move Later',exact:true}).click();
  await arrange.click();t.ok('second pointer activation closes Arrange',await panel.count()===0);
  t.ok('closing Arrange cancels its draft',await p.evaluate(()=>JSON.stringify(pudlWindows.taskbarState()))===before);
  await arrange.focus();await p.keyboard.press('Enter');await panel.waitFor();await arrange.focus();await p.keyboard.press('Enter');t.ok('second keyboard activation closes Arrange',await panel.count()===0);
@@ -44,6 +44,6 @@ try{
  await p.evaluate(()=>dinahUIState.flush());await p.reload();await p.locator('.win-bar [data-win-menu-id=view]').waitFor();
  t.ok('menu and applet pins persist after reload',await p.evaluate(()=>pudlWindows.taskbarState().pins.includes('app-settings')&&pudlWindows.taskbarState().references.some(r=>r.provider==='pudl-site-menus')));
  t.ok('restored singleton has no duplicate ordinary entry',await p.locator('.win-bar [data-win-tab=settings]').count()<=1);
- await p.locator('.win-bar [data-win-menu-id=view]').click({button:'right'});await p.getByRole('menuitem',{name:'Unpin from taskbar',exact:true}).click();t.ok('site menu unpins',await p.locator('.win-bar [data-win-menu-id=view]').count()===0);
+ await p.locator('.win-bar [data-win-menu-id=view]').click({button:'right'});await p.getByRole('menuitem',{name:'Unpin from Taskbar',exact:true}).click();t.ok('site menu unpins',await p.locator('.win-bar [data-win-menu-id=view]').count()===0);
  await t.shot('candidate-restored');
 }finally{await t.close()}})();
