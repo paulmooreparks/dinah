@@ -36,16 +36,17 @@ const { launch } = require('./lib/page');
     const taken = await p.evaluate(() => window.__taken), started = await renaming();
     ok('with nothing focused, F2 reaches the front chat window and is taken from the browser', focus.body && /one/.test(focus.front) && taken === true && started, JSON.stringify({ focus, taken, started }));
     await p.keyboard.press('Escape');
-    // A field outside the windows keeps the ordinary lookup: the key is left alone.
+    // F2 is a key of the host's Chat menu, so it works from a field outside the windows too, as every host key does.
     await p.evaluate(() => { const i = document.createElement('input'); i.id = 'loose'; i.style.cssText = 'position:fixed;left:0;top:0;'; document.body.appendChild(i); i.focus(); });
     await p.keyboard.press('F2');
     await p.waitForTimeout(150);
-    ok('in a field outside the windows, F2 is left to the browser', await p.evaluate(() => window.__taken === false && document.activeElement.id === 'loose'));
+    ok('from a field outside the windows, F2 renames the chat in front', await p.evaluate(() => window.__taken === true) && await renaming());
+    await p.keyboard.press('Escape');
     await p.evaluate(() => document.getElementById('loose').remove());
     // A modal dialog keeps its keys.
     await p.evaluate(() => { const d = document.createElement('dialog'); d.id = 'modal'; d.innerHTML = '<p>Modal</p><button>OK</button>'; document.body.appendChild(d); d.showModal(); });
     await p.keyboard.press('F2');
     await p.waitForTimeout(150);
-    ok('with a modal dialog open, F2 does not reach the window behind it', await p.evaluate(() => window.__taken === false && document.getElementById('modal').open));
+    ok('with a modal dialog open, F2 does not reach the window behind it', await p.evaluate(() => document.getElementById('modal').open) && !(await renaming()));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

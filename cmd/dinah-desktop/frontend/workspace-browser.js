@@ -249,6 +249,7 @@
         var available = !!(next && next.mountAlias && api().ListWorkspaceMounts);
         // Add Source… sits in the pane's toolbar and is offered only where Sources is.
         $('workspace-sources').hidden = !available; $('workspace-source-choose').hidden = !available;
+        if (window.dinahCommands) window.dinahCommands.changed();
         if (!available) { record = null; ++generation; tree.replaceChildren(); return; }
         var signature = JSON.stringify(next.sources || []), changed = !record || record.id !== next.id;
         if (!changed && signature === sourceSignature) { record = next; return; }
@@ -380,4 +381,10 @@
       return { setWorkspace: setWorkspace, addSource: addSource, destroy: function () { disposed = true; window.dinahRender.cancel(changeKey); ++generation; model.destroy(); listeners.forEach(function (remove) { remove(); }); } };
     }
   };
+  // The pane's Add Source button is the command's control, so the host's
+  // Workspace menu offers it where the pane does (docs/design/menus.md).
+  function sourceButton() { return document.getElementById('workspace-source-choose'); }
+  if (window.dinahCommands) window.dinahCommands.register({ id: 'add-workspace-source', menu: 'workspace', inline: true, label: 'Add a Source…',
+    enabled: function () { var button = sourceButton(); return !!button && !button.hidden && !button.disabled; },
+    reason: 'This workspace has no sources to add to.', run: function () { sourceButton().click(); } });
 })();

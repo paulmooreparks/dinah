@@ -44,9 +44,9 @@ const { launch } = require('./lib/page');
       return titles.every(el => font(el) === font(titles[0])) && items.every(el => font(el) === font(items[0]) && glyph(el) === glyph(items[0]));
     }));
     await p.evaluate(() => window.pudlWindows.raise('workspace'));
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Actions$/ }).click();
-    const refreshWorkspace = p.locator('#menubar-panel').getByText('Refresh Workspace', { exact: true });
-    ok('Workspace offers a usable Refresh command in its Actions menu', await refreshWorkspace.isVisible() && await refreshWorkspace.isEnabled());
+    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).click();
+    const refreshWorkspace = p.locator('#menubar-panel').getByText('Refresh', { exact: true });
+    ok('the Workspace menu offers a usable Refresh command', await refreshWorkspace.isVisible() && await refreshWorkspace.isEnabled());
     await p.keyboard.press('Escape');
     ok('docked browsers have no taskbar entries or title bars', await p.locator('[data-win-dock] [data-win-tab="workspace"], [data-win-dock] [data-win-tab="chat-browser"]').count() === 0 && !await p.locator('[data-win="workspace"] > .win-head').isVisible());
     ok('Notifications has its own glyph', await p.locator('[data-win="needs-you"]').getAttribute('data-win-glyph') !== await p.locator('[data-win="chat-browser"]').getAttribute('data-win-glyph'));
@@ -68,34 +68,36 @@ const { launch } = require('./lib/page');
     ok('the new document of Docs is Markdown in Docs', await p.evaluate(() => window.__retitled.length === 1 && window.__opened.join() === 'content-docs Untitled'), await p.evaluate(() => JSON.stringify([window.__retitled, window.__opened])));
     await p.evaluate(() => { window.__opened = []; return dinahEditor.newDocument(); });
     ok('New Document is Markdown in Docs', await p.evaluate(() => window.__opened.join() === 'content-docs Untitled'), await p.evaluate(() => JSON.stringify(window.__opened)));
-    await p.evaluate(()=>pudlMenubar.launcherButton().click());
-    await p.locator('[data-launcher-action="find-tool"]').click();
+    // The launcher lists no commands since 19 November 2026 (docs/design/menus.md); Find a Tool is a command found by its name.
+    await p.evaluate(() => window.dinahCommands.run('find-tool'));
     await p.fill('#go-to-filter', 'notes or a script');
     ok('tool search matches descriptions', await p.locator('#go-to-list tr').count() === 1 && (await p.locator('#go-to-list').textContent()).includes('Editor'));
     await p.evaluate(() => document.getElementById('go-to').close());
     await p.evaluate(() => dinahWorkbench.open('chat'));
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Actions$/ }).click();
-    // The chat's Actions menu has the toolbar's Provider command, whose
+    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Chat$/ }).click();
+    // The Chat menu has the toolbar's Provider command for the chat in front, whose
     // providers are a submenu of choices.
     await p.locator('#menubar-panel').getByText('Provider', { exact: true }).click();
     const devinRow = p.locator('#menubar-sub .menu-action[role="menuitemradio"]').filter({ hasText: /^Devin/ }).first();
-    ok('Chat Actions offers the providers as a submenu of choices', await devinRow.waitFor({ timeout: 3000 }).then(() => true, () => false) && await devinRow.getAttribute('aria-checked') === 'true');
+    ok('the Chat menu offers the providers as a submenu of choices', await devinRow.waitFor({ timeout: 3000 }).then(() => true, () => false) && await devinRow.getAttribute('aria-checked') === 'true');
     await p.keyboard.press('Escape');
     await p.keyboard.press('Escape');
     await p.evaluate(() => dinahWorkbench.open('skills-browser'));
     await p.locator('[data-win="skills-browser"]').waitFor();
     ok('the selected tab keeps its menu visible in a crowded dock', await p.locator('[data-dock-menu="skills-browser"]').isVisible());
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Skills$/ }).click();
+    // A pane adds no menu of its own, and the host's Window menu has its window rows (docs/design/menus.md).
+    ok('the Skills pane adds no menu to the bar', await p.locator('.menubar-row .menubar-front .menubar-title').count() === 0);
+    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Window$/ }).click();
     const rows = await p.locator('#menubar-panel .menu-action').allTextContents();
     const windowRows = await p.evaluate(() => pudlWindows.menuCommands('skills-browser').map(c => c.label));
-    ok('a pane\'s own menu has its window menu\'s rows', windowRows.length > 2 && windowRows.every(label => rows.some(row => row.includes(label))), JSON.stringify(rows));
+    ok('the Window menu has the rows of the pane in front', windowRows.length > 2 && windowRows.every(label => rows.some(row => row.includes(label))), JSON.stringify(rows));
     await p.keyboard.press('Escape');
     await p.evaluate(() => dinahWorkbench.open('workspace'));
-    // The pane's menu title arrives a moment after the pane opens.
+    // The Workspace pane adds no menu either, so the bar has one Workspace menu, the host's.
     await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
-    ok('the Workspace pane has a Workspace menu', await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).count() === 1);
+    ok('the bar has one Workspace menu with the Workspace pane in front', await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).count() === 1 && await p.locator('.menubar-row .menubar-front .menubar-title').count() === 0);
     await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).click();
-    ok('the Workspace menu has the window menu\'s rows', (await p.locator('#menubar-panel .menu-action').allTextContents()).some(row => row.includes('Collapse')));
+    ok('the Workspace menu has the workspace commands and no window commands', await (async () => { const rows = await p.locator('#menubar-panel .menu-action').allTextContents(); return rows.some(row => row.includes('New Workspace')) && !rows.some(row => row.includes('Collapse')); })());
     await p.keyboard.press('Escape');
     await p.evaluate(() => dinahWorkbench.open('chat-browser'));
     ok('the current scope excludes other workspaces', await p.locator('#sessions a[data-session]').count() === 1);
@@ -214,8 +216,8 @@ const { launch } = require('./lib/page');
     await p.locator('#go-to-list tr').dblclick();
     ok('All Windows finds and raises a window beyond the direct list', await p.evaluate(() => dinahWorkbench.item(pudlWindows.state().top).path === '10'));
     await p.evaluate(() => { document.querySelectorAll('[data-win-kind="menu-fixture"]').forEach(win => pudlWindows.close(win.dataset.win)); pudlWindows.raise('workspace'); });
-    await p.evaluate(()=>pudlMenubar.launcherButton().click());
-    await p.locator('[data-launcher-action="find-tool"]').click();
+    // The launcher lists no commands since 19 November 2026 (docs/design/menus.md); Find a Tool is a command found by its name.
+    await p.evaluate(() => window.dinahCommands.run('find-tool'));
     await p.keyboard.press('Escape');
     await t.shot('workbench-wide');
     await p.setViewportSize({ width: 820, height: 700 });

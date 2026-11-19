@@ -421,6 +421,14 @@
     windowsOf: function (args) { return windowsOf(args); },
     retitle: retitle,
     windowMenuRows: windowMenuRows,
+    /* What reads the content of a window again, for View > Refresh: the
+       window's own reload, where its kind gives one. */
+    reloadOf: function (key) {
+      var instance = instances.get(key);
+      if (!instance || typeof instance.reload !== 'function') return null;
+      // A window may say that its list cannot be read just now.
+      return !instance.canReload || instance.canReload() ? instance.reload : null;
+    },
     applySavedTitles: applySavedTitles, refreshTitles: refreshTitles,
     registerLauncher: function (id, definition) {
       if (!id || !definition.title || typeof definition.run !== 'function') throw new Error('A tool needs an identity, title and launcher.');
@@ -456,18 +464,18 @@
         var instance = cfg.init(root, opts, JSON.parse(root.dataset.item));
         var stopScroll = watchScroll(root.closest('[data-win]'), key);
         instances.set(key, instance);
-        /* Every window's menu opens with the rows of its window menu
-           (Collapse, Dock, Reset, Close and the rest), as its title bar's
-           menu has them, then its own commands under Actions. A window
-           with menus of its own (the Editor's) puts the rows there itself. */
+        /* A window adds one menu to the bar, which has its kind's name
+           (Terminal, Files, Org Chart) and its own commands. No menu is
+           called Actions, and none repeats the window commands, which the
+           host's Window menu has once (docs/design/menus.md). A window with
+           no commands of its own adds nothing: PUDL leaves out a title that
+           has no rows, and the title is still given, since PUDL draws a
+           menu of its own for a window that gives none. A window with
+           menus of its own (the Editor's) gives them itself. */
         var menus = instance.menus || function () {
-          var win = root.closest('[data-win]'), title = win && win.querySelector('.win-title');
-          // The window's menu takes its kind's glyph, and Actions the list's,
-          // so each folds to its glyph before the menu bar collapses.
-          var titles = [{ label: cfg.singleton ? cfg.title : (title && title.textContent.trim()) || cfg.title, glyph: cfg.glyph || 'app', items: windowMenuRows(key) }];
-          var own = instance.commands ? instance.commands() : [];
-          if (own.length) titles.push({ id: 'actions', label: 'Actions', mnemonic: 'A', glyph: 'list', items: own });
-          return { titles: titles };
+          // The menu takes its kind's glyph, so it folds to that glyph
+          // before the menu bar collapses.
+          return { titles: [{ label: cfg.menuTitle || cfg.title, glyph: cfg.glyph || 'app', items: instance.commands ? instance.commands() : [] }] };
         };
         return Object.assign({}, instance, { menus: menus, destroy: function () {
           stopScroll();

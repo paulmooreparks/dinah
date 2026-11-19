@@ -24,7 +24,7 @@ The target needs changes in PUDL and in the document applications as well as her
 
 ### Step 1, built on 19 November 2026
 
-These changes needed nothing outside this repository. The titles are still Workspaces, Documents, View, Window and Help.
+These changes needed nothing outside this repository. After them the titles were still Workspaces, Documents, View, Window and Help, and Broadcast was in the Chats pane's own menu until step 2 gave it to Chat.
 
 - **View** has the six panes under the heading Panes (Workspace, Chats, In Progress, Skills, Notifications, Group Chats), then Show the Agent's Thinking and Full Screen, then Color Mode, Themes and Skin. Decisions, Clean Up Chats and Org Chart left it, since each opens a tool and is in the launcher.
 - **Find and Open…** is in Documents, after Open…. **Commands…** is in Help. **Go to the Question** and **Go to the Chat** are in Window, after Previous Window.
@@ -39,9 +39,28 @@ These changes needed nothing outside this repository. The titles are still Works
 
 The command registry gained two things for this (`commands.js`). An entry may say `after`, the ID of the entry it stands straight after, so a command registered in another file takes its place in a group. An entry may say `group`, and a menu's list in the page may have a place for each group (`data-commands="panes"`), as View has for its panes.
 
+### Step 2, built on 19 November 2026
+
+Paul approved this step from the mockup the same day. It needed nothing outside this repository either, and the bar now reads Chat, Workspace, Documents, View, Window, Help.
+
+- **Chat** is a new menu and the first in the bar. It begins with New Chat (Ctrl+N) and New Group Chat…. Then come the commands of the chat in front: Rename… (F2), Continue in Another Workspace… and Pin to Workspace; Provider, Mode, Model and Effort, each a set with one mark; Start a Group Chat…, Add to a Group Chat and Team; Prompt History…, My Templates…, Export…, Show the Chat Log, Show Failed Command Summaries and Subagents; Ask Me Again About a Full Context, Load Full History and Drop the Queued Messages; the two Broadcast rows where Decisions is available; Stop and Restart the Agent; and Delete… last. A row that needs a chat is greyed with "No chat is in front." while a pane or a tool is in front, and a row the chat in front cannot use now says why, as Stop says "The chat is not working."
+- **A chat's window adds no menu.** Its Actions menu is gone, since Chat has its rows. Two rows of Actions did not move: Clean Up Chats, which is a tool in the launcher, and Choose the Model…, which Model, All Models… already does.
+- **Workspace** is the new name of Workspaces. It begins with New Workspace… and New Empty Workspace, then Switch To (which was Recent Workspaces), then Rename…, Refresh and Add a Source…, then Import… and Export…, then the three rows for the pane's sections, and Remove… last. Add a Source… and the section rows were in the pane only. New Chat left it for Chat.
+- **Window** has the commands for the window in front as one block that ends with Close, then Next Window and Previous Window, the two document rows and the two Go to rows. Each greyed row says why.
+- **View** has Refresh (F5), which reads again what the window in front lists: the chats, the workspace, the skills, the documents in progress, the requests in Decisions, or a folder in Files. It is greyed with "Nothing in front is a list that can be read again." over anything else. It replaces Refresh Chats, Refresh Workspace, Refresh Skills, Refresh Requests and Refresh, which were rows of five windows' own menus.
+- **A window adds one menu, with its kind's name, or none.** A Terminal adds Terminal, Files adds Files, and the same goes for Org Chart, Theme Editor, Group Chats, a group chat's window (Group Chat) and Settings. The menu has the window's own commands and nothing else. No menu is called Actions, and none repeats the window commands, which Window has. The Workspace, Chats, Notifications, In Progress and Skills panes, Decisions and Clean Up Chats add nothing, since the host's menus have every command they had. The document applications draw their own menus and are unchanged.
+
+The command registry gained three things for this (`commands.js`). An entry may say `menuLabel`, its words in its own menu where the title already says what it is about, so Chat shows "Rename…" and Commands… lists "Rename Chat…". An entry with `items` may say `radio`, for a flyout of which one row is on. A flyout that cannot be used is drawn as a plain greyed row with its reason, because the markup a menu is drawn from cannot grey a flyout.
+
+The Chat rows find the chat in front through the chat's own command table (`chat-applet.js`, `menuCommands`), read once for each drawing of the menus. A chat tells PUDL when its commands change, and the Chat menu is drawn again on PUDL's `pudl:commands-change`; a menu that is open at that moment is brought up to date in place through PUDL's `refresh`, so Stop can be pressed as soon as a turn starts.
+
+A window says how its list is read again with `reload` on what its kind's `init` returns, and `dinahWorkbench.reloadOf` gives that to View, Refresh. A kind names its menu with `menuTitle`, or with its `title`.
+
+Two keys changed hands. Ctrl+N is New Chat everywhere, except where the application in front has a Ctrl+N of its own, which PUDL gives to the application. F2 is the host's Rename… for the chat in front; it was the chat window's own key and does the same thing.
+
 ### Still to come
 
-- **Here, with nothing else needed.** The Chat menu, which takes over the chat window's Actions and has New Chat with Ctrl+N. Workspaces renamed Workspace, with New Workspace… first. Close in Window. This product's own tools giving their menu the tool's name in place of Actions.
+- **Here, with nothing else needed.** Nothing is left that this repository can do alone.
 - **PUDL.** The host's titles keep the order the host wrote them in; today PUDL puts a host title it does not know before View, which is where Settings would land. The menu with the window's name loses the window commands. The window rows are in title case, and the list of windows has radio marks. One defect was reported on 19 November 2026: a menu's rows move to the right when one of its cascades opens, if the cascade has marked rows and the menu has none (Workspaces, Recent Workspaces shows it).
 - **The document applications.** They keep File and Edit. They need room in File for more of the host's rows than the eight the contract allows, Ctrl+P on Print…, and their ways of showing a document in the menu with the application's name.
 - **Here, after those.** The Settings menu with Settings… and the colours, the Document menu's rows moved into the applications' menus, Find and Open… on Ctrl+Shift+O, and the launcher's Default Shell entry called Terminal, which is what it starts.
@@ -52,4 +71,4 @@ The command registry gained two things for this (`commands.js`). An entry may sa
 
 ## Tests
 
-The browser suite `e2e/host-menus-order.js` covers step 1: what View, Documents, Window, Help and Workspaces hold and in what order, the themes' marks, the Chats pane's Broadcast rows, what the launcher no longer lists, its categories, and the name Exit.
+The browser suite `e2e/host-menus-order.js` covers both steps: the titles of the bar; what Chat, Workspace, View, Documents, Window and Help hold and in what order; the Chat rows greyed with their reason when no chat is in front; Ctrl+N and F5; the themes' marks; which windows add a menu and what it is called; what the launcher no longer lists, its categories, and the name Exit. `e2e/chat-menu-stale.js` covers the Chat menu following a chat that starts working, with the menu closed and with it open.

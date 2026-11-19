@@ -13,8 +13,8 @@
     run: function () { return window.dinahWorkbench.open('help-chats').catch(window.dinahHost.fail); } });
   commands.addHelp('View', [
     { label: 'Decisions', where: 'Launcher or Decisions count in the status bar', key: 'Use the launcher or status button' },
-    { label: 'Broadcast to Active\u2026', where: 'Actions menu of the Chats pane', key: 'Use the menu' },
-    { label: 'Broadcast to All\u2026', where: 'Actions menu of the Chats pane', key: 'Use the menu' }
+    { label: 'Broadcast to Active\u2026', where: 'Chat menu', key: 'Use the menu' },
+    { label: 'Broadcast to All\u2026', where: 'Chat menu', key: 'Use the menu' }
   ], 'chat-decisions');
   commands.addHelp('Decisions', [
     { label: 'As recommended', where: 'Among the choices under an unanswered question', key: 'Tab to the choices; press Space' },

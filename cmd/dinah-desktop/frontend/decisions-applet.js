@@ -681,9 +681,10 @@
       if (draft && draftKey === 'request:' + id) { try { draft.operation = draftFor(draftKey).operation; } catch (error) { draftError = errorText(error); } controls(); }
       if (closed) load(false);
     }
-    return { ensureRequest: ensureRequest, operationChanged: operationChanged, state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; if (quoteWatch) quoteWatch.disconnect(); unsubscribe(); unresync(); unTask(); }, commands: function () {
-      return [{ label: 'Refresh Requests', disabled: !available(), run: function () { if (view === 'record') { rendered = ''; draw(); } return load(false); } }, { label: 'Broadcast to Active…', run: function () { navigate('broadcast-active'); } }, { label: 'Broadcast to All…', run: function () { navigate('broadcast-all'); } }];
-    } };
+    return { ensureRequest: ensureRequest, operationChanged: operationChanged, state: address, setState: function (state) { stateRead(state); draw(); }, destroy: function () { disposed = true; if (quoteWatch) quoteWatch.disconnect(); unsubscribe(); unresync(); unTask(); },
+      // The window adds no menu: View, Refresh reads the requests again,
+      // and the Broadcast rows are in Chat (docs/design/menus.md).
+      canReload: available, reload: function () { if (view === 'record') { rendered = ''; draw(); } return load(false); } };
   }
   window.dinahWorkbench.register('decisions', { applet: { id: 'dinah.decisions', title: 'Decisions', glyph: 'comments', workspace: false }, singleton: true, title: 'Decisions', glyph: 'comments', mode: 'maximized', init: function (root, opts) { var instance = init(root, opts); page = instance; var destroy = instance.destroy; instance.destroy = function () { destroy(); if (page === instance) page = null; }; return instance; },
     launcher: { title: 'Decisions', run: function () { return window.dinahWorkbench.open('decisions'); } } });
@@ -695,6 +696,6 @@
   function open(state) { return window.dinahWorkbench.open('decisions', state || '').catch(window.dinahHost.fail); }
   // Decisions is a tool, opened from the launcher, and Broadcast is a chat command drawn in the Chats pane's Actions; none of the three is in View since 19 November 2026 (docs/design/menus.md).
   window.dinahCommands.register({ id: 'decisions', menu: 'tools', mnemonic: 'D', label: 'Decisions', visible: available, run: function () { return open(); } });
-  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'chat', mnemonic: scope === 'active' ? 'V' : 'B', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
+  ['active', 'all'].forEach(function (scope) { window.dinahCommands.register({ id: 'broadcast-' + scope, menu: 'chat', after: 'chat-sep-broadcast', mnemonic: scope === 'active' ? 'V' : 'B', label: scope === 'active' ? 'Broadcast to Active…' : 'Broadcast to All…', visible: available,
     enabled: function () { return !!(app().PreviewDecisionBroadcast && app().ConfirmDecisionBroadcast); }, run: function () { return open('view=broadcast-' + scope); } }); });
 }());

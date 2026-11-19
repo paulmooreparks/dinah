@@ -86,9 +86,9 @@ const { launch } = require('./lib/page');
     async function openMenu(name) { await p.keyboard.press('Escape'); await title(name).click(); await p.locator('.menubar-panel .menu-action').first().waitFor(); return rows(); }
     const row = (list, start) => list.find(r => r.text.startsWith(start));
 
-    // The title stands right of the site menu and Workspaces.
+    // The title stands right of the site menu, Chat and Workspace.
     const titles = await p.locator('nav[data-menubar] .menubar-title').allTextContents();
-    ok('Documents stands right of the site menu and Workspaces', titles.indexOf('Documents') === 2 && titles.indexOf('Documents') < titles.indexOf('View'), JSON.stringify(titles));
+    ok('Documents stands right of the site menu, Chat and Workspace', titles.indexOf('Documents') === 3 && titles.indexOf('Documents') < titles.indexOf('View'), JSON.stringify(titles));
 
     // Documents holds what is about no particular document; the rows that
     // act on one are in that document's Editor, under Document.

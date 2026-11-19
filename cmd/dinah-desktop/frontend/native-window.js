@@ -38,7 +38,7 @@
   function enter() { return refresh().then(function () { return state.available && !state.fullscreen && !busy ? action('toggle') : false; }); }
   function leave() { return refresh().then(function () { return state.available && state.fullscreen && !busy ? action('toggle') : false; }); }
   window.dinahNativeWindow = { toggle: function () { return action('toggle').catch(function (error) { report(error); throw error; }); }, refresh: refresh, enter: enter, leave: leave };
-  window.dinahCommands.register({ id: 'fullscreen', menu: 'view', mnemonic: 'F', label: 'Full Screen', shortcut: 'F11',
+  window.dinahCommands.register({ id: 'fullscreen', menu: 'view', after: 'refresh', mnemonic: 'F', label: 'Full Screen', shortcut: 'F11',
     visible: function () { return state.available; }, enabled: function () { return !busy; }, checked: function () { return state.fullscreen; },
     run: function () { return action('toggle'); } });
   function fullscreenKey(event) { return event.key==='F11'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!event.shiftKey&&state.available; }

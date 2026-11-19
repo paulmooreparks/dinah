@@ -1,4 +1,4 @@
-// Actions follows the current command table without a menu-refresh workaround.
+// The host's Chat menu follows the command table of the chat in front, open or closed.
 const { launch, PAGE } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -37,59 +37,56 @@ const { launch, PAGE } = require('./lib/page');
       // Settle the host's scheduled command redraw before reopening its menu.
       await p.evaluate(() => window.dinahCommands.flush());
     }
-    // The window's Actions menu, opened from the bar and closed after reading.
+    // The host's Chat menu, opened from the bar and closed after reading.
+    // Its rows are always there, and one that cannot be used is greyed.
+    const chatTitle = () => [...document.querySelectorAll('.menubar-title')].find(b => b.textContent.trim() === 'Chat');
     async function menuRows() {
-      await p.evaluate(() => {
-        const title = [...document.querySelectorAll('.menubar-title')].find(b => /^Actions$/.test(b.textContent));
-        if (title) title.click();
-      });
-      await p.waitForFunction(() => [...document.querySelectorAll('.menu-action')].some(b => (b.offsetWidth || b.offsetHeight) && /Stop|Drop the Queued|Rename Chat/.test(b.textContent)));
-      const rows = await p.evaluate(() => [...document.querySelectorAll('.menu-action')].filter(b => (b.offsetWidth || b.offsetHeight)).map(b => b.textContent.trim()));
-      await p.evaluate(() => new Promise(resolve => {
+      await p.evaluate(`(${chatTitle})().click()`);
+      await p.waitForFunction(() => [...document.querySelectorAll('#menubar-panel > .menu-action')].some(b => (b.offsetWidth || b.offsetHeight) && /Rename/.test(b.textContent)));
+      const rows = await p.evaluate(() => [...document.querySelectorAll('#menubar-panel > .menu-action')].filter(b => (b.offsetWidth || b.offsetHeight))
+        .map(b => ({ label: (b.querySelector('.menubar-words') || b).textContent.trim(), greyed: b.disabled || b.getAttribute('aria-disabled') === 'true' })));
+      await p.evaluate(`new Promise(resolve => {
         const panel = document.getElementById('menubar-panel');
         panel.addEventListener('toggle', function closed(event) {
           if (event.newState !== 'closed') return;
           panel.removeEventListener('toggle', closed);
           resolve();
         });
-        const title = [...document.querySelectorAll('.menubar-title')].find(b => /^Actions$/.test(b.textContent));
-        title.click();
-      }));
+        (${chatTitle})().click();
+      })`);
       return rows;
     }
-    async function checkCoverage(rows) {
-      const commands = await p.evaluate(() => {
-        const win = document.querySelector('.win[data-chat-current]');
-        return pudlCommands.list(win).filter(c => !c.hidden && pudlCommands.find(c.id, win).actions).map(c => c.label);
-      });
-      ok('every visible Actions command is exported from the table', commands.every(label => rows.some(row => row.includes(label))), JSON.stringify({ commands, rows }));
-    }
+    const usable = (rows, label) => rows.some(row => row.label === label && !row.greyed);
+    const greyed = (rows, label) => rows.some(row => row.label === label && row.greyed);
     const idleRows = await menuRows();
-    ok('at rest, the working commands are not there', !idleRows.some(x => /Drop the Queued|^Stop$/.test(x)));
-    await checkCoverage(idleRows);
+    ok('at rest, Stop and Drop the Queued Messages are greyed', greyed(idleRows, 'Stop') && greyed(idleRows, 'Drop the Queued Messages'), JSON.stringify(idleRows));
+    ok('the chat in front has its rows to use', usable(idleRows, 'Rename…') && usable(idleRows, 'Export…') && usable(idleRows, 'Delete…'), JSON.stringify(idleRows));
+    ok('the window adds no menu of its own', await p.evaluate(() => !document.querySelector('nav.menubar .menubar-front .menubar-title')));
     await info({ working: true, queued: [] });
-    ok('with the turn running, the menu offers Stop', (await menuRows()).some(x => /^Stop$/.test(x)), '');
+    ok('with the turn running, the menu offers Stop', usable(await menuRows(), 'Stop'), '');
     await info({ working: true, queued: ['What about the other file?'] });
     const queuedRows = await menuRows();
-    ok('a queue behind it adds Drop the Queued Messages', queuedRows.some(x => /Drop the Queued Messages/.test(x)), JSON.stringify(queuedRows));
-    await checkCoverage(queuedRows);
-    // Keep Actions open while the queue changes, and press the current row.
-    await p.evaluate(() => [...document.querySelectorAll('.menubar-title')].find(b => b.textContent.trim() === 'Actions').click());
-    await p.locator('#menubar-panel .menu-action').filter({ hasText: 'Drop the Queued Messages' }).click();
+    ok('a queue behind it offers Drop the Queued Messages', usable(queuedRows, 'Drop the Queued Messages'), JSON.stringify(queuedRows));
+    // Keep Chat open while the queue changes, and press the current row.
+    const dropRow = () => p.locator('#menubar-panel > .menu-action').filter({ hasText: 'Drop the Queued Messages' });
+    const dropGreyed = () => dropRow().evaluate(b => b.disabled || b.getAttribute('aria-disabled') === 'true');
+    await p.evaluate(`(${chatTitle})().click()`);
+    await dropRow().click();
     await p.waitForFunction(() => __calls.includes('Unqueue'));
     await p.waitForFunction(() => document.querySelector('.win[data-chat-current] [data-view-id="queue"]').hidden);
     await p.evaluate(() => dinahCommands.flush());
-    ok('the offered command drops the queued messages', (await menuRows()).every(row => !row.includes('Drop the Queued Messages')));
-    await p.evaluate(() => [...document.querySelectorAll('.menubar-title')].find(b => b.textContent.trim() === 'Actions').click());
+    ok('the offered command drops the queued messages', greyed(await menuRows(), 'Drop the Queued Messages'));
+    await p.evaluate(`(${chatTitle})().click()`);
+    await dropRow().waitFor();
     await info({ working: true, queued: ['A new queued message'] });
-    await p.locator('#menubar-panel .menu-action').filter({ hasText: 'Drop the Queued Messages' }).waitFor();
-    ok('an open Actions menu gains the queued command', true);
+    await p.waitForFunction(() => { const b = [...document.querySelectorAll('#menubar-panel > .menu-action')].find(b => /Drop the Queued Messages/.test(b.textContent)); return b && !b.disabled && b.getAttribute('aria-disabled') !== 'true'; });
+    ok('an open Chat menu offers the queued command', !(await dropGreyed()));
     await info({ working: true, queued: [] });
-    await p.locator('#menubar-panel .menu-action').filter({ hasText: 'Drop the Queued Messages' }).waitFor({ state: 'detached' });
-    ok('an open Actions menu removes the dropped command', true);
+    await p.waitForFunction(() => { const b = [...document.querySelectorAll('#menubar-panel > .menu-action')].find(b => /Drop the Queued Messages/.test(b.textContent)); return b && (b.disabled || b.getAttribute('aria-disabled') === 'true'); });
+    ok('an open Chat menu greys the dropped command', await dropGreyed());
     await p.keyboard.press('Escape');
     await info({ working: false, queued: [] });
     const clearedRows = await menuRows();
-    ok('sent or dropped, they go again', !clearedRows.some(x => /Drop the Queued Messages/.test(x)) && !clearedRows.some(x => /^Stop$/.test(x)), JSON.stringify(clearedRows.slice(0, 14)));
+    ok('sent or dropped, they are greyed again', greyed(clearedRows, 'Drop the Queued Messages') && greyed(clearedRows, 'Stop'), JSON.stringify(clearedRows.slice(0, 14)));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

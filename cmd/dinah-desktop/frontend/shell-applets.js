@@ -91,23 +91,15 @@
           el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', changed);
         });
         setState(opts.state);
+        /* The three panes add no menu to the bar, since the host's menus
+           have their commands (docs/design/menus.md): Workspace has the
+           workspace's, Chat has New Chat and the Broadcast rows, Window
+           has Go to the Question, and View, Refresh reads the Workspace
+           and Chats panes again (reload, below). Settings lists the
+           buttons of the section it shows. */
         function commands() {
-          if (kind === 'workspace') {
-            return ['new-workspace', 'new-empty-workspace', 'rename-workspace', 'refresh-workspace', 'remove-workspace'].map(function (name) {
-              var button = document.querySelector('#workspace-status-menu [data-cmd="' + CSS.escape(String(name)) + '"]');
-              return window.dinahCommands.describe(name, button.textContent);
-            });
-          }
-          // Notifications' window offers the next entry that needs the person.
-          if (kind === 'needs-you') {
-            var notices = window.dinahHost && window.dinahHost.notices;
-            return [{ label: 'Go to Next Notification', disabled: !notices || !notices.count().needsPerson, run: function () {
-              if (notices && notices.count().needsPerson) window.dinahCommands.run('next-notification');
-            } }];
-          }
-          var controls = kind === 'chat-browser' ?
-            Array.from(content.querySelectorAll('button[data-cmd]')) : kind === 'settings' ?
-            Array.from(content.querySelector('#settings-' + settingsSection).querySelectorAll('button:not([role="radio"])')) : [];
+          if (kind !== 'settings') return [];
+          var controls = Array.from(content.querySelector('#settings-' + settingsSection).querySelectorAll('button:not([role="radio"])'));
           var commands = controls.map(function (button) {
             var label = button.textContent.trim();
             if (button.dataset.open === 'model-prefs') label = button.closest('#defaults') ? 'Choose Default Model…' : 'Choose Favorite Models…';
@@ -122,14 +114,11 @@
             }
             return button.dataset.cmd ? window.dinahCommands.describe(button.dataset.cmd, label) : { label: label, disabled: button.disabled || button.getAttribute('aria-disabled') === 'true', run: function () { button.click(); } };
           });
-          function hostCommand(label, cmd) { commands.push(window.dinahCommands.describe(cmd, label)); }
-          // Broadcast is a command about chats, and its row is here since
-          // View stopped holding commands that do something (docs/design/menus.md).
-          if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Clean Up Chats', 'clean-up-chats'); hostCommand('Broadcast to Active…', 'broadcast-active'); hostCommand('Broadcast to All…', 'broadcast-all'); }
           // A button with no words, such as a colour swatch, is no command.
           return commands.filter(function (command) { return command && command.label; });
         }
-        return { state: state, setState: setState, commands: commands, destroy: function () {
+        var reload = { workspace: 'refresh-workspace', 'chat-browser': 'refresh-sessions' }[kind];
+        return { state: state, setState: setState, commands: commands, reload: reload ? function () { window.dinahCommands.run(reload); } : undefined, destroy: function () {
           if (kind === 'settings') {
             content.removeEventListener('click', settingsClick);
             document.dispatchEvent(new CustomEvent('dinah:settings-section', { detail: { section: '' } }));

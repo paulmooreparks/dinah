@@ -233,7 +233,7 @@ const { launch } = require('./lib/page');
     ok('Remove From Group… asks, then takes the chat out', true);
 
     // The group's menu has Delete Group… and no Leave.
-    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+    await p.locator('[data-menubar] .menubar-front .menubar-title').filter({ hasText: /^Group Chat$/ }).click();
     const groupActions = await p.locator('#menubar-panel .menu-action').allInnerTexts();
     ok('the group\'s menu has Delete Group… and no Leave', groupActions.some(a => /Delete Group…/.test(a)) && !groupActions.some(a => /Leave/.test(a)), JSON.stringify(groupActions));
     await p.locator('#menubar-panel').getByText('Delete Group…').click();
@@ -277,22 +277,22 @@ const { launch } = require('./lib/page');
     await p.locator('.win[data-win-kind="bus-room"] .win-title', { hasText: 'Parser Release and Lexer Work' }).waitFor();
     ok('the group\'s window opens and the picker closes', await p.locator('.win[data-win-kind="group-picker"]').count() === 0);
 
-    // A chat window's Actions menu starts a group and adds the chat to one.
+    // The host's Chat menu starts a group with the chat in front and adds it to one.
     await p.evaluate(() => window.dinahChats.open('chat-parser'));
     await p.locator('.win.active[data-win-kind="chat-session"] .win-title', { hasText: 'Parser Release' }).waitFor();
-    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
     const chatActions = await p.locator('#menubar-panel .menu-action').allInnerTexts();
     const at = label => chatActions.findIndex(a => a.includes(label));
-    ok('a chat\'s Actions menu has Start a Group Chat… and Add to a Group Chat… after Pin to Workspace', at('Pin to Workspace') >= 0 && at('Start a Group Chat…') === at('Pin to Workspace') + 1 && at('Add to a Group Chat…') === at('Start a Group Chat…') + 1, JSON.stringify(chatActions));
-    await p.locator('#menubar-panel').getByText('Add to a Group Chat…').click();
+    ok("the Chat menu has Start a Group Chat… and Add to a Group Chat together, after the chat's own rows", at('Pin to Workspace') >= 0 && at('Start a Group Chat…') > at('Pin to Workspace') && at('Add to a Group Chat') === at('Start a Group Chat…') + 1, JSON.stringify(chatActions));
+    await p.locator('#menubar-panel > .menu-action').filter({ hasText: /^Add to a Group Chat/ }).click();
     const sub = p.locator('#menubar-sub');
     await sub.locator('.menu-action').first().waitFor();
     const subRows = await sub.locator('.menu-action').allInnerTexts();
-    ok('Add to a Group Chat… lists the groups the chat is not in, with New Group Chat… at its foot', subRows.length === 2 && /Docs Review/.test(subRows[0]) && /New Group Chat…/.test(subRows[1]), JSON.stringify(subRows));
+    ok('Add to a Group Chat lists the groups the chat is not in, with New Group Chat… at its foot', subRows.length === 2 && /Docs Review/.test(subRows[0]) && /New Group Chat…/.test(subRows[1]), JSON.stringify(subRows));
     await sub.getByText('Docs Review').click();
     await p.waitForFunction(() => __calls.some(c => c[0] === 'add'));
     ok('choosing a group puts the chat in it', await p.evaluate(() => JSON.stringify(__calls.find(c => c[0] === 'add'))) === JSON.stringify(['add', 'docs-review', [{ id: 'chat-parser', cwd: 'C:/Work/parser', title: 'Parser Release' }]]));
-    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
     await p.locator('#menubar-panel').getByText('Start a Group Chat…').click();
     const fromChat = p.locator('.win[data-win-kind="group-picker"]');
     await fromChat.locator('[data-chat="chat-parser"]').waitFor();

@@ -118,12 +118,12 @@ const { choose } = require('./lib/commands');
       const c = window.__calls.filter(c => c[0] === 'send' && c[1] === 'Second').pop(), atts = c[3] || [];
       return atts.some(a => a.kind === 'draft' && a.draftId === 'ab'.repeat(16)) && atts.some(a => a.kind === 'resource' && a.ref.path === 'review/findings.md');
     }));
-    // Renaming a chat renames its menu in the host bar.
+    // Renaming a chat renames it in the Window menu's list. The bar has no menu named for a chat (docs/design/menus.md).
     await p.keyboard.press('F2');
     await p.locator('.chat-rename-dialog input.session-rename').fill('Note 08 Research');
     await p.locator('.chat-rename-dialog input.session-rename').press('Enter');
-    await p.waitForFunction(() => [...document.querySelectorAll('[data-menubar] button, [data-menubar] [role="menuitem"]')].some(b => b.textContent.trim() === 'Note 08 Research'));
-    ok('renaming a chat renames its menu in the host bar', true);
+    await p.waitForFunction(() => [...document.querySelectorAll('#host-windows button')].some(b => / Note 08 Research$/.test(b.textContent.trim())));
+    ok('renaming a chat renames it in the Window menu', true);
     // New Chat asks which workspace it belongs to when more than one is
     // configured, defaulting to the one in front (chat-workspaces-and-switching
     // .md, New Chat's Workspace).

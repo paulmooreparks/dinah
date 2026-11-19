@@ -148,7 +148,7 @@ const { launch, PAGE } = require('./lib/page');
 
     // A deleted group's draft goes with it.
     await page.evaluate(() => { window.go.main.App.BusDeleteGroup = async key => { __calls.push(['delete', key]); }; });
-    await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+    await page.locator('[data-menubar] .menubar-front .menubar-title').filter({ hasText: /^Group Chat$/ }).click();
     await page.locator('#menubar-panel').getByText('Delete Group…').click();
     await page.locator('#ask-yes').click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'delete'));

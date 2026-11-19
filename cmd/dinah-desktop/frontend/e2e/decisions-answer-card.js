@@ -25,15 +25,15 @@ const { start, origin, entry, deliver } = require('./lib/decision-answer-fixture
     await p.goto('http://dinah.test/index.html' + address); await p.locator('.decisions-record').waitFor();
     await p.waitForFunction(() => document.querySelector('.decisions-record').textContent.includes('This request is closed.'));
     ok('the original request is addressable after reload', true);
-    await p.evaluate(() => { __answerRecord.closed = false; }); await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Actions$/ }).click(); await p.locator('#menubar-panel').getByText('Refresh Requests', { exact: true }).click();
+    await p.evaluate(() => { __answerRecord.closed = false; }); await p.keyboard.press('F5');
     await p.waitForFunction(() => document.querySelector('.decisions-record').textContent.includes('still open'));
     ok('an open request lookup also stays read-only', await p.locator('.decisions-record').getByRole('button', { name: 'Send', exact: true }).count() === 0);
-    await p.evaluate(() => { __failAnswerRead = true; }); await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Actions$/ }).click(); await p.locator('#menubar-panel').getByText('Refresh Requests', { exact: true }).click();
+    await p.evaluate(() => { __failAnswerRead = true; }); await p.keyboard.press('F5');
     await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
     ok('a missing request explains that the answer remains in the transcript', (await p.locator('.decisions-record').innerText()).includes('You can still read its answer in the chat.'));
     await p.evaluate(() => { __failAnswerRead = false; }); await p.getByRole('button', { name: 'Try Again', exact: true }).click();
     await p.waitForFunction(() => document.querySelector('.decisions-record').textContent.includes('still open'));
-    await p.evaluate(() => { __answerRecord.readOnly = false; }); await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Actions$/ }).click(); await p.locator('#menubar-panel').getByText('Refresh Requests', { exact: true }).click();
+    await p.evaluate(() => { __answerRecord.readOnly = false; }); await p.keyboard.press('F5');
     await p.getByRole('button', { name: 'Try Again', exact: true }).waitFor();
     ok('a malformed lookup never exposes editable fields', await p.locator('.decisions-record textarea,.decisions-record input').count() === 0 && (await p.locator('.decisions-record').innerText()).includes('response is invalid'));
     await p.evaluate(() => { __answerRecord.readOnly = true; __holdAnswerRead = true; }); await p.getByRole('button', { name: 'Try Again', exact: true }).click();

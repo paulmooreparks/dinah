@@ -76,7 +76,8 @@
     function setState(value) { try { var saved=JSON.parse(value||'{}'); scope=['all','mine','current','workspace','provider'].includes(saved.scope)?saved.scope:'all'; query=saved.query||''; selected=saved.selected||''; } catch (_) {} filter.value=query; select.value=scope; draw(); }
     function updateWorkspace() { app().State().then(function(value){if(!disposed){currentWorkspace=value.workspace;draw();}}).catch(error); }
     setState(opts.state); var stop=subscribe(draw), stopResources=dinahResources.subscribe(updateWorkspace), stopObserve=observe(root); updateWorkspace(); refresh().then(draw).catch(error);
-    return {state:state,setState:setState,commands:function () { return [{label:'Refresh Skills',run:refresh}]; },destroy:function () { disposed=true; stop(); stopResources(); stopObserve(); }};
+    // View, Refresh reads the skills again (workbench.js, reloadOf).
+    return {state:state,setState:setState,reload:function () { refresh().catch(error); },destroy:function () { disposed=true; stop(); stopResources(); stopObserve(); }};
   }});
 
   /* ---- The parameter designer ------------------------------------------

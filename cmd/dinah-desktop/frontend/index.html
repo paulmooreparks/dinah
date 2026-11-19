@@ -218,22 +218,35 @@
         <!-- Each title and row has its access letter (data-mnemonic); PUDL
              underlines it and runs the row. -->
         <li data-menubar-id="site" data-mnemonic="N"><img src="product-mark.svg" alt="" width="20" height="20"><span data-product-name>Dinah</span></li>
-        <li data-menubar-id="workspace" data-mnemonic="O" data-menu-glyph="folder">Workspaces
+        <!-- Chat and Workspace stand where File stands in other programs:
+             the host has no File, since a file is only ever in an
+             application's window (docs/design/menus.md). Chat's rows are
+             the registry's (commands.js), and those that need a chat are
+             greyed while none is in front. -->
+        <li data-menubar-id="chat" data-mnemonic="C" data-menu-glyph="comments">Chat<ul data-command-menu="chat"></ul></li>
+        <!-- The words of a Workspace row are written here where the registry's
+             label ends in the menu's own name ("Rename Workspace…"). -->
+        <li data-menubar-id="workspace" data-mnemonic="O" data-menu-glyph="folder">Workspace
           <ul data-command-menu="workspace">
-            <li><button type="button" data-cmd="new-chat" data-mnemonic="N" data-menu-glyph="comments" data-command-label></button></li>
-            <li>-</li>
             <li><button type="button" data-cmd="new-workspace" data-mnemonic="W" data-menu-glyph="folder" data-command-label></button></li>
             <li><button type="button" data-cmd="new-empty-workspace" data-mnemonic="E" data-command-label></button></li>
-            <li><button type="button" data-cmd="rename-workspace" data-mnemonic="R" disabled data-command-label></button></li>
-            <li><button type="button" data-cmd="export-workspace" data-mnemonic="X" disabled data-command-label></button></li>
-            <li><button type="button" data-cmd="import-workspace" data-mnemonic="I" data-command-label></button></li>
-            <li><button type="button" data-cmd="refresh-workspace" data-mnemonic="F" disabled data-command-label></button></li>
+            <li>-</li>
+            <li data-mnemonic="S">Switch To
+              <ul data-recent-menu data-menu-radio><li><button type="button" disabled>None yet</button></li></ul></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="rename-workspace" data-mnemonic="R" disabled>Rename…</button></li>
+            <li><button type="button" data-cmd="refresh-workspace" data-mnemonic="F" disabled>Refresh</button></li>
+            <li><button type="button" data-cmd="add-workspace-source" data-mnemonic="A" disabled data-command-label></button></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="import-workspace" data-mnemonic="I">Import…</button></li>
+            <li><button type="button" data-cmd="export-workspace" data-mnemonic="X" disabled>Export…</button></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="workspace-section-up" data-mnemonic="U" disabled data-command-label></button></li>
+            <li><button type="button" data-cmd="workspace-section-down" data-mnemonic="D" disabled data-command-label></button></li>
+            <li><button type="button" data-cmd="workspace-sections-reorder" data-mnemonic="O" disabled data-command-label></button></li>
             <li data-commands></li>
             <li>-</li>
-            <li><button type="button" data-cmd="remove-workspace" data-mnemonic="M" data-menu-danger disabled data-command-label></button></li>
-            <li>-</li>
-            <li data-mnemonic="C">Recent Workspaces
-              <ul data-recent-menu data-menu-radio><li><button type="button" disabled>None yet</button></li></ul></li>
+            <li><button type="button" data-cmd="remove-workspace" data-mnemonic="M" data-menu-danger disabled>Remove…</button></li>
           </ul></li>
         <!-- Documents, and the rows after a list's data-commands marker, are
              drawn from the command registry (commands.js, documents.js). -->
@@ -241,8 +254,8 @@
         <!-- View shows and hides, and starts nothing (docs/design/menus.md):
              the panes under their heading, the two display switches, and
              the colours. The registry's rows of the group "panes" follow
-             the panes written here, and its other View rows follow the
-             agent's thinking. The comment stands outside the item, since
+             the panes written here, and its other View rows, Refresh and
+             Full Screen, follow the agent's thinking. The comment stands outside the item, since
              PUDL reads everything in an item before its list as its title. -->
         <li data-menubar-id="view" data-mnemonic="V" data-menu-glyph="eye">View
           <ul data-command-menu="view">
@@ -254,6 +267,7 @@
             <li data-commands="panes"></li>
             <li>-</li>
             <li><button type="button" data-cmd="thoughts" data-mnemonic="T" aria-checked="false" data-command-label></button></li>
+            <li>-</li>
             <li data-commands></li>
             <li>-</li>
             <li data-mnemonic="L">Color Mode
@@ -666,9 +680,9 @@
       <h3>Decisions</h3>
       <p>Open Decisions from the launcher or its count in the status bar to find questions that need your answer. Each question shows the asking chat, the destination of your reply and the chat's recommendation. Write an answer or choose As recommended, then press Send; choosing a recommendation alone sends nothing. Your draft stays with the request when you close the window or reload, and you can answer some questions while leaving the others open.</p>
       <h3>Clean Up Chats</h3>
-      <p>Choose Clean Up Chats above the Chats list or in the chat's Actions menu to review chats across workspaces. Filter the list, select the chats you no longer need and choose Delete Chats. Deleted chats receive no further messages and stay in the Recycle Bin for 30 days, where you can restore them as closed chats or delete them permanently. The Recycle Bin explains whether an agent program still has a loaded chat and what will happen to its own history at final deletion.</p>
+      <p>Choose Clean Up Chats above the Chats list or in the launcher to review chats across workspaces. Filter the list, select the chats you no longer need and choose Delete Chats. Deleted chats receive no further messages and stay in the Recycle Bin for 30 days, where you can restore them as closed chats or delete them permanently. The Recycle Bin explains whether an agent program still has a loaded chat and what will happen to its own history at final deletion.</p>
       <h3>Broadcast</h3>
-      <p>Choose Broadcast to Active or Broadcast to All in the Actions menu of the Chats pane to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
+      <p>Choose Broadcast to Active or Broadcast to All in the Chat menu to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
       <h3>Pause Chats and Restart</h3>
       <p>Choose Pause Chats and Restart in the application menu to ask working chats whose agents accept input during a turn to pause. The program waits for other working chats to finish. After restarting, the program tells the chats from before the restart to carry on. If a chat cannot reopen, including one whose first turn was cut short, Notifications lists it for you to open. You can restart the current program without an update waiting; when a newer build is installed, the restart uses it. If chats have not paused after two minutes, Notifications shows which ones are still working and offers Restart Now or Cancel the Restart. Restart Now can cut their turns short, while cancelling tells paused chats to carry on.</p>
       <h3>Kept Attention Cards</h3>

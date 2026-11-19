@@ -3371,7 +3371,6 @@
         { label: 'Steer the Turn Under Way', key: 'Ctrl+Shift+Enter' },
         { label: 'Stop the Turn Under Way', key: 'Esc' },
         { label: 'An Earlier or Later Prompt, From the First or Last Line', key: 'Up / Down' },
-        { label: 'Rename Chat…', key: 'F2' },
         { where: 'Rename Box', label: 'Keep or Drop the New Name', key: 'Enter / Esc' },
         { where: 'Skills and @ List', label: 'Choose', key: 'Up / Down, then Enter or Tab' },
         { where: 'Skills and @ List', label: 'Close the List', key: 'Esc' },
@@ -3838,7 +3837,8 @@
         var pin = active && sameWs(workspace) && window.dinahPins && window.dinahPins.command(chatPin(active));
         return [
           { id: 'new-chat', actions: true, label: 'New Chat', run: startNewChat, disabled: !workspace, reason: workspace ? null : 'Open a workspace first.' },
-          { id: 'rename-chat', actions: true, label: 'Rename Chat…', run: function () { if (active) startRename(active, 'head'); }, disabled: !active, shortcut: 'F2' },
+          // F2 is the key of the host's Chat menu row for this command (commands.js).
+          { id: 'rename-chat', actions: true, label: 'Rename Chat…', run: function () { if (active) startRename(active, 'head'); }, disabled: !active },
           // A continuation into another workspace (switch.go): confirmed first,
           // visibly in progress while it runs, unchanged where it fails.
           { id: 'continue-workspace', actions: true, label: 'Continue in Another Workspace…', detail: 'A new chat with the same provider in the workspace you choose; this one stays as it is', disabled: !active || !app().ContinueSessionInWorkspace, reason: 'The chat starts with its first message.', run: continueInWorkspace },
@@ -3984,8 +3984,24 @@
           controller.refresh();
         },
         focus: function () { if (teamPanel.isPending()) teamPanel.focus(); else $('prompt').focus(); },
-        // The window's Actions menu, by the ids of the chat's commands.
-        commands: function () { return chatCommandTable().filter(function (command) { return command.actions; }).map(function (command) { return command.id; }); },
+        /* A chat's window adds no menu of its own: its commands are the rows
+           of the host's Chat menu (commands.js), which finds them here by
+           their ids while this chat is in front. The level of effort is a
+           panel in the chat's own bar and a list of rows in the menu. */
+        commands: function () { return []; },
+        menuCommands: function () {
+          return chatCommandTable().map(function (command) {
+            if (command.id !== 'effort') return command;
+            var offered = effortOptions(), items = [];
+            offered.forEach(function (option) {
+              if (offered.length > 1) items.push({ heading: option.name });
+              optValues(option).forEach(function (v) {
+                items.push({ id: 'effort-' + option.id + '-' + v.value, label: v.name, checked: v.value === option.currentValue, run: function () { return chooseEffort(option, v.value); } });
+              });
+            });
+            return Object.assign({}, command, { items: items });
+          });
+        },
         destroy: function () {
           switchEpoch++;
           if (cancelSwitchDialog) cancelSwitchDialog();
@@ -4224,6 +4240,8 @@
     return {
       commandEnabled: id => !!currentChat()?.commandEnabled(id),
       ensure: ensureChat, current: currentChat, active: () => active,
+      // The chat whose window is in front and not minimized, for the Chat menu.
+      front: () => { const st = window.pudlWindows && window.pudlWindows.state(); return st && st.top && !st.min[st.top] ? frontChat() || null : null; },
       providerName, frontProvider, defaultProvider: () => defaultProvider,
       chatWorking, backgroundWork, earlierSubagents,
       show, showChat, openSession, openSavedRecovery, reconnectChat, startNewChat, restartAgent, signIn: signInChatInFront,

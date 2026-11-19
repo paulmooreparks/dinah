@@ -1,7 +1,10 @@
-// The host's menus after their first tidy (docs/design/menus.md): View shows
-// and hides and starts nothing, the commands that left it have a row
-// elsewhere, the themes are a set with one mark, and the launcher lists no
-// commands.
+// The host's menus after the first two steps of their design
+// (docs/design/menus.md): the bar reads Chat, Workspace, Documents, View,
+// Window, Help; Chat has the commands of the chat in front and greys them
+// when none is; View shows and hides and starts nothing; Window has the
+// window commands once, Close among them; the themes are a set with one
+// mark; the launcher lists no commands; and a window adds one menu with
+// its kind's name, or none.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch(); const p = t.page;
@@ -20,17 +23,17 @@ const { launch } = require('./lib/page');
     const view = await rows('[data-command-menu="view"]');
     t.ok('View begins with the six panes under their heading', view.slice(0, 8).join('|') === '[Panes]|Workspace|Chats|In Progress|Skills|Notifications|Group Chats|-');
     // Full Screen is the native window's, which this page stands in for without.
-    t.ok('View then has the display switches and the colours', view.slice(8).filter((r) => r !== 'Full Screen').join('|') === 'Show the Agent\'s Thinking|-|Color Mode >|Themes >|Skin >');
+    t.ok('View then has the display switch, Refresh and the colours', view.slice(8).filter((r) => r !== 'Full Screen').join('|') === 'Show the Agent\'s Thinking|-|Refresh|-|Color Mode >|Themes >|Skin >', view.slice(8).join('|'));
     t.ok('View holds no command that starts or does something', !view.some((r) => /Decisions|Org Chart|Clean Up|Broadcast|Find and Open|Commands|Go to/.test(r)));
     const documents = await rows('[data-command-menu="documents"]');
     t.ok('Documents has Find and Open after Open, and no In Progress', documents.join('|').startsWith('New Document|Open…|Find and Open…') && !documents.includes('In Progress'));
     const help = await rows('[data-command-menu="help"]');
     t.ok('Help has Commands after its help rows', help.join('|') === 'Keyboard Shortcuts|Working with Chats|Commands…|-|About Dinah');
     const win = await rows('#host-windows');
-    const at = win.indexOf('Previous Window');
-    t.ok('Window has the two Go to rows after Previous Window', at >= 0 && win[at + 1] === 'Go to the Question' && win[at + 2] === 'Go to the Chat' && win[at + 3] === '-');
+    const at = win.indexOf('Next Window');
+    t.ok('Window moves between windows, then documents, then has the two Go to rows', at >= 0 && win.slice(at, at + 7).join('|') === 'Next Window|Previous Window|Next Document|Previous Document|Go to the Question|Go to the Chat|-', win.join('|'));
     const workspaces = await rows('[data-command-menu="workspace"]');
-    t.ok('Workspaces has Refresh Workspace and Remove Workspace', workspaces.includes('Refresh Workspace') && workspaces.join('|').includes('-|Remove Workspace…|-|Recent Workspaces >'));
+    t.ok('Workspace begins with New Workspace and ends with Remove', workspaces.join('|') === 'New Workspace…|New Empty Workspace|-|Switch To >|-|Rename…|Refresh|Add a Source…|-|Import…|Export…|-|Move Section Up|Move Section Down|Reorder Sections|-|Remove…', workspaces.join('|'));
     t.ok('Remove Workspace is marked dangerous', await p.locator('[data-command-menu="workspace"] [data-cmd="remove-workspace"][data-menu-danger]').count() === 1);
     // The themes: one mark among them, a heading in place of "(built in)".
     const themes = await p.evaluate(() => {
@@ -48,7 +51,7 @@ const { launch } = require('./lib/page');
     }));
     t.ok('Commands files chat commands under Chat and tools under Tools', await p.evaluate(() => {
       const all = window.dinahCommands.searchable(), menu = (label) => (all.find((c) => c.label === label) || {}).menu;
-      return menu('Rename Chat…') === 'Chat' && menu('Delete Chat…') === 'Chat' && menu('Org Chart') === 'Tools' && menu('Clean Up Chats') === 'Tools' && menu('Remove Workspace…') === 'Workspaces' && menu('Notifications') === 'View';
+      return menu('Rename Chat…') === 'Chat' && menu('Delete Chat…') === 'Chat' && menu('Org Chart') === 'Tools' && menu('Clean Up Chats') === 'Tools' && menu('Remove Workspace…') === 'Workspace' && menu('Notifications') === 'View';
     }));
     // The launcher lists no commands.
     const launcher = await p.evaluate(() => ({
@@ -69,13 +72,63 @@ const { launch } = require('./lib/page');
     t.ok('Files is with the document applications', cats.documents.split('|').includes('Files') && cats.documents.split('|').includes('Docs'), cats.documents);
     t.ok('an empty category is not listed', cats.listed === '|documents|chats|panes|terminals|settings', cats.listed);
     t.ok('the way out is called Exit', await p.evaluate(() => document.querySelector('#dinah-launcher [data-cmd="quit"]').textContent.trim() === 'Exit Dinah' && window.dinahCommands.describe('quit').label === 'Exit Dinah'));
-    // The Chats pane's own menu has Broadcast.
+    // The bar: Chat and Workspace stand first, and nothing is in front.
+    const titles = () => p.evaluate(() => Array.from(document.querySelectorAll('nav.menubar .menubar-title')).map((b) => b.textContent.trim()).filter(Boolean).join('|'));
+    const frontTitles = () => p.evaluate(() => Array.from(document.querySelectorAll('nav.menubar .menubar-front .menubar-title')).map((b) => b.textContent.trim()).filter(Boolean).join('|'));
+    const state = (menu) => p.evaluate((menu) => Array.from(document.querySelectorAll('[data-command-menu="' + menu + '"] > li > button')).map((b) => ({ label: b.textContent.trim(), greyed: b.disabled, reason: b.dataset.menuReason || '', key: b.dataset.shortcut || '' })), menu);
+    const settled = () => p.evaluate(() => new Promise((resolve) => { window.dinahCommands.flush(); setTimeout(resolve, 60); }));
+    t.ok('the bar reads Chat, Workspace, Documents, View, Window, Help', (await titles()) === 'Dinah|Chat|Workspace|Documents|View|Window|Help', await titles());
+    // Chat with no chat in front: its rows are all there, and those that need a chat are greyed with the reason.
+    const chat = await rows('[data-command-menu="chat"]');
+    t.ok('Chat has its rows in order', chat.join('|') === 'New Chat|New Group Chat…|-|Rename…|Continue in Another Workspace…|Pin to Workspace|-|Provider|Mode|Model|Effort|-|Start a Group Chat…|Add to a Group Chat|Team|-|Prompt History…|My Templates…|Export…|Show the Chat Log|Show Failed Command Summaries|Subagents|-|Ask Me Again About a Full Context|Load Full History|Drop the Queued Messages|-|Stop|Restart the Agent|-|Delete…', chat.join('|'));
+    const idle = await state('chat');
+    const needy = ['Rename…', 'Continue in Another Workspace…', 'Provider', 'Model', 'Export…', 'Stop', 'Delete…'];
+    t.ok('the rows that need a chat are greyed and say why', needy.every((label) => idle.some((r) => r.label === label && r.greyed && r.reason === 'No chat is in front.')), JSON.stringify(idle.filter((r) => needy.includes(r.label))));
+    t.ok('the rows for chats as a whole are not greyed', ['New Chat', 'New Group Chat…', 'Prompt History…', 'My Templates…', 'Restart the Agent'].every((label) => idle.some((r) => r.label === label && !r.greyed)));
+    t.ok('New Chat has Ctrl+N and Rename has F2', idle.some((r) => r.label === 'New Chat' && r.key === 'Mod+N') && idle.some((r) => r.label === 'Rename…' && r.key === 'F2'));
+    t.ok('Commands lists a chat command by its full name', await p.evaluate(() => window.dinahCommands.searchable().some((c) => c.label === 'Rename Chat…' && c.menu === 'Chat' && c.shortcut === 'F2' && !c.enabled && c.reason === 'No chat is in front.')));
+    // Ctrl+N starts a chat, and with it in front the provider is offered as a set with one mark.
+    await p.keyboard.press('Control+n');
+    await p.waitForFunction(() => window.pudlWindows.state().top === 'chat');
+    await settled();
+    t.ok('a chat window adds no menu of its own', (await frontTitles()) === '', await frontTitles());
+    const provider = await p.evaluate(() => { const li = Array.from(document.querySelectorAll('[data-command-menu="chat"] > li')).find((li) => li.querySelector(':scope > ul') && /^Provider/.test(li.textContent.trim())); const ul = li && li.querySelector(':scope > ul'); return ul ? { radio: ul.hasAttribute('data-menu-radio'), on: ul.querySelectorAll('button[aria-checked="true"]').length } : null; });
+    t.ok('with a chat in front, Provider is a set with one mark', !!provider && provider.radio && provider.on === 1, JSON.stringify(provider));
+    t.ok('a chat that has not started says so on its rows', (await state('chat')).some((r) => r.label === 'Rename…' && r.greyed && r.reason === 'The chat starts with its first message.'));
+    // Window has the commands for the window in front once, with Close last of them.
+    const withChat = await rows('#host-windows');
+    const close = withChat.indexOf('Close');
+    t.ok('Close ends the block of commands for the window in front', close > 0 && withChat[close + 1] === '-' && withChat[close + 2] === 'Next Window' && withChat.slice(0, close).every((r) => r !== '-'), withChat.slice(0, close + 3).join('|'));
+    // The panes add no menu, and View, Refresh reads a list again where the window in front has one.
+    const refresh = async () => (await state('view')).find((r) => r.label === 'Refresh');
+    t.ok('Refresh is greyed over a chat and says why', (await refresh()).greyed && (await refresh()).reason === 'Nothing in front is a list that can be read again.' && (await refresh()).key === 'F5');
+    for (const pane of ['chat-browser', 'workspace', 'needs-you', 'in-progress', 'skills-browser']) {
+      await p.evaluate((pane) => window.dinahWorkbench.open(pane), pane);
+      await p.waitForFunction((pane) => window.pudlWindows.state().top === pane, pane);
+      await settled();
+      t.ok('the ' + pane + ' pane adds no menu', (await frontTitles()) === '', await frontTitles());
+      t.ok('Refresh is ' + (pane === 'needs-you' ? 'greyed' : 'offered') + ' over the ' + pane + ' pane', (await refresh()).greyed === (pane === 'needs-you'));
+    }
     await p.evaluate(() => window.dinahWorkbench.open('chat-browser'));
-    await p.waitForFunction(() => Array.from(document.querySelectorAll('nav.menubar .menubar-front .menubar-title')).some((b) => b.textContent.trim() === 'Actions'));
-    await p.locator('nav.menubar .menubar-front .menubar-title', { hasText: 'Actions' }).click();
-    const actions = await p.evaluate(() => Array.from(document.querySelectorAll('#menubar-panel > .menu-action .menubar-words')).map((w) => w.textContent.trim()));
-    t.ok('the Chats pane\'s Actions has the two Broadcast rows', actions.includes('Broadcast to Active…') && actions.includes('Broadcast to All…'));
+    await p.waitForFunction(() => window.pudlWindows.state().top === 'chat-browser');
+    await settled();
+    const asked = (await t.calls('DeclaredProviders')).length;
+    await p.keyboard.press('F5');
+    await p.waitForFunction((n) => window.__bridgeCalls.filter((c) => c[0] === 'DeclaredProviders').length > n, asked);
+    t.ok('F5 reads the chats again over the Chats pane', true);
+    // A tool's one menu has its kind's name, and no menu is called Actions.
+    await p.evaluate(() => window.dinahWorkbench.open('bus'));
+    await p.waitForFunction(() => window.pudlWindows.state().top === 'bus');
+    await settled();
+    t.ok('Group Chats adds one menu with its name', (await frontTitles()) === 'Group Chats', await frontTitles());
+    await p.locator('nav.menubar .menubar-front .menubar-title', { hasText: 'Group Chats' }).click();
+    const own = await p.evaluate(() => Array.from(document.querySelectorAll('#menubar-panel > .menu-action .menubar-words')).map((w) => w.textContent.trim()));
+    t.ok('its menu has its own commands and no window commands', own.includes('New Message…') && own.includes('Trust a Link…') && !own.includes('New Group Chat…') && !own.some((l) => /^(Close|Dock|Minimize|Pin to taskbar)/.test(l)), own.join('|'));
     await p.keyboard.press('Escape');
+    await p.evaluate(() => window.dinahCommands.run('own-shell'));
+    await p.waitForFunction(() => Array.from(document.querySelectorAll('nav.menubar .menubar-front .menubar-title')).some((b) => b.textContent.trim() === 'Terminal'));
+    t.ok('a Terminal adds one menu called Terminal', (await frontTitles()) === 'Terminal', await frontTitles());
+    t.ok('no menu is called Actions', !(await titles()).split('|').includes('Actions'));
     await t.shot('host-menus-order');
   } finally { await t.close(); }
 })();

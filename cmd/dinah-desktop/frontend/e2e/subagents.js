@@ -2,7 +2,7 @@
 // where the agent handed work to one, kept current; the Subagents chip; the
 // Subagents menu button in the composer, absent until a subagent starts,
 // with its count, its menu of subagents and Show All Subagents, the same
-// submenu under Actions, and its folding in a narrow window; the
+// flyout in the Chat menu, and its folding in a narrow window; the
 // tree of the chat's subagents with nesting, states and Stop where the
 // agent allows it; one subagent's work, read-only and live; the
 // disconnected state; a subagent's question in its chat; and the subagents
@@ -67,12 +67,12 @@ const { launch } = require('./lib/page');
   await p.waitForTimeout(200);
 
   // The Subagents menu button in the composer's Turn group, and the same
-  // menu under the window's Actions.
+  // menu as a row of the host's Chat menu.
   const button = win + ' .composer-toolbar [data-command=subagents]';
   const control = () => p.evaluate(sel => { const b = document.querySelector(sel); return b ? { shown: !b.hidden && b.offsetParent !== null, text: b.textContent, name: b.getAttribute('aria-label'), group: b.closest('.toolbar-group').getAttribute('data-toolbar-group') } : null; }, button);
   const actionsRows = async () => {
-    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
-    const rows = await p.locator('#menubar-panel .menu-action').allInnerTexts();
+    await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
+    const rows = await p.evaluate(() => Array.from(document.querySelectorAll('#menubar-panel > .menu-action')).map(b => ({ label: (b.querySelector('.menubar-words') || b).textContent.trim(), greyed: b.disabled || b.getAttribute('aria-disabled') === 'true' })));
     await p.keyboard.press('Escape');
     return rows;
   };
@@ -83,7 +83,7 @@ const { launch } = require('./lib/page');
   let ctl = await control();
   ok('the Subagents button is absent while the chat has no subagents', ctl && !ctl.shown, JSON.stringify(ctl));
   let actions = await actionsRows();
-  ok('so is the Subagents submenu under Actions', actions.length > 0 && !actions.some(a => /Subagents/.test(a)), JSON.stringify(actions));
+  ok('and the Subagents row of the Chat menu is greyed', actions.some(a => a.label === 'Subagents' && a.greyed) && !actions.some(a => /Show All Subagents/.test(a.label)), JSON.stringify(actions));
 
   // The agent hands work to a subagent, which hands some to another.
   await sub('a');
@@ -117,8 +117,8 @@ const { launch } = require('./lib/page');
   await p.keyboard.press('Escape');
   ok('the menu works with the menu keys', /Explore|Verify/.test(focused) && !(await p.evaluate(panel => document.querySelector(panel).matches(':popover-open'), panel)), focused);
   actions = await actionsRows();
-  ok('Actions has the Subagents submenu while the chat has subagents', actions.some(a => /^Subagents/.test(a)) && !actions.some(a => /Show All Subagents/.test(a)), JSON.stringify(actions));
-  await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+  ok('the Chat menu offers Subagents while the chat has subagents', actions.some(a => a.label === 'Subagents' && !a.greyed) && !actions.some(a => /Show All Subagents/.test(a.label)), JSON.stringify(actions));
+  await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
   await p.locator('#menubar-panel .menu-action').filter({ hasText: /^Subagents/ }).click();
   await p.waitForSelector('#menubar-sub:popover-open');
   const subRows = await p.locator('#menubar-sub .menu-action').allInnerTexts();
@@ -350,13 +350,13 @@ const { launch } = require('./lib/page');
   ok('the Subagents menu lists only this run\'s subagents, with Earlier Subagents… at its foot',
     menu.filter(m => m !== '-').map(m => m.label).join('|') === 'Survey|Explore|Verify|Lint|Show All Subagents|Earlier Subagents…' && menu[menu.length - 2] === '-', JSON.stringify(menu.map(m => m.label || m)));
   await p.evaluate(k => window.pudlWindows.raise(k), chatKey);
-  await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+  await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
   await p.locator('#menubar-panel .menu-action').filter({ hasText: /^Subagents/ }).click();
   await p.waitForSelector('#menubar-sub:popover-open');
   const subRows2 = await p.locator('#menubar-sub .menu-action').allInnerTexts();
   await p.keyboard.press('Escape');
   await p.keyboard.press('Escape');
-  ok('so does the Subagents submenu under Actions', !subRows2.some(r => /Archaeology|Survey Old/.test(r)) && subRows2[subRows2.length - 1] === 'Earlier Subagents…' && subRows2.length === 6, JSON.stringify(subRows2));
+  ok('so does the Subagents flyout of the Chat menu', !subRows2.some(r => /Archaeology|Survey Old/.test(r)) && subRows2[subRows2.length - 1] === 'Earlier Subagents…' && subRows2.length === 6, JSON.stringify(subRows2));
   await raiseKind('subagents');
   await p.waitForTimeout(200);
   tr = await tree();

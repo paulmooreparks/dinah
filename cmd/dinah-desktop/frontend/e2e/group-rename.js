@@ -35,16 +35,16 @@ const { launch } = require('./lib/page');
     await room.locator('textarea').waitFor();
     // Members are rows in the Members dropdown (f22f9b5, 8bc2cc0), counted on its button.
     await room.getByRole('button', { name: /^Members/ }).filter({ hasText: 'Members (1)' }).waitFor();
-    /* The room window's commands answer from its Actions menu; the bar's own
+    /* The room window's commands answer from its own menu, Group Chat; the bar's own
        focus discipline at the last hop is PUDL's domain, so the suite presses
        the row's command as the bar's act() would, with the panel open and
        visible as checkable proof that a reader finds it there. */
     async function clickRename() {
-      await p.getByRole('menuitem', { name: 'Actions' }).click();
+      await p.locator('nav.menubar .menubar-front .menubar-title', { hasText: 'Group Chat' }).click();
       await p.waitForFunction(() => [...document.querySelectorAll('.menu-action')].some(b => /Rename Group/.test(b.textContent) && (b.offsetWidth || b.offsetHeight)));
       await p.evaluate(() => [...document.querySelectorAll('.menu-action')].find(b => /Rename Group/.test(b.textContent) && (b.offsetWidth || b.offsetHeight))._item.run());
     }
-    // The window's own commands sit under Actions while it is in front.
+    // The window's own commands are in the menu with its kind's name while it is in front.
     const dlg = p.locator('dialog.dinah-ask-name');
     await clickRename();
     await dlg.waitFor();
@@ -56,8 +56,9 @@ const { launch } = require('./lib/page');
     ok('the engine is asked to rename it', JSON.stringify(await p.evaluate(() => window.__calls)) === JSON.stringify([['rename', 'release-review', 'Dinah Development']]));
     await p.waitForFunction(() => /Dinah Development/.test(document.querySelector('.win[data-win-kind="bus-room"] .win-title').textContent));
     ok('the window takes the new title', true);
-    await p.waitForFunction(() => [...document.querySelectorAll('.menubar-title')].some(b => /Dinah Development/.test(b.textContent)));
-    ok('the menu bar’s copy of the title follows it', true);
+    // The window's menu has its kind's name, whatever the group is called
+    // (docs/design/menus.md), so the bar has no copy of the title to follow.
+    ok('the window’s menu keeps its kind’s name', await p.evaluate(() => { const front = [...document.querySelectorAll('nav.menubar .menubar-front .menubar-title')].map(b => b.textContent.trim()).filter(Boolean); return front.join('|') === 'Group Chat'; }));
     await t.shot('group-rename-result');
     // Esc leaves it as it was.
     await clickRename();

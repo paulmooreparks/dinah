@@ -131,7 +131,8 @@
     listeners.add(draw);
     setState(opts.state);
     load().catch(host().fail);
-    return { state: state, setState: setState, commands: function () { return [{ label: 'Refresh', run: function () { load().catch(host().fail); } }]; },
+    // View, Refresh reads the list again (workbench.js, reloadOf).
+    return { state: state, setState: setState, reload: function () { load().catch(host().fail); },
       destroy: function () { disposed = true; window.dinahRender.cancel(root); listeners.delete(draw); } };
   } });
 

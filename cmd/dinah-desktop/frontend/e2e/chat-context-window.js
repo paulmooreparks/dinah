@@ -79,13 +79,14 @@ const { launch } = require('./lib/page');
     // The remembered choice is changed from the chat's menu.
     const menu = async () => {
       await page.evaluate(k => pudlWindows.raise(k), key);
-      await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+      await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
       const item = page.locator('#menubar-panel .menu-action', { hasText: 'Ask Me Again About a Full Context' });
-      const n = await item.count();
+      // The row is always there, and greyed while the chat has no remembered answer.
+      const n = await item.first().evaluate(el => el.disabled || el.getAttribute('aria-disabled') === 'true') ? 0 : 1;
       if (n) await item.first().click(); else await page.keyboard.press('Escape');
       return n;
     };
-    ok('with no choice remembered the menu does not offer to ask again', await menu() === 0);
+    ok('with no choice remembered the menu greys Ask Me Again', await menu() === 0);
     await session({ choice: 'set-aside' }, 5);
     await page.waitForTimeout(200);
     ok('with a choice remembered it does, and choosing it asks the engine to forget the choice', await menu() === 1 && await page.evaluate(() => __calls.some(c => c[0] === 'forget' && c[1] === 'ollama:ctx')));

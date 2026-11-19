@@ -12,7 +12,7 @@ The all-consumer inventory found one remaining duplicate body aggregate in teams
 
 ## Direct team navigation
 
-The Team section provides an Open Team button next to its disclosure when the current chat has membership. The Actions menu uses the same navigateTeam function. It resolves the current membership's group identity through the existing groupLink/openGroup path, which reveals an existing canonical window or opens the correct closed group. Neither command guesses a title, changes the member draft or inserts a mention. Existing member links that intentionally add a member mention retain their behavior.
+The Team section provides an Open Team button next to its disclosure when the current chat has membership. Open Team in the Chat menu's Team rows uses the same navigateTeam function. It resolves the current membership's group identity through the existing groupLink/openGroup path, which reveals an existing canonical window or opens the correct closed group. Neither command guesses a title, changes the member draft or inserts a mention. Existing member links that intentionally add a member mention retain their behavior.
 
 Membership refreshes update button/menu availability. Ordinary chats have no Open Team command. A member without its own subordinate team can still open its parent team without an empty disclosure. The section wraps naturally on narrow widths and leaves the bottom composer untouched.
 

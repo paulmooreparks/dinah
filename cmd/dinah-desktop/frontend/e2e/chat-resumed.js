@@ -50,14 +50,14 @@ const { settled, settledCount } = require('./lib/settled');
 
     const menuAction = async () => {
       await page.evaluate(k => pudlWindows.raise(k), key);
-      await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+      await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
       const item = page.locator('#menubar-panel .menu-action', { hasText: 'Load Full History' }).first();
       await item.waitFor();
       const disabled = await item.evaluate(el => el.disabled || el.getAttribute('aria-disabled') === 'true');
       await page.keyboard.press('Escape');
       return !disabled;
     };
-    ok('Load Full History is in the window\'s Actions menu, enabled while the chat is idle', await menuAction());
+    ok('Load Full History is in the Chat menu, enabled while the chat is idle', await menuAction());
 
     // Load Full History is unavailable while the chat works.
     await page.evaluate(() => __emit('agent:session', { sessionId: 'claude:resumed', provider: 'claude', cwd: 'C:/Test', title: 'Resumed Chat', open: true, resumed: true, working: true }));
@@ -67,14 +67,14 @@ const { settled, settledCount } = require('./lib/settled');
     await page.waitForTimeout(150);
 
     await page.evaluate(k => pudlWindows.raise(k), key);
-    await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
+    await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click();
     await page.locator('#menubar-panel .menu-action', { hasText: 'Load Full History' }).first().click();
     await win.getByText('REPLAYED-ANSWER').first().waitFor({ state: 'attached' });
     await page.waitForFunction(() => __calls.some(c => c[0] === 'load'));
     const after = await win.innerText();
     ok('Load Full History asks the engine for the chat\'s history', JSON.stringify(await page.evaluate(() => window.__calls.filter(c => c[0] === 'load'))) === JSON.stringify([['load', 'C:/Test', 'claude:resumed']]));
     ok('the replay replaces what was drawn, with nothing twice', after.split('Summarise the plan.').length === 2 && !/SAVED-ANSWER/.test(after) && !/\[turn so far/.test(after), after);
-    ok('after a full load the command is not offered again, since the chat is no longer a resumed one', await (async () => { await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click(); const n = await page.locator('#menubar-panel .menu-action', { hasText: 'Load Full History' }).count(); await page.keyboard.press('Escape'); return n === 0; })());
+    ok('after a full load the command is not offered again, since the chat is no longer a resumed one', await (async () => { await page.locator('[data-menubar] .menubar-title').filter({ hasText: /^Chat$/ }).click(); const greyed = await page.locator('#menubar-panel .menu-action', { hasText: 'Load Full History' }).first().evaluate(el => el.disabled || el.getAttribute('aria-disabled') === 'true'); await page.keyboard.press('Escape'); return greyed; })());
   } finally {
     await t.close();
   }

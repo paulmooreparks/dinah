@@ -731,7 +731,8 @@
     draw();
     load().catch(host().fail);
     return { state: function () { return ''; }, setState: function () {},
-      commands: function () { return [{ label: 'New Group Chat…', run: function () { return openPicker({}); } }, { label: 'New Message…', run: function () { showForm(); } }, { label: 'Trust a Link…', run: function () { showLinkForm(null); } }].concat(bulkActions()); },
+      // New Group Chat… is a row of the host's Chat menu (below).
+      commands: function () { return [{ label: 'New Message…', run: function () { showForm(); } }, { label: 'Trust a Link…', run: function () { showLinkForm(null); } }].concat(bulkActions()); },
       destroy: function () { disposed = true; window.dinahRender.cancel(root); listeners.delete(draw); listeners.delete(inboxChanged); stopChats(); } };
   } });
 
@@ -1905,6 +1906,7 @@
   } });
 
   window.dinahCommands.register({ id: 'bus', glyph: 'inbox', menu: 'view', group: 'panes', mnemonic: 'R', label: 'Group Chats', run: function () { return window.dinahWorkbench.open('bus'); } });
+  window.dinahCommands.register({ id: 'new-group-chat', menu: 'chat', after: 'new-chat', mnemonic: 'G', label: 'New Group Chat…', run: function () { return openPicker({}); } });
 
   /* The pane opens once by itself, as a tab behind the one in front of the
      right-hand dock, so a layout saved before it existed finds it; a person

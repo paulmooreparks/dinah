@@ -73,6 +73,9 @@
        menu name them by id, and an agent lists and runs them. What applies
        to the selection is shown; the rest is hidden. */
     var ACTIONS = ['retry', 'open', 'edit', 'edit-text', 'browse-children', 'open-external', 'new-folder', 'upload', 'copy-path', 'rename', 'refresh', 'preview-pane', 'new-terminal'];
+    // The window's menu in the bar has them all but Refresh, which is
+    // View, Refresh for every list (docs/design/menus.md).
+    var MENU = ACTIONS.filter(function (id) { return id !== 'refresh'; });
     function fail(error) { say(String(error), true); }
     function commandTable() {
       var node = current(), cwd = browser && browser.cwd(), takes = !!cwd && !displayOnly && dinahResources.takesFolder(cwd);
@@ -222,7 +225,7 @@
       if (event && event.kind === 'uploaded') shownAgain({ ref: event.ref });
       if (event && event.kind === 'renamed') renamedHere(event);
     });
-    return { ready: ready, state: state, setState: setState, commands: function () { return ACTIONS; }, destroy: function () { persist(); destroyed = true; unsubscribe(); unregisterCommands(); previewRequest++; clearTimeout(timer); if (previewApplet) previewApplet.destroy(); if (browser) browser.destroy(); F.destroy(); } };
+    return { ready: ready, state: state, setState: setState, commands: function () { return MENU; }, canReload: function () { return !!browser; }, reload: function () { return window.pudlCommands.run('refresh', undefined, root); }, destroy: function () { persist(); destroyed = true; unsubscribe(); unregisterCommands(); previewRequest++; clearTimeout(timer); if (previewApplet) previewApplet.destroy(); if (browser) browser.destroy(); F.destroy(); } };
   }
   window.dinahFiles = { init: init };
 })();

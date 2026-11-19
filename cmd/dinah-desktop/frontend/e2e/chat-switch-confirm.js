@@ -77,16 +77,10 @@ const { launch, PAGE } = require('./lib/page');
     ok('and when it ends the move goes ahead', true);
     await win.getByText('Switched from Codex to Claude.').waitFor();
 
-    // The workspace move: the command from the window's menu, the chooser, the move.
-    await p.evaluate(() => window.dinahCommands.rows('actions'));
-    await p.evaluate(() => {
-      const rows = [...document.querySelectorAll('.menu-action')].filter(() => true);
-      // The window's Actions menu opens with its rows; the row's command is pressed as the bar's act() would.
-    });
-    // Open the front window's Actions menu and press the row's command.
-    await p.getByRole('menuitem', { name: 'Actions' }).click();
-    await p.waitForFunction(() => [...document.querySelectorAll('.menu-action')].some(b => /Continue in Another Workspace/.test(b.textContent) && (b.offsetWidth || b.offsetHeight)));
-    await p.evaluate(() => [...document.querySelectorAll('.menu-action')].find(b => /Continue in Another Workspace/.test(b.textContent) && (b.offsetWidth || b.offsetHeight))._item.run());
+    // The workspace move: the command from the host's Chat menu, which has
+    // the commands of the chat in front, then the chooser, then the move.
+    await p.getByRole('menuitem', { name: 'Chat', exact: true }).click();
+    await p.locator('#menubar-panel > .menu-action', { hasText: 'Continue in Another Workspace' }).click();
     const pick = p.locator('dialog.dinah-new-chat-workspace[open]');
     await pick.waitFor();
     ok('the chooser offers the other workspace, not the chat’s own', /Beta Workspace/.test(await pick.textContent()) && !/Alpha \(C/.test(await pick.textContent()), await pick.textContent());

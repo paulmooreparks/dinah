@@ -31,7 +31,7 @@ const { launch } = require('./lib/page');
     await page.locator('[data-section="bus-inbox"] .bus-inbox-row').first().waitFor();
     const labels = () => page.evaluate(() => pudlApplets.commandsIn(document.querySelector('[data-win="bus"]')).map(c => c.label));
     const withUnread = await labels();
-    ok('the window\'s commands include New Group Chat, New Message and Trust a Link', ['New Group Chat…', 'New Message…', 'Trust a Link…'].every(l => withUnread.includes(l)), JSON.stringify(withUnread));
+    ok("the window's commands include New Message and Trust a Link, and New Group Chat is the Chat menu's", ['New Message…', 'Trust a Link…'].every(l => withUnread.includes(l)) && !withUnread.includes('New Group Chat…') && await page.evaluate(() => window.dinahCommands.rows('chat').some(r => r.label === 'New Group Chat…' && !r.disabled)), JSON.stringify(withUnread));
     ok('with unread messages they include Mark All Read and Dismiss All, as the inbox\'s buttons do', withUnread.includes('Mark All Read') && withUnread.includes('Dismiss All') && await page.locator('.bus-inbox-tools button', { hasText: 'Mark All Read' }).count() === 1, JSON.stringify(withUnread));
 
     // Mark All Read from the window's commands asks first, then marks every
@@ -46,7 +46,7 @@ const { launch } = require('./lib/page');
     ok('confirming marks every message up to the newest read', JSON.stringify(await page.evaluate(() => __calls)) === '[["readThrough",2]]', JSON.stringify(await page.evaluate(() => __calls)));
     await page.waitForFunction(() => !document.querySelector('[data-section="bus-inbox"] .bus-inbox-row'));
     const none = await labels();
-    ok('with nothing unread the bulk actions are absent and the rest remain', !none.includes('Mark All Read') && !none.includes('Dismiss All') && none.includes('New Group Chat…'), JSON.stringify(none));
+    ok('with nothing unread the bulk actions are absent and the rest remain', !none.includes('Mark All Read') && !none.includes('Dismiss All') && none.includes('New Message…'), JSON.stringify(none));
     ok('building the commands raised no error', (await page.evaluate(() => __errors)).length === 0, JSON.stringify(await page.evaluate(() => __errors)));
   } catch (error) {
     ok('the suite ran', false, String(error && error.stack || error));

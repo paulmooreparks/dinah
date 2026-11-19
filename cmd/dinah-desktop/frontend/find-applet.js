@@ -82,9 +82,9 @@
     }
     window.dinahCommands.register({ id: 'find-and-open', glyph: 'search', menu: 'documents', after: 'open-document', mnemonic: 'F', label: 'Find and Open…', shortcut: 'Ctrl+P', run: function () { openGoTo(); } });
     window.dinahCommands.register({ id: 'commands', glyph: 'slash', menu: 'help', after: 'help-chats', mnemonic: 'C', label: 'Commands…', shortcut: 'Ctrl+Shift+P', run: function () { openGoTo('commands'); } });
-    window.dinahCommands.register({ id: 'go-to-question', menu: 'window', after: 'window-previous', mnemonic: 'Q', label: 'Go to the Question', shortcut: 'F9', run: function () { nextNotification(); } });
+    window.dinahCommands.register({ id: 'go-to-question', menu: 'window', after: 'window-previous-document', mnemonic: 'Q', label: 'Go to the Question', shortcut: 'F9', run: function () { nextNotification(); } });
     /* In a Terminal, Ctrl+J is a line feed, so the Terminal keeps it. */
-    window.dinahCommands.register({ id: 'go-to-chat', glyph: 'comments', menu: 'window', after: 'window-previous', mnemonic: 'G', label: 'Go to the Chat', shortcut: 'Ctrl+J', enabled: function () { return frontWindowKind() !== 'terminal'; }, run: function () { return showChat(); } });
+    window.dinahCommands.register({ id: 'go-to-chat', glyph: 'comments', menu: 'window', after: 'window-previous-document', mnemonic: 'G', label: 'Go to the Chat', shortcut: 'Ctrl+J', enabled: function () { return frontWindowKind() !== 'terminal'; }, run: function () { return showChat(); } });
     window.dinahCommands.register({ id: 'notifications', glyph: 'warning', menu: 'view', group: 'panes', mnemonic: 'N', label: 'Notifications', shortcut: 'Ctrl+Shift+I', run: function () { return window.dinahWorkbench.open('needs-you'); } });
     // Find and Open's own keys, listed with the Documents menu's.
     window.dinahCommands.addHelp('Documents', [

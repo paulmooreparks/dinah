@@ -44,7 +44,7 @@ const fs=require('fs'),path=require('path');
   await live.win.locator('.msg-row').first().evaluate(el=>{window.__preResetRow=el;});
   await p.evaluate(()=>__emit('agent:session',{sessionId:'live',provider:'codex',cwd:'C:/Fixture',title:'live',open:true,working:false,resumed:true,streamGen:'before-reset',streamHead:0}));
   await p.evaluate(()=>__emit('agent:update',{sessionId:'live',gen:'before-reset',n:1,update:__boundaryUpdate('original','new','snapshot','New commentary complete')}));
-  await p.locator('[data-menubar] .menubar-title').filter({hasText:/^Actions$/}).click();await p.locator('#menubar-panel .menu-action').filter({hasText:'Load Full History'}).first().click();
+  await p.locator('[data-menubar] .menubar-title').filter({hasText:/^Chat$/}).click();await p.locator('#menubar-panel .menu-action').filter({hasText:'Load Full History'}).first().click();
   await live.win.getByText('RESET-NEW',{exact:true}).waitFor();
   ok('replay reset replaces DOM rows and restores only its current items',await p.evaluate(()=>!__preResetRow.isConnected)&&JSON.stringify(await texts(live.win))===JSON.stringify(['RESET-ORIGINAL','RESET-NEW']));
   await p.evaluate(()=>{__emit('agent:update',{sessionId:'live',gen:'before-reset',n:2,update:__boundaryUpdate('original','new','append','STALE-GENERATION')});__emit('agent:update',{sessionId:'live',gen:'full-reset',n:3,update:__boundaryUpdate('original','new','append','AFTER-RESET-COMPLETION')});});

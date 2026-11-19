@@ -1,6 +1,7 @@
 /* Host menus use PUDL's source lists and public window commands. The
-   Documents, View, Window and Help rows come from the command registry
-   (commands.js). Launcher destinations are drawn by title-launcher.js. */
+   Chat, Documents, View, Window and Help rows come from the command
+   registry (commands.js). Launcher destinations are drawn by
+   title-launcher.js. */
 (function () {
   'use strict';
   var bench = window.dinahWorkbench;
@@ -14,6 +15,8 @@
       if (definition.mnemonic) li.dataset.mnemonic = definition.mnemonic;
       if (definition.glyph) li.dataset.menuGlyph = definition.glyph;
       var nested = document.createElement('ul'); li.appendChild(nested);
+      // A flyout of which one row is on has radio marks (docs/design/menus.md).
+      if (definition.radio) nested.setAttribute('data-menu-radio', '');
       definition.items.forEach(function (item) { command(nested, item); });
     } else if (definition.heading) li.textContent = definition.heading;
     else {
@@ -86,10 +89,12 @@
   function drawWindows() {
     var api = window.pudlWindows; if (!api) return;
     var state = api.state(); windows.replaceChildren();
-    /* The front window's own commands are PUDL's; its Close is the
-       registry's, which has the key. */
+    /* The commands for the window in front are one block, and this menu is
+       the one place in the bar that has them (docs/design/menus.md). They
+       are PUDL's, except Close, which is the registry's and has the key. */
     if (state.top && !state.min[state.top]) api.menuCommands(state.top).filter(function (item) { return !['page', 'copy-link', 'close'].includes(item.id); }).forEach(function (item) { command(windows, item); });
-    var rows = window.dinahCommands.rows('window');
+    window.dinahCommands.rows('window', 'front').forEach(function (row) { command(windows, row); });
+    var rows = window.dinahCommands.rows('window', '');
     if (windows.children.length && rows.length && rows[0] !== '-') command(windows, '-');
     rows.forEach(function (row) { command(windows, row); });
   }
@@ -114,7 +119,7 @@
       }
       return;
     }
-    ['dinah', 'workspace', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
+    ['dinah', 'chat', 'workspace', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
     // The host registry supplies markup rows rather than PUDL commands.
     // Its explicit open-menu updates still use the documented notification.
     if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();
@@ -173,11 +178,12 @@
     all[at < 0 ? 0 : (at + step + all.length) % all.length].open();
   }
 
-  C.register({ id: 'window-close', glyph: 'close', menu: 'window', mnemonic: 'C', label: 'Close', shortcut: 'Ctrl+F4', visible: function () { return !!closeItem(); }, danger: true, run: function () { var item = closeItem(); if (item) item.run(); } });
-  C.register({ id: 'window-next-document', menu: 'window', mnemonic: 'N', label: 'Next Document', shortcut: 'Ctrl+F6', enabled: hasEditors, run: function () { cycleDocuments(1); } });
-  C.register({ id: 'window-previous-document', menu: 'window', mnemonic: 'U', label: 'Previous Document', shortcut: 'Ctrl+Shift+F6', enabled: hasEditors, run: function () { cycleDocuments(-1); } });
-  C.register({ id: 'window-next', glyph: 'forward', menu: 'window', mnemonic: 'X', label: 'Next Window', shortcut: 'Ctrl+PageDown', enabled: function () { return openCount() > 1; }, run: function () { cycleWindows(1); } });
-  C.register({ id: 'window-previous', glyph: 'back', menu: 'window', mnemonic: 'V', label: 'Previous Window', shortcut: 'Ctrl+PageUp', enabled: function () { return openCount() > 1; }, run: function () { cycleWindows(-1); } });
+  // Close is the last of the rows for the window in front (drawWindows).
+  C.register({ id: 'window-close', glyph: 'close', menu: 'window', group: 'front', mnemonic: 'C', label: 'Close', shortcut: 'Ctrl+F4', visible: function () { return !!closeItem(); }, danger: true, run: function () { var item = closeItem(); if (item) item.run(); } });
+  C.register({ id: 'window-next', glyph: 'forward', menu: 'window', mnemonic: 'X', label: 'Next Window', shortcut: 'Ctrl+PageDown', enabled: function () { return openCount() > 1; }, reason: 'No other window is open.', run: function () { cycleWindows(1); } });
+  C.register({ id: 'window-previous', glyph: 'back', menu: 'window', mnemonic: 'V', label: 'Previous Window', shortcut: 'Ctrl+PageUp', enabled: function () { return openCount() > 1; }, reason: 'No other window is open.', run: function () { cycleWindows(-1); } });
+  C.register({ id: 'window-next-document', menu: 'window', mnemonic: 'N', label: 'Next Document', shortcut: 'Ctrl+F6', enabled: hasEditors, reason: 'No document is open.', run: function () { cycleDocuments(1); } });
+  C.register({ id: 'window-previous-document', menu: 'window', mnemonic: 'U', label: 'Previous Document', shortcut: 'Ctrl+Shift+F6', enabled: hasEditors, reason: 'No document is open.', run: function () { cycleDocuments(-1); } });
   C.register({ id: 'window-sep-1', menu: 'window', separator: true });
   C.register({ id: 'window-minimize-all', glyph: 'minimize-all', menu: 'window', mnemonic: 'I', label: 'Minimize All', enabled: function () { return !!openCount(); }, run: function () { api().minimizeAll(); } });
   C.register({ id: 'window-restore-all', glyph: 'restore-all', menu: 'window', mnemonic: 'R', label: 'Restore All', enabled: function () { return !!openCount(); }, run: function () { api().restoreAll(); } });
@@ -192,6 +198,12 @@
       checked: function () { var w = item(); return !!w && w.key === front(); },
       run: function () { var w = item(); if (w) w.open(); } });
   });
+  /* View, Refresh reads again what the window in front lists: the chats,
+     the workspace, the skills, a folder. A window says how with its reload
+     (workbench.js, reloadOf), and the row is greyed where it has none. */
+  function reloadFront() { var key = front(); return key && window.dinahWorkbench.reloadOf ? window.dinahWorkbench.reloadOf(key) : null; }
+  C.register({ id: 'refresh', glyph: 'reload', menu: 'view', mnemonic: 'E', label: 'Refresh', shortcut: 'F5', enabled: function () { return !!reloadFront(); },
+    reason: 'Nothing in front is a list that can be read again.', run: function () { var reload = reloadFront(); if (reload) return reload(); } });
   C.register({ id: 'window-all', glyph: 'window', menu: 'window', mnemonic: 'L', label: 'All Windows…', run: function () { window.dinahCommands.run('all-windows'); } });
   /* The keys PUDL's windows take on a focused title bar and dock tab
      (pudl-windows.js), listed with the Window menu's. */

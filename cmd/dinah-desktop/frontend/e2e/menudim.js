@@ -17,7 +17,7 @@ const { launch, PAGE } = require('./lib/page');
       await t.waitReady();
       await p.waitForTimeout(400);
       await p.evaluate(() => dinahWorkbench.open('chat'));
-      await p.locator('nav[data-menubar] .menubar-title, nav[data-menubar] [role="menuitem"]').filter({ hasText: /^Actions$/ }).first().click();
+      await p.locator('nav[data-menubar] .menubar-title, nav[data-menubar] [role="menuitem"]').filter({ hasText: /^Chat$/ }).first().click();
       await p.waitForTimeout(250);
       const r = await p.evaluate(() => {
         const items = [...document.querySelectorAll('.menubar-panel .menu-action')].filter(e => e.offsetParent);

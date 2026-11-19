@@ -6,12 +6,17 @@
    Find and Open list the same entries.
 
    An entry is
-     { id, menu, label, shortcut, enabled, visible, checked, danger, items,
-       run, help, reason, inline, group, after }
+     { id, menu, label, menuLabel, shortcut, enabled, visible, checked,
+       danger, items, radio, run, help, reason, inline, group, after }
    where label, enabled, visible, checked, items and reason may be
-   functions read each time the menus are drawn. reason says why a disabled
-   entry cannot run now, which command search shows beside it. items makes the entry a flyout of rows
-   ({ label, run, disabled, checked } or '-'). An entry with expand instead
+   functions read each time the menus are drawn. menuLabel is the entry's
+   words in its own menu, where the menu's title already says what it is
+   about: Chat has "Rename…", which command search lists as "Rename Chat…".
+   reason says why a disabled
+   entry cannot run now, which the menu and command search show beside it. items makes the entry a flyout of rows
+   ({ label, run, disabled, checked } or '-'), and radio says that one of
+   them is on. A flyout that cannot be used is drawn as a plain greyed row
+   with its reason. An entry with expand instead
    stands for as many rows as its function returns, in that place, such as
    the actions a document's type declares. A separator is
    { id, menu, separator: true }. help, when given, is { label, key } for the
@@ -28,13 +33,15 @@
 (function () {
   'use strict';
   var entries = [], byId = new Map(), aliases = new Map(), timer = 0;
+  // The commands of the chat in front, by ID, kept for one drawing of the
+  // menus (installHost): undefined when not read yet, null with no chat.
+  var frontChatCommands;
   // "document" is the Editor's own Document menu, drawn in its window's bar.
-  var MENUS = { workspace: 'Workspaces', tools: 'Tools', documents: 'Documents', document: 'Document', view: 'View', window: 'Window', help: 'Help' };
-  // "chat" has no title in the bar yet: its commands are drawn in a chat's
-  // window and the Chats pane, and Commands… files them under this name
-  // (docs/design/menus.md). It is kept apart from MENUS because Keyboard
-  // Shortcuts takes a group with a menu's name for the bar's own keys, and
-  // the chat window's keys are a group called Chat.
+  var MENUS = { workspace: 'Workspace', tools: 'Tools', documents: 'Documents', document: 'Document', view: 'View', window: 'Window', help: 'Help' };
+  // "chat" is the bar's first menu (docs/design/menus.md). It is kept apart
+  // from MENUS because Keyboard Shortcuts takes a group with a menu's name
+  // for the bar's own keys, and the keys that work only inside a chat's
+  // window are a group called Chat.
   var FILED = { chat: 'Chat' };
 
   function value(v) { return typeof v === 'function' ? v() : v; }
@@ -132,6 +139,11 @@
       const checked = value(entry.checked);
       if (typeof checked === 'boolean' && control.getAttribute('aria-checked') !== String(checked)) control.setAttribute('aria-checked', String(checked));
       if (control.hasAttribute('data-command-label') && control.textContent !== value(entry.label)) control.textContent = value(entry.label);
+      // A greyed row of a menu says why, where its command gives a reason.
+      if (entry.reason !== undefined) {
+        const reason = disabled ? value(entry.reason) || '' : '';
+        if ((control.getAttribute('data-menu-reason') || '') !== reason) { if (reason) control.setAttribute('data-menu-reason', reason); else control.removeAttribute('data-menu-reason'); }
+      }
     });
   }
   document.addEventListener('click', event => {
@@ -180,14 +192,16 @@
       if (entry.separator) { if (out.length && out[out.length - 1] !== '-') out.push('-'); return; }
       if (entry.expand) { out = out.concat(expanded(entry)); return; }
       var on = enabled(entry);
-      var row = { label: value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: value(entry.shortcut) || '',
+      var row = { label: value(entry.menuLabel) || value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: value(entry.shortcut) || '',
         reason: on ? '' : value(entry.reason) || '', mnemonic: entry.mnemonic || '', run: function () { run(entry.id); } };
       var checked = value(entry.checked);
       if (typeof checked === 'boolean') row.checked = checked;
       // The glyph a row shows in a menu and as a tool on the ribbon.
       if (entry.glyph) row.glyph = entry.glyph;
       if (entry.glyphOnly) row.glyphOnly = true;
-      if (entry.items) row.items = value(entry.items) || [];
+      // The markup a menu is drawn from cannot grey a flyout, so one that
+      // cannot be used is a plain greyed row, which shows its reason.
+      if (entry.items && on) { row.items = value(entry.items) || []; if (entry.radio) row.radio = true; }
       out.push(row);
     });
     while (out[out.length - 1] === '-') out.pop();
@@ -220,10 +234,12 @@
 
   function flush(options) {
     clearTimeout(timer); timer = 0;
+    frontChatCommands = undefined;
     renderControls();
     document.dispatchEvent(new CustomEvent('dinah:commands-change',{detail:{refreshOpenMenus:!!options?.refreshOpenMenus}}));
   }
   function changed() {
+    frontChatCommands = undefined;
     renderControls();
     if (timer) return;
     timer = setTimeout(flush, 30);
@@ -300,12 +316,13 @@
         applet.rows.forEach(function (r) { row(r.label, r.where || applet.group, r.key); });
         return;
       }
-      Object.keys(MENUS).forEach(function (menu) {
+      Object.keys(FILED).concat(Object.keys(MENUS)).forEach(function (menu) {
         entries.forEach(function (entry) {
           if (entry.menu !== menu || entry.separator || entry.help === false || !(entry.shortcut || entry.help)) return;
           var help = entry.help || {};
-          row(help.label || value(entry.label), MENUS[menu], help.key || shown(value(entry.shortcut) || ''));
+          row(help.label || value(entry.label), MENUS[menu] || FILED[menu], help.key || shown(value(entry.shortcut) || ''));
         });
+        if (!MENUS[menu]) return;
         helpGroups.forEach(function (g) {
           if (g.group === MENUS[menu]) g.rows.forEach(function (r) { row(r.label, r.where || g.group, r.key); });
         });
@@ -328,6 +345,86 @@
       clearNotifications, drawWorkspaces, refreshSessions, openSettings, startRename,
       openRemove, signIn, frontProvider, restartAgent, saveThinking, flushNotifications,
       workspaceCommands, chatCommands, thinking } = adapter;
+
+    /* The Chat menu (docs/design/menus.md): first what is done with chats as
+       a whole, then the commands of the chat in front, which are that
+       chat's own (chat-applet.js, menuCommands) and are found here by their
+       IDs. A row that needs a chat is greyed with the reason while none is
+       in front, and so is a row the chat in front does not offer now. */
+    const NO_CHAT = 'No chat is in front.', NOT_STARTED = 'The chat starts with its first message.';
+    function ofChat(id) {
+      if (frontChatCommands === undefined) {
+        const chat = chats.front();
+        frontChatCommands = chat ? new Map(chat.menuCommands().map(command => [command.id, command])) : null;
+        Promise.resolve().then(() => { frontChatCommands = undefined; });
+      }
+      return frontChatCommands ? frontChatCommands.get(id) || null : null;
+    }
+    function usable(command) { return !!command && !command.hidden && !command.disabled; }
+    // The rows of a chat's flyout. A row may be the ID of another of the
+    // chat's commands, as the last rows of Subagents are.
+    function rowsOf(command) {
+      const items = usable(command) ? (typeof command.items === 'function' ? command.items() : command.items) || [] : [];
+      return items.map(item => typeof item === 'string' && item !== '-' ? ofChat(item) : item)
+        .filter(item => item && !item.hidden)
+        .map(item => item === '-' || item.heading ? item : { label: item.label, detail: item.detail, disabled: !!item.disabled, reason: item.reason || '', checked: item.checked, danger: !!item.danger, run: item.run });
+    }
+    // own.from is the ID of the chat's command, and own.without says why
+    // the chat in front does not offer it now.
+    function chatRow(id, own) {
+      const command = () => ofChat(own.from || id);
+      register(Object.assign({ id, menu: 'chat',
+        enabled: () => own.items ? own.items().length > 0 : usable(command()),
+        reason: () => { const c = command(); return frontChatCommands === null ? NO_CHAT : c && !c.hidden && c.disabled && c.reason || own.without || ''; },
+        run: () => { const c = command(); if (usable(c) && c.run) return c.run(); } }, own));
+    }
+    function chatList(id, own) {
+      chatRow(id, Object.assign({ radio: true, items: () => rowsOf(ofChat(own.from || id)) }, own));
+    }
+    // A chat tells PUDL when its commands change, for the controls in its
+    // own bar, and the Chat menu's rows are drawn again with them. An open
+    // menu is brought up to date in place, through PUDL's refresh
+    // (host-menus.js), so Stop is there to press as soon as a turn starts.
+    document.addEventListener('pudl:commands-change', () => {
+      if (!chats.front()) return;
+      if (window.pudlMenubar && window.pudlMenubar.isOpen && window.pudlMenubar.isOpen()) flush({ refreshOpenMenus: true });
+      else changed();
+    });
+    const TEAM = ['open-team', 'open-own-team', 'change-team-lead', 'leave-team'];
+    register({ id: 'new-chat', menu: 'chat', mnemonic: 'N', glyph: 'comments', label: 'New Chat', shortcut: 'Mod+N', run: () => { startNewChat().catch(fail); } });
+    register({ id: 'chat-sep-new', menu: 'chat', separator: true });
+    chatRow('rename-session', { from: 'rename-chat', mnemonic: 'R', label: 'Rename Chat…', menuLabel: 'Rename…', shortcut: 'F2', without: NOT_STARTED });
+    chatRow('continue-workspace', { mnemonic: 'C', label: 'Continue in Another Workspace…' });
+    chatRow('pin-chat', { mnemonic: 'K', label: () => { const c = ofChat('pin-chat'); return c ? c.label : 'Pin to Workspace'; } });
+    register({ id: 'chat-sep-agent', menu: 'chat', separator: true });
+    chatList('chat-provider', { from: 'provider', mnemonic: 'I', label: 'Provider' });
+    chatList('chat-mode', { from: 'mode', mnemonic: 'M', label: 'Mode', without: 'This agent offers no modes.' });
+    chatList('chat-model', { from: 'model', mnemonic: 'O', label: 'Model', without: 'This agent offers no choice of model.' });
+    chatList('chat-effort', { from: 'effort', mnemonic: 'F', label: 'Effort', without: 'This agent offers no levels of effort.' });
+    register({ id: 'chat-sep-groups', menu: 'chat', separator: true });
+    chatRow('start-group', { mnemonic: 'S', label: 'Start a Group Chat…' });
+    chatList('add-to-group', { radio: false, mnemonic: 'A', label: 'Add to a Group Chat' });
+    chatRow('chat-team', { mnemonic: 'T', label: 'Team', without: 'This chat has no team commands.',
+      items: () => TEAM.map(ofChat).filter(c => c && !c.hidden).map(c => ({ label: c.label, disabled: !!c.disabled, reason: c.reason || '', run: c.run })) });
+    register({ id: 'chat-sep-writing', menu: 'chat', separator: true });
+    register({ id: 'history', menu: 'chat', mnemonic: 'H', label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });
+    register({ id: 'templates', menu: 'chat', mnemonic: 'P', label: 'My Templates…', run: () => { chats.current()?.openTemplates(null); } });
+    chatRow('save-run', { from: 'export-chat', mnemonic: 'E', label: 'Export Chat…', menuLabel: 'Export…', without: NOT_STARTED });
+    chatRow('show-chat-log', { mnemonic: 'L', label: 'Show the Chat Log', without: NOT_STARTED });
+    chatRow('failure-summaries', { mnemonic: 'W', label: 'Show Failed Command Summaries', without: NOT_STARTED,
+      checked: () => { const c = ofChat('failure-summaries'); return !!(c && c.checked); } });
+    chatList('chat-subagents', { from: 'subagents', radio: false, mnemonic: 'U', label: 'Subagents', without: 'This chat has started no subagents.' });
+    register({ id: 'chat-sep-history', menu: 'chat', separator: true });
+    chatRow('forget-context-choice', { mnemonic: 'X', label: 'Ask Me Again About a Full Context', without: 'This chat has not remembered an answer about a full context.' });
+    chatRow('load-full-history', { mnemonic: 'Y', label: 'Load Full History', without: 'Nothing more of the history of this chat can be loaded.' });
+    chatRow('drop-queue', { mnemonic: 'Q', label: 'Drop the Queued Messages', without: 'No messages are queued.' });
+    // The Broadcast rows follow this separator (decisions-applet.js).
+    register({ id: 'chat-sep-broadcast', menu: 'chat', separator: true });
+    register({ id: 'chat-sep-stop', menu: 'chat', separator: true });
+    chatRow('cancel', { from: 'stop-turn', danger: true, label: () => { const c = ofChat('stop-turn'); return c && !c.hidden ? c.label : 'Stop'; }, without: 'The chat is not working.' });
+    register({ id: 'restart', menu: 'chat', label: 'Restart Agent', menuLabel: 'Restart the Agent', run: () => { restartAgent(); } });
+    register({ id: 'chat-sep-delete', menu: 'chat', separator: true });
+    chatRow('remove-session', { from: 'remove-chat', mnemonic: 'D', danger: true, label: 'Delete Chat…', menuLabel: 'Delete…', without: NOT_STARTED });
     register({ id: 'show-chat', menu: 'chat', inline: true, label: 'Show Chat', run: () => { showChat(); } });
     register({ id: 'find-tool', menu: 'tools', inline: true, label: 'Find a Tool…', run: () => { openGoTo('tools'); } });
     register({ id: 'show-workspace', menu: 'view', inline: true, label: 'Workspace', run: () => { window.dinahWorkbench.open('workspace').catch(fail); } });
@@ -336,7 +433,6 @@
     register({ id: 'export-workspace', menu: 'workspace', inline: true, label: 'Export Workspace…', enabled: () => workspaceCommands('export-workspace'), run: () => { exportWorkspace(); } });
     register({ id: 'import-workspace', menu: 'workspace', inline: true, label: 'Import Workspace…', enabled: () => workspaceCommands('import-workspace'), run: () => { importWorkspace(); } });
     register({ id: 'install-packages-file', menu: 'tools', inline: true, label: 'Install Packages…', run: () => { installPackages(); } });
-    register({ id: 'new-chat', menu: 'workspace', inline: true, label: 'New Chat', run: () => { startNewChat().catch(fail); } });
     register({ id: 'new-workspace', menu: 'workspace', inline: true, label: 'New Workspace…', enabled: () => workspaceCommands('new-workspace'), run: () => { createWorkspace(false); } });
     register({ id: 'new-empty-workspace', menu: 'workspace', inline: true, label: 'New Empty Workspace', enabled: () => workspaceCommands('new-empty-workspace'), run: () => { createWorkspace(true); } });
     register({ id: 'chat-browser', menu: 'view', inline: true, label: 'Chats', run: () => { window.dinahWorkbench.open('chat-browser').catch(fail); } });
@@ -353,19 +449,12 @@
     register({ id: 'clear-notifications', menu: 'view', inline: true, label: 'Clear All…', enabled: () => notices.list(entry => entry.clearable).length > 0, danger: true, run: () => { clearNotifications(); } });
     register({ id: 'refresh-workspace', menu: 'workspace', inline: true, label: 'Refresh Workspace', enabled: () => workspaceCommands('refresh-workspace'), run: () => { app().State().then(function (st) { drawWorkspaces(st); refreshSessions(); }).catch(fail); } });
     register({ id: 'settings', menu: 'dinah', inline: true, label: 'Settings…', run: () => { openSettings(); } });
-    register({ id: 'rename-session', menu: 'chat', inline: true, label: 'Rename Chat…', enabled: () => chatCommands('rename-session'), run: () => { startRename(chats.active(), 'head'); } });
-    register({ id: 'remove-session', menu: 'chat', inline: true, label: 'Delete Chat…', enabled: () => chatCommands('remove-session'), danger: true, run: () => { openRemove(chats.active()); } });
     register({ id: 'refresh-sessions', menu: 'chat', inline: true, label: 'Refresh Chats', run: () => { chatBrowser.refreshNativeSessions(); } });
     register({ id: 'all-models', menu: 'chat', inline: true, label: 'All Models…', enabled: () => chatCommands('all-models'), run: () => { chats.current()?.openModels(); } });
-    register({ id: 'history', menu: 'chat', inline: true, label: 'Prompt History…', run: () => { chats.current()?.openHistory(); } });
-    register({ id: 'templates', menu: 'chat', inline: true, label: 'My Templates…', run: () => { chats.current()?.openTemplates(null); } });
     register({ id: 'sign-in', menu: 'chat', inline: true, label: 'Sign In…', run: () => { signIn(); } });
     register({ id: 'usage-page', menu: 'chat', inline: true, label: 'Usage…', run: () => { var usageItem = window.dinahWorkbench.item(window.pudlWindows.state().top);
         var usageProvider = usageItem && (usageItem.kind === 'chat' || usageItem.kind === 'chat-session') ? frontProvider() : chats.defaultProvider();
         Promise.resolve().then(function () { return app().OpenProviderUsage ? app().OpenProviderUsage(usageProvider) : Promise.reject('No usage page is available for this provider.'); }).catch(fail); } });
-    register({ id: 'save-run', menu: 'chat', inline: true, label: 'Export Chat…', enabled: () => chatCommands('save-run'), run: () => { chats.current()?.saveRun(); } });
-    register({ id: 'cancel', menu: 'chat', inline: true, label: 'Stop', enabled: () => chatCommands('cancel'), run: () => { chats.current()?.stopTurn(); } });
-    register({ id: 'restart', menu: 'chat', inline: true, label: 'Restart Agent', run: () => { restartAgent(); } });
     register({ id: 'thoughts', menu: 'view', inline: true, label: "Show the Agent's Thinking", enabled: () => !thinking().busy, checked: () => thinking().checked, run: () => { saveThinking(!thinking().checked); } });
     register({ id: 'about', menu: 'help', inline: true, label: () => 'About ' + productName(), run: () => { document.getElementById('about').showModal(); } });
     register({ id: 'quit', menu: 'dinah', inline: true, label: () => 'Exit ' + productName(), run: () => { Promise.all([flushNotifications(), window.dinahUIState ? window.dinahUIState.flush() : null]).then(function () { if (window.runtime) window.runtime.Quit(); }).catch(fail); } });

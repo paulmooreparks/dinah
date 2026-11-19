@@ -41,8 +41,8 @@ const { launch } = require('./lib/page');
     const list = 'dialog.models-dialog[open] .model-list';
     const rows = () => p.$$eval(list + ' .model-row .md-item', els => els.map(a => ({ text: a.textContent, meta: (a.querySelector('.md-meta') || {}).textContent || null, color: a.querySelector('.md-meta') ? getComputedStyle(a.querySelector('.md-meta')).color : null })));
     const openModels = async () => {
-      await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
-      await p.locator('#menubar-panel').getByText('Choose the Model…', { exact: true }).click();
+      // All Models@ is the last row of Chat, Model, and a command of its own.
+      await p.evaluate(() => window.dinahCommands.run('all-models'));
       await p.waitForTimeout(200);
     };
     const closeModels = () => p.evaluate(() => document.querySelector('dialog.models-dialog[open]').close());

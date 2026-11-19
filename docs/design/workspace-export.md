@@ -138,7 +138,7 @@ The Engine team has an unmerged design for durable logical chat records (`releas
 
 ## What the Person Sees
 
-- **Export Workspace…** and **Import Workspace…** are in the Dinah menu after Rename Workspace…, in the status bar's workspace menu and in the Workspace pane's Actions menu. Export saves the file where the person chooses, suggesting the main folder.
+- **Export Workspace…** and **Import Workspace…** are in the Workspace menu as Export… and Import…, in the status bar's workspace menu and in the menu of the Workspace pane's Actions button. Export saves the file where the person chooses, suggesting the main folder.
 - The import window lists each source with what was found. A local folder shows its proposed path, Found or Not on This Computer Yet, and Choose…, and a missing folder also has Create It Now with the number of folders recorded inside it. Which controls a source has comes from the plan's `actions`, so the window shows only what the person can do. Its button is Import, or Add to the Workspace when a workspace already uses the main folder. The workspace is selected when its main folder is there.
 - `dinah workspace list` lists the workspaces and `dinah workspace export WORKSPACE [--out FILE] [--no-chats]` writes an export. Both read the registry and never write it, and the command line has no import, because an import asks the person about folders and changes the registry, which only the window does.
 

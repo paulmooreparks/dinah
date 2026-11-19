@@ -57,8 +57,8 @@ const { choose, shows } = require('./lib/commands');
     .waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false);
   ok('with no session the bar shows the mode', await offered('mode', true));
   ok('and the default model', await shows(chat(), 'model', 'Claude Opus 5.5 Medium'));
-  await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
-  ok('Choose the Model is enabled', await p.locator('#menubar-panel').getByText('Choose the Model…', { exact: true }).isEnabled());
+  // All Models@ is the last row of Chat, Model (docs/design/menus.md), and a command of its own. No menu is opened, so Escape below closes nothing.
+  ok('All Models is enabled', await p.evaluate(() => !window.dinahCommands.describe('all-models').disabled));
   await p.keyboard.press('Escape');
   await choose(p, chat(), 'model', 'GPT-6 Sol High');
   ok('choosing it with no session changes the bar', await shows(chat(), 'model', 'GPT-6 Sol High'));
@@ -93,8 +93,8 @@ const { choose, shows } = require('./lib/commands');
   ok('the refusal is shown over the prompt', await p.isVisible('.win[data-chat-current] [data-view-id=session-note]') && (await p.textContent('.win[data-chat-current] [data-view-id=session-note]')).includes('already open in another process'));
   ok('the replayed history stays readable', (await p.textContent('.win[data-chat-current] [data-view-id=logs]')).includes('THE LAST WORD'));
   ok('no model selector for a session that is not open', await offered('model', false));
-  await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
-  ok('Choose the Model is greyed out', await p.locator('#menubar-panel').getByText('Choose the Model…', { exact: true }).isDisabled());
+  // No menu is opened for this either.
+  ok('All Models is greyed out', await p.evaluate(() => window.dinahCommands.describe('all-models').disabled));
   await p.keyboard.press('Escape');
   await t.shot('r-locked');
   // A dialog taller than the window keeps its buttons in view, in a band at

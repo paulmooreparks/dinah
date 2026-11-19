@@ -190,7 +190,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   const counts = await p.evaluate(() => Array.from(document.querySelectorAll('#sessions .browser-group')).map(g => ({ count: (g.querySelector('.browser-group-count') || {}).textContent, rows: g.querySelectorAll('.md-row[data-session-row]').length })));
   ok('each group\'s count matches the chat rows it shows', counts.length > 0 && counts.every(c => c.count == null || Number(String(c.count).trim()) === c.rows), JSON.stringify(counts));
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
-  await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
-  ok('Clean Up Chats is available in the Chats browser menu', await p.locator('#menubar-panel').getByText('Clean Up Chats', { exact: true }).isEnabled());
+  // The Chats pane adds no menu to the bar (docs/design/menus.md); Clean Up Chats is a button of the pane.
+  ok('Clean Up Chats is available in the Chats pane', await p.locator('[data-win="chat-browser"] button[data-cmd="clean-up-chats"]').first().isEnabled());
   await t.close();
 })();

@@ -130,7 +130,8 @@ const fs = require('fs'), path = require('path');
     await frames();
     ok('closing a window discards its pending facts', await dialog.count() === 0 && await p.evaluate(() => __preparations.length === 2));
     await p.evaluate(k => pudlWindows.raise(k), otherKey);
-    await p.getByRole('menuitem', { name: 'Actions', exact: true }).click();
+    // The command is a row of the host's Chat menu, for the chat in front.
+    await p.getByRole('menuitem', { name: 'Chat', exact: true }).click();
     await p.locator('.menu-panel:popover-open .menu-action', { hasText: 'Continue in Another Workspace' }).click();
     const pick = p.locator('dialog.dinah-new-chat-workspace[open]');
     await pick.waitFor();
