@@ -37,7 +37,11 @@ func TestDiagramManagedRegistration(t *testing.T) {
 			t.Cleanup(func() { product.ToolServers = original })
 			args := []string{"fixture-mode", "one argument with spaces"}
 			product.ToolServers = []profile.ToolServer{{Name: "fixture-tools", Program: "fixture-tools", Args: []string{"ordinary"}, DiagramPictures: true, DiagramPicturePrefix: "fixture-drawing", DiagramPictureArgs: args}}
-			program := filepath.Join(configDir(), "bin", programs.FileName("fixture-tools"))
+			// The tools program is looked for in the program folder
+			// (docs/design/installation.md), which the test gives a folder of its own.
+			bin := filepath.Join(t.TempDir(), "Programs")
+			t.Setenv(programs.FolderVar(product), bin)
+			program := filepath.Join(bin, programs.FileName("fixture-tools"))
 			if err := os.MkdirAll(filepath.Dir(program), 0700); err != nil {
 				t.Fatal(err)
 			}

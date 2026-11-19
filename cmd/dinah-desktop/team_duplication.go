@@ -80,7 +80,9 @@ func (a *App) teamDescribeHandler(ctx context.Context, input string) (applet.Res
 	}
 	rootChat, rootBus := caller.ID(), callerBus
 	if member := strings.TrimSpace(in.Member); member != "" && member != caller.ID() {
-		rootChat, rootBus = member, a.knownBusID(member)
+		// An ID the member had before it was switched is the same chat.
+		rootChat = a.currentStageOf(member)
+		rootBus = a.knownBusID(rootChat)
 		if rootBus == "" {
 			return applet.Result{}, fmt.Errorf("there is no chat %s in your team's tree; dinah.team/describe@1 without a member lists it", member)
 		}
@@ -279,6 +281,8 @@ func (a *App) teamLeadFor(ctx context.Context, caller *Session, callerBus, lead 
 	if lead == "" || lead == caller.ID() {
 		return caller.ID(), callerBus, nil
 	}
+	// An ID the lead had before it was switched is the same chat.
+	lead = a.currentStageOf(lead)
 	leadBus := a.knownBusID(lead)
 	if leadBus == "" {
 		return "", "", fmt.Errorf("there is no chat %s in your team's tree to start a member under; dinah.team/describe@1 lists your tree with its session IDs", lead)

@@ -184,6 +184,10 @@ func (a *App) askTarget(ctx context.Context, id string) (*Session, chatDirectory
 	if err != nil {
 		return nil, chatDirectoryEntry{}, "", err
 	}
+	// The ID may be one the chat had before it was switched to another
+	// program, or its address on the bus; either is the same chat
+	// (currentStageOf).
+	id = a.currentStageOf(id)
 	if id == inv.OwnerID {
 		return nil, chatDirectoryEntry{}, "", errors.New("a chat cannot ask itself")
 	}

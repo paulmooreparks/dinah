@@ -116,3 +116,62 @@ func TestALeadStartsAssignsAndRetiresItsOwnMembers(t *testing.T) {
 		t.Fatal("a call with no chat started a member")
 	}
 }
+
+// A lead may still hold the session ID a member had before the member was
+// switched to another program, or before a switched chat that had not been
+// given a message was opened again after a restart, each of which gives the
+// chat a new ID. The member is the same chat, so the team's actions take the
+// earlier ID as well as the one the list gives (19 November 2026: a lead's
+// assignments were refused with "there is no chat ... on your team").
+func TestTheTeamActionsTakeAMembersEarlierSessionID(t *testing.T) {
+	a, c := providerTestApp(t)
+	c.newIDs = []string{"codex:lead", "codex:member"}
+	info, err := a.NewSessionAt(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := a.session(info.ID)
+	ctx := asChat(a, lead)
+	a.settings.WorkspaceRecords = []WorkspaceRecord{{ID: "w", Name: "W", ExecutionPath: lead.Cwd()}}
+	out, err := call(t, a.teamStartHandler, ctx, map[string]any{"title": "Research", "brief": "Read the notes."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := out["sessionId"].(string)
+	// The member as it was two stages ago: its address on the bus is the
+	// newest stage's, and the bindings link each earlier ID to the next.
+	a.mu.Lock()
+	if a.settings.ChatBindings == nil {
+		a.settings.ChatBindings = map[string]string{}
+	}
+	a.settings.ChatBindings["oldest-name"] = "codex:between"
+	a.settings.ChatBindings["codex:between"] = now
+	a.mu.Unlock()
+	// Its address on the bus, which no switch changes, is taken as well.
+	busID := a.knownBusID(now)
+	if busID == "" {
+		t.Fatal("the member has no address on the bus")
+	}
+	for _, earlier := range []string{"oldest-name", "codex:between", now, busID} {
+		if got := a.currentStageOf(earlier); got != now {
+			t.Fatalf("%s resolves to %q, not the member's ID now, %q", earlier, got, now)
+		}
+		if _, err := call(t, a.teamAssignHandler, ctx, map[string]any{"member": earlier, "text": "Check the second file."}); err != nil {
+			t.Fatalf("assigning by %s: %v", earlier, err)
+		}
+		described, err := call(t, a.teamDescribeHandler, ctx, map[string]any{"member": earlier})
+		if err != nil {
+			t.Fatalf("describing by %s: %v", earlier, err)
+		}
+		if team, _ := described["team"].(map[string]any); team["sessionId"] != now {
+			t.Fatalf("describing by %s gives %v, not the member as it is now", earlier, team["sessionId"])
+		}
+	}
+	// An ID that is no stage of any chat is still refused, and by its own name.
+	if _, err := call(t, a.teamAssignHandler, ctx, map[string]any{"member": "nobody", "text": "x"}); err == nil || !strings.Contains(err.Error(), "there is no chat nobody on your team") {
+		t.Fatalf("an unknown member: %v", err)
+	}
+	if _, err := call(t, a.teamRetireHandler, ctx, map[string]any{"member": "oldest-name"}); err != nil {
+		t.Fatalf("retiring by an earlier ID: %v", err)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -478,6 +479,43 @@ func (a *App) withTeamBus(fn func(b *bus.Bus) error) error {
 }
 
 // knownBusID is the session a chat has on the bus, or empty when it has none, which is not the same as asking for a new one.
+// currentStageOf is the session ID a chat has now, for an ID an agent gave.
+// A chat gets a new session ID each time it is switched to another program,
+// and again when a switched chat that was never given a message is opened
+// after a restart, while its lead may still hold the ID it had before: the
+// lead's own history has it, and so may a record the lead keeps in a file.
+// An ID that is on the bus is the chat's own and is returned as it is; any
+// other is followed through the chat's stages to the newest, by the rule
+// the chat lists, opening and pins follow (sessionhost.NewestStage). An ID
+// that leads nowhere is returned as it is, for the caller's own refusal.
+//
+// The chat's address on the bus, its busId, is taken too. It is the one
+// name of a chat that no switch changes, so it is the one to write down.
+func (a *App) currentStageOf(chat string) string {
+	chat = strings.TrimSpace(chat)
+	if chat == "" || a.knownBusID(chat) != "" {
+		return chat
+	}
+	a.mu.Lock()
+	var held []string
+	for session, recipient := range a.settings.BusSessions {
+		if recipient == chat {
+			held = append(held, session)
+		}
+	}
+	a.mu.Unlock()
+	if len(held) > 0 {
+		// One session has an address; were there ever two, the first by
+		// name is taken, so the answer does not depend on map order.
+		sort.Strings(held)
+		chat = held[0]
+	}
+	if newest, err := a.continuations().Resolve(chat); err == nil && newest != "" {
+		return newest
+	}
+	return chat
+}
+
 func (a *App) knownBusID(chat string) string {
 	if chat == "" {
 		return ""
