@@ -1339,6 +1339,8 @@
       drawNoticeCounts();
       renderComposerOptions();
       setWorking(!!(s && s.working));
+      // A chat whose window opens after its last turn ended is asked for once.
+      if (s && !s.working && !s.loading && !s.restoring && s.info.open && !s.suggestion) requestSuggestion(s);
       drawQueue();
       drawUsage();
       stateLine();
@@ -2690,6 +2692,11 @@
       var failures = s.failures || [];
       s.failures = [];
       if (!s.loading) headsUp(s, failures, t.error || '');
+      // A turn that ended of itself, in a chat that is not being read back,
+      // is one the person may now answer. One they stopped or steered is not.
+      if (!s.loading && !t.error && t.stopReason !== 'cancelled' && t.stopReason !== 'steered') { forgetSuggestion(s); requestSuggestion(s); }
+      // For any other turn nothing is asked, by this or by the window's own asking when it shows the chat.
+      else if (!s.loading) { forgetSuggestion(s); s.suggestionAsked = true; }
     });
 
     /* ---- Signing in to Devin -------------------------------------------------
@@ -2833,7 +2840,9 @@
       stopControl.toggleAttribute('inert', !w);
       $('send').querySelector('.composer-send-label').textContent = w ? 'Queue' : 'Send';
       $('send').title = w ? 'Queue explicitly. ' + sendKeyName() + ' steers when supported, otherwise queues.' : 'Send (' + sendKeyName() + ')';
-      $('prompt').placeholder = 'Say what you want the agent to do, or type / for a skill.';
+      $('prompt').placeholder = promptWords();
+      // A turn under way makes a suggested reply out of date.
+      if (w && active && sessions[active]) forgetSuggestion(sessions[active]);
       typed();
       renderComposerOptions();
       // Stop appears and goes with the turn in the same frame, not at the
@@ -2850,8 +2859,78 @@
       $('steer-send').disabled = !working || empty || switchingProvider;
       indicatePrimaryAction();
       saveDraft();
+      drawSuggestion();
     }
     $('prompt').addEventListener('input', typed);
+
+    /* ---- A suggested reply ------------------------------------------------
+       When a turn ends in this chat, a judge may propose what the person
+       says next (docs/plans/reply-suggestions.md, judge_reply.go). The
+       suggestion is kept on the session and drawn over the empty box. It is
+       never the box's text until Tab takes it: the box's text is the draft,
+       the history, Send's state and what steering is checked with. Nothing
+       moves when a suggestion arrives. Esc drops it, typing hides it, and a
+       turn under way forgets it. A chat that reports to a lead gets none,
+       since its lead answers it. */
+    // A function, since the box's words are wanted before this line is reached.
+    function promptWords() { return 'Say what you want the agent to do, or type / for a skill.'; }
+    var suggestionBlanked = false;   // the box's placeholder was emptied for a suggestion
+    function suggestionOf() { var s = active && sessions[active]; return s && s.suggestion && s.suggestion.text ? s.suggestion : null; }
+    function suggestionShown() { return !!suggestionOf() && !working && !$('prompt').value && !skillForm.isOpen() && !teamPanel.isPending(); }
+    function drawSuggestion() {
+      var box = $('prompt'), ghost = $('reply-suggestion'), cap = $('reply-suggestion-key'), help = $('reply-suggestion-help');
+      if (!ghost) return;
+      var shown = suggestionShown(), text = shown ? suggestionOf().text : '';
+      // Each is written only when it changes, since this runs at every keystroke.
+      if (ghost.hidden === shown) ghost.hidden = !shown;
+      if (cap.hidden === shown) cap.hidden = !shown;
+      if (ghost.textContent !== text) ghost.textContent = text;
+      var words = shown ? 'A reply is suggested. Press Tab to use it, or Escape to drop it. It reads: ' + text : '';
+      if (help.textContent !== words) help.textContent = words;
+      if (shown) {
+        // The suggestion's words start where the box's own would.
+        var cs = getComputedStyle(box), padding = cs.paddingTop + ' 4.2rem ' + cs.paddingBottom + ' ' + cs.paddingLeft;
+        if (ghost.style.padding !== padding) ghost.style.padding = padding;
+        if (ghost.style.lineHeight !== cs.lineHeight) ghost.style.lineHeight = cs.lineHeight;
+        if (box.placeholder) { box.placeholder = ''; suggestionBlanked = true; }
+      } else if (suggestionBlanked) {
+        suggestionBlanked = false;
+        // A skill's form may have given the box its own words meanwhile.
+        if (!box.placeholder) box.placeholder = promptWords();
+      }
+    }
+    function forgetSuggestion(s) {
+      s.suggestion = null; s.suggestionAsked = false;
+      s.suggestionTurn = (s.suggestionTurn || 0) + 1;   // an answer still on its way is for an earlier turn
+    }
+    function requestSuggestion(s) {
+      if (!s || s.suggestionAsked || !app().SuggestReply || teamPanel.isMember()) return;
+      s.suggestionAsked = true;
+      var turn = s.suggestionTurn = (s.suggestionTurn || 0) + 1;
+      Promise.resolve().then(function () { return app().SuggestReply(s.id); }).then(function (r) {
+        if (deleted || s.suggestionTurn !== turn || s.working) return;
+        s.suggestion = r && r.text ? { text: r.text, call: r.call } : null;
+        if (s.id === active) drawSuggestion();
+      }).catch(function () { /* A suggestion that could not be made is no suggestion. */ });
+    }
+    function suggestionOutcome(s, suggestion, outcome) {
+      if (!app().ReplySuggestionOutcome || !suggestion.call) return;
+      Promise.resolve().then(function () { return app().ReplySuggestionOutcome(s.id, suggestion.call, outcome); }).catch(function () { /* The record is for measuring; the reply is the person's either way. */ });
+    }
+    function takeSuggestion() {
+      var s = sessions[active], suggestion = s.suggestion, box = $('prompt');
+      s.suggestion = null;
+      box.value = suggestion.text;
+      typed();
+      box.setSelectionRange(box.value.length, box.value.length);
+      suggestionOutcome(s, suggestion, 'taken');
+    }
+    function dropSuggestion() {
+      var s = sessions[active], suggestion = s.suggestion;
+      s.suggestion = null;
+      drawSuggestion();
+      suggestionOutcome(s, suggestion, 'dropped');
+    }
 
     var context = null;     // the document picked in the sidebar
     function ensureSession() {
@@ -3374,11 +3453,20 @@
         { where: 'Rename Box', label: 'Keep or Drop the New Name', key: 'Enter / Esc' },
         { where: 'Skills and @ List', label: 'Choose', key: 'Up / Down, then Enter or Tab' },
         { where: 'Skills and @ List', label: 'Close the List', key: 'Esc' },
-        { where: 'Skill Form', label: 'Close the Form', key: 'Esc' }]);
+        { where: 'Skill Form', label: 'Close the Form', key: 'Esc' },
+        { where: 'Suggested Reply', label: 'Use the Suggestion', key: 'Tab' },
+        { where: 'Suggested Reply', label: 'Drop the Suggestion', key: 'Esc' }]);
     }
     // Ctrl+Shift+Enter steers while a turn runs.
     window.dinahComposer.bind($('prompt'), { history: recall, send: function (e) { send(e.shiftKey && working ? 'steer' : 'auto'); } });
     $('prompt').addEventListener('keydown', function (e) {
+      // Tab takes a suggested reply and Esc drops it. With the list of skills
+      // or of mentions open the box has text, so no suggestion shows and Tab
+      // is the list's. Shift+Tab moves back as it always does.
+      if (suggestionShown() && !window.dinahHelpers.composing(e)) {
+        if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); takeSuggestion(); return; }
+        if (e.key === 'Escape') { e.preventDefault(); dropSuggestion(); return; }
+      }
       // Escape while composing cancels the composition, not the turn.
       if (e.key === 'Escape' && working && !window.dinahHelpers.composing(e)) { e.preventDefault(); stopTurn(); }
     });

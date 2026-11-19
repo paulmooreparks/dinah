@@ -16,6 +16,7 @@ func (a *App) turnIO() *sessionhost.TurnIO {
 			DraftDocRef: a.draftDocRef, WithDoc: withDoc, Remember: a.remember, Unpark: func(s *Session) { a.busCoordinator().Unpark(s) }, Journal: a.journal,
 			RecordPrompt: func(s *Session, p *prompt) {
 				a.noteFirstPrompt(s, p)
+				a.noteReplyPassedOver(s.ID())
 				a.noteRelayTurnStart(s, p)
 				a.transcriptCapture().RecordPrompt(s, p)
 			}, LogPrompt: func(id, label, text string) { a.chatLogs().Prompt(id, label, text) },

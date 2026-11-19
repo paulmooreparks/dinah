@@ -20,7 +20,10 @@ const record = () => {
     // The start screen covers the whole page, in front of it, until the page has started.
     const screen = document.getElementById('start-screen'), area = screen ? screen.getBoundingClientRect() : null;
     const covering = !!area && area.width >= innerWidth && area.height >= innerHeight && getComputedStyle(screen).display !== 'none' && document.elementFromPoint(innerWidth / 2, 8) && screen.contains(document.elementFromPoint(innerWidth / 2, 8)) && screen.contains(document.elementFromPoint(8, innerHeight - 8));
-    return { parts, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(screen.querySelector('.start-screen-words').textContent) && screen.querySelector('.start-screen-name').textContent.trim() !== '' };
+    // A frame may be taken while the start screen's own parts are still being read from the page,
+    // on a slow machine, and a part that is not there yet has no words.
+    const words = (root, selector) => { const el = root.querySelector(selector); return el ? el.textContent : ''; };
+    return { parts, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(words(screen, '.start-screen-words')) && words(screen, '.start-screen-name').trim() !== '' };
   };
   let last = '';
   (function tick() {

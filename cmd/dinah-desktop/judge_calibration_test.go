@@ -57,6 +57,9 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 					Cost int `json:"cost"`
 				} `json:"turns"`
 				Needed int `json:"needed"`
+				// A suggested reply's input (judge_reply.go).
+				You   string `json:"you"`
+				Agent string `json:"agent"`
 			}
 			_ = json.Unmarshal([]byte(input), &in)
 			text := "ready"
@@ -76,6 +79,18 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 					freed += t.Cost
 				}
 				b, _ := json.Marshal(map[string]any{"turns": chosen})
+				text = string(b)
+			case in.Agent != "":
+				// Answer what the agent asked: each numbered question by its
+				// number, a single question with a yes, and nothing otherwise.
+				reply := ""
+				switch {
+				case strings.Contains(in.Agent, "1.") && strings.Contains(in.Agent, "2."):
+					reply = "1. Yes\n2. Renamed"
+				case strings.Contains(in.Agent, "?"):
+					reply = "Yes."
+				}
+				b, _ := json.Marshal(map[string]string{"reply": reply})
 				text = string(b)
 			case len(in.Lines) > 0:
 				text = in.Lines[0]

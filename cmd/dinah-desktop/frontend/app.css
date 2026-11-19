@@ -547,6 +547,20 @@ body:not(.show-thoughts) .thought-row { display: none; }
    the standard way (CSS Basic User Interface 4); app.js sizes the box itself
    where a browser lacks it. */
 .composer-input { width: 100%; resize: none; field-sizing: content; min-height: calc(2lh + 18px); max-height: min(calc(15lh + 18px), 40vh); overflow-y: auto; }
+/* A suggested reply (docs/plans/reply-suggestions.md) lies over the empty
+   prompt box in the placeholder's colour. It is placed in the box's cell of
+   the row and taken out of the flow, so it takes no room and cannot make
+   the box taller when it arrives. All four lines of the cell are given:
+   with only the first two, the cell of an element out of the flow runs to
+   the row's far edges, which is the Send row too in a narrow window. Then what does not fit in the box's two lines
+   is cut. Its padding and line height are the box's, which the script
+   copies, since a skin may change them. The key cap says which key takes
+   the suggestion. */
+.composer-row > .reply-suggestion { position: absolute; grid-area: 1 / 1 / 2 / 2; inset: 0; margin: 0; border: 1px solid transparent; pointer-events: none; color: var(--text-muted); opacity: .5;
+  white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.composer-row > .reply-suggestion[hidden], .composer-row > .reply-suggestion-key[hidden] { display: none; }
+.composer-row > .reply-suggestion-key { position: absolute; grid-area: 1 / 1 / 2 / 2; inset-block-start: 7px; inset-inline-end: 8px; pointer-events: none; font-size: var(--text-xs); line-height: 1.5; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-2); background: var(--surface); }
 .composer-actions { display: flex; flex-direction: column; gap: var(--space-2); justify-content: flex-end; }
 .composer-actions > .btn { min-width: 0; }
 .composer-actions > [data-reserve-label] { display: inline-grid; }

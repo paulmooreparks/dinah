@@ -1,6 +1,6 @@
 # A suggested reply in the prompt box
 
-Status: proposed on 19 November 2026. Nothing is built. The mockup is `docs/mockups/reply-suggestion/index.html`, and under the standing rule Paul approves it before any product code is written.
+Status: Paul approved the mockup (`docs/mockups/reply-suggestion/index.html`) on 19 November 2026, and steps 1 and 2 below were built that day. Step 3, the measurement, is not done. The kind is off until it is turned on in Settings, Judgements.
 
 Paul asked on 19 November 2026 for a feature he has seen in Claude Code. A judgement agent reads the most recent message of a chat, or more if that works better, and proposes his reply in the prompt box. The proposal looks like the box's placeholder. Tab makes it the box's text, with the caret at its end.
 
@@ -59,6 +59,20 @@ Every call is kept in the judgements' record for 90 days with its input, which i
 - **Two or three short replies in a row above the box.** It gives a choice and costs a row of the chat.
 - **The chat's own agent proposes the reply** at the end of its turn, with the whole conversation in mind. It would be the best informed. It would make every turn longer and dearer, it would need each agent program's cooperation, and the agent would be proposing the answer to its own question.
 
+## What was built, 19 November 2026
+
+Paul's answers to the three questions: the mockup is right, with the Tab key cap; a suggestion is made for every chat with a window; group chats and team rooms are left out.
+
+- **The kind** is `reply-suggestion` (`cmd/dinah-desktop/judge_reply.go`). The judge is given the person's last message, 600 characters from its start, and the agent's answer, 2,000 characters from its end. It answers with JSON holding one field, the reply, and an empty reply proposes nothing, which is also the rule. A reply over 400 characters or 6 lines is refused. The deadline is 10 seconds. It has three calibration cases.
+- **The page asks, and Go answers.** The page knows which chats have a window and whether one waits for the person, so it asks (`SuggestReply`) when a turn ends of itself in a chat with a window, and once when a window shows a chat that is idle. A turn the person stopped or steered, or one that ended in an error, asks for nothing. A chat that reports to a lead asks for nothing.
+- **One call for a turn.** Go looks in the judgements' record first. A suggestion already made for the conversation as it stands is given again from the record, so a window that is closed and opened, or a program that is restarted, makes no second call. While the kind is off, or no judge is set, nothing is asked and nothing is recorded.
+- **What became of it** is kept beside the call's record (`internal/judge/outcomes.go`): taken (Tab), dropped (Esc), or passed over, which is recorded when the person's next message starts a turn. The first outcome stands. A suggestion that was taken or dropped is not offered again for the same conversation.
+- **On the page** (`chat-applet.js`, "A suggested reply") the suggestion is kept on the session and drawn over the empty box. It lies in the box's cell of the composer's row and is taken out of the flow, so the box is no taller for it, in a wide window and in a narrow one where Send is on a row of its own.
+
+The browser suite `e2e/reply-suggestion.js` and the Go tests in `judge_reply_test.go` cover it.
+
+Not built: a view of the outcomes. They can be counted (`judge.Store.Outcomes`), and the Judgements page does not show them yet.
+
 ## Steps
 
 1. The judgement kind, with its calibration set, behind its switch. Go asks for a suggestion at the end of a turn and keeps the newest one for each chat.
@@ -67,6 +81,4 @@ Every call is kept in the judgements' record for 90 days with its input, which i
 
 ## Questions for Paul
 
-1. Is the mockup right, with the Tab key cap, or without it?
-2. Should a suggestion be made for every chat with a window, or only for the chat in front? The first has the reply waiting when a chat is brought forward. The second makes fewer calls.
-3. Group chats and team rooms are left out of the first version. Is that right?
+All three were answered on 19 November 2026, as recorded above.

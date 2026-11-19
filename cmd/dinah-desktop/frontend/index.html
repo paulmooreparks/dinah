@@ -705,6 +705,8 @@
       <p>Choose Clean Up Chats above the Chats list or in the launcher to review chats across workspaces. Filter the list, select the chats you no longer need and choose Delete Chats. Deleted chats receive no further messages and stay in the Recycle Bin for 30 days, where you can restore them as closed chats or delete them permanently. The Recycle Bin explains whether an agent program still has a loaded chat and what will happen to its own history at final deletion.</p>
       <h3>Broadcast</h3>
       <p>Choose Broadcast to Active or Broadcast to All in the Chat menu to send one message to several chats. Active includes chats that are working now, while All includes every available chat, including closed chats. Preview Recipients shows the count and chat titles before you confirm sending; editing the message requires a fresh preview. Closed chats wait until there is room to open them in the background.</p>
+      <h3>Suggested Replies</h3>
+      <p>Open Settings, choose Judgements and turn on Judge reply-suggestion under What a Judge May Judge to have a reply proposed when a turn ends in a chat. The proposal shows in the empty prompt box in faded words, with a Tab key cap beside it. Press Tab to make it your text, or Esc to drop it. Typing hides it, and nothing is sent until you send it. A chat that reports to a team lead gets none. Where a hosted agent is the judge, each proposal uses your plan.</p>
       <h3>Pause Chats and Restart</h3>
       <p>Choose Pause Chats and Restart in the application menu to ask working chats whose agents accept input during a turn to pause. The program waits for other working chats to finish. After restarting, the program tells the chats from before the restart to carry on. If a chat cannot reopen, including one whose first turn was cut short, Notifications lists it for you to open. You can restart the current program without an update waiting; when a newer build is installed, the restart uses it. If chats have not paused after two minutes, Notifications shows which ones are still working and offers Restart Now or Cancel the Restart. Restart Now can cut their turns short, while cancelling tells paused chats to carry on.</p>
       <h3>Kept Attention Cards</h3>
@@ -929,7 +931,12 @@
       <ul class="attachments" id="attachments" aria-label="Attached to the next message" hidden></ul>
       <div class="composer-row">
         <label class="visually-hidden" for="prompt">What should the agent do?</label>
-        <textarea class="form-textarea composer-input" id="prompt" rows="2" placeholder="Say what you want the agent to do, or type / for a skill." aria-autocomplete="list" aria-controls="slash-pop"></textarea>
+        <textarea class="form-textarea composer-input" id="prompt" rows="2" placeholder="Say what you want the agent to do, or type / for a skill." aria-autocomplete="list" aria-controls="slash-pop" aria-describedby="reply-suggestion-help"></textarea>
+        <!-- A suggested reply (docs/plans/reply-suggestions.md): drawn over the
+             empty box and never the box's text until Tab takes it. -->
+        <p class="reply-suggestion" id="reply-suggestion" aria-hidden="true" hidden></p>
+        <span class="reply-suggestion-key" id="reply-suggestion-key" aria-hidden="true" hidden>Tab</span>
+        <span class="visually-hidden" id="reply-suggestion-help"></span>
         <div class="slash-pop" id="slash-pop" role="listbox" aria-label="Skills" hidden></div>
         <div class="composer-actions">
           <button type="submit" class="btn btn-primary" id="send" data-reserve-label="Queue" disabled title="Send (Ctrl+Enter)"><span class="composer-send-label">Send</span></button>

@@ -76,6 +76,8 @@ type App struct {
 	// judging is the set of judges and the person's choices for them
 	// (judgements.go).
 	judging judging
+	// replies are the suggested replies being asked for (judge_reply.go).
+	replies replySuggesting
 	// claudeAdapters is the installing of the Claude adapter's releases
 	// (provider_claude.go).
 	claudeAdapters claudeAdapterWork

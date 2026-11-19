@@ -113,7 +113,7 @@ func OpenStore(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(schema + outcomeSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("prepare the judgements file: %w", err)
 	}
@@ -145,7 +145,11 @@ func (s *Store) Prune() error {
 	cutoff := s.now().Add(-s.retention)
 	s.pruned = s.now()
 	s.mu.Unlock()
-	_, err := s.db.Exec(`DELETE FROM calls WHERE at < ?`, cutoff.UnixMilli())
+	if _, err := s.db.Exec(`DELETE FROM calls WHERE at < ?`, cutoff.UnixMilli()); err != nil {
+		return err
+	}
+	// An outcome goes with its call (outcomes.go).
+	_, err := s.db.Exec(`DELETE FROM outcomes WHERE call_id NOT IN (SELECT id FROM calls)`)
 	return err
 }
 

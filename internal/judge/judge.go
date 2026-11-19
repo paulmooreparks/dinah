@@ -416,6 +416,15 @@ func (j *Judges) state(kind string) (judge Judge, on bool, provider, unit string
 	return j.judge, j.enabled && !j.off[kind], j.provider, j.unit
 }
 
+// Answers says a call of the kind would be put to a judge now: the judges are
+// on, the kind is not turned off, and a judge is set. A caller that would
+// ask at every turn's end looks here first, since a call that finds the kind
+// off is recorded as one.
+func (j *Judges) Answers(kind string) bool {
+	judge, on, _, _ := j.state(kind)
+	return on && judge != nil
+}
+
 // maxAnswerTokens bounds a judge's answer; a judgement is short.
 const maxAnswerTokens = 200
 
