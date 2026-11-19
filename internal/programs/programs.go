@@ -66,9 +66,12 @@ func FileName(name string) string {
 
 // Place copies the program src to dst. Something may be running the program
 // at dst, and Windows refuses to overwrite a running program but allows it
-// to be renamed, so the old one is moved aside first. Set-aside copies are
-// retained. An installer must not delete a running image or the latest fallback,
-// and a process snapshot cannot exclude a start immediately after the snapshot.
+// to be renamed, so the old one is moved aside first. Place removes no
+// set-aside copy: an installer must not delete a running image or the latest
+// fallback, and a process snapshot cannot exclude a start immediately after
+// the snapshot. The copies that may go are removed by a sweep, with those
+// protections, at the end of an installation and when the window starts
+// (SetAsideService.Sweep).
 func Place(src, dst string) error {
 	// The copy is written beside dst before anything is moved, so src is still
 	// readable when it is dst itself (installing from the installed program),

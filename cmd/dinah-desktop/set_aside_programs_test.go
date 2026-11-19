@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 
 	"studio/internal/profile"
@@ -65,5 +68,50 @@ func TestSetAsidePageUsesOnlyTheProgramFolder(t *testing.T) {
 	result, err := a.RemoveSetAsidePrograms(programs.RemoveSetAsideInput{IDs: []string{listed.Items[0].ID}})
 	if err != nil || len(result.Items) != 1 || result.Items[0].ReasonCode != "fallback" {
 		t.Fatalf("page fallback refusal: %+v %v", result, err)
+	}
+}
+
+// A sweep covers the stand-alone document applications' copies too, which an
+// installation sets aside like any other and which were neither listed nor
+// removable until 20 November 2026, and it says what it removed.
+func TestSweepCoversTheDocumentApplications(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "Programs", profile.Current().Name)
+	t.Setenv(programs.FolderVar(profile.Current()), bin)
+	if err := os.MkdirAll(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for id := range documentApplications {
+		file := programs.FileName(documentProgramName(id))
+		names = append(names, file+".old-20261113120000000", file+".old-20261114120000000")
+	}
+	if len(names) == 0 {
+		t.Skip("this product has no stand-alone document application")
+	}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(name), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listed, err := (&App{}).ListSetAsidePrograms()
+	if err != nil || len(listed.Items) != len(names) {
+		t.Fatalf("the page lists %d of %d copies: %+v %v", len(listed.Items), len(names), listed, err)
+	}
+	if runtime.GOOS != "windows" {
+		return // removal is supported only on Windows
+	}
+	note, err := sweepSetAside()
+	want := fmt.Sprintf("Removed %d older copies", len(names)/2)
+	if err != nil || !strings.HasPrefix(note, want) {
+		t.Fatalf("sweep said %q, %v; want it to start %q", note, err, want)
+	}
+	for _, name := range names {
+		_, err := os.Stat(filepath.Join(bin, name))
+		if newest := strings.Contains(name, "20261114"); newest != (err == nil) {
+			t.Errorf("%s: kept is %v, want %v", name, err == nil, newest)
+		}
+	}
+	if note, err := sweepSetAside(); err != nil || note != "" {
+		t.Fatalf("a second sweep said %q, %v", note, err)
 	}
 }

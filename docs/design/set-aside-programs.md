@@ -1,6 +1,6 @@
 # Removing set-aside programs
 
-The person may remove selected older installed programs from Settings. Nothing removes them automatically. The service owns the product home bin directory and derives its program names from the profile's CommandProgram, WindowProgram, ToolServers and ProgramCommands, and from the earlier names of the command line and the tool programs (EarlierCommandPrograms and each server's EarlierPrograms), under which an earlier update set copies aside. It accepts no caller paths. A distribution's existing profile therefore covers its additional programs without product names in the host.
+The person may remove selected older installed programs from Settings, and since 20 November 2026 an installation's last step and the window's start remove the ones that may go (see Sweeping below). The service owns the product's program folder and derives its program names from the profile's CommandProgram, WindowProgram, ToolServers and ProgramCommands, and from the earlier names of the command line and the tool programs (EarlierCommandPrograms and each server's EarlierPrograms), under which an earlier update set copies aside. It accepts no caller paths. A distribution's existing profile therefore covers its additional programs without product names in the host.
 
 ## Window contract
 
@@ -23,6 +23,16 @@ On Windows, process discovery enumerates loaded modules and asks GetMappedFileNa
 The listing reports processes that could not be inspected in warnings. Module enumeration, mapped-name lookup and file opening form a snapshot, with ordinary exit, rename and load races; shared mapped paths are cached within that snapshot. This cannot prove that an unmarked file is unused. Removal takes a fresh process snapshot at the start of the confirmed batch, opens each selected file with DELETE access, checks its identity again, holds it against replacement, refreshes fallback selection, and requests ordinary FileDispositionInfo deletion on that handle. It never uses POSIX deletion or bypasses mapped-image protection. Windows rejects ordinary deletion of a mapped executable, including a process started after inspection. Failure is a refusal and preserves the file. Other platforms refuse removal until they have an equivalent documented implementation.
 
 The implementation uses [EnumProcessModulesEx](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-enumprocessmodulesex), [GetMappedFileName](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getmappedfilenamew), [FILE_ID_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info), [CreateFile sharing rules](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew), and [SetFileInformationByHandle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfileinformationbyhandle). The [DeleteFile contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-deletefile) documents the refusal for memory-mapped files. Device names are opened through the documented [GLOBALROOT namespace](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file). The service does not delete by a path after its identity check.
+
+## Sweeping
+
+Every installation sets the programs it replaces aside, and until 20 November 2026 nothing removed them but the person, in Settings. Paul found about 750 copies in his two program folders that day, 62 GB, and called it unacceptable. A third of them were copies of the stand-alone document applications, which the list did not show and so nobody could remove.
+
+`(*SetAsideService).Sweep() (SweepResult, error)` removes every installer copy (`.old-`) that `Remove` would remove for the person. The rules are `Remove`'s, unchanged: the newest copy of each program stays for going back, a copy a running program uses stays, and a program with a copy whose date cannot be read loses none. A copy somebody made by hand (`.before-` and a label) is listed for the person and is never swept, since it was made on purpose.
+
+The window program sweeps in two places. The last step of an installation (`--install`, install_step.go) sweeps and prints what it removed, so that a folder installed into many times without a restart does not grow. The window sweeps when it starts (`sweepSetAsideAtStart`), in the background, which is when the program an installation replaced has stopped and its copy may go; only a window running from the program folder does this, so a check or a developer's build removes nothing. After a sweep the folder has one earlier copy of each program, and the copies still in use.
+
+The service's names are now every program an installation puts in the folder (`installedProgramNames`), the document applications among them.
 
 ## Ownership and verification
 

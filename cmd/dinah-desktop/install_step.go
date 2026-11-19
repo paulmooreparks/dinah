@@ -95,6 +95,14 @@ func runInstall() int {
 			}
 		}
 	}
+	// Each installation sets the programs it replaces aside. The ones before
+	// those may go now, so that the folder holds one earlier copy of each
+	// program and not one for every installation there ever was.
+	if note, err := sweepSetAside(); err != nil {
+		fmt.Fprintf(os.Stderr, "The copies earlier installations set aside could not be removed: %v\n", err)
+	} else if note != "" {
+		fmt.Println(note)
+	}
 	if failed {
 		return 1
 	}

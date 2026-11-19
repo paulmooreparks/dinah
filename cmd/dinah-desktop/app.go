@@ -324,6 +324,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.sweepDrafts()
 	go a.installStandardFiles()
 	go pruneAgentLogs()
+	go sweepSetAsideAtStart()
 	go a.catchUpClaudeAdapter()
 	_ = a.appletHostService().StartMaintenance()
 	// The bus is opened here, so that the schema and upgrade checks are a

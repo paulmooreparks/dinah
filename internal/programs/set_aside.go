@@ -292,3 +292,63 @@ func (s *SetAsideService) Remove(in RemoveSetAsideInput) (RemoveSetAsideResult, 
 	}
 	return out, nil
 }
+
+// SweepResult says what a sweep removed and what it left for the next one.
+type SweepResult struct {
+	Removed      int
+	RemovedBytes int64
+	// InUse is how many of the installer's copies a running program still
+	// uses. They are removed by a later sweep.
+	InUse int
+	// Refused is how many the removal itself refused, as when a program
+	// started from a copy after the list was made.
+	Refused int
+}
+
+// Sweep removes every copy an installation set aside that Remove would
+// remove for the person: all but the newest of each program, which is kept
+// for going back, and all but those a running program still uses.
+//
+// Every installation sets the programs it replaces aside (Place), and for a
+// time nothing removed them but the person, in Settings. Paul found some 750
+// of them in his two program folders on 20 November 2026, 62 GB, and called
+// that unacceptable. An installation's last step and the window's start now
+// sweep. The rules of what may go are Remove's, unchanged.
+//
+// A copy somebody made by hand, named .before- and a label, is listed for
+// the person and is not swept: nothing that was made on purpose is removed
+// without being asked for.
+func (s *SetAsideService) Sweep() (SweepResult, error) {
+	var out SweepResult
+	files, _, err := s.listFiles()
+	if err != nil {
+		return out, err
+	}
+	var ids []string
+	for _, file := range files {
+		switch {
+		case !file.old:
+		case file.CanRemove:
+			ids = append(ids, file.ID)
+		case file.ReasonCode == "in_use":
+			out.InUse++
+		}
+	}
+	for len(ids) > 0 {
+		n := min(len(ids), 100)
+		result, err := s.Remove(RemoveSetAsideInput{IDs: ids[:n]})
+		if err != nil {
+			return out, err
+		}
+		for _, item := range result.Items {
+			if item.State == "removed" {
+				out.Removed++
+			} else {
+				out.Refused++
+			}
+		}
+		out.RemovedBytes += result.RemovedBytes
+		ids = ids[n:]
+	}
+	return out, nil
+}

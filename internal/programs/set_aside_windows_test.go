@@ -245,3 +245,44 @@ func TestSetAsideKernelRefusesAStartAfterTheLastSnapshot(t *testing.T) {
 		t.Fatalf("running executable removed: %v", err)
 	}
 }
+
+// A sweep removes the installer's copies but the newest of each program, and
+// leaves a copy somebody made by hand (Paul, 20 November 2026: 62 GB of
+// copies that nothing removed).
+func TestSweepRemovesTheInstallersCopiesButTheNewest(t *testing.T) {
+	dir := t.TempDir()
+	kept := []string{
+		FileName("window") + ".old-20261114120000000",
+		FileName("command") + ".old-1794648000000000000-123",
+		FileName("window") + ".before-change-20261101-120000",
+		FileName("window"),
+	}
+	gone := []string{
+		FileName("window") + ".old-20261112120000000",
+		FileName("window") + ".old-20261113120000000",
+		FileName("command") + ".old-1794537927330590600-1",
+		FileName("command") + ".old-1794537927330590600-2",
+	}
+	for _, name := range append(append([]string{}, kept...), gone...) {
+		writeProgram(t, filepath.Join(dir, name), name)
+	}
+	service := NewSetAsideService(dir, []string{"window", "command"})
+	result, err := service.Sweep()
+	if err != nil || result.Removed != len(gone) || result.Refused != 0 || result.InUse != 0 || result.RemovedBytes == 0 {
+		t.Fatalf("sweep: %+v %v", result, err)
+	}
+	for _, name := range kept {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s was to be kept: %v", name, err)
+		}
+	}
+	for _, name := range gone {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Errorf("%s was to be removed: %v", name, err)
+		}
+	}
+	again, err := service.Sweep()
+	if err != nil || again.Removed != 0 || again.Refused != 0 {
+		t.Fatalf("a second sweep: %+v %v", again, err)
+	}
+}
