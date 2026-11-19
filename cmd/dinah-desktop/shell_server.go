@@ -236,6 +236,13 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.servePageFiles(w, r)
 		return
 	}
+	// A product's route for a sandboxed frame's files admits a request by the
+	// token in its path, since a browser may send the frame's requests
+	// without the page's cookie (internal/pageroutes).
+	if h, ok := pageroutes.LookupSelfGuarded(r.URL.Path); ok && (r.Method == "GET" || r.Method == "HEAD") {
+		h.ServeHTTP(w, r)
+		return
+	}
 	c, err := r.Cookie(shellCookie)
 	if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.token)) != 1 {
 		// A slide show's page has a cookie of its own and a narrower reach.

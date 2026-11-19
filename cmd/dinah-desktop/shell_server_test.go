@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"studio/internal/pageroutes"
 )
 
 func TestShellMissingPageFilesAreNotStored(t *testing.T) {
@@ -99,6 +101,30 @@ func TestShellPageHasContentSecurityPolicy(t *testing.T) {
 	}
 	if !strings.Contains(shellPolicy, "object-src 'none'") || !strings.Contains(shellPolicy, "base-uri 'none'") {
 		t.Errorf("the policy must allow no plug-in and no base address: %s", shellPolicy)
+	}
+}
+
+// A product's route for a sandboxed frame's files is reached without the
+// page's cookie, since the frame's requests may come without it, and for
+// reading only; a cookie-guarded route still needs the cookie.
+func TestASelfGuardedRouteIsServedWithoutTheCookie(t *testing.T) {
+	served := 0
+	pageroutes.RegisterSelfGuarded("/test-shell-frames/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served++ }))
+	pageroutes.Register("/test-shell-guarded/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served += 100 }))
+	s := &shellServer{addr: "127.0.0.1:47616", token: "token", codes: map[string]shellCode{}}
+	status := func(method, path string) int {
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, httptest.NewRequest(method, "http://127.0.0.1:47616"+path, nil))
+		return w.Code
+	}
+	if code := status("GET", "/test-shell-frames/abc/pudl.css"); code != http.StatusOK || served != 1 {
+		t.Fatalf("a frame's file without the cookie: status %d, served %d", code, served)
+	}
+	if code := status("POST", "/test-shell-frames/abc/pudl.css"); code != http.StatusUnauthorized || served != 1 {
+		t.Fatalf("a POST to a frame's route without the cookie: status %d, served %d", code, served)
+	}
+	if code := status("GET", "/test-shell-guarded/a"); code != http.StatusUnauthorized || served != 1 {
+		t.Fatalf("a cookie-guarded route without the cookie: status %d, served %d", code, served)
 	}
 }
 

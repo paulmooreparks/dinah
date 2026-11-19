@@ -42,3 +42,25 @@ func TestRoutesAreFoundByPrefixAndBadOnesRefused(t *testing.T) {
 		t.Fatalf("prefixes: %v", p)
 	}
 }
+
+func TestSelfGuardedRoutesAreKeptApart(t *testing.T) {
+	RegisterSelfGuarded("/test-frames/", http.NotFoundHandler())
+	if _, ok := LookupSelfGuarded("/test-frames/abc/index.html"); !ok {
+		t.Fatal("the self-guarded route was not found")
+	}
+	if _, ok := Lookup("/test-frames/abc/index.html"); ok {
+		t.Fatal("a self-guarded route was offered behind the cookie")
+	}
+	Register("/test-guarded/", http.NotFoundHandler())
+	if _, ok := LookupSelfGuarded("/test-guarded/a"); ok {
+		t.Fatal("a cookie-guarded route was offered without the cookie")
+	}
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Error("a prefix taken by the other kind was accepted")
+			}
+		}()
+		Register("/test-frames/", http.NotFoundHandler())
+	}()
+}
