@@ -59,3 +59,29 @@ func endStale(t *sql.Tx, now time.Time, stamp string) (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+// EndWindowSessionsSeenBefore ends the window's chats that the bus counts as
+// open and last saw before a time, and reports how many it ended.
+//
+// The window ends a chat when the chat closes and when the window shuts
+// down. A window that is killed, or replaced by a new program while chats
+// are open, ends none of them, and they stayed open on the bus for good:
+// eight had since October 2026, four of them with one title, which could
+// not be sent to. So a window that starts calls this with the time it
+// started, before it restores any chat. That leaves the bus as an ordinary
+// shutdown would have left it, and each chat is open again when it opens
+// (RegisterSession). A chat this window has already opened was seen after
+// the window started, and is left as it is.
+func (b *Bus) EndWindowSessionsSeenBefore(ctx context.Context, before time.Time) (ended int64, err error) {
+	err = b.tx(ctx, func(t *sql.Tx) error {
+		res, err := t.Exec(`UPDATE sessions SET ended_at = ?
+			WHERE ended_at IS NULL AND removed_at IS NULL AND last_seen < ? AND substr(id, 1, ?) = ?`,
+			b.stamp(), before.UTC().Format(time.RFC3339Nano), len(WindowSessionPrefix), WindowSessionPrefix)
+		if err != nil {
+			return err
+		}
+		ended, err = res.RowsAffected()
+		return err
+	})
+	return ended, err
+}

@@ -175,3 +175,42 @@ func TestChatsOfOneWorkspaceThatShareATitleAreSentToByTheirIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A window that starts ends the chats of the window that an earlier one
+// left open, and leaves the chats it has opened itself, the chats started
+// outside the window, and a chat that was ended and opens again.
+func TestAWindowThatStartsEndsTheChatsAnEarlierOneLeftOpen(t *testing.T) {
+	ctx := context.Background()
+	b, root := open(t)
+	now := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+	b.now = func() time.Time { return now }
+	ws := workspace(t, root, "alpha")
+	left, outside := WindowSessionPrefix+"LEFT", "outside"
+	for _, id := range []string{left, outside} {
+		if _, err := b.RegisterSession(ctx, id, ws, "Development"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The next window starts a day later and has already opened one chat.
+	started := now.Add(24 * time.Hour)
+	now = started.Add(time.Second)
+	opened := WindowSessionPrefix + "OPENED"
+	if _, err := b.RegisterSession(ctx, opened, ws, "Opened"); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := b.EndWindowSessionsSeenBefore(ctx, started); err != nil || n != 1 {
+		t.Fatalf("ended %d chats (%v), want the one an earlier window left open", n, err)
+	}
+	got := liveIDs(t, b)
+	if strings.Contains(got, left) || !strings.Contains(got, opened) || !strings.Contains(got, outside) {
+		t.Fatalf("open chats are %q", got)
+	}
+	// The chat it ended is still known, so a message to it waits, and it is
+	// open again when its chat opens.
+	if _, err := b.RegisterSession(ctx, left, ws, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := liveIDs(t, b); !strings.Contains(got, left) {
+		t.Fatalf("the chat is not open again after it opened: %q", got)
+	}
+}

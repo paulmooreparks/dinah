@@ -289,6 +289,10 @@ func NewApp() *App {
 	return a
 }
 
+// windowStarted is when this program started, which tells the chats it has
+// opened from those an earlier window left open on the bus.
+var windowStarted = time.Now()
+
 func (a *App) startup(ctx context.Context) {
 	if _, err := a.fileAccessService(); err != nil {
 		logf("core", "warning", "file-access policy could not be opened; provider reads will fail closed")
@@ -322,8 +326,14 @@ func (a *App) startup(ctx context.Context) {
 	_ = a.appletHostService().StartMaintenance()
 	// The bus is opened here, so that the schema and upgrade checks are a
 	// cost of starting and never of a call.
-	if _, err := a.busHost().Bus(); err != nil {
+	if b, err := a.busHost().Bus(); err != nil {
 		logf("bus", "error", "opening the bus: %v; chats will not be woken by messages", err)
+	} else if n, err := b.EndWindowSessionsSeenBefore(ctx, windowStarted); err != nil {
+		logf("bus", "warning", "ending the chats an earlier window left open: %v", err)
+	} else if n > 0 {
+		// A window that was killed, or replaced while chats were open, ended
+		// none of them on the bus (docs/design/bus-open-chats.md).
+		logf("bus", "info", "ended %d chats that an earlier window left open on the bus", n)
 	}
 	a.shortenTitles()
 	if err := a.reconcileChatRemovals(); err != nil {
