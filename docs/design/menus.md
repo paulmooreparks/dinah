@@ -12,8 +12,10 @@ Paul asked on 19 November 2026 for every menu to be listed and compared with the
 6. A row that cannot be used is greyed and not removed.
 7. A set of which one is on has radio marks, and a setting that is on or off has a check mark.
 8. Labels are in title case, and an ellipsis means the command asks for something more before it acts.
-9. The launcher lists what opens in a window or a pane of its own, one entry each, in alphabetical order. It lists no commands.
-10. Ctrl+P is Print…, and Find and Open… takes Ctrl+E (decided 19 November 2026; both wait for the File menu, since the document applications draw Print… themselves today).
+9. The launcher lists what opens in a window or a pane of its own, one entry each, in alphabetical order. It lists no commands. The panes are in it, under a category of their own, so that a pane can be found and pinned from it.
+10. Ctrl+P is Print…, and Find and Open… takes Ctrl+Shift+O (decided 19 November 2026; both wait for the File menu, since the document applications draw Print… themselves today and a freed Ctrl+P would otherwise do nothing).
+11. The settings menu is called Settings.
+12. The way out of the program is called Exit on every system, and is File's last row.
 
 ## Where the work is
 
@@ -29,7 +31,8 @@ These changes needed nothing outside this repository. The titles are still Works
 - **Workspaces** has Refresh Workspace and Remove Workspace…, which were only in the pane and the status bar.
 - **Documents** no longer has In Progress, which View has.
 - **Themes** have radio marks, and the built-in ones stand under the heading Built In where each had "(built in)" after its name. Edit Current Theme lost its ellipsis.
-- **The launcher** lost nine commands: New Chat, New Workspace…, New Empty Workspace, Import Workspace…, Open Document…, Find a Tool…, Keyboard Shortcuts, About and Refresh Shells, and with them its Help category. Install Packages… stays in it until a menu has a place for it.
+- **The launcher** lost nine commands: New Chat, New Workspace…, New Empty Workspace, Import Workspace…, Open Document…, Find a Tool…, Keyboard Shortcuts, About and Refresh Shells. Install Packages… stays in it until a menu has a place for it. Its categories are Documents (the four document applications and Files), Chats (Decisions, Org Chart, Clean Up Chats), Panes (the six panes, Group Chats now among them), Terminals, Tools (what a product adds, and not listed when a product adds nothing) and Settings (Extensions, Theme Editor, Install Packages…). A tool that gives no category of its own gets one from a table in `title-launcher.js`.
+- **Exit** is the name of the launcher's button and of the command, which were Quit.
 - **Commands…** files the chat commands under Chat, the workspace commands under Workspaces, and the tools under Tools. They were all filed under View.
 - **The two kinds of Terminal** list their commands in one order.
 
@@ -39,16 +42,15 @@ The command registry gained two things for this (`commands.js`). An entry may sa
 
 - **PUDL.** The host's titles keep the order the host wrote them in; today PUDL puts a host title it does not know before View. A row may show Ctrl+X, Ctrl+C, Ctrl+V or Ctrl+A without the bar binding the key. The window rows are in title case, and the list of windows has radio marks. One defect was reported on 19 November 2026: a menu's rows move to the right when one of its cascades opens, if the cascade has marked rows and the menu has none (Workspaces, Recent Workspaces shows it).
 - **The document applications.** Under a host that has File and Edit they give those two titles up, carry out the general commands the host sends, and keep what only they do in their own first menu.
-- **Here.** The eight menus with their general commands, the Chat menu taking over the chat window's Actions, File taking over Documents and Document, the Settings menu with Settings… and the colours, Exit as File's last row, and the two keys of rule 10.
+- **Here.** The eight menus with their general commands, the Chat menu taking over the chat window's Actions, File taking over Documents and Document, the Settings menu with Settings… and the colours, Exit as File's last row, and the two keys of rule 10. The launcher's Default Shell entry is to be called Terminal, which is what it starts.
 
 ## Questions still open
 
-1. Whether the settings menu is called Settings or Options.
-2. Whether File's last row is Exit on Windows and Quit elsewhere.
-3. Whether Ctrl+E is the key for Find and Open….
-4. Whether F1 stays the list of keys or opens a help page.
-5. Whether the five panes leave the launcher.
+Paul answered four on 19 November 2026, and they are rules 9 to 12 above. Two are open.
+
+1. Whether F1 stays the list of keys or opens a help page.
+2. Whether a document application has one menu for everything only it does, or two: one for the application and one for the document in front.
 
 ## Tests
 
-The browser suite `e2e/host-menus-order.js` covers step 1: what View, Documents, Window, Help and Workspaces hold and in what order, the themes' marks, the Chats pane's Broadcast rows, and what the launcher no longer lists.
+The browser suite `e2e/host-menus-order.js` covers step 1: what View, Documents, Window, Help and Workspaces hold and in what order, the themes' marks, the Chats pane's Broadcast rows, what the launcher no longer lists, its categories, and the name Exit.

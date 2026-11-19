@@ -58,6 +58,17 @@ const { launch } = require('./lib/page');
     t.ok('the launcher lists no commands', !launcher.names.some((n) => /^New |Import Workspace|Open Document|Find a Tool|Keyboard Shortcuts|^About |Refresh Shells/.test(n)));
     t.ok('the launcher keeps its applications, panes and the Terminal', ['Docs', 'Editor', 'Files', 'Chats', 'Workspace', 'Default Shell', 'Install Packages…'].every((n) => launcher.names.includes(n)));
     t.ok('the launcher has no Help category', !launcher.categories.includes('help'));
+    // Its categories (Paul, 19 November 2026): the panes have one of their own, and one with nothing in it is not listed.
+    const cats = await p.evaluate(() => {
+      const of = (key) => Array.from(document.querySelectorAll('#dinah-launcher [data-start-item][data-start-category="' + key + '"] .start-name')).map((n) => n.textContent.trim()).sort().join('|');
+      return { panes: of('panes'), chats: of('chats'), settings: of('settings'), documents: of('documents'),
+        listed: Array.from(document.querySelectorAll('#dinah-launcher [data-start-category-key]')).filter((a) => !a.closest('li').hidden).map((a) => a.dataset.startCategoryKey).join('|') };
+    });
+    t.ok('the six panes are under Panes', cats.panes === 'Chats|Group Chats|In Progress|Notifications|Skills|Workspace', cats.panes);
+    t.ok('the chat tools are under Chats and the settings tools under Settings', cats.chats === 'Clean Up Chats|Decisions|Org Chart' && cats.settings === 'Extensions|Install Packages…|Theme Editor', cats.chats + ' / ' + cats.settings);
+    t.ok('Files is with the document applications', cats.documents.split('|').includes('Files') && cats.documents.split('|').includes('Docs'), cats.documents);
+    t.ok('an empty category is not listed', cats.listed === '|documents|chats|panes|terminals|settings', cats.listed);
+    t.ok('the way out is called Exit', await p.evaluate(() => document.querySelector('#dinah-launcher [data-cmd="quit"]').textContent.trim() === 'Exit Dinah' && window.dinahCommands.describe('quit').label === 'Exit Dinah'));
     // The Chats pane's own menu has Broadcast.
     await p.evaluate(() => window.dinahWorkbench.open('chat-browser'));
     await p.waitForFunction(() => Array.from(document.querySelectorAll('nav.menubar .menubar-front .menubar-title')).some((b) => b.textContent.trim() === 'Actions'));

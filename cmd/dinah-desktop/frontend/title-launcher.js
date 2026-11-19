@@ -3,6 +3,9 @@
   'use strict';
   var root = document.getElementById('dinah-launcher'), started = false, restoring = false;
   var store = 'dinah-title-launcher', actions = new Map();
+  // The category of a tool that gives none of its own: what it works on.
+  // A product's own tools are under Tools (docs/design/menus.md).
+  var CATEGORY = { files: 'documents', decisions: 'chats', 'org-chart': 'chats', 'chat-cleanup': 'chats', 'theme-editor': 'settings', extensions: 'settings' };
   function draw() {
     var list = root.querySelector('[data-start-items]');
     actions.clear(); list.replaceChildren();
@@ -25,16 +28,17 @@
       // commands it used to list (New Chat, the workspace commands, Open
       // Document…, Find a Tool…, Keyboard Shortcuts, About) each have
       // a row in a menu (docs/design/menus.md). Install Packages… stays
-      // until a menu has a place for it.
-      ['chat-browser','chat','comments'],
-      ['skills-browser','tools','document'], ['in-progress','documents','pencil'], ['needs-you','tools','warning','Notifications'],
-      ['show-workspace','workspace','folder'],
-      ['install-packages-file','tools','download']
+      // until a menu has a place for it. The six panes are a category of
+      // their own, so that a pane can be found and pinned from here (Paul,
+      // 19 November 2026).
+      ['show-workspace','panes','folder'], ['chat-browser','panes','comments'], ['in-progress','panes','pencil'],
+      ['skills-browser','panes','document'], ['needs-you','panes','warning','Notifications'], ['bus','panes','inbox'],
+      ['install-packages-file','settings','download']
     ].forEach(function (entry) {
       var cmd = dinahCommands.describe(entry[0],entry[3]); add(entry[0],cmd.label,entry[1],entry[2],cmd.run,cmd.disabled);
       list.lastElementChild.querySelector('button').dataset.launcherCommand = entry[0];
     });
-    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || (tool.id === 'files' ? 'workspace' : 'tools'),tool.glyph,tool.run); });
+    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || CATEGORY[tool.id] || 'tools',tool.glyph,tool.run); });
     var terminal = dinahWorkbench.launchers().find(function (tool) { return tool.id === 'terminal'; });
     add('terminal:default','Default Shell','terminals','terminal',terminal ? terminal.run : function () {},!terminal);
     if (window.dinahShellTerminal) {
@@ -44,6 +48,11 @@
         });
       });
     }
+    // A category with nothing in it, as Tools is in a product that adds no tools, is not listed.
+    root.querySelectorAll('[data-start-category-key]').forEach(function (link) {
+      var key = link.dataset.startCategoryKey;
+      link.closest('li').hidden = !!key && !list.querySelector('[data-start-category="' + CSS.escape(key) + '"]');
+    });
     // The entries are in alphabetical order, whichever category is chosen (Paul, 9 November 2026).
     Array.from(list.children).sort(function (a, b) { return a.querySelector('.start-name').textContent.localeCompare(b.querySelector('.start-name').textContent, undefined, { sensitivity: 'base' }); }).forEach(function (li) { list.append(li); });
     if (started) pudlStart.refresh(root);

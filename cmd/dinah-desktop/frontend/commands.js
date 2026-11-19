@@ -231,7 +231,7 @@
   /* A key can follow a change within the redraw's delay, as Ctrl+S right
      after typing does, so a waiting redraw is made at once, before the menu
      bar reads the rows for the key. */
-  // Labels written from the product's name (Quit, About) are drawn again
+  // Labels written from the product's name (Exit, About) are drawn again
   // when the page learns the name (product.js).
   document.addEventListener('dinah:product', function () { changed(); });
   document.addEventListener('keydown', function (e) {
@@ -368,7 +368,7 @@
     register({ id: 'restart', menu: 'chat', inline: true, label: 'Restart Agent', run: () => { restartAgent(); } });
     register({ id: 'thoughts', menu: 'view', inline: true, label: "Show the Agent's Thinking", enabled: () => !thinking().busy, checked: () => thinking().checked, run: () => { saveThinking(!thinking().checked); } });
     register({ id: 'about', menu: 'help', inline: true, label: () => 'About ' + productName(), run: () => { document.getElementById('about').showModal(); } });
-    register({ id: 'quit', menu: 'dinah', inline: true, label: () => 'Quit ' + productName(), run: () => { Promise.all([flushNotifications(), window.dinahUIState ? window.dinahUIState.flush() : null]).then(function () { if (window.runtime) window.runtime.Quit(); }).catch(fail); } });
+    register({ id: 'quit', menu: 'dinah', inline: true, label: () => 'Exit ' + productName(), run: () => { Promise.all([flushNotifications(), window.dinahUIState ? window.dinahUIState.flush() : null]).then(function () { if (window.runtime) window.runtime.Quit(); }).catch(fail); } });
     alias('go-to', 'find-and-open');
     register({ id: 'all-windows', menu: 'window', inline: true, search: false, label: 'All Windows…', run: () => openGoTo('windows') });
     register({ id: 'needs-you', menu: 'view', inline: true, search: false, label: 'Show All', run: showNotifications });
