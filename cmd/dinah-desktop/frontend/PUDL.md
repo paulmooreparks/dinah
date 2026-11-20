@@ -110,3 +110,11 @@ Both bundles contain all 196 distribution files of the published release v0.108.
 The release carries Paul's ruling of 16 November that a row's actions button is always shown and is an ordinary Tab stop, everywhere. PUDL no longer hides the button until hover or focus, and no longer takes it out of the Tab order or hides it from assistive technology. A button with no name of its own is labelled Actions. Dinah's row buttons are PUDL's, so they change with no code here. The Org Chart's actions buttons are ordinary buttons, and the rules that forced them visible were removed because nothing hides them.
 
 This adoption and yavc.app v0.2.107, which is v0.2.106 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
+
+## Published 0.108.2 adoption, 20 November 2026
+
+Both bundles contain all 196 distribution files of the published release v0.108.2, release commit ee4426740ab543d040893555c74880a062c19ef4. The archive `pudl-0.108.2.zip` has SHA-256 `b3edc3c9926d5d8d8c1701a6cd2231fde5667a1a4a82578ac697bffd66683b5d`, and every file was checked against the release's distribution manifest before it replaced the copy here. Only `pudl-windows.css`, its minified copy and map, and the version line of `pudl.css` differ from 0.108.1.
+
+The release carries Paul's ruling of 20 November that every taskbar button is 30px tall, the height of the bordered tray, so window buttons, stacks, the bar's own buttons and each tray action now share one height. The tray draws its border inside that height, enlarged text grows every entry together, and a coarse pointer keeps its wider targets at the same height. Dinah's taskbar entries are PUDL's, so they change with no code here. Measured in headless Chromium, every entry and the tray are 30px at 1280px wide, at 125% display scaling and at the two compact widths; a stack of three windows shows both edges inside the dock; the keyboard focus ring stays inside the bar; and with 20px text every entry is 34.5px.
+
+This adoption and yavc.app v0.2.108, which is v0.2.107 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
