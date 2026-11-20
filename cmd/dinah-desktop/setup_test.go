@@ -65,6 +65,49 @@ func TestTheSetUpSetsWhatWasAnsweredAndUndoPutsItBack(t *testing.T) {
 	}
 }
 
+// A folder that is a workspace already is only put in front: no second
+// workspace is made of it, and Undo puts the earlier one in front again and
+// removes neither.
+func TestTheSetUpPutsAFolderThatIsAWorkspaceAlreadyInFront(t *testing.T) {
+	a, _, _ := judgementApp(t)
+	known, front := t.TempDir(), t.TempDir()
+	for _, folder := range []string{known, front} {
+		if _, err := a.SetWorkspace(folder); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := a.SetupFolder(t.TempDir()); got.Known {
+		t.Fatalf("a folder that is no workspace: %+v", got)
+	}
+	if got := a.SetupFolder(known); !got.Known || got.Front || got.Name == "" {
+		t.Fatalf("a workspace that is not in front: %+v", got)
+	}
+	if got := a.SetupFolder(front); !got.Known || !got.Front {
+		t.Fatalf("the workspace in front: %+v", got)
+	}
+	a.mu.Lock()
+	agent := defaultProviderOf(a.settings)
+	a.mu.Unlock()
+	if err := a.ApplySetup(SetupChoices{Agent: agent, Folder: known}); err != nil {
+		t.Fatal(err)
+	}
+	a.mu.Lock()
+	s := a.settings
+	a.mu.Unlock()
+	if !sameFolder(s.Workspace, known) || len(s.WorkspaceRecords) != 2 {
+		t.Fatalf("after the set-up: workspace %q, %d records", s.Workspace, len(s.WorkspaceRecords))
+	}
+	if err := a.UndoSetup(); err != nil {
+		t.Fatal(err)
+	}
+	a.mu.Lock()
+	s = a.settings
+	a.mu.Unlock()
+	if !sameFolder(s.Workspace, front) || len(s.WorkspaceRecords) != 2 {
+		t.Fatalf("after Undo: workspace %q, %d records", s.Workspace, len(s.WorkspaceRecords))
+	}
+}
+
 func sameFolder(a, b string) bool {
 	x, _ := filepath.EvalSymlinks(a)
 	y, _ := filepath.EvalSymlinks(b)

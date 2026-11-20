@@ -239,6 +239,31 @@ func (a *App) SetupAsking(provider string) *SetupAsking {
 	return asking
 }
 
+// SetupFolder says what choosing a folder in the set-up would do. Known says
+// the folder is a workspace already, so none is made of it, Name is that
+// workspace's name, and Front says it is the one in front, so nothing
+// changes.
+type SetupFolder struct {
+	Known bool   `json:"known"`
+	Name  string `json:"name"`
+	Front bool   `json:"front"`
+}
+
+// SetupFolder reads what choosing a folder in the set-up would do.
+func (a *App) SetupFolder(folder string) SetupFolder {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if strings.TrimSpace(folder) == "" {
+		return SetupFolder{}
+	}
+	i := workspaces.IndexAt(a.settings.WorkspaceRecords, filepath.Clean(folder))
+	if i < 0 {
+		return SetupFolder{}
+	}
+	front := a.settings.Workspace != "" && workspaces.IndexAt(a.settings.WorkspaceRecords, a.settings.Workspace) == i
+	return SetupFolder{Known: true, Name: a.settings.WorkspaceRecords[i].Name, Front: front}
+}
+
 // SetupChoices are the answers the set-up sets. Asking is empty for an agent
 // with no such setting, Folder is empty when no folder was chosen, and
 // SetName says the name was answered: an empty Name then means the
