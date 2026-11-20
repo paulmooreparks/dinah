@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guided set-up: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame is styled here. The set-up window is PUDL's inputs, lists,
+       tables, badges and buttons; the rules under "Proposed" are what the
+       product would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 640px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
+    .mock-bar { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-5); padding: var(--space-2); min-block-size: 2.6rem; border: 1px solid var(--border); border-top: 0; background: var(--surface); font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-notes { margin: var(--space-3) var(--space-5) var(--space-5); max-width: 60rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* ---- Proposed: the set-up window -----------------------------------
+       One window of one size. The steps are a list at the left, the step
+       in hand is at the right, and the foot has the same buttons in the
+       same places at every step: the way out at its start, Back and the
+       step's own button at its end. */
+    .setup { position: absolute; inset: 0; margin: auto; inline-size: 760px; max-inline-size: calc(100% - 32px); block-size: 540px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); }
+    .setup[hidden] { display: none; }
+    .setup-bar { display: flex; align-items: center; padding: 4px var(--space-2) 4px var(--space-3); font-weight: 600; font-size: var(--text-sm); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
+    .setup-bar .icon-btn { margin-inline-start: auto; }
+    .setup-body { flex: 1; min-block-size: 0; display: grid; grid-template-columns: 11rem minmax(0, 1fr); }
+    .setup-steps { margin: 0; padding: var(--space-2) 0; list-style: none; border-inline-end: 1px solid var(--border); background: var(--surface-alt); }
+    .setup-steps li { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); color: var(--text-muted); }
+    .setup-steps li[aria-current="step"] { color: var(--text); font-weight: 600; background: var(--surface); }
+    .setup-steps li[data-done] { color: var(--text); }
+    .setup-steps .n { inline-size: 1.2rem; text-align: center; }
+    .setup-pane { min-block-size: 0; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); overflow: auto; }
+    .setup-pane[hidden] { display: none; }
+    .setup-pane h2 { margin: 0; font-size: var(--text-md); }
+    .setup-pane p { margin: 0; }
+    .setup-foot { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); }
+    .setup-foot .status { flex: 1; min-inline-size: 0; padding-inline: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .setup-foot .btn { min-inline-size: 6rem; }
+
+    /* The agents: one row each, with what was found and the one thing that
+       can be done about it. */
+    .setup-agents { inline-size: 100%; }
+    .setup-agents td { vertical-align: middle; }
+    .setup-agents td:first-child { inline-size: 2rem; }
+    .setup-agents td:last-child { inline-size: 9rem; text-align: end; }
+    .setup-agents .why { color: var(--text-muted); font-size: var(--text-sm); }
+
+    /* The guide: what was said so far, which scrolls, then the question in
+       hand with its choices as a list, then the prompt for saying it in
+       one's own words. Each part has its room from the start. */
+    .setup-said { flex: 1; min-block-size: 0; overflow: auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border); background: var(--surface-alt); font-size: var(--text-sm); }
+    .setup-said .you { align-self: flex-end; max-inline-size: 80%; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); background: var(--surface); }
+    .setup-said .guide { max-inline-size: 90%; }
+    .setup-question { font-weight: 600; min-block-size: 2lh; }
+    .setup-choices { block-size: 8.6rem; overflow: auto; border: 1px solid var(--border); }
+    .setup-choices .md-item[aria-selected="true"] { font-weight: 600; }
+    .setup-own { display: flex; align-items: flex-end; gap: var(--space-2); }
+    .setup-own textarea { flex: 1; min-inline-size: 0; resize: none; field-sizing: content; height: auto; block-size: auto; min-block-size: 0; max-block-size: calc(3lh + 18px); overflow-y: auto; }
+
+    .setup-review { inline-size: 100%; }
+    .setup-review td:last-child { inline-size: 6rem; text-align: end; }
+    .setup-review .from { color: var(--text-muted); font-size: var(--text-sm); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Guided set-up</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
+    <span class="mock-tag">First mockup, 20 November 2026. It opens by itself at the first start.</span>
+  </header>
+
+  <div class="mock-desk">
+    <section class="setup" id="setup" aria-labelledby="setup-title">
+      <div class="setup-bar"><span id="setup-title">Set Up Dinah</span><button class="icon-btn popover-close" type="button" id="setup-close" aria-label="Close"></button></div>
+      <div class="setup-body">
+        <ol class="setup-steps" id="setup-steps" aria-label="Steps">
+          <li data-step="0"><span class="n">1</span><span>Agent</span></li>
+          <li data-step="1"><span class="n">2</span><span>Questions</span></li>
+          <li data-step="2"><span class="n">3</span><span>Review</span></li>
+        </ol>
+
+        <!-- Step 1 has no model in it: the programs found on this computer,
+             which are ready, and the one thing to do about each that is
+             not. The guide speaks through the one chosen. -->
+        <div class="setup-pane" data-pane="0">
+          <h2>Which agent should Dinah use?</h2>
+          <table class="data-table setup-agents" aria-label="Agents found on this computer"><tbody id="setup-agents"></tbody></table>
+          <p class="form-help">Nothing is sent to the agent until you press Continue.</p>
+        </div>
+
+        <div class="setup-pane" data-pane="1" hidden>
+          <div class="setup-said" id="setup-said" role="log" aria-label="What was said" tabindex="0"></div>
+          <p class="setup-question" id="setup-question"></p>
+          <div class="setup-choices" id="setup-choices" role="listbox" aria-labelledby="setup-question"></div>
+          <form class="setup-own" id="setup-own">
+            <textarea class="form-input" id="setup-line" rows="1" aria-label="Say it in your own words" placeholder="Or say it in your own words."></textarea>
+            <button type="submit" class="btn">Say</button>
+          </form>
+        </div>
+
+        <div class="setup-pane" data-pane="2" hidden>
+          <h2 id="setup-review-title">What will be set</h2>
+          <table class="data-table setup-review" aria-labelledby="setup-review-title">
+            <thead><tr><th scope="col">Setting</th><th scope="col">Value</th><th scope="col" aria-label="Change"></th></tr></thead>
+            <tbody id="setup-review"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="setup-foot">
+        <button type="button" class="btn" id="setup-skip">Skip Set-Up</button>
+        <span class="status" id="setup-status" role="status"></span>
+        <button type="button" class="btn" id="setup-back">Back</button>
+        <button type="button" class="btn btn-primary" id="setup-next">Continue</button>
+      </div>
+    </section>
+  </div>
+  <div class="mock-bar" id="mock-bar" role="status">Set-up is open. Help has Set Up Dinah, which opens it again at any time.</div>
+
+  <section class="mock-notes">
+    <h2>What this is</h2>
+    <ul>
+      <li><strong>It opens by itself at the first start,</strong> and Skip Set-Up or the close button leaves at once with today's defaults. Help, Set Up Dinah opens it again whenever you like.</li>
+      <li><strong>Step 1 has no model in it.</strong> It lists the agent programs found, says which are ready, and offers the one thing to do about each that is not. Press Sign In on Codex to see a row become ready.</li>
+      <li><strong>Step 2 is the guide,</strong> speaking through the agent chosen. Each question has its choices as a list. Choose one and press Continue.</li>
+      <li><strong>Or say it in your own words.</strong> Type "I write requirement documents for a client in C:\Work\Pricing and I want to be asked before anything runs" and press Say. The guide takes every answer it can from that, says which, and asks only what is left.</li>
+      <li><strong>Step 3 shows every setting before anything is set,</strong> with where each value came from. Change goes back to that question. Set It Up sets them. Undo, which takes its place, puts every one back.</li>
+      <li><strong>The question about answering small questions in the background</strong> is the one the Judgements item in the tray asks today. Asked here, it is not asked a second time.</li>
+    </ul>
+    <h2>What is scripted here</h2>
+    <ul>
+      <li>The guide's reading of your own words is done by matching words. In the product the model reads them.</li>
+      <li>Choose a Folder would open the folder dialog. Here it takes C:\Work\Pricing.</li>
+    </ul>
+  </section>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+      var AGENTS = [
+        { id: 'claude', name: 'Claude', state: 'ready', why: 'Signed in.' },
+        { id: 'codex', name: 'Codex', state: 'signin', why: 'Installed, not signed in.' },
+        { id: 'devin', name: 'Devin', state: 'missing', why: 'Not installed.' },
+        { id: 'antigravity', name: 'Antigravity', state: 'ready', why: 'Signed in.' },
+        { id: 'ollama', name: 'Ollama', state: 'ready', why: 'On this computer, 2 models.' }
+      ];
+      var QUESTIONS = [
+        { id: 'use', setting: 'Windows open at the start', ask: 'What will you use Dinah for most?', choices: [
+          ['code', 'Writing code with an agent', 'Workspace, Files and Terminal'],
+          ['docs', 'Writing documents and diagrams', 'Workspace, Documents and In Progress'],
+          ['team', 'Running several agents as a team', 'Chats, Org Chart, Notifications and Decisions'],
+          ['all', 'A bit of everything', 'Workspace, Chats and Notifications'] ] },
+        { id: 'ask', setting: 'Before an agent acts', ask: 'How much should an agent ask you before it acts?', choices: [
+          ['each', 'Ask me every time', 'It asks every time'],
+          ['chat', 'Ask me once in each chat', 'It asks once in each chat'],
+          ['never', 'Do not ask', 'It does not ask'] ] },
+        { id: 'folder', setting: 'Workspace', ask: 'Which folder has your work?', choices: [
+          ['pick', 'Choose a Folder…', 'C:\\Work\\Pricing'],
+          ['none', 'Not now', 'None yet'] ] },
+        { id: 'judge', setting: 'Small questions in the background', ask: '', choices: [
+          ['on', 'Yes', 'On, at most 200 calls a day'],
+          ['off', 'Not now', 'Off'] ] }
+      ];
+      var step, agents, agent, answers, from, at, picked, applied, folder;
+      function fresh() { step = 0; agents = AGENTS.map(function (a) { return Object.assign({}, a); }); agent = 'claude'; answers = {}; from = {}; at = 0; picked = null; applied = false; folder = 'C:\\Work\\Pricing'; $('setup-said').innerHTML = ''; $('setup').hidden = false; bar('Set-up is open. Help has Set Up Dinah, which opens it again at any time.'); }
+      function bar(text) { $('mock-bar').textContent = text; }
+      function status(text) { $('setup-status').textContent = text; }
+      function agentName() { return agents.filter(function (a) { return a.id === agent; })[0].name; }
+      function question(i) { var q = QUESTIONS[i]; return q.id === 'judge' ? 'May ' + agentName() + ' answer small questions in the background, such as a chat\u2019s title and a suggested reply? At most 200 calls a day.' : q.ask; }
+      function valueOf(q) { var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return !c ? '' : q.id === 'folder' && c[0] === 'pick' ? folder : c[2]; }
+      function labelOf(q) { var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return c ? (q.id === 'folder' && c[0] === 'pick' ? folder : c[1]) : ''; }
+
+      function drawAgents() {
+        var body = $('setup-agents'); body.innerHTML = '';
+        agents.forEach(function (a) {
+          var tr = el('tr'), pick = el('td'), name = el('td'), state = el('td'), act = el('td');
+          var radio = el('input'); radio.type = 'radio'; radio.name = 'agent'; radio.id = 'agent-' + a.id; radio.checked = a.id === agent; radio.disabled = a.state !== 'ready';
+          radio.addEventListener('change', function () { agent = a.id; draw(); });
+          pick.appendChild(radio);
+          var label = el('label', '', a.name); label.htmlFor = radio.id; name.appendChild(label);
+          state.appendChild(el('span', 'badge' + (a.state === 'ready' ? ' accent' : ''), a.state === 'ready' ? 'Ready' : a.state === 'signin' ? 'Sign in' : 'Not found'));
+          state.appendChild(el('span', 'why', ' ' + a.why));
+          if (a.state !== 'ready') {
+            var b = el('button', 'btn btn-sm', a.state === 'signin' ? 'Sign In…' : 'How to Install');
+            b.type = 'button';
+            b.addEventListener('click', function () {
+              if (a.state === 'signin') { a.state = 'ready'; a.why = 'Signed in.'; status(a.name + ' is signed in.'); draw(); }
+              else status('In the product this opens ' + a.name + '\u2019s own instructions.');
+            });
+            act.appendChild(b);
+          }
+          tr.append(pick, name, state, act); body.appendChild(tr);
+        });
+      }
+      function say(who, text) { var p = el('p', who, text); $('setup-said').appendChild(p); $('setup-said').scrollTop = $('setup-said').scrollHeight; }
+      function nextOpen() { for (var i = 0; i < QUESTIONS.length; i++) if (!answers[QUESTIONS[i].id]) return i; return -1; }
+      function drawQuestion() {
+        var q = QUESTIONS[at];
+        $('setup-question').textContent = question(at);
+        var host = $('setup-choices'); host.innerHTML = '';
+        q.choices.forEach(function (c) {
+          var row = el('div', 'md-row' + (picked === c[0] ? ' active' : '')), b = el('button', 'md-item', c[1]);
+          b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(picked === c[0]));
+          b.style.cssText = 'display:block;inline-size:100%;border:0;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer';
+          b.addEventListener('click', function () { picked = c[0]; draw(); });
+          row.appendChild(b); host.appendChild(row);
+        });
+      }
+      function answer(q, value, how) { answers[q.id] = value; from[q.id] = how; }
+      /* What the guide takes from the person's own words. In the product
+         the model reads them; here words are matched. */
+      function read(text) {
+        var t = text.toLowerCase(), took = [];
+        function take(id, value) { var q = QUESTIONS.filter(function (x) { return x.id === id; })[0]; answer(q, value, 'What you said'); took.push(q.setting.toLowerCase() + ': ' + valueOf(q)); }
+        if (/\bteam|several agents|agents together\b/.test(t)) take('use', 'team');
+        else if (/\bdocument|requirement|writing|diagram|spec\b/.test(t)) take('use', 'docs');
+        else if (/\bcode|program|develop|repo\b/.test(t)) take('use', 'code');
+        if (/\b(ask|asked)\b.*\b(every|each time|before|always|anything)\b|\bbefore anything\b/.test(t)) take('ask', 'each');
+        else if (/\bdon'?t ask|do not ask|never ask|without asking\b/.test(t)) take('ask', 'never');
+        else if (/\bonce\b/.test(t)) take('ask', 'chat');
+        var path = /[a-z]:\\[^\s,.;]+(?:\\[^\s,.;]+)*/i.exec(text);
+        if (path) { folder = path[0]; take('folder', 'pick'); }
+        if (/\bbackground\b.*\b(yes|fine|ok)\b|\byes\b.*\bbackground\b/.test(t)) take('judge', 'on');
+        return took;
+      }
+      function toQuestions() {
+        if (!$('setup-said').childNodes.length) say('guide', 'I am ' + agentName() + '. A few questions, and then I show you everything I would set before anything is set.');
+        at = nextOpen(); if (at < 0) at = QUESTIONS.length - 1;
+        picked = answers[QUESTIONS[at].id] || null;
+      }
+      function drawReview() {
+        var body = $('setup-review'); body.innerHTML = '';
+        var rows = [['Agent', agentName(), 'Step 1', -1]].concat(QUESTIONS.map(function (q, i) { return [q.setting, valueOf(q), from[q.id], i]; }));
+        rows.forEach(function (r) {
+          var tr = el('tr'), value = el('td', '', r[1] + ' '), act = el('td');
+          value.appendChild(el('span', 'from', applied ? '· set' : '· ' + r[2]));
+          if (!applied) {
+            var b = el('button', 'btn btn-sm', 'Change'); b.type = 'button';
+            b.addEventListener('click', function () { if (r[3] < 0) step = 0; else { step = 1; at = r[3]; picked = answers[QUESTIONS[at].id]; } status(''); draw(); });
+            act.appendChild(b);
+          }
+          tr.append(el('td', '', r[0]), value, act); body.appendChild(tr);
+        });
+      }
+      function draw() {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-pane]'), function (p) { p.hidden = Number(p.dataset.pane) !== step; });
+        Array.prototype.forEach.call($('setup-steps').children, function (li) {
+          var n = Number(li.dataset.step);
+          if (n === step) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+          li.toggleAttribute('data-done', n < step || applied);
+        });
+        var next = $('setup-next'), back = $('setup-back');
+        back.disabled = step === 0 || applied;
+        $('setup-skip').textContent = applied ? 'Close' : 'Skip Set-Up';
+        if (step === 0) { drawAgents(); next.textContent = 'Continue'; next.disabled = !agents.some(function (a) { return a.id === agent && a.state === 'ready'; }); }
+        if (step === 1) { drawQuestion(); next.textContent = 'Continue'; next.disabled = !picked; }
+        if (step === 2) { drawReview(); next.textContent = applied ? 'Undo' : 'Set It Up'; next.disabled = false; next.classList.toggle('btn-primary', !applied); }
+        else next.classList.add('btn-primary');
+      }
+      $('setup-next').addEventListener('click', function () {
+        if (step === 0) { step = 1; toQuestions(); status(''); }
+        else if (step === 1) {
+          var q = QUESTIONS[at];
+          say('guide', question(at)); answer(q, picked, 'Your answer'); say('you', labelOf(q));
+          at = nextOpen();
+          if (at < 0) { step = 2; status(''); } else picked = null;
+        } else if (!applied) { applied = true; status('Everything is set. Each can be changed in Settings.'); bar('Set up. The windows for what you chose are open behind this one.'); }
+        else { applied = false; status('Every setting is back as it was.'); bar('Set-up is open.'); }
+        draw();
+      });
+      $('setup-back').addEventListener('click', function () {
+        if (step === 2) { step = 1; at = QUESTIONS.length - 1; picked = answers[QUESTIONS[at].id]; }
+        else if (step === 1 && at > 0) { at--; picked = answers[QUESTIONS[at].id]; }
+        else step = 0;
+        status(''); draw();
+      });
+      $('setup-own').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = $('setup-line').value.trim(); if (!text) return;
+        $('setup-line').value = '';
+        say('you', text);
+        var took = read(text);
+        if (!took.length) { say('guide', 'I could not take an answer from that. Choose one above, or say it another way.'); draw(); return; }
+        say('guide', 'From that I take ' + took.join('; ') + '.');
+        at = nextOpen();
+        if (at < 0) { step = 2; status(''); } else { picked = null; say('guide', 'That leaves ' + (QUESTIONS.length - Object.keys(answers).length === 1 ? 'one question.' : (QUESTIONS.length - Object.keys(answers).length) + ' questions.')); }
+        draw();
+      });
+      $('setup-line').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('setup-own').requestSubmit(); } });
+      function leave() { $('setup').hidden = true; bar(applied ? 'Set-up is closed. Help has Set Up Dinah, which opens it again.' : 'Skipped. Nothing was set, and Dinah has its defaults. Help has Set Up Dinah, which opens it again.'); }
+      $('setup-skip').addEventListener('click', leave);
+      $('setup-close').addEventListener('click', leave);
+      $('mock-reset').addEventListener('click', function () { fresh(); status(''); draw(); });
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+      });
+      fresh(); draw();
+    })();
+  </script>
+</body>
+</html>
