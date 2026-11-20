@@ -61,8 +61,11 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 				You   string `json:"you"`
 				Agent string `json:"agent"`
 				// A request to the window assistant (judge_assistant.go).
-				Ask     string            `json:"ask"`
-				Windows []AssistantWindow `json:"windows"`
+				Ask       string              `json:"ask"`
+				Windows   []AssistantWindow   `json:"windows"`
+				Chats     []AssistantChat     `json:"chats"`
+				Teams     []string            `json:"teams"`
+				Providers []AssistantProvider `json:"providers"`
 			}
 			_ = json.Unmarshal([]byte(input), &in)
 			text := "ready"
@@ -85,7 +88,7 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 				text = string(b)
 			case in.Ask != "":
 				// The stand-in reads a request as the rule does.
-				b, _ := json.Marshal(assistantRule(assistantIn{Ask: in.Ask, Windows: in.Windows}))
+				b, _ := json.Marshal(assistantRule(assistantIn{Ask: in.Ask, Windows: in.Windows, Chats: in.Chats, Teams: in.Teams, Providers: in.Providers}))
 				text = string(b)
 			case in.Agent != "":
 				// Answer what the agent asked: each numbered question by its

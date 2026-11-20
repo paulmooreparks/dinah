@@ -130,7 +130,8 @@
      done, with what Undo needs. Asked only to describe (dry), it changes
      nothing and gives what the plan would do, in will, and whether there is
      anything to run, in can. */
-  function carryOut(plan, rows, dry) {
+  function carryOut(plan, rows, dry, only) {
+    if (plan.do === 'switch' || plan.do === 'stop' || plan.do === 'tell') return chatAction(plan, dry, only);
     function nothing(text) { return dry ? { will: text, can: false } : { said: text, before: null }; }
     var by = {}, before = dry ? null : snapshot(rows);
     rows.forEach(function (w) { by[w.id] = w; });
@@ -219,6 +220,90 @@
         return nothing(said || 'Tell me what to find, gather, arrange or tidy.');
     }
   }
+  /* ---- Chats and teams -------------------------------------------------------
+     Three things are done to chats: they are switched to another provider,
+     their turns are stopped, and their team is sent a message
+     (judge_assistant_chats.go). The engine gives each chat as it is. The
+     sentence is written here from those chats. A switch can be taken back
+     by Undo, which switches each chat back. A stopped turn and a sent
+     message cannot, and the sentence says so. only is the chats ticked in a
+     task's preview; without it every chat the plan has is acted on. */
+  function chatNames(list) { return list.map(function (c) { return c.title || 'Untitled Chat'; }).join(', '); }
+  function countChats(n) { return n === 1 ? '1 chat' : n + ' chats'; }
+  function chatAction(plan, dry, only) {
+    var facts = plan.chatFacts || [], of = plan.team ? ' of the ' + plan.team + ' team' : '';
+    function nothing(text) { return dry ? { will: text, can: false } : { said: text, before: null }; }
+    function ticked(list) { return only ? list.filter(function (c) { return only.indexOf(c.id) >= 0; }) : list; }
+    if (plan.do === 'tell') {
+      var words = String(plan.text || '').trim();
+      if (!plan.group || !words) return nothing('The ' + (plan.team || 'team') + ' team has no group chat to send to.');
+      if (dry) return { will: 'Will send this to the ' + plan.team + ' team (' + countChats(facts.length) + '), in its group chat: "' + words + '". A sent message cannot be undone.', can: true, once: true };
+      return Promise.resolve(app().BusSendToGroup(plan.group, words, ['everyone'], [])).then(function () {
+        return { said: 'Sent to the ' + plan.team + ' team (' + countChats(facts.length) + '): "' + words + '". A sent message cannot be undone.', before: null, final: true };
+      });
+    }
+    if (plan.do === 'stop') {
+      var busy = facts.filter(function (c) { return c.state === 'working'; });
+      if (!busy.length) return nothing('No chat' + of + ' is working, so there is nothing to stop.');
+      if (dry) return { will: 'Will stop the turn of ' + countChats(busy.length) + of + ': ' + chatNames(busy) + '. Undo cannot start a stopped turn again.', can: true, once: true, list: busy.map(function (c) { return { id: c.id, label: c.title }; }) };
+      var stopping = ticked(busy);
+      return Promise.all(stopping.map(function (c) { return Promise.resolve(app().Cancel(c.id)).then(function () { return ''; }, function (err) { return H.message(err, 'sentence'); }); })).then(function (whys) {
+        var stopped = stopping.filter(function (c, i) { return !whys[i]; }), failed = stopping.filter(function (c, i) { return whys[i]; });
+        return { said: (stopped.length ? 'Stopped the turn of ' + countChats(stopped.length) + ': ' + chatNames(stopped) + '. A stopped turn cannot be started again by Undo.' : 'No turn was stopped.') +
+          (failed.length ? ' Could not stop ' + chatNames(failed) + '.' : ''), before: null, final: stopped.length > 0 };
+      });
+    }
+    /* A chat in a turn cannot be switched, and is left and listed. A closed
+       chat is opened and switched (Paul, 20 November 2026). */
+    var left = facts.filter(function (c) { return c.state === 'working'; }), can = facts.filter(function (c) { return c.state !== 'working'; });
+    var leaves = left.length ? ' ' + chatNames(left) + (left.length === 1 ? ' is working and is left as it is.' : ' are working and are left as they are.') : '';
+    var to = plan.providerName || plan.provider;
+    if (!can.length) return nothing('No chat' + of + ' can be switched to ' + to + ' now.' + leaves);
+    if (dry) {
+      return { will: 'Will switch ' + countChats(can.length) + of + ' to ' + to + '. Each goes on from its history in a new ' + to + ' session.' + leaves, can: true, once: true,
+        list: can.map(function (c) { return { id: c.id, label: c.title + ' (' + (c.providerName || c.provider) + ')', note: c.state === 'closed' ? 'closed, so it is opened first' : '' }; }) };
+    }
+    if (!window.dinahChatSwitch) return nothing('Chats cannot be switched from here.');
+    var going = ticked(can), done = [], failed = [];
+    // One chat at a time, since each is opened and brought to the front.
+    return going.reduce(function (chain, c) {
+      return chain.then(function () { return window.dinahChatSwitch(c.id, plan.provider); }).then(function (r) {
+        if (r && !r.why && r.id) done.push({ id: r.id, title: c.title, back: c.provider });
+        else failed.push(c.title + ' (' + ((r && r.why) || 'it could not be switched') + ')');
+      });
+    }, Promise.resolve()).then(function () {
+      return { said: (done.length ? 'Switched ' + countChats(done.length) + ' to ' + to + ': ' + chatNames(done) + '. Undo switches ' + (done.length === 1 ? 'it' : 'them') + ' back.' : 'No chat was switched.') +
+        (failed.length ? ' Could not switch ' + failed.join(', ') + '.' : '') + leaves, before: done.length ? { chats: done } : null };
+    });
+  }
+  /* Undo of a switch switches each chat back to the provider it had. */
+  function switchBack(before) {
+    var failed = [];
+    return before.chats.reduce(function (chain, c) {
+      return chain.then(function () { return window.dinahChatSwitch(c.id, c.back); }).then(function (r) { if (!r || r.why) failed.push(c.title + ' (' + ((r && r.why) || 'it could not be switched') + ')'); });
+    }, Promise.resolve()).then(function () {
+      return failed.length ? 'Could not switch back ' + failed.join(', ') + '.' : 'Switched ' + countChats(before.chats.length) + ' back.';
+    });
+  }
+  /* The chats a task would act on, each with a tick, under the sentence. */
+  function chosenList(list) {
+    var host = $('assistant-chosen');
+    host.hidden = !list;
+    host.replaceChildren.apply(host, (list || []).map(function (row) {
+      var li = node('li'), label = node('label', 'check'), box = node('input');
+      box.type = 'checkbox'; box.checked = true; box.value = row.id;
+      box.addEventListener('change', controls);
+      label.append(box, document.createTextNode(' ' + row.label));
+      li.appendChild(label);
+      if (row.note) li.appendChild(node('span', 'note', ' ' + row.note));
+      return li;
+    }));
+  }
+  function tickedChats() {
+    var host = $('assistant-chosen');
+    return host.hidden ? null : Array.prototype.map.call(host.querySelectorAll('input:checked'), function (b) { return b.value; });
+  }
+
   function place(key, p) {
     if (!p || /^dock-/.test(p.mode || '')) return;
     if (p.mode === 'zone' && p.zone) P().snap(key, p.zone);
@@ -252,7 +337,8 @@
   function say(text) { H.setText($('assistant-said'), text); }
   function controls() {
     $('assistant-go').disabled = busy;
-    $('assistant-run').disabled = busy || !pending;
+    var ticks = tickedChats();
+    $('assistant-run').disabled = busy || !pending || (!!ticks && !ticks.length);
     $('assistant-undo').disabled = busy || !undoable;
     Array.prototype.forEach.call($('assistant-tasks').querySelectorAll('button'), function (b) { b.disabled = busy; });
     controlViews.forEach(function (draw) { draw(); });
@@ -268,7 +354,7 @@
     if (!words) return Promise.resolve({ will: '', can: false });
     if (busy) return Promise.resolve({ will: 'The assistant is still on the last request.', can: false });
     if (!app() || !app().AskAssistant) return Promise.resolve({ will: 'The assistant is not ready yet.', can: false });
-    busy = true; pending = null; controls();
+    busy = true; pending = null; chosenList(null); controls();
     say('Looking at the windows…');
     return desk().then(function (rows) {
       return Promise.resolve(app().AskAssistant(words, told(rows))).then(function (plan) {
@@ -280,10 +366,12 @@
       return { will: 'That could not be read: ' + H.message(err, 'sentence'), can: false };
     }).then(function (found) {
       if (found.can && now) {
-        var again = pending;
+        // What is done to chats is done once; Run does not offer it again.
+        var again = found.once ? null : pending;
         busy = false;
         return run().then(function () { pending = again; controls(); inPopover($('assistant-line')); return found; });
       }
+      chosenList(found.can && found.list ? found.list : null);
       say(found.can ? found.will + ' Press Run to do it.' : found.will);
       busy = false; controls();
       inPopover(found.can ? $('assistant-run') : $('assistant-line'));
@@ -294,11 +382,14 @@
      are now. */
   function run() {
     if (busy || !pending) return Promise.resolve('');
-    var plan = pending.plan;
-    pending = null; busy = true; controls();
-    return desk().then(function (rows) {
-      var done = carryOut(plan, rows);
+    var plan = pending.plan, only = tickedChats();
+    pending = null; chosenList(null); busy = true; controls();
+    if (plan.do === 'switch' || plan.do === 'stop' || plan.do === 'tell') say('Working on it…');
+    return desk().then(function (rows) { return carryOut(plan, rows, false, only); }).then(function (done) {
+      /* Undo is for the last thing done. What cannot be taken back leaves
+         nothing for it, and not the change before it either. */
       if (done.before) undoable = done.before;
+      else if (done.final) undoable = null;
       return done.said;
     }).catch(function (err) { return 'That could not be done: ' + H.message(err, 'sentence'); }).then(function (said) {
       say(said);
@@ -311,6 +402,7 @@
     if (busy || !undoable) return null;
     var before = undoable;
     undoable = null; busy = true; controls();
+    if (before.chats) return switchBack(before).then(say, function (err) { say('It could not be switched back: ' + H.message(err, 'sentence')); }).finally(function () { busy = false; controls(); });
     return putBack(before).then(function (missing) {
       say(missing ? 'Put back as it was, but ' + plural(missing, 'window', 'windows') + ' could not be opened again.' : 'Put back as it was.');
     }, function (err) { say('It could not be put back: ' + H.message(err, 'sentence')); })

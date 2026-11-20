@@ -768,6 +768,30 @@
         sessions: sessions, normalizedWorkspace: normalizedWorkspace, title: title, workspaceLabel: workspaceLabel,
         active: function () { return null; }, workspace: adapter.workspace });
     } };
+    /* Switches one chat to a provider for the assistant: the chat is opened
+       if it is closed, and its own switch is run with no dialog. It
+       resolves with why it was not switched, or with the chat's new
+       identity. */
+    window.dinahChatSwitch = function (id, provider) {
+      var head = app().ResolveSessionContinuation ? Promise.resolve(app().ResolveSessionContinuation(id)).then(function (h) { return h || id; }, function () { return id; }) : Promise.resolve(id);
+      return head.then(function (at) {
+        return Promise.resolve(window.dinahOpenChat(at)).then(function () {
+          return new Promise(function (resolve) {
+            var tries = 0;
+            (function wait() {
+              var s = sessions[at];
+              if (s && !s.loading) { resolve(s); return; }
+              if (++tries > 120) { resolve(null); return; }
+              setTimeout(wait, 250);
+            })();
+          });
+        }).then(function (s) {
+          var view = s && ensureChat(s);
+          if (!view || !view.switchQuietly) return { why: 'it could not be opened' };
+          return view.switchQuietly(provider);
+        });
+      }).catch(function (err) { return { why: window.dinahHelpers.message(err, 'sentence') }; });
+    };
     window.dinahChatSkills = { targets: function () {
       return Array.from(chatControllers.values()).map(function (chat) { return chat.skillTarget(); }).filter(Boolean);
     } };
@@ -1089,7 +1113,23 @@
           dlg.showModal(); cancel.focus(); listProviders();
         });
       }
-      async function switchProvider(provider, recovery) {
+      /* The assistant switches a chat by the chat's own switch, with no
+         dialog to answer: what the dialog would have refused is refused
+         here with its reason, kept in quietWhy, and nothing is asked
+         (assistant.js). */
+      var quietWhy = '';
+      function switchQuietly(provider) {
+        var before = active && sessions[active];
+        if (!before) return Promise.resolve({ why: 'it is not open' });
+        if (before.working || before.loading || (before.queued || []).length) return Promise.resolve({ why: 'it is working' });
+        if (provider === chatProvider()) return Promise.resolve({ why: 'it already uses that provider' });
+        if (switchingProvider) return Promise.resolve({ why: 'it is being switched already' });
+        quietWhy = '';
+        return switchProvider(provider, false, true).then(function () {
+          return active && active !== before.id ? { why: '', id: active } : { why: quietWhy || 'it could not be switched' };
+        });
+      }
+      async function switchProvider(provider, recovery, quiet) {
         var before = active && sessions[active];
         recovery = !!(recovery || (before && before.failed));
         if (!before || switchingProvider || before.working || before.loading || (before.queued || []).length || (provider === chatProvider() && !recovery)) { renderComposerOptions(); return; }
@@ -1101,7 +1141,13 @@
             if (!destination || deleted || epoch !== switchEpoch || active !== before.id) return;
             provider = destination.provider; recoveryModel = destination.model;
           }
-          var review = await confirmSwitchFacts(function () {
+          var review;
+          if (quiet) {
+            var facts = await app().PreviewSessionContinuation(before.id, provider);
+            if (deleted || epoch !== switchEpoch || active !== before.id) return;
+            if (!facts || facts.blocked || !facts.revision) { quietWhy = (facts && facts.blocked) || 'it cannot be switched now'; return; }
+            review = { answer: 'continue', preview: facts };
+          } else review = await confirmSwitchFacts(function () {
             if (recovery && app().PreviewSessionRecoveryModel) return app().PreviewSessionRecoveryModel(before.id, provider, recoveryModel);
             return recovery ? app().PreviewSessionRecovery(before.id, provider) : app().PreviewSessionContinuation(before.id, provider);
           }, { title: recovery ? 'Continue from Saved History?' : 'Continue with ' + providerName(provider) + '?', providerName: providerName(provider) });
@@ -1128,7 +1174,8 @@
         } catch (error) {
           if (!deleted && epoch === switchEpoch && active === before.id) {
             localSwitch = { sessionId: before.id, kind: 'provider', to: provider, failed: String(error) };
-            drawSwitchState(before); fail(error);
+            // A quiet switch gives its failure to whoever asked for it.
+            drawSwitchState(before); if (quiet) quietWhy = window.dinahHelpers.message(error, 'sentence'); else fail(error);
           }
         }
         finally {
@@ -4022,6 +4069,7 @@
         },
         // A provider's limit on the files in one message changed in Settings.
         redrawAttachments: function () { drawAttachments(); },
+        switchQuietly: switchQuietly,
         applySkillCatalog: function (catalog) {
           if (!app().SkillCatalog) return;
           skills=catalog.skills.filter(function (skill) {return (skill.scope!=='workspace'||skill.workspace===workspace)&&(skill.scope!=='provider'||providerFact(chatProvider(),'ownCommands'));}); skillsChanged();

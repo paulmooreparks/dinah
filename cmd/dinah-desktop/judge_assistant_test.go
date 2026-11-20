@@ -107,3 +107,63 @@ func TestTheAssistantsTasksAreThePersonsToChangeAndRestore(t *testing.T) {
 		t.Fatalf("the restored list is %+v, %v", got, err)
 	}
 }
+
+func assistantTeamDesk(ask string) assistantIn {
+	return assistantIn{Ask: ask, Windows: assistantDesk(), Teams: []string{"Pricing", "Pricing Review"},
+		Providers: []AssistantProvider{{ID: "claude", Name: "Claude"}, {ID: "devin", Name: "Devin"}, {ID: "codex", Name: "Codex"}},
+		Chats: []AssistantChat{
+			{ID: "c1", Title: "Pricing Lead", Provider: "claude", Team: "Pricing", State: "working"},
+			{ID: "c2", Title: "Pricing Tests", Provider: "claude", Team: "Pricing", State: "closed"},
+			{ID: "c3", Title: "Pricing Notes", Provider: "codex", Team: "Pricing", State: "working"},
+			{ID: "c4", Title: "Review One", Provider: "claude", Team: "Pricing Review", State: "idle"},
+			{ID: "c5", Title: "Release Notes", Provider: "claude", State: "idle"},
+		}}
+}
+
+// With no judge the rule reads the three requests about chats and teams. A
+// request that says a team that does not exist does nothing and lists the
+// teams, and a request about windows is still one about windows.
+func TestTheAssistantsRuleReadsRequestsAboutChatsAndTeams(t *testing.T) {
+	sw := assistantRule(assistantTeamDesk("Change all of the Pricing team members from Claude to Devin"))
+	if sw.Do != assistantSwitch || sw.Provider != "devin" || sw.Team != "Pricing" || !slices.Equal(sw.Chats, []string{"c1", "c2"}) {
+		t.Errorf("the switch is %+v", sw)
+	}
+	if longest := assistantRule(assistantTeamDesk("switch the Pricing Review team to codex")); longest.Team != "Pricing Review" || !slices.Equal(longest.Chats, []string{"c4"}) {
+		t.Errorf("the team with the longer name is %+v", longest)
+	}
+	stop := assistantRule(assistantTeamDesk("stop the Pricing team"))
+	if stop.Do != assistantStop || !slices.Equal(stop.Chats, []string{"c1", "c3"}) {
+		t.Errorf("the stop is %+v", stop)
+	}
+	tell := assistantRule(assistantTeamDesk("Tell the Pricing team to report where they are"))
+	if tell.Do != assistantTell || tell.Team != "Pricing" || tell.Text != "report where they are" {
+		t.Errorf("the message is %+v", tell)
+	}
+	for _, ask := range []string{"stop the Billing team", "switch the Billing team to devin", "tell the Billing team to stop"} {
+		if none := assistantRule(assistantTeamDesk(ask)); none.Do != assistantSay || len(none.Chats) != 0 || !strings.Contains(none.Say, "Pricing, Pricing Review") {
+			t.Errorf("%s: a team that does not exist answered %+v", ask, none)
+		}
+	}
+	if vague := assistantRule(assistantTeamDesk("switch everything to devin")); vague.Do != assistantSay {
+		t.Errorf("a switch that says no chats answered %+v", vague)
+	}
+	if windows := assistantRule(assistantTeamDesk("find the windows for the pricing work")); windows.Do != assistantGather {
+		t.Errorf("a request about windows answered %+v", windows)
+	}
+	in := assistantTeamDesk("x")
+	for name, bad := range map[string]AssistantPlan{
+		"a chat it was not told of":     {Do: assistantStop, Chats: []string{"c9"}},
+		"a provider it was not told of": {Do: assistantSwitch, Chats: []string{"c1"}, Provider: "gemini"},
+		"a team it was not told of":     {Do: assistantTell, Team: "Billing", Text: "hello"},
+		"chats for a window action":     {Do: assistantTile, Chats: []string{"c1"}},
+	} {
+		if assistantChatCheck(in, bad) == "" {
+			t.Errorf("the check let through %s", name)
+		}
+	}
+	facts := sw
+	assistantChatFacts(&facts, assistantTeamDesk(""), map[string]string{"Pricing": "room-1"})
+	if facts.ProviderName != providerName("devin") || facts.Group != "room-1" || len(facts.ChatFacts) != 2 || facts.ChatFacts[1].State != "closed" {
+		t.Errorf("the facts for the page are %+v", facts)
+	}
+}

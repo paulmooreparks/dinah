@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -46,6 +47,10 @@ type AssistantWindow struct {
 type assistantIn struct {
 	Ask     string            `json:"ask" doc:"what the person asked of the window, in their own words"`
 	Windows []AssistantWindow `json:"windows" doc:"every open window, at most 60"`
+	// What the assistant is told of chats and teams (judge_assistant_chats.go).
+	Chats     []AssistantChat     `json:"chats,omitempty" doc:"the chats: every member of a team, and every other chat that is open"`
+	Teams     []string            `json:"teams,omitempty" doc:"the names of the teams"`
+	Providers []AssistantProvider `json:"providers,omitempty" doc:"the providers a chat can be switched to"`
 }
 
 // AssistantPlan is what to do. Do is one of the assistantDo words, Windows
@@ -58,6 +63,17 @@ type AssistantPlan struct {
 	// Under is the key of the window that goes under a row of windows put
 	// side by side, when one does.
 	Under string `json:"under,omitempty"`
+	// For what is done to chats (judge_assistant_chats.go): the chats, the
+	// provider to switch them to, the team, and the words to send it.
+	Chats    []string `json:"chats,omitempty"`
+	Provider string   `json:"provider,omitempty"`
+	Team     string   `json:"team,omitempty"`
+	Text     string   `json:"text,omitempty"`
+	// What the engine adds for the page, and no judge writes: the chats as
+	// they are, the provider's name and the team's group chat.
+	ChatFacts    []AssistantChat `json:"chatFacts,omitempty"`
+	ProviderName string          `json:"providerName,omitempty"`
+	Group        string          `json:"group,omitempty"`
 	// Judged says a judge read the request, and not the rule.
 	Judged bool `json:"judged"`
 }
@@ -75,7 +91,7 @@ const (
 	assistantSay     = "say"     // do nothing to the windows; Say answers the question
 )
 
-var assistantDo = []string{assistantGather, assistantTile, assistantWorking, assistantTidy, assistantAll, assistantSide, assistantFront, assistantSay}
+var assistantDo = []string{assistantGather, assistantTile, assistantWorking, assistantTidy, assistantAll, assistantSide, assistantFront, assistantSay, assistantSwitch, assistantStop, assistantTell}
 
 const (
 	assistantWindowLimit = 60
@@ -96,8 +112,14 @@ var assistantKind = judge.Declare(judge.Kind[assistantIn, AssistantPlan]{
 		"\"side\": put windows side by side; give the ids to put in a row, and when one is to go under the others give its id as \"under\" and not in the row. " +
 		"\"front\": bring the windows named to the front. \"say\": change nothing and answer the person's question about the windows from what you are given. " +
 		"Always give \"say\" one short sentence for the person: what you did and to which windows, by their titles, or the answer to their question. " +
-		"Use only ids from the list. Never invent a window.",
-	Form: judge.JSONForm[AssistantPlan](`an object with "do" (one of gather, tile, working, tidy, all, side, front, say), "windows" (an array of window ids from the list, empty where the action needs none), "say" (one short sentence for the person) and, only for side, an optional "under" (the id of the window to put below the row)`),
+		"Use only ids from the list. Never invent a window. " +
+		"You are also given the chats, each with its provider, its team and its state, the names of the teams, and the providers. " +
+		"\"switch\": move chats to another provider; give the chats' ids as \"chats\" and the provider's id as \"provider\". " +
+		"\"stop\": stop the turns of chats that are working; give their ids as \"chats\". " +
+		"\"tell\": send a message to a team; give the team's name as \"team\" and the words to send as \"text\", in the person's own words. " +
+		"A request that speaks of a team is about a team in the list of teams, by its name. When it names no team in that list, use \"say\", do nothing, and say which teams there are. " +
+		"Give \"team\" whenever the chats are a team's. Use only chat ids, provider ids and team names you were given.",
+	Form: judge.JSONForm[AssistantPlan](`an object with "do" (one of gather, tile, working, tidy, all, side, front, say, switch, stop, tell), "windows" (an array of window ids from the list, empty where the action needs none), "say" (one short sentence for the person), only for side an optional "under" (the id of the window to put below the row), and for what is done to chats "chats" (an array of chat ids), "provider" (a provider id), "team" (a team name) and "text" (the words to send)`),
 	Check: func(in assistantIn, out AssistantPlan) error {
 		known := false
 		for _, do := range assistantDo {
@@ -121,6 +143,9 @@ var assistantKind = judge.Declare(judge.Kind[assistantIn, AssistantPlan]{
 		if (out.Do == assistantGather || out.Do == assistantSide || out.Do == assistantFront) && len(out.Windows) == 0 {
 			return errors.New("the answer names no window to do it to")
 		}
+		if why := assistantChatCheck(in, out); why != "" {
+			return errors.New(why)
+		}
 		if strings.TrimSpace(out.Say) == "" || len([]rune(out.Say)) > assistantSayLimit {
 			return errors.New("the answer has no line for the person, or one that is too long")
 		}
@@ -130,7 +155,7 @@ var assistantKind = judge.Declare(judge.Kind[assistantIn, AssistantPlan]{
 	// answers after that.
 	Deadline: 12 * time.Second,
 	Rule:     assistantRule,
-	InputCap: 12000,
+	InputCap: 24000,
 })
 
 var assistantWord = regexp.MustCompile(`[a-z0-9]+`)
@@ -160,6 +185,9 @@ func plural(n int, one, many string) string {
 // to do, and otherwise by finding the request's other words in the windows'
 // titles and workspaces.
 func assistantRule(in assistantIn) AssistantPlan {
+	if plan, ok := assistantChatRule(in); ok {
+		return plan
+	}
 	ask := strings.ToLower(in.Ask)
 	has := func(words ...string) bool {
 		for _, w := range words {
@@ -317,10 +345,18 @@ func (a *App) AskAssistant(ask string, windows []AssistantWindow) (AssistantPlan
 	if windows == nil {
 		windows = []AssistantWindow{}
 	}
-	in := assistantIn{Ask: ask, Windows: windows}
+	in := assistantIn{Ask: ask, Windows: windows, Providers: assistantProviders()}
+	chats, groups := a.assistantChats()
+	in.Chats = chats
+	for name := range groups {
+		in.Teams = append(in.Teams, name)
+	}
+	sort.Strings(in.Teams)
 	set, err := a.judgesForCall(assistantKindName)
 	if err != nil {
-		return assistantRule(in), nil
+		plan := assistantRule(in)
+		assistantChatFacts(&plan, in, groups)
+		return plan, nil
 	}
 	r := judge.Call(context.Background(), set, assistantKind, in, judge.Effect{Kind: "assistant", ID: "window"})
 	plan := r.Out
@@ -328,6 +364,7 @@ func (a *App) AskAssistant(ask string, windows []AssistantWindow) (AssistantPlan
 	if plan.Windows == nil {
 		plan.Windows = []string{}
 	}
+	assistantChatFacts(&plan, in, groups)
 	return plan, nil
 }
 

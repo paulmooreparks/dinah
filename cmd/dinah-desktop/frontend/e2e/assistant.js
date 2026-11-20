@@ -9,7 +9,7 @@ const { launch } = require('./lib/page');
     viewport: { width: 1440, height: 900 },
     app: () => {
       let workspace = 'C:/Alpha';
-      window.__a = { asked: [], plan: null, tasks: [{ name: 'Tile the Windows That Are Showing', ask: 'tile the windows that are showing' }, { name: 'Tidy Up', ask: 'close what is finished' }] };
+      window.__a = { asked: [], plan: null, cancelled: [], sent: [], switched: [], tasks: [{ name: 'Tile the Windows That Are Showing', ask: 'tile the windows that are showing' }, { name: 'Tidy Up', ask: 'close what is finished' }] };
       const state = () => ({ workspace, recent: ['C:/Alpha'], devin: 'devin', approvals: 'devin', workspaceRecords: [] });
       // Each chat has ended its turn, which the engine says as an idle execution state.
       const info = (id, ws) => ({ sessionId: id, title: id, cwd: ws, open: true, working: false, queued: [], chatState: { life: 'open', window: true, exec: { state: 'idle', why: '' } } });
@@ -17,6 +17,8 @@ const { launch } = require('./lib/page');
         State: async () => state(),
         Sessions: async () => ['Pricing Rules', 'Release Notes', 'Tax Question'].map(id => ({ ...info(id, 'C:/Alpha'), open: false })),
         OpenSessionAt: async (ws, id) => info(id, ws),
+        Cancel: async id => { window.__a.cancelled.push(id); },
+        BusSendToGroup: async (...args) => { window.__a.sent.push(args); return {}; },
         AssistantTasks: async () => window.__a.tasks,
         SetAssistantTasks: async list => { window.__a.tasks = list.map(x => ({ name: x.name.trim(), ask: x.ask.trim() })); return window.__a.tasks; },
         RestoreAssistantTasks: async () => { window.__a.tasks = [{ name: 'Tile the Windows That Are Showing', ask: 'tile the windows that are showing' }]; return window.__a.tasks; },
@@ -121,6 +123,49 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => /^Put back as it was/.test(document.getElementById('assistant-said').textContent));
     now = await layout();
     ok('Undo opens the closed chats again', idleKeys.every(k => now.open.includes(k)), (await said()) + JSON.stringify(now.open));
+
+    /* Chats and teams. The engine's answer has the chats as they are; the
+       chat window's own switch is stood in for here, and is checked by the
+       suites for switching a chat. */
+    const saidLike = re => p.waitForFunction(src => new RegExp(src).test(document.getElementById('assistant-said').textContent), re.source);
+    await p.evaluate(() => {
+      window.dinahChatSwitch = async (id, provider) => { window.__a.switched.push([id, provider]); return id === 'c3' ? { why: 'it is waiting for an approval' } : { why: '', id: id + '-' + provider }; };
+      const facts = [{ id: 'c1', title: 'Pricing Lead', provider: 'claude', providerName: 'Claude', team: 'Pricing', state: 'working' }, { id: 'c2', title: 'Pricing Tests', provider: 'claude', providerName: 'Claude', team: 'Pricing', state: 'closed' }, { id: 'c3', title: 'Pricing Notes', provider: 'codex', providerName: 'Codex', team: 'Pricing', state: 'idle' }];
+      window.__a.facts = facts;
+      window.__a.plan = () => ({ do: 'switch', windows: [], chats: ['c1', 'c2', 'c3'], provider: 'devin', providerName: 'Devin', team: 'Pricing', group: 'room-1', chatFacts: facts, say: 'x' });
+    });
+    // A task says which chats it would switch, each with a tick, and waits.
+    await p.locator('#assistant-tasks .md-item', { hasText: 'Tidy Up' }).click();
+    await saidLike(/Press Run to do it\.$/);
+    const ticks = await p.locator('#assistant-chosen li').allTextContents();
+    ok('a task that switches a team says so, lists the chats it can switch with ticks, and leaves the working one', (await said()) === 'Will switch 2 chats of the Pricing team to Devin. Each goes on from its history in a new Devin session. Pricing Lead is working and is left as it is. Press Run to do it.' && ticks.length === 2 && /Pricing Tests \(Claude\).*closed, so it is opened first/.test(ticks[0]) && /Pricing Notes \(Codex\)/.test(ticks[1]) && (await p.evaluate(() => window.__a.switched.length)) === 0, (await said()) + JSON.stringify(ticks));
+    const sizeTicks = await menu.boundingBox();
+    ok('the popover is the size it was with the chats listed', size0.width === sizeTicks.width && size0.height === sizeTicks.height, JSON.stringify([size0, sizeTicks]));
+    await p.locator('#assistant-chosen input').nth(1).uncheck();
+    await run.click();
+    await saidLike(/^Switched /);
+    ok('Run switches the ticked chats only, and Undo can take it back', (await said()) === 'Switched 1 chat to Devin: Pricing Tests. Undo switches it back. Pricing Lead is working and is left as it is.' && JSON.stringify(await p.evaluate(() => window.__a.switched)) === '[["c2","devin"]]' && await p.locator('#assistant-undo').isEnabled() && await p.locator('#assistant-chosen').isHidden(), (await said()) + JSON.stringify(await p.evaluate(() => window.__a.switched)));
+    await p.locator('#assistant-undo').click();
+    await saidLike(/^Switched 1 chat back\.$/);
+    ok('Undo switches the chat back to the provider it had', JSON.stringify(await p.evaluate(() => window.__a.switched[1])) === '["c2-devin","claude"]');
+    // Typed, the same request is done at once, and a chat that refuses is said with its reason.
+    await p.evaluate(() => { window.__a.switched = []; });
+    await p.locator('#assistant-line').fill('change all of the Pricing team members to Devin');
+    await p.keyboard.press('Enter');
+    await saidLike(/^Switched /);
+    ok('a typed switch is done at once, says what could not be switched, and Run does not offer it again', (await said()) === 'Switched 1 chat to Devin: Pricing Tests. Undo switches it back. Could not switch Pricing Notes (it is waiting for an approval). Pricing Lead is working and is left as it is.' && await run.isDisabled() && await p.locator('#assistant-undo').isEnabled(), await said());
+    // Stopping stops the working chats, and cannot be undone.
+    await p.evaluate(() => { window.__a.plan = () => ({ do: 'stop', windows: [], chats: ['c1'], team: 'Pricing', group: 'room-1', chatFacts: [window.__a.facts[0]], say: 'x' }); });
+    await p.locator('#assistant-line').fill('stop the Pricing team');
+    await p.keyboard.press('Enter');
+    await saidLike(/^Stopped /);
+    ok('a typed stop stops the working chat and leaves nothing for Undo', (await said()) === 'Stopped the turn of 1 chat: Pricing Lead. A stopped turn cannot be started again by Undo.' && JSON.stringify(await p.evaluate(() => window.__a.cancelled)) === '["c1"]' && await p.locator('#assistant-undo').isDisabled() && await run.isDisabled(), await said());
+    // A message goes to the team's group chat, to every member.
+    await p.evaluate(() => { window.__a.plan = () => ({ do: 'tell', windows: [], team: 'Pricing', text: 'report where they are', group: 'room-1', chatFacts: window.__a.facts, say: 'x' }); });
+    await p.locator('#assistant-line').fill('tell the Pricing team to report where they are');
+    await p.keyboard.press('Enter');
+    await saidLike(/^Sent /);
+    ok('a typed message is sent to the team\u2019s group chat for every member', (await said()) === 'Sent to the Pricing team (3 chats): "report where they are". A sent message cannot be undone.' && JSON.stringify(await p.evaluate(() => window.__a.sent)) === '[["room-1","report where they are",["everyone"],[]]]', (await said()) + JSON.stringify(await p.evaluate(() => window.__a.sent)));
 
     // Edit Tasks opens a window where a task is added, and the list has it.
     await p.locator('#assistant-edit').click();

@@ -22,7 +22,13 @@
 /* What a task would do, or what was done, has three lines under a rule and
    scrolls for more. It had a heading and five lines, which was a lot of the
    popover for one sentence (Paul, 20 November 2026). */
-.assistant-said { block-size: 3lh; overflow: auto; margin: var(--space-3) 0 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); box-sizing: content-box; font-size: var(--text-sm); }
+.assistant-said { block-size: 4lh; overflow: auto; margin: var(--space-3) 0 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); box-sizing: content-box; font-size: var(--text-sm); }
+
+.assistant-said p { margin: 0; }
+.assistant-chosen { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
+.assistant-chosen[hidden] { display: none; }
+.assistant-chosen li { padding-block: 1px; }
+.assistant-chosen .note { color: var(--text-muted); }
 
 /* The Assistant Tasks window: the list of tasks on one side and the chosen
    task on the other. A task is a name and the words the assistant is asked,

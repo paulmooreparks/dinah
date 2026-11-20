@@ -391,7 +391,12 @@
       </form>
       <div class="md-section-label assistant-label"><span id="assistant-tasks-title">Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
       <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-labelledby="assistant-tasks-title"></div>
-      <p class="assistant-said" id="assistant-said" role="status" aria-label="What it does" tabindex="0">Ask acts at once. A task says here what it would do, and waits for Run.</p>
+      <!-- What a task would do, or what was done, and under it the chats a
+           task would act on, each with a tick. -->
+      <div class="assistant-said" tabindex="0">
+        <p id="assistant-said" role="status" aria-label="What it does">Ask acts at once. A task says here what it would do, and waits for Run.</p>
+        <ul class="assistant-chosen" id="assistant-chosen" aria-label="The chats it would act on" hidden></ul>
+      </div>
       <!-- Run and Undo are in the foot, where a popover's buttons are. A
            task or a request is first read and what it would do is said
            above; Run does it and Undo puts the windows back (Paul,
