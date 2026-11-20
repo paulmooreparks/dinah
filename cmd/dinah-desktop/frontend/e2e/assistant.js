@@ -50,6 +50,17 @@ const { launch } = require('./lib/page');
     ok('the tasks are a list of rows', (await p.locator('#assistant-tasks .md-item').allTextContents()).join('|') === 'Tile the Windows That Are Showing|Tidy Up');
     ok('Run and Undo are in the foot, both disabled with nothing read or done', await p.locator('#assistant-menu .popover-actions #assistant-undo').isDisabled() && await p.locator('#assistant-menu .popover-actions #assistant-run').isDisabled());
 
+    // The prompt grows with its words, upward, and nothing under it moves.
+    const place = () => p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); return { line: Math.round(r('assistant-line').height), lineBottom: Math.round(r('assistant-line').bottom), tasks: Math.round(r('assistant-tasks').top), run: Math.round(r('assistant-run').top) }; });
+    const one = await place();
+    await p.locator('#assistant-line').click();
+    for (const part of ['find all the windows', 'for the pricing work', 'and tile them']) { await p.keyboard.type(part); await p.keyboard.press('Shift+Enter'); }
+    const four = await place();
+    // The popover is placed to a whole pixel, so a part may sit one pixel off.
+    ok('the prompt is taller with four lines, and the tasks and Run stay where they were', four.line > one.line + 30 && Math.abs(four.tasks - one.tasks) <= 1 && Math.abs(four.run - one.run) <= 1 && Math.abs(four.lineBottom - one.lineBottom) <= 1, JSON.stringify([one, four]));
+    await p.locator('#assistant-line').fill('');
+    ok('emptied, the prompt is one line again', (await place()).line === one.line);
+
     // A request to find: the engine is told every window, and its answer is done.
     await p.evaluate(k => { window.__a.plan = () => ({ do: 'gather', windows: [k], say: 'Found 1 window about pricing: Pricing Rules. The rest are put away, not closed.', judged: true }); }, keys['Pricing Rules']);
     const before = await layout();

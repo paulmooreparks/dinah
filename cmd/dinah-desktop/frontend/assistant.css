@@ -5,8 +5,11 @@
 .assistant { inline-size: 24rem; max-inline-size: calc(100vw - 16px); }
 /* The line and Ask are the part that acts at once, and a rule sets them
    apart from the tasks, which are chosen and then run. */
-.assistant-ask { display: flex; gap: var(--space-2); padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
-.assistant-ask .form-input { flex: 1; min-inline-size: 0; }
+.assistant-ask { display: flex; gap: var(--space-2); align-items: flex-end; padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
+/* The prompt is the chat window's (Paul, 20 November 2026): as tall as its
+   words, up to six lines, and scrolling after that. PUDL gives an input one
+   fixed height, which is lifted here. */
+.assistant-ask .form-input { flex: 1; min-inline-size: 0; resize: none; field-sizing: content; height: auto; block-size: auto; min-block-size: 0; max-block-size: calc(6lh + 18px); overflow-y: auto; }
 .assistant-label { display: flex; align-items: center; min-block-size: 1.75rem; margin: var(--space-3) 0 var(--space-1); padding: 0; }
 .assistant-label .btn { margin-inline-start: auto; }
 .assistant-tasks { block-size: 9.5rem; overflow: auto; border: 1px solid var(--border); background: var(--surface); }

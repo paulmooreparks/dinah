@@ -550,6 +550,29 @@
       if (selected >= 0) { selected = -1; drawTasks(); }
       preview(words, true);
     });
+    /* The key that asks is the key that sends in a chat: Enter, with
+       Shift+Enter for a new line, or Ctrl+Enter where the person chose that,
+       with Enter for a new line. */
+    $('assistant-line').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      var ctrl = window.dinahComposer && window.dinahComposer.sendKey() === 'ctrl-enter';
+      if (ctrl ? !(e.ctrlKey || e.metaKey) : e.shiftKey) return;
+      e.preventDefault();
+      $('assistant-form').requestSubmit();
+    });
+    /* The popover stands on the tray, and PUDL places it by its top. When
+       the prompt's height changes PUDL is asked to place the popover again
+       (pudlMenu.place, which is for a script that changed a panel's
+       content), so the prompt grows upward and nothing under it moves. */
+    var lineHeight = 0;
+    function replace() {
+      var h = $('assistant-line').offsetHeight;
+      if (h === lineHeight) return;
+      lineHeight = h;
+      if (window.pudlMenu && window.pudlMenu.place && menu.matches(':popover-open')) window.pudlMenu.place(menu);
+    }
+    $('assistant-line').addEventListener('input', replace);
+    $('assistant-form').addEventListener('submit', function () { Promise.resolve().then(replace); });
     $('assistant-undo').addEventListener('click', undo);
     $('assistant-run').addEventListener('click', run);
     $('assistant-edit').addEventListener('click', function () { menu.hidePopover(); openTasks().catch(window.dinahHost.fail || function () {}); });
