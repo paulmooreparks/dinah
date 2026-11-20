@@ -57,19 +57,15 @@ const { launch } = require('./lib/page');
     await p.locator('#assistant-line').fill('find all the windows for the pricing work');
     await p.keyboard.press('Enter');
     await answered(was);
-    let now = await layout();
-    ok('a typed request is read and says what it would do, and nothing has moved', /^Will show 1 window, tiled: Pricing Rules\. Will put the other 2 windows away, and close nothing\. Press Run to do it\.$/.test(await said()) && JSON.stringify(now) === JSON.stringify(before), await said());
-    ok('Run is enabled and has the focus, so Enter again runs it', await run.isEnabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-run');
-    was = await said();
-    await p.keyboard.press('Enter');
-    await answered(was);
+    // Ask does a typed request at once.
+    let now;
     const told = await p.evaluate(() => window.__a.asked[0]);
     ok('the engine is told what was asked and each window by title, kind and state', told.ask === 'find all the windows for the pricing work' && ['Pricing Rules', 'Release Notes', 'Tax Question'].every(n => told.windows.some(w => w.title === n && w.kind === 'chat')) && !told.windows.some(w => 'item' in w), JSON.stringify(told.windows));
     now = await layout();
     ok('the window found is showing and the others are put away, none closed', !now.min[keys['Pricing Rules']] && now.min[keys['Release Notes']] && now.min[keys['Tax Question']] && now.open.length === before.open.length, JSON.stringify(now.min));
     ok('the window found fills the layer', now.place[keys['Pricing Rules']].mode === 'maximized', JSON.stringify(now.place[keys['Pricing Rules']]));
     ok('the line says what was done', /Found 1 window about pricing/.test(await said()));
-    ok('the popover is still open, Run is disabled again and Undo has the focus', await menu.evaluate(el => el.matches(':popover-open')) && await run.isDisabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-undo');
+    ok('the popover is still open, Run and Undo are enabled and the line has the focus for the next request', await menu.evaluate(el => el.matches(':popover-open')) && await run.isEnabled() && await p.locator('#assistant-undo').isEnabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-line');
     const size1 = await menu.boundingBox();
     ok('the popover is the size it was', size0.width === size1.width && size0.height === size1.height, JSON.stringify([size0, size1]));
     await t.shot('assistant');
@@ -129,12 +125,12 @@ const { launch } = require('./lib/page');
     // Try It, Run and Undo are in this window, since the popover is closed while it is used.
     await p.evaluate(() => { window.__a.plan = () => ({ do: 'all', windows: [], say: 'Shown.' }); });
     await p.evaluate(() => window.pudlWindows.minimize(window.pudlWindows.state().open.find(k => /^item-/.test(k))));
-    const tried = tasks.locator('.assistant-tasks-status');
+    const tried = tasks.locator('.assistant-tasks-would');
     // Something read in the popover does not enable Run here.
     await p.evaluate(() => window.dinahAssistant.preview('show every window again'));
     ok('Run in the window is disabled until Try It is pressed there', await tasks.getByRole('button', { name: 'Run', exact: true }).isDisabled() && await tasks.getByRole('button', { name: 'Undo', exact: true }).isDisabled() && await p.locator('#assistant-run').isEnabled());
     await tasks.getByRole('button', { name: 'Try It' }).click();
-    await p.waitForFunction(() => /Press Run to do it\.$/.test(document.querySelector('.assistant-tasks-status').textContent));
+    await p.waitForFunction(() => /Press Run to do it\.$/.test(document.querySelector('.assistant-tasks-would').textContent));
     ok('Try It says what the words would do, here, and does nothing', /^Will show all \d+ windows again\. Nothing is done yet\./.test(await tried.textContent()) && Object.keys((await layout()).min).length === 1 && !(await menu.evaluate(el => el.matches(':popover-open'))), await tried.textContent());
     await tasks.getByLabel('What the Assistant Is Asked').pressSequentially(' ');
     ok('changing the words disables Run until Try It is pressed again', await tasks.getByRole('button', { name: 'Run', exact: true }).isDisabled());
@@ -142,11 +138,18 @@ const { launch } = require('./lib/page');
     await tasks.getByRole('button', { name: 'Run', exact: true }).waitFor({ state: 'visible' });
     await p.waitForFunction(() => document.activeElement && document.activeElement.textContent === 'Run');
     await tasks.getByRole('button', { name: 'Run', exact: true }).click();
-    await p.waitForFunction(() => /showing again\.$/.test(document.querySelector('.assistant-tasks-status').textContent));
+    await p.waitForFunction(() => /showing again\.$/.test(document.querySelector('.assistant-tasks-would').textContent));
     ok('Run, in the window, does it', Object.keys((await layout()).min).length === 0, await tried.textContent());
     await tasks.getByRole('button', { name: 'Undo', exact: true }).click();
-    await p.waitForFunction(() => document.querySelector('.assistant-tasks-status').textContent === 'Put back as it was.');
+    await p.waitForFunction(() => document.querySelector('.assistant-tasks-would').textContent === 'Put back as it was.');
     ok('Undo, in the window, puts it back', Object.keys((await layout()).min).length === 1);
+    const order = await tasks.evaluate(root => ({
+      bar: [...root.querySelectorAll('.assistant-tasks-tools button')].map(b => b.textContent).join('|'),
+      form: [...root.querySelectorAll('.assistant-tasks-form button')].map(b => b.textContent).join('|'),
+      help: root.querySelectorAll('.assistant-tasks-form .form-help').length,
+      saveRight: Math.abs(root.querySelector('.assistant-tasks-form button[type=submit]').getBoundingClientRect().right - root.querySelector('.assistant-tasks-form textarea').getBoundingClientRect().right) < 1,
+    }));
+    ok('the bar has what is done to the list, and the task has Try It and Save at the right, then Undo and Run', order.bar === 'New Task|Delete Task|Move Up|Move Down|Restore the Starter Set…' && order.form === 'Try It|Save|Undo|Run' && order.help === 0 && order.saveRight, JSON.stringify(order));
     await tasks.getByRole('button', { name: 'Move Up' }).click();
     await p.waitForFunction(() => window.__a.tasks[1].name === 'Pricing');
     ok('Move Up reorders the list', true);

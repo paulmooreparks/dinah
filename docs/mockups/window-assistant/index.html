@@ -38,15 +38,15 @@
        task is added. */
     .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 24rem; max-inline-size: calc(100% - 2 * var(--space-2)); max-block-size: none; margin: 0; display: block; z-index: 5; }
     .assistant[hidden] { display: none; }
-    .assistant-ask { display: flex; gap: var(--space-2); }
+    /* The line and Ask act at once, and a rule sets them apart from the
+       tasks, which are chosen and then run. */
+    .assistant-ask { display: flex; gap: var(--space-2); padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
     .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
     .assistant .md-section-label { display: flex; align-items: center; margin: var(--space-3) 0 var(--space-1); padding: 0; }
     .assistant .md-section-label .btn { margin-inline-start: auto; }
     .assistant-tasks { block-size: 9.5rem; overflow: auto; border: 1px solid var(--border); background: var(--surface); }
     .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
     .assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
-    .assistant-offers { block-size: 4.6rem; overflow: auto; }
-    .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
     .assistant-result { block-size: 4lh; overflow: auto; font-size: var(--text-sm); }
     /* The chats a request would act on, each with a tick, so one can be
        left out before Run. The list has its room whether or not a request
@@ -61,7 +61,7 @@
        A window of the workbench like any other, with the list of tasks on
        one side and the chosen task on the other. A task is a name and the
        words the assistant is asked, the same words a person could type. */
-    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 8px; inline-size: 680px; max-inline-size: calc(100% - 48px); block-size: 680px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
+    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 8px; inline-size: 680px; max-inline-size: calc(100% - 48px); block-size: 520px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
     .tasks-win[hidden] { display: none; }
     .tasks-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-weight: 600; font-size: var(--text-sm); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
     .tasks-win .bar .icon-btn { margin-inline-start: auto; }
@@ -75,15 +75,12 @@
     /* The chosen task has two parts, each under its heading: what the task
        is, with Save, and trying it, in the order it is done: Try It, what
        it would do, then Run and Undo. */
-    .tasks-pane { overflow: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-4); }
-    .tasks-part { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
-    .tasks-part .md-section-label { margin: 0; padding: 0 0 var(--space-1); border-block-end: 1px solid var(--border); }
-    .tasks-part .form-group { margin: 0; }
-    .tasks-part .form-help { margin: 0; }
-    .tasks-part textarea { min-block-size: 4.5rem; resize: vertical; }
+    .tasks-pane { overflow: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); margin: 0; }
+    .tasks-pane .form-group { margin: 0; }
+    .tasks-pane textarea { min-block-size: 5rem; resize: vertical; }
     .tasks-row { display: flex; align-items: center; gap: var(--space-2); }
-    .tasks-row .btn { min-inline-size: 5.5rem; }
-    .tasks-status { margin: 0; color: var(--text-muted); font-size: var(--text-sm); min-block-size: 1lh; }
+    .tasks-row .btn { flex: none; min-inline-size: 5.5rem; }
+    .tasks-status { flex: 1; min-inline-size: 0; margin: 0; color: var(--text-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tasks-would { margin: 0; padding: var(--space-2); block-size: 4.6lh; overflow: auto; border: 1px solid var(--border); background: var(--surface-alt); font-size: var(--text-sm); }
     .md-row[aria-current="true"] .md-item, .md-row .md-item[aria-current="true"] { font-weight: 600; }
   </style>
@@ -93,7 +90,7 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Fifth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Sixth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
@@ -109,40 +106,32 @@
       </div>
       <div class="tasks-body">
         <div class="tasks-list" id="tasks-list" role="listbox" aria-label="Tasks"></div>
-        <div class="tasks-pane">
-          <form class="tasks-part" id="task-form" aria-labelledby="task-part-title">
-            <div class="md-section-label" id="task-part-title">Task</div>
-            <div class="form-group">
-              <label class="form-label" for="task-name">Name</label>
-              <input class="form-input" id="task-name" type="text" autocomplete="off">
-              <p class="form-help">What the task is called in the assistant's list.</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="task-ask">What the Assistant Is Asked</label>
-              <textarea class="form-input" id="task-ask"></textarea>
-              <p class="form-help">The same words you could type to the assistant.</p>
-            </div>
-            <div class="tasks-row">
-              <button type="submit" class="btn btn-primary">Save</button>
-              <span class="tasks-status" id="task-status" role="status"></span>
-            </div>
-          </form>
-          <!-- Trying a task is done here, since the assistant's popover is
-               closed while this window is used. The parts are in the order
-               they are used. Run is disabled until Try It has read the
-               words as they are now, and Undo until Run has run (Paul,
-               20 November 2026). -->
-          <section class="tasks-part" aria-labelledby="task-try-title">
-            <div class="md-section-label" id="task-try-title">Try This Task</div>
-            <p class="form-help">Try It reads the words above and says what they would do to the windows open now. Nothing happens until you press Run.</p>
-            <div class="tasks-row"><button type="button" class="btn" id="task-try">Try It</button></div>
-            <p class="tasks-would" id="task-would" role="status" tabindex="0"></p>
-            <div class="tasks-row">
-              <button type="button" class="btn" id="task-run" disabled>Run</button>
-              <button type="button" class="btn" id="task-undo" disabled>Undo</button>
-            </div>
-          </section>
-        </div>
+        <!-- The parts are in the order they are used: the two fields; Try
+             It and Save at the right under them, Save last; what the words
+             would do; then Undo and Run, as in the assistant's foot. Run is
+             disabled until Try It has read the words as they are now, and
+             Undo until Run has run (Paul, 20 November 2026). -->
+        <form class="tasks-pane" id="task-form">
+          <div class="form-group">
+            <label class="form-label" for="task-name">Name</label>
+            <input class="form-input" id="task-name" type="text" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="task-ask">What the Assistant Is Asked</label>
+            <textarea class="form-input" id="task-ask"></textarea>
+          </div>
+          <div class="tasks-row">
+            <span class="tasks-status" id="task-status" role="status"></span>
+            <button type="button" class="btn" id="task-try">Try It</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+          <p class="tasks-would" id="task-would" role="status" tabindex="0"></p>
+          <div class="tasks-row">
+            <span class="tasks-status"></span>
+            <button type="button" class="btn" id="task-undo" disabled>Undo</button>
+            <button type="button" class="btn" id="task-run" disabled>Run</button>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -157,8 +146,6 @@
       </form>
       <div class="md-section-label"><span>Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
       <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-label="Tasks"></div>
-      <div class="md-section-label"><span>Since You Last Looked</span></div>
-      <div class="assistant-offers"><ul id="assistant-offers"></ul></div>
       <div class="md-section-label"><span>What It Does</span></div>
       <div class="assistant-result" role="status">
         <p id="assistant-said"></p>
@@ -181,7 +168,15 @@
   </div>
 
   <section class="mock-notes">
-    <h2>New in this mockup: chats and teams</h2>
+    <h2>New in this mockup</h2>
+    <ul>
+      <li><strong>Ask does what you type at once.</strong> What it did is said under What It Does, Undo takes it back, and Run does it again. A rule sets the line and Ask apart from the tasks.</li>
+      <li><strong>A task from the list still waits for Run.</strong></li>
+      <li><strong>A typed request that acts on chats also waits for Run,</strong> so that its list of chats can be read and unticked first. This is the one exception to Ask acting at once.</li>
+      <li><strong>Since You Last Looked is gone.</strong></li>
+      <li><strong>Assistant Tasks:</strong> Try It and Save are at the right under the words, Save last; the help lines and headings are gone; Undo and Run are under what the words would do.</li>
+    </ul>
+    <h2>Chats and teams</h2>
     <ul>
       <li><strong>The assistant acts on chats as well as windows.</strong> Three of the stand-in chats are a team called Pricing. Type "change all of the Pricing team members from Claude to Devin", "stop the Pricing team", or "tell the Pricing team to report where they are".</li>
       <li><strong>It lists the chats it would act on,</strong> each with a tick, under what it says it would do. Untick one to leave it out. Run acts on the ticked ones only.</li>
@@ -262,7 +257,7 @@
       }
       var SKIP = { find: 1, all: 1, the: 1, windows: 1, window: 1, 'for': 1, about: 1, work: 1, show: 1, everything: 1, related: 1, to: 1, which: 1, are: 1, is: 1, gather: 1, me: 1, of: 1, on: 1, and: 1, a: 1, my: 1, with: 1, that: 1, open: 1 };
       function topic(text) { return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w && !SKIP[w]; }); }
-      var IDLE = 'Choose a task or ask, and what it would do is said here. Nothing happens until you press Run.';
+      var IDLE = 'Ask does what you type at once. A task you choose says here what it would do, and waits for Run.';
       var pending = null, picked = -1, listed = null, noUndo = false;
       function titles(list) { return list.map(function (w) { return w.title; }).join(', '); }
       function count(n) { return n === 1 ? '1 window' : n + ' windows'; }
@@ -453,19 +448,6 @@
       $('task-ask').addEventListener('input', untry);
       $('assistant-edit').addEventListener('click', function () { $('tasks-win').hidden = false; });
       $('tasks-close').addEventListener('click', function () { $('tasks-win').hidden = true; });
-      function offers() {
-        var list = $('assistant-offers'); list.innerHTML = '';
-        [['c3', 'Tax Rule Question finished its turn 20 minutes ago.'], ['c1', 'Pricing Rules for Bundles is still working, 12 minutes now.'], ['d2', 'Meeting Notes.md has changes not saved.']].forEach(function (o) {
-          var li = el('li'), a = el('a', '', o[1]);
-          a.href = '#';
-          a.addEventListener('click', function (e) {
-            e.preventDefault(); keep(); pending = null;
-            state.forEach(function (w) { if (w.id === o[0]) { w.away = false; w.x = 180; w.y = 110; w.w = 420; w.h = 240; } });
-            draw(); desk.insertBefore($('win-' + o[0]), $('tasks-win')); say('Brought it to the front.'); buttons();
-          });
-          li.appendChild(a); list.appendChild(li);
-        });
-      }
       function open(on) { $('assistant').hidden = !on; $('assistant-open').setAttribute('aria-expanded', String(on)); if (on) $('assistant-line').focus(); }
       $('assistant-open').addEventListener('click', function () { open($('assistant').hidden); });
       $('assistant-close').addEventListener('click', function () { open(false); });
@@ -478,17 +460,22 @@
         var text = $('assistant-line').value.trim(); if (!text) return;
         picked = -1; drawTasks();
         var found = ask(text); $('assistant-line').value = '';
-        if (found.run) $('assistant-run').focus({ preventScroll: true });
+        /* Ask is "do this now": what was typed is done at once, Undo takes
+           it back and Run does it again. A request that acts on chats is
+           the exception, since its list of chats is there to be read and
+           unticked first; it waits for Run. */
+        if (found.run && !found.list) { var again = pending; run(); pending = again; buttons(); $('assistant-line').focus({ preventScroll: true }); }
+        else if (found.run) $('assistant-run').focus({ preventScroll: true });
       });
       $('assistant-run').addEventListener('click', run);
       $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; pending = null; listed = null; chosenList(null); draw(); say('Put back as it was.'); buttons(); });
-      $('mock-reset').addEventListener('click', function () { fresh(); pending = null; picked = -1; tried = null; listed = null; chosenList(null); draw(); drawTasks(); offers(); say(IDLE); would(WOULD); buttons(); note(''); });
+      $('mock-reset').addEventListener('click', function () { fresh(); pending = null; picked = -1; tried = null; listed = null; chosenList(null); draw(); drawTasks(); say(IDLE); would(WOULD); buttons(); note(''); });
       $('mock-theme').addEventListener('click', function () {
         var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         this.textContent = dark ? 'Light Theme' : 'Dark Theme';
       });
-      fresh(); draw(); drawTasks(); offers(); chosenList(null); say(IDLE); would(WOULD); buttons();
+      fresh(); draw(); drawTasks(); chosenList(null); say(IDLE); would(WOULD); buttons();
     })();
   </script>
 </body>

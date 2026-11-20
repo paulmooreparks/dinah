@@ -4,12 +4,17 @@
    A small place in the tray where the person says what they want of the
    windows in their own words, or presses one of their tasks. The page tells
    the engine what was asked and which windows are open, by title, kind,
-   workspace and state. The engine says one thing to do, and the popover
-   says what that would do to which windows. Nothing happens until the
-   person presses Run (Paul, 20 November 2026: running at once on a press
-   was a bad idea). Then this file does it with the window layer's own
-   operations, each of which the person could do by hand. What a request
-   changed is kept, so Undo puts the windows back as they were.
+   workspace and state. The engine says one thing to do, and this file does
+   it with the window layer's own operations, each of which the person could
+   do by hand. What a request changed is kept, so Undo puts the windows back
+   as they were.
+
+   A task from the list is chosen first: the popover says what it would do
+   to which windows, and nothing happens until the person presses Run
+   (Paul, 20 November 2026: running at once on a press was a bad idea). A
+   request the person types is done at once when they press Ask, which is
+   "do this now"; what it did is said in the same place, Undo takes it back
+   and Run does it again.
 
    Assistant Tasks is a window of the workbench in which the person changes
    the list: a task is a name and the words the assistant is asked. */
@@ -234,7 +239,7 @@
 
   /* ---- Asking --------------------------------------------------------------- */
 
-  var busy = false, undoable = null, looked = {}, pending = null, selected = -1;
+  var busy = false, undoable = null, pending = null, selected = -1;
   // What else has a Run and an Undo to enable: the Assistant Tasks window.
   var controlViews = [];
   function say(text) { H.setText($('assistant-said'), text); }
@@ -248,8 +253,10 @@
   function inPopover(el) { if ($('assistant-menu').matches(':popover-open')) el.focus({ preventScroll: true }); }
   /* preview reads a request and says what it would do, and does nothing.
      What it would do is kept for Run. It resolves with the words and
-     whether there is anything to run. One request is read at a time. */
-  function preview(words) {
+     whether there is anything to run. One request is read at a time. Asked
+     to do it now, it runs what it read as soon as it is read, and keeps it
+     for Run to do again. */
+  function preview(words, now) {
     words = String(words || '').trim();
     if (!words) return Promise.resolve({ will: '', can: false });
     if (busy) return Promise.resolve({ will: 'The assistant is still on the last request.', can: false });
@@ -265,8 +272,13 @@
     }).catch(function (err) {
       return { will: 'That could not be read: ' + H.message(err, 'sentence'), can: false };
     }).then(function (found) {
+      if (found.can && now) {
+        var again = pending;
+        busy = false;
+        return run().then(function () { pending = again; controls(); inPopover($('assistant-line')); return found; });
+      }
       say(found.can ? found.will + ' Press Run to do it.' : found.will);
-      busy = false; controls(); news();
+      busy = false; controls();
       inPopover(found.can ? $('assistant-run') : $('assistant-line'));
       return found;
     });
@@ -283,7 +295,7 @@
       return done.said;
     }).catch(function (err) { return 'That could not be done: ' + H.message(err, 'sentence'); }).then(function (said) {
       say(said);
-      busy = false; controls(); news();
+      busy = false; controls();
       inPopover(undoable ? $('assistant-undo') : $('assistant-line'));
       return said;
     });
@@ -295,43 +307,7 @@
     return putBack(before).then(function (missing) {
       say(missing ? 'Put back as it was, but ' + plural(missing, 'window', 'windows') + ' could not be opened again.' : 'Put back as it was.');
     }, function (err) { say('It could not be put back: ' + H.message(err, 'sentence')); })
-      .finally(function () { busy = false; controls(); news(); });
-  }
-
-  /* ---- Since You Last Looked ------------------------------------------------
-     What the windows' own states say, read when the popover opens: a chat
-     that has ended its turn or begun to wait since the popover was last
-     closed, a chat that waits for the person, a chat still working, and a
-     document with changes not saved. A line brings its window to the
-     front. */
-  function news() {
-    var list = $('assistant-news');
-    return desk().then(function (rows) {
-      var lines = [];
-      rows.forEach(function (w) {
-        var was = looked[w.id];
-        if (w.state === 'waiting') lines.push([w, w.name + ' is waiting for you.']);
-        else if (w.state === 'idle' && was === 'working') lines.push([w, w.name + ' has finished its turn.']);
-        else if (w.state === 'unsaved') lines.push([w, w.name + ' has changes not saved.']);
-        else if (w.state === 'working') lines.push([w, w.name + ' is still working.']);
-      });
-      var items = lines.map(function (line) {
-        var li = node('li'), b = node('button', '', line[1]);
-        b.type = 'button';
-        b.addEventListener('click', function () { if (P().isOpen(line[0].id)) P().raise(line[0].id); });
-        li.appendChild(b);
-        return li;
-      });
-      if (!items.length) { var none = node('li', '', 'Nothing needs you.'); none.setAttribute('data-none', ''); items.push(none); }
-      if (list.textContent !== items.map(function (li) { return li.textContent; }).join('')) list.replaceChildren.apply(list, items);
-      return rows;
-    }).catch(function () { return []; });
-  }
-  function remember() {
-    desk().then(function (rows) {
-      looked = {};
-      rows.forEach(function (w) { looked[w.id] = w.state; });
-    }).catch(function () {});
+      .finally(function () { busy = false; controls(); });
   }
 
   /* ---- The tasks --------------------------------------------------------------
@@ -373,47 +349,57 @@
        here, so the limits hold for this window and for one restored. */
     var frame = root.closest('[data-win]');
     if (frame) {
-      frame.setAttribute('data-win-min', '540,440');
-      frame.style.setProperty('--win-min-w', '540px'); frame.style.setProperty('--win-min-h', '440px');
+      frame.setAttribute('data-win-min', '600,470');
+      frame.style.setProperty('--win-min-w', '600px'); frame.style.setProperty('--win-min-h', '470px');
     }
     var list = [], chosen = 0, disposed = false, saving = false;
     function button(words, cls) { var b = node('button', cls || 'btn btn-sm', words); b.type = 'button'; return b; }
     var add = button('New Task'), up = button('Move Up'), down = button('Move Down'), restore = button('Restore the Starter Set…');
-    var tools = node('div', 'assistant-tasks-tools'); tools.append(add, up, down, restore);
+    /* The bar over the list has what is done to the list: add, delete and
+       reorder, and, apart at its end, the starter set. */
+    var remove = button('Delete Task'), sep = node('span', 'assistant-tasks-sep');
+    sep.setAttribute('aria-hidden', 'true'); restore.classList.add('assistant-tasks-end');
+    var tools = node('div', 'assistant-tasks-tools'); tools.setAttribute('role', 'toolbar'); tools.setAttribute('aria-label', 'The list of tasks');
+    tools.append(add, remove, sep, up, down, restore);
     var rows = node('div', 'assistant-tasks-list'); rows.setAttribute('role', 'listbox'); rows.setAttribute('aria-label', 'Tasks');
     var form = node('form', 'assistant-tasks-form');
     var serial = String(Date.now()) + Math.floor(Math.random() * 1000);
-    function group(labelText, control, help) {
+    function group(labelText, control) {
       var g = node('div', 'form-group'), label = node('label', 'form-label', labelText);
       control.id = 'assistant-task-' + labelText.replace(/\W+/g, '-').toLowerCase() + '-' + serial; label.htmlFor = control.id;
-      g.append(label, control, node('p', 'form-help', help));
+      g.append(label, control);
       return g;
     }
     var name = node('input', 'form-input'); name.type = 'text'; name.autocomplete = 'off'; name.maxLength = 80;
     var words = node('textarea', 'form-input'); words.maxLength = 600;
     var save = button('Save', 'btn btn-primary'); save.type = 'submit';
-    var tryIt = button('Try It', 'btn'), remove = button('Delete Task', 'btn');
-    var actions = node('div', 'assistant-tasks-actions'); actions.append(save, remove);
-    /* Trying a task is done here, with its own Run and Undo. They were in
-       the assistant's popover only, which is closed while this window is
-       used, so Try It said what the words would do and left no way to do it
-       (Paul, 20 November 2026). */
+    /* The parts are in the order they are used (Paul, 20 November 2026,
+       who found the buttons jumbled): the two fields; Try It and Save at the
+       right under them, Save last; what the words would do; then Undo and
+       Run, as in the assistant's own foot. Trying is done in this window,
+       since the assistant's popover is closed while it is used. What saving
+       did is said at the start of the buttons' own row, which has its room
+       from the start. */
+    var tryIt = button('Try It', 'btn');
+    var status = node('span', 'assistant-tasks-status'); status.setAttribute('role', 'status');
+    var actions = node('div', 'assistant-tasks-actions'); actions.append(status, tryIt, save);
+    var WOULD = 'Press Try It to see what this task would do.';
+    var wouldBox = node('p', 'assistant-tasks-would', WOULD); wouldBox.setAttribute('role', 'status'); wouldBox.tabIndex = 0; wouldBox.setAttribute('aria-label', 'What the task would do');
     var runIt = button('Run', 'btn'), undoIt = button('Undo', 'btn');
     runIt.disabled = undoIt.disabled = true;
-    var trying = node('div', 'assistant-tasks-actions'); trying.append(tryIt, runIt, undoIt);
-    var status = node('p', 'assistant-tasks-status'); status.setAttribute('role', 'status');
-    form.append(group('Name', name, 'What the task is called in the assistant’s list.'),
-      group('What the Assistant Is Asked', words, 'The same words you could type to the assistant. It is asked this when you choose the task.'), actions, trying, status);
+    var trying = node('div', 'assistant-tasks-actions'); trying.append(node('span', 'assistant-tasks-fill'), undoIt, runIt);
+    form.append(group('Name', name), group('What the Assistant Is Asked', words), actions, wouldBox, trying);
+    function would(text) { H.setText(wouldBox, text); }
     var body = node('div', 'assistant-tasks-body'); body.append(rows, form);
     root.append(tools, body);
 
-    function note(text) { H.setText(status, text); }
+    function note(text) { H.setText(status, text); status.title = text; }
     function complete(t) { return !!(t.name.trim() && t.ask.trim()); }
     function draw() {
       rows.replaceChildren.apply(rows, list.map(function (t, i) {
         var row = node('div', 'md-row'), b = node('button', 'md-item', t.name || 'New Task');
         b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === chosen));
-        b.addEventListener('click', function () { chosen = i; untry(); draw(); });
+        b.addEventListener('click', function () { if (chosen !== i) untry(); chosen = i; draw(); });
         row.appendChild(b);
         return row;
       }));
@@ -490,14 +476,13 @@
     });
     tryIt.addEventListener('click', function () {
       var w = words.value.trim();
-      if (!w) { note('Say what to ask first.'); return; }
-      note('Asking…');
-      /* Try It shows what the words would do and does nothing; Run, in the
-         assistant, does it. */
+      if (!w) { would('Say what to ask first.'); return; }
+      would('Looking at the windows…');
+      // Try It shows what the words would do and does nothing; Run does it.
       preview(w).then(function (found) {
         if (disposed) return;
         tried = found.can ? pending : null;
-        note(found.will + (found.can ? ' Nothing is done yet. Press Run to do it.' : ''));
+        would(found.will + (found.can ? ' Nothing is done yet. Press Run to do it.' : ''));
         tryControls();
         if (found.can) runIt.focus();
       });
@@ -505,14 +490,14 @@
     runIt.addEventListener('click', function () {
       if (!tried || tried !== pending) return;
       tried = null;
-      run().then(function (said) { if (disposed || !said) return; ranHere = undoable; note(said); tryControls(); if (!undoIt.disabled) undoIt.focus(); });
+      run().then(function (said) { if (disposed || !said) return; ranHere = undoable; would(said); tryControls(); if (!undoIt.disabled) undoIt.focus(); });
     });
-    undoIt.addEventListener('click', function () { var done = undo(); if (done) done.then(function () { if (!disposed) note($('assistant-said').textContent); }); });
+    undoIt.addEventListener('click', function () { var done = undo(); if (done) done.then(function () { if (!disposed) would($('assistant-said').textContent); }); });
     /* Run here is for what Try It read here, for the words as they are,
        and Undo for what Run did here. What the popover read or did enables
        neither (Paul, 20 November 2026: Run was enabled before Try It). */
     var tried = null, ranHere = null;
-    function untry() { if (tried) { tried = null; tryControls(); } }
+    function untry() { if (tried || wouldBox.textContent !== WOULD) { tried = null; would(WOULD); tryControls(); } }
     words.addEventListener('input', untry);
     function tryControls() {
       runIt.disabled = busy || !tried || tried !== pending;
@@ -530,7 +515,7 @@
 
   function toggle() { $('status-assistant').click(); }
   window.dinahWorkbench.register(TASKS_KIND, { pinnable: false, singleton: true, title: 'Assistant Tasks', glyph: 'list', init: initTasks });
-  window.dinahAssistant = { preview: preview, run: run, undo: undo, open: toggle, openTasks: openTasks, desk: function () { return desk().then(told); } };
+  window.dinahAssistant = { preview: preview, ask: function (words) { return preview(words, true); }, run: run, undo: undo, open: toggle, openTasks: openTasks, desk: function () { return desk().then(told); } };
   document.addEventListener('DOMContentLoaded', function () {
     var menu = $('assistant-menu');
     if (!menu) return;
@@ -556,14 +541,13 @@
       if (!words || busy) return;
       line.value = '';
       if (selected >= 0) { selected = -1; drawTasks(); }
-      preview(words);
+      preview(words, true);
     });
     $('assistant-undo').addEventListener('click', undo);
     $('assistant-run').addEventListener('click', run);
     $('assistant-edit').addEventListener('click', function () { menu.hidePopover(); openTasks().catch(window.dinahHost.fail || function () {}); });
     menu.addEventListener('toggle', function (e) {
-      if (e.newState === 'open') { news(); if (!tasks.length) loadTasks(); $('assistant-line').focus({ preventScroll: true }); }
-      else remember();
+      if (e.newState === 'open') { if (!tasks.length) loadTasks(); $('assistant-line').focus({ preventScroll: true }); }
     });
     drawTasks();
     loadTasks();

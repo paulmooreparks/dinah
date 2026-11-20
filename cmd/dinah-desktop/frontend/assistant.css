@@ -1,10 +1,11 @@
 /* The window assistant (assistant.js; the approved mockup is
    docs/mockups/window-assistant). The popover has one size: the line to type
-   in, the tasks, what changed since the person last looked, and what the
-   last request did each have their room from the start, and the parts that
+   in, the tasks and what the last request did each have their room from the start, and the parts that
    can grow scroll inside it. */
 .assistant { inline-size: 24rem; max-inline-size: calc(100vw - 16px); }
-.assistant-ask { display: flex; gap: var(--space-2); }
+/* The line and Ask are the part that acts at once, and a rule sets them
+   apart from the tasks, which are chosen and then run. */
+.assistant-ask { display: flex; gap: var(--space-2); padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
 .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
 .assistant-label { display: flex; align-items: center; min-block-size: 1.75rem; margin: var(--space-3) 0 var(--space-1); padding: 0; }
 .assistant-label .btn { margin-inline-start: auto; }
@@ -15,22 +16,25 @@
 .assistant-tasks .md-item:disabled { cursor: default; color: var(--text-muted); }
 .assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
 .assistant-none { margin: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); }
-.assistant-news { block-size: 4.6rem; overflow: auto; font-size: var(--text-sm); }
-.assistant-news ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.assistant-news button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-align: start; text-decoration: underline; cursor: pointer; }
-.assistant-news li[data-none] { color: var(--text-muted); }
 .assistant-said { block-size: 5lh; overflow: auto; margin: 0; font-size: var(--text-sm); }
 
 /* The Assistant Tasks window: the list of tasks on one side and the chosen
    task on the other. A task is a name and the words the assistant is asked,
    the same words a person could type. */
 .assistant-tasks-window { display: flex; flex-direction: column; min-block-size: 0; block-size: 100%; }
-.assistant-tasks-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2); border-block-end: 1px solid var(--border); }
+.assistant-tasks-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); border-block-end: 1px solid var(--border); }
+.assistant-tasks-sep { align-self: stretch; inline-size: 1px; background: var(--border); }
+.assistant-tasks-end { margin-inline-start: auto; }
 .assistant-tasks-body { flex: 1; min-block-size: 0; display: grid; grid-template-columns: minmax(10rem, 15rem) minmax(0, 1fr); }
 .assistant-tasks-list { overflow: auto; border-inline-end: 1px solid var(--border); }
 .assistant-tasks-list .md-item[aria-selected="true"] { font-weight: 600; }
 .assistant-tasks-form { padding: var(--space-3); overflow: auto; display: flex; flex-direction: column; gap: var(--space-3); }
 .assistant-tasks-form .form-group { margin: 0; }
-.assistant-tasks-form textarea { min-block-size: 6rem; resize: vertical; }
-.assistant-tasks-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-.assistant-tasks-status { margin: 0; min-block-size: 3lh; color: var(--text-muted); font-size: var(--text-sm); }
+.assistant-tasks-form textarea { min-block-size: 5rem; resize: vertical; }
+/* A row of buttons is at the right, under the field it follows, with the
+   row's status at its start. */
+.assistant-tasks-actions { display: flex; gap: var(--space-2); align-items: center; }
+.assistant-tasks-actions .btn { flex: none; min-inline-size: 5.5rem; }
+.assistant-tasks-fill { flex: 1; }
+.assistant-tasks-status { flex: 1; min-inline-size: 0; color: var(--text-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.assistant-tasks-would { flex: none; margin: 0; padding: var(--space-2); block-size: 4.6lh; overflow: auto; border: 1px solid var(--border); background: var(--surface-alt); font-size: var(--text-sm); }

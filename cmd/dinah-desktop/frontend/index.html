@@ -377,8 +377,8 @@
 
     <!-- The window assistant (assistant.js; the approved mockup is
          docs/mockups/window-assistant). A line to type in, the person's
-         tasks as a list that scrolls, what changed since they last looked,
-         what the chosen task or the request would do, and Run and Undo. Each
+         tasks as a list that scrolls,
+         what the chosen task would do or the request did, and Run and Undo. Each
          part has its room from the start, so the popover has one size. -->
     <div class="popover assistant" id="assistant-menu" popover role="dialog" aria-labelledby="assistant-title" data-menu-anchor="status-assistant">
       <div class="popover-head">
@@ -391,10 +391,8 @@
       </form>
       <div class="md-section-label assistant-label"><span id="assistant-tasks-title">Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
       <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-labelledby="assistant-tasks-title"></div>
-      <div class="md-section-label assistant-label"><span id="assistant-news-title">Since You Last Looked</span></div>
-      <div class="assistant-news" role="group" aria-labelledby="assistant-news-title" tabindex="0"><ul id="assistant-news"></ul></div>
       <div class="md-section-label assistant-label"><span id="assistant-said-title">What It Does</span></div>
-      <p class="assistant-said" id="assistant-said" role="status" aria-labelledby="assistant-said-title" tabindex="0">Choose a task or ask, and what it would do is said here. Nothing happens until you press Run.</p>
+      <p class="assistant-said" id="assistant-said" role="status" aria-labelledby="assistant-said-title" tabindex="0">Ask does what you type at once. A task you choose says here what it would do, and waits for Run.</p>
       <!-- Run and Undo are in the foot, where a popover's buttons are. A
            task or a request is first read and what it would do is said
            above; Run does it and Undo puts the windows back (Paul,
