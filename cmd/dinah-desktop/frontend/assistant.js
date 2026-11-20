@@ -146,13 +146,20 @@
         if (!all.length) return nothing('None of the open windows could be found to do that with.');
         var rest = '';
         if (all.length > TILE_LIMIT) { rest = ' Only the first ' + TILE_LIMIT + ' are arranged.'; all = all.slice(0, TILE_LIMIT); chosen = chosen.slice(0, TILE_LIMIT - (under ? 1 : 0)); }
+        /* The sentence is written here from the windows themselves, before
+           and after, so it cannot say other than what is done. The engine's
+           own sentence is kept for the answer to a question only (Paul,
+           20 November 2026). */
+        var others = rows.filter(function (w) { return all.indexOf(w.id) < 0 && !w.away; }).length;
+        var row = chosen.map(function (id) { return by[id]; }), every = all.map(function (id) { return by[id]; });
+        var below = under ? ' with ' + by[under].name + ' under ' + (row.length === 1 ? 'it' : 'them') : '';
         if (dry) {
-          var others = rows.filter(function (w) { return all.indexOf(w.id) < 0 && !w.away; }).length;
-          var row = chosen.map(function (id) { return by[id]; }), every = all.map(function (id) { return by[id]; });
           var will = plan.do === 'gather' ? 'Will show ' + plural(every.length, 'window', 'windows') + ', tiled: ' + names(every) + '.'
-            : 'Will put ' + names(row) + ' side by side' + (under ? ' with ' + by[under].name + ' under ' + (row.length === 1 ? 'it' : 'them') : '') + '.';
+            : 'Will put ' + names(row) + ' side by side' + below + '.';
           return { will: will + (others ? ' Will put the other ' + plural(others, 'window', 'windows') + ' away, and close nothing.' : '') + rest, can: true };
         }
+        said = (plan.do === 'gather' ? 'Showing ' + plural(every.length, 'window', 'windows') + ', tiled: ' + names(every) + '.' : 'Put ' + names(row) + ' side by side' + below + '.') +
+          (others ? ' Put the other ' + plural(others, 'window', 'windows') + ' away, and closed nothing.' : '');
         move(all);
         showOnly(rows, all);
         if (plan.do === 'gather') tile(all);
@@ -206,7 +213,7 @@
         if (!chosen.length) return nothing('None of the open windows could be found to bring to the front.');
         if (dry) return { will: 'Will bring ' + names(chosen.map(function (id) { return by[id]; })) + ' to the front.', can: true };
         chosen.slice().reverse().forEach(function (key) { P().raise(key); });
-        return { said: said, before: before };
+        return { said: 'Brought ' + names(chosen.map(function (id) { return by[id]; })) + ' to the front.', before: before };
       }
       default:
         return nothing(said || 'Tell me what to find, gather, arrange or tidy.');

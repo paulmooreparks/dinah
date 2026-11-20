@@ -64,7 +64,7 @@ const { launch } = require('./lib/page');
     now = await layout();
     ok('the window found is showing and the others are put away, none closed', !now.min[keys['Pricing Rules']] && now.min[keys['Release Notes']] && now.min[keys['Tax Question']] && now.open.length === before.open.length, JSON.stringify(now.min));
     ok('the window found fills the layer', now.place[keys['Pricing Rules']].mode === 'maximized', JSON.stringify(now.place[keys['Pricing Rules']]));
-    ok('the line says what was done', /Found 1 window about pricing/.test(await said()));
+    ok('the line says what was done, written from the windows and not taken from the engine', (await said()) === 'Showing 1 window, tiled: Pricing Rules. Put the other 2 windows away, and closed nothing.', await said());
     ok('the popover is still open, Run and Undo are enabled and the line has the focus for the next request', await menu.evaluate(el => el.matches(':popover-open')) && await run.isEnabled() && await p.locator('#assistant-undo').isEnabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-line');
     const size1 = await menu.boundingBox();
     ok('the popover is the size it was', size0.width === size1.width && size0.height === size1.height, JSON.stringify([size0, size1]));

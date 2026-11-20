@@ -53,8 +53,10 @@
     .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
     .assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
     /* What It Does has the sentence and, under it, the chats a task would
-       act on, each with a tick. It has one size and scrolls. */
-    .assistant-result { block-size: 10.5rem; overflow: auto; font-size: var(--text-sm); }
+       act on, each with a tick. It has one small size, under a rule and
+       with no heading, and scrolls (Paul, 20 November 2026: it took up a
+       lot of the popover). */
+    .assistant-result { block-size: 5.2lh; overflow: auto; margin-block-start: var(--space-3); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); font-size: var(--text-sm); }
     .assistant-result p { margin: 0; }
     .assistant-chosen { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
     .assistant-chosen[hidden] { display: none; }
@@ -95,7 +97,7 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Seventh mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Eighth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
@@ -151,7 +153,6 @@
       </form>
       <div class="md-section-label"><span>Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
       <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-label="Tasks"></div>
-      <div class="md-section-label"><span>What It Does</span></div>
       <div class="assistant-result" role="status">
         <p id="assistant-said"></p>
         <ul class="assistant-chosen" id="assistant-chosen" aria-label="The chats it would act on" hidden></ul>
@@ -175,6 +176,7 @@
   <section class="mock-notes">
     <h2>New in this mockup</h2>
     <ul>
+      <li><strong>The answer area is smaller.</strong> It has no heading, sits under a rule, shows about five lines and scrolls for more, the ticked chats included.</li>
       <li><strong>The prompt is the chat window's.</strong> It grows with what you type, up to six lines, and scrolls after that. Enter asks and Shift+Enter starts a new line. It grows upward, so nothing under it moves.</li>
       <li><strong>Ask always acts at once,</strong> for windows and for chats. Type "stop the Pricing team" and it is stopped.</li>
       <li><strong>A task always says what it would do and waits for Run.</strong> A task that acts on chats lists them under the sentence, each with a tick, in What It Does. The separate box is gone.</li>
@@ -268,7 +270,7 @@
       }
       var SKIP = { find: 1, all: 1, the: 1, windows: 1, window: 1, 'for': 1, about: 1, work: 1, show: 1, everything: 1, related: 1, to: 1, which: 1, are: 1, is: 1, gather: 1, me: 1, of: 1, on: 1, and: 1, a: 1, my: 1, with: 1, that: 1, open: 1 };
       function topic(text) { return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w && !SKIP[w]; }); }
-      var IDLE = 'Ask does what you type at once. A task you choose says here what it would do, and waits for Run.';
+      var IDLE = 'Ask acts at once. A task says here what it would do, and waits for Run.';
       var pending = null, picked = -1, listed = null, noUndo = false;
       function titles(list) { return list.map(function (w) { return w.title; }).join(', '); }
       function count(n) { return n === 1 ? '1 window' : n + ' windows'; }
