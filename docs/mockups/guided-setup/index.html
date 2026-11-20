@@ -74,7 +74,7 @@
     <h1>Guided set-up</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Second mockup, 20 November 2026. It opens by itself at the first start.</span>
+    <span class="mock-tag">Third mockup, 20 November 2026. It opens by itself at the first start.</span>
   </header>
 
   <div class="mock-desk">
@@ -93,7 +93,7 @@
         <div class="setup-pane" data-pane="0">
           <h2>Which agent should Dinah use?</h2>
           <table class="data-table setup-agents" aria-label="Agents found on this computer"><tbody id="setup-agents"></tbody></table>
-          <p class="form-help">Nothing is sent to the agent until you press Continue.</p>
+          <p class="form-help">Choosing an agent sends it one short message, to test that it answers.</p>
         </div>
 
         <div class="setup-pane" data-pane="1" hidden>
@@ -127,12 +127,14 @@
   <section class="mock-notes">
     <h2>What this is</h2>
     <ul>
-      <li><strong>It opens by itself at the first start,</strong> and Skip Set-Up or the close button leaves at once with today's defaults. Help, Set Up Dinah opens it again whenever you like.</li>
-      <li><strong>Step 1 has no model in it.</strong> It lists the agent programs found, says which are ready, and offers the one thing to do about each that is not. Press Sign In on Codex to see a row become ready.</li>
+      <li><strong>It opens by itself once for everyone,</strong> at the first start of the version that has it, and Skip Set-Up or the close button leaves at once with today's defaults. Help, Set Up Dinah opens it again whenever you like.</li>
+      <li><strong>Step 1 says what the product can really tell,</strong> which is whether each agent's program was found. Choosing one tests its connection, and the row then says Answers or gives the reason it does not. Choose Codex, see it fail, press Sign In and see it answer.</li>
+      <li><strong>How to Install</strong> opens the page with that agent's install instructions in the browser. Another product built on this one can point it at its own page.</li>
       <li><strong>Step 2 is the guide,</strong> speaking through the agent chosen. Each of its five questions has its choices as a list. Choose one and press Continue.</li>
+      <li><strong>The question about what the agent asks before it acts</strong> offers the chosen agent's own choices, in the words Settings uses. Choose Ollama in step 1 to see a different list. Antigravity has no such setting, so with it the question is left out.</li>
       <li><strong>It asks what the agents should call you,</strong> offering the name of this computer's account, no name, or a name you type.</li>
       <li><strong>Or say it in your own words.</strong> Type "I write requirement documents for a client in C:\Work\Pricing and I want to be asked before anything runs" and press Say. The guide takes every answer it can from that, says which, and asks only what is left.</li>
-      <li><strong>Step 3 shows every setting before anything is set,</strong> with where each value came from. Change goes back to that question. Set It Up sets them. Undo, which takes its place, puts every one back.</li>
+      <li><strong>Step 3 shows every setting before anything is set,</strong> with where each value came from. Change goes back to that question. Set It Up sets them. Undo, which takes its place, puts them back. Two rows say what Undo cannot take back: a sign-in stays, and the background questions are turned off again.</li>
       <li><strong>The question about answering small questions in the background</strong> is the one the Judgements item in the tray asks today. Asked here, it is not asked a second time.</li>
     </ul>
     <h2>What is scripted here</h2>
@@ -147,22 +149,29 @@
       var $ = function (id) { return document.getElementById(id); };
       function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
       var AGENTS = [
-        { id: 'claude', name: 'Claude', state: 'ready', why: 'Signed in.' },
-        { id: 'codex', name: 'Codex', state: 'signin', why: 'Installed, not signed in.' },
-        { id: 'devin', name: 'Devin', state: 'missing', why: 'Not installed.' },
-        { id: 'antigravity', name: 'Antigravity', state: 'ready', why: 'Signed in.' },
-        { id: 'ollama', name: 'Ollama', state: 'ready', why: 'On this computer, 2 models.' }
+        { id: 'claude', name: 'Claude', found: true },
+        { id: 'codex', name: 'Codex', found: true, signIn: true, fails: 'It says nobody is signed in.' },
+        { id: 'devin', name: 'Devin', found: false, signIn: true },
+        { id: 'antigravity', name: 'Antigravity', found: true },
+        { id: 'ollama', name: 'Ollama', found: true }
       ];
-      var QUESTIONS = [
+      /* Each agent's own choices for what it asks before it acts, in the
+         words Settings uses. An agent with no such setting has no entry,
+         and the question is left out for it. */
+      var ASKS = {
+        claude: [['default', 'Ask Before Edits and Commands', 'Asks before edits and commands'], ['edits', 'Accept Edits, Ask Before Commands', 'Accepts edits, asks before commands'], ['bypass', 'Do Not Ask', 'Does not ask']],
+        codex: [['ask', 'Ask Before Commands', 'Asks before commands'], ['workspace', 'Workspace, Unattended', 'Workspace, unattended'], ['full', 'Full Access, Unattended', 'Full access, unattended']],
+        devin: [['devin', 'Use My Own Devin Settings', 'Your own Devin settings'], ['ask', 'Ask Before Every Action', 'Asks before every action'], ['dinah', 'Allow Reading and Looking', 'Reading and looking allowed'], ['all', 'Approve Everything', 'Everything approved']],
+        ollama: [['chat', 'Once in Each Chat', 'Asks once in each chat'], ['ask', 'Every Command', 'Asks at every command'], ['allow', 'Never', 'Never asks'], ['all', 'Approve Everything', 'Everything approved']]
+      };
+      var WORDS = { claude: { each: 'default', never: 'bypass' }, codex: { each: 'ask', never: 'full' }, devin: { each: 'ask', never: 'all' }, ollama: { each: 'ask', never: 'all', chat: 'chat' } };
+      var QUESTIONS, ALL = [
         { id: 'use', setting: 'Windows open at the start', ask: 'What will you use Dinah for most?', choices: [
           ['code', 'Writing code with an agent', 'Workspace, Files and Terminal'],
           ['docs', 'Writing documents and diagrams', 'Workspace, Documents and In Progress'],
           ['team', 'Running several agents as a team', 'Chats, Org Chart, Notifications and Decisions'],
           ['all', 'A bit of everything', 'Workspace, Chats and Notifications'] ] },
-        { id: 'ask', setting: 'Before an agent acts', ask: 'How much should an agent ask you before it acts?', choices: [
-          ['each', 'Ask me every time', 'It asks every time'],
-          ['chat', 'Ask me once in each chat', 'It asks once in each chat'],
-          ['never', 'Do not ask', 'It does not ask'] ] },
+        { id: 'ask', setting: 'Before the agent acts', ask: '', choices: [] },
         { id: 'folder', setting: 'Workspace', ask: 'Which folder has your work?', choices: [
           ['pick', 'Choose a Folder…', 'C:\\Work\\Pricing'],
           ['none', 'Not now', 'None yet'] ] },
@@ -173,12 +182,25 @@
           ['on', 'Yes', 'On, at most 200 calls a day'],
           ['off', 'Not now', 'Off'] ] }
       ];
-      var step, agents, agent, answers, from, at, picked, applied, folder, called;
-      function fresh() { step = 0; agents = AGENTS.map(function (a) { return Object.assign({}, a); }); agent = 'claude'; answers = {}; from = {}; at = 0; picked = null; applied = false; folder = 'C:\\Work\\Pricing'; called = ''; $('setup-said').innerHTML = ''; $('setup').hidden = false; bar('Set-up is open. Help has Set Up Dinah, which opens it again at any time.'); }
+      var step, agents, agent, answers, from, at, picked, applied, folder, called, signed;
+      function fresh() { step = 0; agents = AGENTS.map(function (a) { return Object.assign({}, a); }); answers = {}; from = {}; signed = ''; choose('claude'); at = 0; picked = null; applied = false; folder = 'C:\\Work\\Pricing'; called = ''; $('setup-said').innerHTML = ''; $('setup').hidden = false; bar('Set-up is open. Help has Set Up Dinah, which opens it again at any time.'); }
       function bar(text) { $('mock-bar').textContent = text; }
       function status(text) { $('setup-status').textContent = text; }
       function agentName() { return agents.filter(function (a) { return a.id === agent; })[0].name; }
-      function question(i) { var q = QUESTIONS[i]; return q.id === 'judge' ? 'May ' + agentName() + ' answer small questions in the background, such as a chat\u2019s title and a suggested reply? At most 200 calls a day.' : q.ask; }
+      /* Choosing an agent tests its connection, since the product cannot
+         tell whether anyone is signed in to it any other way. */
+      function choose(id) {
+        agent = id; delete answers.ask;
+        var ask = ALL.filter(function (q) { return q.id === 'ask'; })[0]; ask.choices = ASKS[id] || [];
+        QUESTIONS = ALL.filter(function (q) { return q.id !== 'ask' || ASKS[id]; });
+        test();
+      }
+      function test() {
+        var a = agents.filter(function (x) { return x.id === agent; })[0];
+        a.tested = 'testing';
+        setTimeout(function () { if (a.tested !== 'testing') return; a.tested = a.fails ? 'fail' : 'ok'; if (step === 0) { status(a.fails ? a.name + ' does not answer. ' + a.fails : ''); draw(); } }, 900);
+      }
+      function question(i) { var q = QUESTIONS[i]; if (q.id === 'ask') return 'How much should ' + agentName() + ' ask you before it acts?'; return q.id === 'judge' ? 'May ' + agentName() + ' answer small questions in the background, such as a chat\u2019s title and a suggested reply? At most 200 calls a day.' : q.ask; }
       function valueOf(q) { if (q.id === 'name' && answers.name === 'typed') return called; var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return !c ? '' : q.id === 'folder' && c[0] === 'pick' ? folder : c[2]; }
       function labelOf(q) { if (q.id === 'name' && answers.name === 'typed') return called; var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return c ? (q.id === 'folder' && c[0] === 'pick' ? folder : c[1]) : ''; }
 
@@ -186,18 +208,21 @@
         var body = $('setup-agents'); body.innerHTML = '';
         agents.forEach(function (a) {
           var tr = el('tr'), pick = el('td'), name = el('td'), state = el('td'), act = el('td');
-          var radio = el('input'); radio.type = 'radio'; radio.name = 'agent'; radio.id = 'agent-' + a.id; radio.checked = a.id === agent; radio.disabled = a.state !== 'ready';
-          radio.addEventListener('change', function () { agent = a.id; draw(); });
+          var radio = el('input'); radio.type = 'radio'; radio.name = 'agent'; radio.id = 'agent-' + a.id; radio.checked = a.id === agent; radio.disabled = !a.found;
+          radio.addEventListener('change', function () { choose(a.id); status(''); draw(); });
           pick.appendChild(radio);
           var label = el('label', '', a.name); label.htmlFor = radio.id; name.appendChild(label);
-          state.appendChild(el('span', 'badge' + (a.state === 'ready' ? ' accent' : ''), a.state === 'ready' ? 'Ready' : a.state === 'signin' ? 'Sign in' : 'Not found'));
-          state.appendChild(el('span', 'why', ' ' + a.why));
-          if (a.state !== 'ready') {
-            var b = el('button', 'btn btn-sm', a.state === 'signin' ? 'Sign In…' : 'How to Install');
+          var chosen = a.id === agent && a.found;
+          var word = !a.found ? 'Not found' : !chosen || !a.tested ? 'Found' : a.tested === 'testing' ? 'Testing\u2026' : a.tested === 'ok' ? 'Answers' : 'Does not answer';
+          state.appendChild(el('span', 'badge' + (word === 'Answers' ? ' accent' : ''), word));
+          if (!a.found || a.signIn) {
+            var b = el('button', 'btn btn-sm', a.found ? 'Sign In\u2026' : 'How to Install');
             b.type = 'button';
             b.addEventListener('click', function () {
-              if (a.state === 'signin') { a.state = 'ready'; a.why = 'Signed in.'; status(a.name + ' is signed in.'); draw(); }
-              else status('In the product this opens ' + a.name + '\u2019s own instructions.');
+              if (!a.found) { status('In the product this opens the page that says how to install ' + a.name + ', in your browser.'); return; }
+              a.fails = ''; signed = a.name; status('In the product ' + a.name + '\u2019s own sign-in opens. Here it is done.');
+              if (a.id === agent) test();
+              draw();
             });
             act.appendChild(b);
           }
@@ -227,9 +252,8 @@
         if (/\bteam|several agents|agents together\b/.test(t)) take('use', 'team');
         else if (/\bdocument|requirement|writing|diagram|spec\b/.test(t)) take('use', 'docs');
         else if (/\bcode|program|develop|repo\b/.test(t)) take('use', 'code');
-        if (/\b(ask|asked)\b.*\b(every|each time|before|always|anything)\b|\bbefore anything\b/.test(t)) take('ask', 'each');
-        else if (/\bdon'?t ask|do not ask|never ask|without asking\b/.test(t)) take('ask', 'never');
-        else if (/\bonce\b/.test(t)) take('ask', 'chat');
+        var w = WORDS[agent] || {}, said = /\b(ask|asked)\b.*\b(every|each time|before|always|anything)\b|\bbefore anything\b/.test(t) ? 'each' : /\bdon'?t ask|do not ask|never ask|without asking\b/.test(t) ? 'never' : /\bonce\b/.test(t) ? 'chat' : '';
+        if (w[said]) take('ask', w[said]);
         var path = /[a-z]:\\[^\s,.;]+(?:\\[^\s,.;]+)*/i.exec(text);
         if (path) { folder = path[0]; take('folder', 'pick'); }
         if (/\bbackground\b.*\b(yes|fine|ok)\b|\byes\b.*\bbackground\b/.test(t)) take('judge', 'on');
@@ -246,10 +270,11 @@
       }
       function drawReview() {
         var body = $('setup-review'); body.innerHTML = '';
-        var rows = [['Agent', agentName(), 'Step 1', -1]].concat(QUESTIONS.map(function (q, i) { return [q.setting, valueOf(q), from[q.id], i]; }));
+        /* Two things Undo cannot take back, said on their own rows. */
+        var rows = [['Agent', agentName(), 'Step 1' + (signed ? ' \u00b7 Undo does not sign you out of ' + signed : ''), -1]].concat(QUESTIONS.map(function (q, i) { return [q.setting, valueOf(q), from[q.id] + (q.id === 'judge' && answers.judge === 'on' ? ' \u00b7 Undo turns this off' : ''), i]; }));
         rows.forEach(function (r) {
           var tr = el('tr'), value = el('td', '', r[1] + ' '), act = el('td');
-          value.appendChild(el('span', 'from', applied ? '· set' : '· ' + r[2]));
+          value.appendChild(el('span', 'from', '· ' + (applied ? r[2].replace(/^[^\u00b7]*/, 'set ') : r[2])));
           if (!applied) {
             var b = el('button', 'btn btn-sm', 'Change'); b.type = 'button';
             b.addEventListener('click', function () { if (r[3] < 0) step = 0; else { step = 1; at = r[3]; picked = answers[QUESTIONS[at].id]; } status(''); draw(); });
@@ -268,7 +293,7 @@
         var next = $('setup-next'), back = $('setup-back');
         back.disabled = step === 0 || applied;
         $('setup-skip').textContent = applied ? 'Close' : 'Skip Set-Up';
-        if (step === 0) { drawAgents(); next.textContent = 'Continue'; next.disabled = !agents.some(function (a) { return a.id === agent && a.state === 'ready'; }); }
+        if (step === 0) { drawAgents(); next.textContent = 'Continue'; next.disabled = !agents.some(function (a) { return a.id === agent && a.tested === 'ok'; }); }
         if (step === 1) { drawQuestion(); next.textContent = 'Continue'; next.disabled = !picked; }
         if (step === 2) { drawReview(); next.textContent = applied ? 'Undo' : 'Set It Up'; next.disabled = false; next.classList.toggle('btn-primary', !applied); }
         else next.classList.add('btn-primary');
@@ -281,7 +306,7 @@
           at = nextOpen();
           if (at < 0) { step = 2; status(''); } else picked = null;
         } else if (!applied) { applied = true; status('Everything is set. Each can be changed in Settings.'); bar('Set up. The windows for what you chose are open behind this one.'); }
-        else { applied = false; status('Every setting is back as it was.'); bar('Set-up is open.'); }
+        else { applied = false; status('The settings are back as they were.'); bar('Set-up is open.'); }
         draw();
       });
       $('setup-back').addEventListener('click', function () {
