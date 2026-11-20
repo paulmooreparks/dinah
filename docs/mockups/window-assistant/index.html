@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
   <style>
     /* The frame and the stand-in windows are styled here. The assistant is
-       PUDL's popover with PUDL's inputs, buttons and notices; the rules
+       PUDL's popover with PUDL's inputs, lists, buttons and forms; the rules
        under "Proposed" are what the product would gain. */
     * { box-sizing: border-box; }
     body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
     .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
     .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
     .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
-    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 520px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
+    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 600px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
     .mock-win { position: absolute; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); transition: left .25s, top .25s, width .25s, height .25s, opacity .2s; overflow: hidden; }
     .mock-win[data-away] { opacity: 0; pointer-events: none; }
     .mock-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-size: var(--text-sm); font-weight: 600; background: var(--surface-alt); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -30,24 +30,42 @@
     .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
     .mock-notes li { margin-bottom: var(--space-1); }
 
-    /* ---- Proposed -------------------------------------------------------
-       The assistant is one popover over its item in the tray, of one size.
-       It has a line to type in, the standing requests as buttons, what the
-       assistant has to offer (the morning line), and one line that says what
-       the last request did, with Undo. Each part has its room from the
-       start, so nothing in it moves when an answer arrives. */
-    .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 26rem; max-inline-size: calc(100% - 2 * var(--space-2)); margin: 0; display: block; z-index: 5; }
+    /* ---- Proposed: the assistant in the tray ------------------------------
+       One popover of one size. A line to type in, the person's tasks as a
+       list that scrolls, what changed since they last looked, and one line
+       that says what the last request did, with Undo. Each part has its room
+       from the start, so nothing in it moves when an answer arrives or a
+       task is added. */
+    .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 24rem; max-inline-size: calc(100% - 2 * var(--space-2)); margin: 0; display: block; z-index: 5; }
     .assistant[hidden] { display: none; }
     .assistant-ask { display: flex; gap: var(--space-2); }
     .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
-    .assistant-standing { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-3); }
-    .assistant-offers { block-size: 6.5rem; overflow: auto; }
-    .assistant-offers .md-section-label { margin: 0 0 var(--space-1); padding: 0; }
+    .assistant .md-section-label { display: flex; align-items: center; margin: var(--space-3) 0 var(--space-1); padding: 0; }
+    .assistant .md-section-label .btn { margin-inline-start: auto; }
+    .assistant-tasks { block-size: 9.5rem; overflow: auto; border: 1px solid var(--border); background: var(--surface); }
+    .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
+    .assistant-offers { block-size: 4.6rem; overflow: auto; }
     .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
-    .assistant-offers .none { color: var(--text-muted); font-size: var(--text-sm); margin: 0; }
-    .assistant-result { display: flex; align-items: center; gap: var(--space-2); block-size: 5em; overflow: hidden; margin-block-start: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); font-size: var(--text-sm); }
+    .assistant-result { display: flex; align-items: center; gap: var(--space-2); block-size: 6.6em; overflow: auto; margin-block-start: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); font-size: var(--text-sm); }
     .assistant-result p { flex: 1; margin: 0; }
-    .assistant-result .btn[disabled] { visibility: visible; }
+
+    /* ---- Proposed: the Assistant Tasks window ----------------------------
+       A window of the workbench like any other, with the list of tasks on
+       one side and the chosen task on the other. A task is a name and the
+       words the assistant is asked, the same words a person could type. */
+    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 24px; inline-size: 640px; max-inline-size: calc(100% - 48px); block-size: 420px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
+    .tasks-win[hidden] { display: none; }
+    .tasks-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-weight: 600; font-size: var(--text-sm); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
+    .tasks-win .bar .icon-btn { margin-inline-start: auto; }
+    .tasks-tools { display: flex; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--border); }
+    .tasks-body { flex: 1; min-block-size: 0; display: grid; grid-template-columns: 15rem minmax(0, 1fr); }
+    .tasks-list { overflow: auto; border-inline-end: 1px solid var(--border); }
+    .tasks-form { padding: var(--space-3); overflow: auto; display: flex; flex-direction: column; gap: var(--space-3); }
+    .tasks-form .form-group { margin: 0; }
+    .tasks-form textarea { min-block-size: 6rem; resize: vertical; }
+    .tasks-actions { display: flex; gap: var(--space-2); align-items: center; }
+    .tasks-actions .status { color: var(--text-muted); font-size: var(--text-sm); min-block-size: 1lh; }
+    .md-row[aria-current="true"] .md-item, .md-row .md-item[aria-current="true"] { font-weight: 600; }
   </style>
 </head>
 <body>
@@ -55,29 +73,54 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Second mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
+    <section class="tasks-win" id="tasks-win" aria-labelledby="tasks-title" hidden>
+      <div class="bar"><span id="tasks-title">Assistant Tasks</span><button class="icon-btn popover-close" type="button" id="tasks-close" aria-label="Close"></button></div>
+      <div class="tasks-tools">
+        <button type="button" class="btn btn-sm" id="task-new">New Task</button>
+        <button type="button" class="btn btn-sm" id="task-up">Move Up</button>
+        <button type="button" class="btn btn-sm" id="task-down">Move Down</button>
+        <button type="button" class="btn btn-sm" id="task-restore">Restore the Starter Set…</button>
+      </div>
+      <div class="tasks-body">
+        <div class="tasks-list" id="tasks-list" role="listbox" aria-label="Tasks"></div>
+        <form class="tasks-form" id="task-form">
+          <div class="form-group">
+            <label class="form-label" for="task-name">Name</label>
+            <input class="form-input" id="task-name" type="text" autocomplete="off">
+            <p class="form-help">What the task is called in the assistant's list.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="task-ask">What the Assistant Is Asked</label>
+            <textarea class="form-input" id="task-ask"></textarea>
+            <p class="form-help">The same words you could type to the assistant. It is asked this when you choose the task.</p>
+          </div>
+          <div class="tasks-actions">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn" id="task-try">Try It</button>
+            <button type="button" class="btn" id="task-delete">Delete Task</button>
+            <span class="status" id="task-status" role="status"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <div class="popover assistant" id="assistant" role="dialog" aria-labelledby="assistant-title" hidden>
       <div class="popover-head">
         <h2 class="popover-title" id="assistant-title">Assistant</h2>
         <button class="icon-btn popover-close" type="button" id="assistant-close" aria-label="Close"></button>
       </div>
       <form class="assistant-ask" id="assistant-form">
-        <input class="form-input" id="assistant-line" type="text" autocomplete="off" aria-label="Ask the assistant" placeholder="Arrange, find, gather or tidy. Say it in your own words.">
+        <input class="form-input" id="assistant-line" type="text" autocomplete="off" aria-label="Ask the assistant" placeholder="Find, gather, arrange or tidy, in your own words.">
         <button class="btn btn-primary" type="submit">Ask</button>
       </form>
-      <div class="assistant-standing" role="group" aria-label="Standing requests">
-        <button type="button" class="btn btn-sm" data-ask="tile">Tile the Active Windows</button>
-        <button type="button" class="btn btn-sm" data-ask="active">Show Only Active Windows</button>
-        <button type="button" class="btn btn-sm" data-ask="tidy">Tidy Up</button>
-        <button type="button" class="btn btn-sm" data-ask="gather">Gather the Payment Work</button>
-      </div>
-      <div class="assistant-offers">
-        <div class="md-section-label">Since You Last Looked</div>
-        <ul id="assistant-offers"></ul>
-      </div>
+      <div class="md-section-label"><span>Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
+      <div class="assistant-tasks" id="assistant-tasks" role="group" aria-label="Tasks"></div>
+      <div class="md-section-label"><span>Since You Last Looked</span></div>
+      <div class="assistant-offers"><ul id="assistant-offers"></ul></div>
       <div class="assistant-result" role="status">
         <p id="assistant-said">Nothing asked yet.</p>
         <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo</button>
@@ -91,21 +134,23 @@
   </div>
 
   <section class="mock-notes">
-    <h2>What is proposed</h2>
+    <h2>What changed from the first mockup</h2>
     <ul>
-      <li>The assistant is opened from its item in the tray and with a key, and nowhere else. It is one popover of one size.</li>
-      <li>A request is typed in the person's own words, or pressed as one of the standing requests. A standing request that needs no judgement, such as tiling, is carried out with no model call.</li>
-      <li>The first version does four things: it arranges windows, it gathers what belongs together by meaning, it tidies, and it says what changed since the person last looked.</li>
-      <li>Its answer is the thing done, and one line that says what it did, with Undo. It never opens a window to answer.</li>
-      <li>"Since You Last Looked" is the morning line: at most three things, each a link to its window. It is in the assistant's own place and never over the person's work.</li>
-      <li>It can only do what the person could do by hand in the window. Closing is limited to chats that are idle and documents with nothing unsaved, and Tidy Up says what it left open and why.</li>
+      <li><strong>Finding by what you say.</strong> "Find all the windows for the pricing work" is the assistant's first job. Here it looks for your words in the stand-in windows' titles; in the product the model reads each window's title, workspace, sources and first lines, so the words need not be in a title. When nothing matches it says so, and never says it cannot look.</li>
+      <li><strong>Tasks are a list that scrolls,</strong> in place of buttons. One press runs a task.</li>
+      <li><strong>Assistant Tasks is a window of its own,</strong> opened with Edit Tasks. A task is a name and the words the assistant is asked. The list starts with a starter set, which you can change, reorder, delete, and restore.</li>
     </ul>
-    <h2>Try typing</h2>
+    <h2>Try</h2>
     <ul>
-      <li>"put the documents side by side and the chat under them"</li>
-      <li>"show everything about the payment work"</li>
-      <li>"close what is finished"</li>
-      <li>Anything else gets the answer a real request would get when the assistant cannot do it: what it can do, in one line.</li>
+      <li>Type "find all the windows for the pricing work", "show everything about the release", or "which windows are about tax?".</li>
+      <li>Type "put the documents side by side and the chat under them", or "close what is finished".</li>
+      <li>Open Edit Tasks, add a task such as "Pricing" asking "find all the windows for the pricing work", save it, and run it from the list.</li>
+    </ul>
+    <h2>What is the same</h2>
+    <ul>
+      <li>The assistant is reached from the tray and a key only, and is one popover of one size.</li>
+      <li>Its answer is the thing done and one line that says what it did, with Undo.</li>
+      <li>It can only do what you could do by hand in the window. Closing is limited to idle chats and documents with nothing unsaved.</li>
     </ul>
   </section>
 
@@ -114,29 +159,38 @@
       var $ = function (id) { return document.getElementById(id); };
       var desk = $('desk');
       var WINDOWS = [
-        { id: 'c1', kind: 'Chat', title: 'Payment Retry Rules', about: 'payment', working: true, x: 20, y: 20, w: 300, h: 150 },
-        { id: 'd1', kind: 'Document', title: 'Payment Design.md', about: 'payment', x: 120, y: 80, w: 320, h: 170 },
-        { id: 'c2', kind: 'Chat', title: 'Release Notes Draft', about: 'release', x: 240, y: 40, w: 300, h: 150 },
-        { id: 'g1', kind: 'Diagram', title: 'Refund Flow.d2', about: 'payment', x: 330, y: 170, w: 300, h: 160 },
-        { id: 'c3', kind: 'Chat', title: 'Tax Rule Question', about: 'tax', done: true, x: 430, y: 60, w: 280, h: 140 },
-        { id: 'd2', kind: 'Document', title: 'Meeting Notes.md', about: 'notes', done: true, unsaved: true, x: 60, y: 250, w: 300, h: 150 },
-        { id: 'c4', kind: 'Chat', title: 'Build Check', about: 'build', done: true, x: 520, y: 260, w: 260, h: 140 }
+        { id: 'c1', kind: 'Chat', title: 'Pricing Rules for Bundles', words: 'pricing price bundle bundles discount', working: true, x: 20, y: 20, w: 300, h: 150 },
+        { id: 'd1', kind: 'Document', title: 'Pricing Design.md', words: 'pricing price design', x: 120, y: 80, w: 320, h: 170 },
+        { id: 'c2', kind: 'Chat', title: 'Release Notes Draft', words: 'release notes version', x: 240, y: 40, w: 300, h: 150 },
+        { id: 'g1', kind: 'Diagram', title: 'Discount Flow.d2', words: 'pricing discount flow', x: 330, y: 170, w: 300, h: 160 },
+        { id: 'c3', kind: 'Chat', title: 'Tax Rule Question', words: 'tax rule vat', done: true, x: 430, y: 60, w: 280, h: 140 },
+        { id: 'd2', kind: 'Document', title: 'Meeting Notes.md', words: 'meeting notes release', done: true, unsaved: true, x: 60, y: 250, w: 300, h: 150 },
+        { id: 'c4', kind: 'Chat', title: 'Build Check', words: 'build check release', done: true, x: 520, y: 260, w: 260, h: 140 }
       ];
-      var state, before = null;
-      function fresh() { state = WINDOWS.map(function (w) { return Object.assign({ away: false, gathered: false }, w); }); before = null; }
+      var STARTER = [
+        { name: 'Tile the Windows That Are Showing', ask: 'tile the windows that are showing' },
+        { name: 'Show Only Windows with Work in Them', ask: 'show only the windows with work in them' },
+        { name: 'Tidy Up', ask: 'close what is finished' },
+        { name: 'Documents Side by Side, Chat Under', ask: 'put the documents side by side and the chat under them' },
+        { name: 'Bring Everything Back', ask: 'show every window again' },
+        { name: 'What Needs Me?', ask: 'which windows are waiting for me?' }
+      ];
+      var state, before = null, tasks, chosen = 0;
+      function fresh() { state = WINDOWS.map(function (w) { return Object.assign({ away: false, gathered: false }, w); }); before = null; tasks = STARTER.map(function (t) { return Object.assign({}, t); }); chosen = 0; }
+      function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
       function draw() {
         state.forEach(function (w) {
-          var el = $('win-' + w.id);
-          if (!el) {
-            el = document.createElement('div'); el.className = 'mock-win'; el.id = 'win-' + w.id;
-            el.innerHTML = '<div class="bar"><span class="kind"></span><span class="title"></span></div><div class="body"></div>';
-            desk.insertBefore(el, $('assistant'));
+          var node = $('win-' + w.id);
+          if (!node) {
+            node = el('div', 'mock-win'); node.id = 'win-' + w.id;
+            node.innerHTML = '<div class="bar"><span class="kind"></span><span class="title"></span></div><div class="body"></div>';
+            desk.insertBefore(node, $('tasks-win'));
           }
-          el.querySelector('.kind').textContent = w.kind;
-          el.querySelector('.title').textContent = w.title;
-          el.querySelector('.body').textContent = w.working ? 'A turn is running.' : w.unsaved ? 'Changes not saved.' : w.done ? 'Idle since its last turn.' : 'Open.';
-          el.style.left = w.x + 'px'; el.style.top = w.y + 'px'; el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
-          el.toggleAttribute('data-away', w.away); el.toggleAttribute('data-working', !!w.working); el.toggleAttribute('data-gathered', w.gathered);
+          node.querySelector('.kind').textContent = w.kind;
+          node.querySelector('.title').textContent = w.title;
+          node.querySelector('.body').textContent = w.working ? 'A turn is running.' : w.unsaved ? 'Changes not saved.' : w.done ? 'Idle since its last turn.' : 'Open.';
+          node.style.left = w.x + 'px'; node.style.top = w.y + 'px'; node.style.width = w.w + 'px'; node.style.height = w.h + 'px';
+          node.toggleAttribute('data-away', w.away); node.toggleAttribute('data-working', !!w.working); node.toggleAttribute('data-gathered', w.gathered);
         });
         $('assistant-undo').disabled = !before;
       }
@@ -148,51 +202,94 @@
         var cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), W = desk.clientWidth - 16, H = desk.clientHeight - 16;
         list.forEach(function (w, i) { w.x = 8 + (i % cols) * (W / cols); w.y = 8 + Math.floor(i / cols) * (H / rows); w.w = W / cols - 8; w.h = H / rows - 8; });
       }
-      var ASK = {
-        tile: function () { keep(); tile(shown()); say('Tiled the ' + shown().length + ' windows that are showing.'); },
-        active: function () {
-          keep(); var kept = 0;
-          state.forEach(function (w) { w.away = !!w.done && !w.unsaved; if (!w.away) kept++; });
-          tile(shown()); say('Showing the ' + kept + ' windows with work in them. The others are put away, not closed.');
-        },
-        tidy: function () {
-          keep(); var closed = [], left = [];
-          state.forEach(function (w) { if (w.done && !w.unsaved && !w.away) { w.away = true; closed.push(w.title); } else if (w.done && w.unsaved) left.push(w.title); });
-          tile(shown());
-          say('Closed ' + closed.length + ' idle windows' + (left.length ? ' and left ' + left.join(', ') + ' open, since it has changes not saved.' : '.'));
-        },
-        gather: function () {
-          keep(); var n = 0;
-          state.forEach(function (w) { w.gathered = w.about === 'payment'; w.away = !w.gathered; if (w.gathered) n++; });
-          tile(shown()); say('Gathered ' + n + ' windows about the payment work: a chat, a document and a diagram. The rest are put away.');
-        },
-        side: function () {
+      var SKIP = { find: 1, all: 1, the: 1, windows: 1, window: 1, 'for': 1, about: 1, work: 1, show: 1, everything: 1, related: 1, to: 1, which: 1, are: 1, is: 1, gather: 1, me: 1, of: 1, on: 1, and: 1, a: 1, my: 1, with: 1, that: 1, open: 1 };
+      function topic(text) { return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w && !SKIP[w]; }); }
+      function gather(words) {
+        var match = state.filter(function (w) { var hay = (w.title + ' ' + w.words).toLowerCase(); return words.some(function (x) { return hay.indexOf(x) >= 0; }); });
+        var name = words.join(' ');
+        if (!match.length) { say('No open window is about ' + name + '. I looked at the titles and contents of all ' + state.length + '.'); return; }
+        keep();
+        state.forEach(function (w) { w.gathered = match.indexOf(w) >= 0; w.away = !w.gathered; });
+        tile(shown());
+        var kinds = match.map(function (w) { return w.kind.toLowerCase() + ' ' + w.title; });
+        say('Found ' + match.length + ' about ' + name + ': ' + kinds.join(', ') + '. The rest are put away, not closed.');
+      }
+      function ask(text) {
+        var t = text.toLowerCase();
+        if (/side by side|next to each other/.test(t)) {
           keep(); var docs = shown().filter(function (w) { return w.kind === 'Document'; }), chat = shown().filter(function (w) { return w.kind === 'Chat'; })[0];
           var W = desk.clientWidth - 16, H = desk.clientHeight - 16;
           state.forEach(function (w) { w.away = docs.indexOf(w) < 0 && w !== chat; });
           docs.forEach(function (w, i) { w.x = 8 + i * (W / docs.length); w.y = 8; w.w = W / docs.length - 8; w.h = H * .6 - 8; });
           if (chat) { chat.x = 8; chat.y = 8 + H * .6; chat.w = W - 8; chat.h = H * .4 - 8; }
           say('Put the ' + docs.length + ' documents side by side with ' + (chat ? chat.title : 'no chat') + ' under them.');
+        } else if (/every window|bring everything|show all/.test(t)) {
+          keep(); state.forEach(function (w) { w.away = false; w.gathered = false; }); tile(shown()); say('All ' + state.length + ' windows are showing again.');
+        } else if (/waiting for me|needs me|need me/.test(t)) {
+          var waiting = state.filter(function (w) { return w.unsaved || (w.done && w.kind === 'Chat'); });
+          say(waiting.length + ' may need you: ' + waiting.map(function (w) { return w.title + (w.unsaved ? ' (not saved)' : ' (finished)'); }).join(', ') + '.');
+        } else if (/close|tidy|clean|finished/.test(t)) {
+          keep(); var closed = 0, left = [];
+          state.forEach(function (w) { if (w.done && !w.unsaved && !w.away) { w.away = true; closed++; } else if (w.done && w.unsaved) left.push(w.title); });
+          tile(shown());
+          say('Closed ' + closed + ' idle windows' + (left.length ? ' and left ' + left.join(', ') + ' open, since it has changes not saved.' : '.'));
+        } else if (/only|with work|active/.test(t) && !/about|for the/.test(t)) {
+          keep(); var kept = 0;
+          state.forEach(function (w) { w.away = !!w.done && !w.unsaved; if (!w.away) kept++; });
+          tile(shown()); say('Showing the ' + kept + ' windows with work in them. The others are put away, not closed.');
+        } else if (/tile|arrange|grid/.test(t)) {
+          keep(); tile(shown()); say('Tiled the ' + shown().length + ' windows that are showing.');
+        } else {
+          var words = topic(text);
+          if (words.length) gather(words); else say('Tell me what to find, gather, arrange or tidy.');
         }
-      };
-      function understand(text) {
-        var t = text.toLowerCase();
-        if (/side by side|next to each other/.test(t)) return 'side';
-        if (/tile|arrange|grid/.test(t)) return 'tile';
-        if (/payment|everything about|related to|gather/.test(t)) return 'gather';
-        if (/close|tidy|clean|finished/.test(t)) return 'tidy';
-        if (/active|only|working/.test(t)) return 'active';
-        return '';
+        draw();
       }
+      function drawTasks() {
+        var list = $('assistant-tasks'); list.innerHTML = '';
+        tasks.forEach(function (t) {
+          var row = el('div', 'md-row'), a = el('a', 'md-item', t.name);
+          a.href = '#'; a.title = 'Asks: ' + t.ask;
+          a.addEventListener('click', function (e) { e.preventDefault(); ask(t.ask); });
+          row.appendChild(a); list.appendChild(row);
+        });
+        var edit = $('tasks-list'); edit.innerHTML = '';
+        tasks.forEach(function (t, i) {
+          var row = el('div', 'md-row'), a = el('a', 'md-item', t.name || 'New Task');
+          a.href = '#'; a.setAttribute('role', 'option'); a.setAttribute('aria-selected', String(i === chosen));
+          if (i === chosen) a.setAttribute('aria-current', 'true');
+          a.addEventListener('click', function (e) { e.preventDefault(); chosen = i; drawTasks(); });
+          row.appendChild(a); edit.appendChild(row);
+        });
+        var t = tasks[chosen];
+        $('task-name').value = t ? t.name : ''; $('task-ask').value = t ? t.ask : '';
+        ['task-name', 'task-ask', 'task-delete', 'task-try'].forEach(function (id) { $(id).disabled = !t; });
+        $('task-up').disabled = !t || chosen === 0; $('task-down').disabled = !t || chosen === tasks.length - 1;
+      }
+      function note(text) { $('task-status').textContent = text; }
+      $('task-form').addEventListener('submit', function (e) {
+        e.preventDefault(); var t = tasks[chosen]; if (!t) return;
+        var name = $('task-name').value.trim(), words = $('task-ask').value.trim();
+        if (!name || !words) { note('A task needs a name and what to ask.'); return; }
+        t.name = name; t.ask = words; drawTasks(); note('Saved. It is in the assistant’s list.');
+      });
+      $('task-new').addEventListener('click', function () { tasks.push({ name: '', ask: '' }); chosen = tasks.length - 1; drawTasks(); $('task-name').focus(); note('Name the task and say what to ask.'); });
+      $('task-delete').addEventListener('click', function () { if (!tasks[chosen]) return; var name = tasks[chosen].name || 'the new task'; tasks.splice(chosen, 1); chosen = Math.max(0, chosen - 1); drawTasks(); note('Deleted ' + name + '.'); });
+      $('task-up').addEventListener('click', function () { if (chosen > 0) { tasks.splice(chosen - 1, 0, tasks.splice(chosen, 1)[0]); chosen--; drawTasks(); } });
+      $('task-down').addEventListener('click', function () { if (chosen < tasks.length - 1) { tasks.splice(chosen + 1, 0, tasks.splice(chosen, 1)[0]); chosen++; drawTasks(); } });
+      $('task-restore').addEventListener('click', function () { tasks = STARTER.map(function (t) { return Object.assign({}, t); }); chosen = 0; drawTasks(); note('The starter set is back. In the product this asks first, since it replaces your tasks.'); });
+      $('task-try').addEventListener('click', function () { var words = $('task-ask').value.trim(); if (words) { ask(words); note('Asked. The assistant’s answer is in its own place.'); } });
+      $('assistant-edit').addEventListener('click', function () { $('tasks-win').hidden = false; });
+      $('tasks-close').addEventListener('click', function () { $('tasks-win').hidden = true; });
       function offers() {
         var list = $('assistant-offers'); list.innerHTML = '';
-        [['c3', 'Tax Rule Question finished its turn 20 minutes ago.'], ['c1', 'Payment Retry Rules is still working, 12 minutes now.'], ['d2', 'Meeting Notes.md has changes not saved.']].forEach(function (o) {
-          var li = document.createElement('li'), a = document.createElement('a');
-          a.href = '#'; a.textContent = o[1];
+        [['c3', 'Tax Rule Question finished its turn 20 minutes ago.'], ['c1', 'Pricing Rules for Bundles is still working, 12 minutes now.'], ['d2', 'Meeting Notes.md has changes not saved.']].forEach(function (o) {
+          var li = el('li'), a = el('a', '', o[1]);
+          a.href = '#';
           a.addEventListener('click', function (e) {
             e.preventDefault(); keep();
             state.forEach(function (w) { if (w.id === o[0]) { w.away = false; w.x = 180; w.y = 110; w.w = 420; w.h = 240; } });
-            draw(); desk.insertBefore($('win-' + o[0]), $('assistant')); say('Brought it to the front.');
+            draw(); desk.insertBefore($('win-' + o[0]), $('tasks-win')); say('Brought it to the front.');
           });
           li.appendChild(a); list.appendChild(li);
         });
@@ -204,22 +301,19 @@
         if (e.ctrlKey && e.code === 'Space') { e.preventDefault(); open($('assistant').hidden); }
         if (e.key === 'Escape') open(false);
       });
-      document.querySelectorAll('[data-ask]').forEach(function (b) { b.addEventListener('click', function () { ASK[b.dataset.ask](); draw(); }); });
       $('assistant-form').addEventListener('submit', function (e) {
         e.preventDefault();
         var text = $('assistant-line').value.trim(); if (!text) return;
-        var what = understand(text);
-        if (what) { ASK[what](); draw(); } else say('I can arrange windows, gather what belongs together, tidy up, and say what changed. I cannot do that one.');
-        $('assistant-line').value = '';
+        ask(text); $('assistant-line').value = '';
       });
       $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; draw(); say('Put back as it was.'); });
-      $('mock-reset').addEventListener('click', function () { fresh(); draw(); offers(); say('Nothing asked yet.'); });
+      $('mock-reset').addEventListener('click', function () { fresh(); draw(); drawTasks(); offers(); say('Nothing asked yet.'); note(''); });
       $('mock-theme').addEventListener('click', function () {
         var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         this.textContent = dark ? 'Light Theme' : 'Dark Theme';
       });
-      fresh(); draw(); offers();
+      fresh(); draw(); drawTasks(); offers();
     })();
   </script>
 </body>
