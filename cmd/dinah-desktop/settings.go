@@ -45,6 +45,12 @@ type Settings struct {
 	// name now lives in the bus (person_name.go); this is read once, to carry
 	// it over, and cleared so that a save no longer writes it.
 	LegacyPersonName string `json:"personName,omitempty"`
+	// AssistantTasks are the person's tasks in the window assistant's list,
+	// in their order, once AssistantTasksSet says they changed the starter
+	// set; an empty list with it set is a list they emptied
+	// (judge_assistant.go).
+	AssistantTasks    []AssistantTask `json:"assistantTasks,omitempty"`
+	AssistantTasksSet bool            `json:"assistantTasksSet,omitempty"`
 	// DocumentViews are the views documents open in, by media type, where
 	// the person chose other than the default (document_views.go).
 	DocumentViews map[string]string `json:"documentViews,omitempty"`

@@ -46,7 +46,7 @@
     .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
     .assistant-offers { block-size: 4.6rem; overflow: auto; }
     .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
-    .assistant-result { display: flex; align-items: center; gap: var(--space-2); block-size: 6.6em; overflow: auto; margin-block-start: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); font-size: var(--text-sm); }
+    .assistant-result { block-size: 4lh; overflow: auto; font-size: var(--text-sm); }
     .assistant-result p { flex: 1; margin: 0; }
 
     /* ---- Proposed: the Assistant Tasks window ----------------------------
@@ -121,9 +121,13 @@
       <div class="assistant-tasks" id="assistant-tasks" role="group" aria-label="Tasks"></div>
       <div class="md-section-label"><span>Since You Last Looked</span></div>
       <div class="assistant-offers"><ul id="assistant-offers"></ul></div>
+      <div class="md-section-label"><span>What Was Done</span></div>
       <div class="assistant-result" role="status">
         <p id="assistant-said">Nothing asked yet.</p>
-        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo</button>
+      </div>
+      <!-- Undo is in the foot, where a popover's buttons are (Paul, 20 November 2026: beside the words it was in a bad spot). -->
+      <div class="popover-actions">
+        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo the Last Change</button>
       </div>
     </div>
   </div>

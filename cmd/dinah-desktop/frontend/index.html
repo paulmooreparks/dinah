@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="chat-state.css">
   <link rel="stylesheet" href="judgements-applet.css">
+  <link rel="stylesheet" href="assistant.css">
   <link rel="stylesheet" href="decisions-applet.css">
   <link rel="stylesheet" href="notices.css">
   <link rel="stylesheet" href="skills-applet.css">
@@ -164,6 +165,7 @@
   <script src="group-new-chat.js" defer></script>
   <script src="bus-applets.js" defer></script>
   <script src="judgements-applet.js" defer></script>
+  <script src="assistant.js" defer></script>
   <script src="decision-drafts.js" defer></script>
   <script src="decisions-context.js" defer></script>
   <script src="decision-record.js" defer></script>
@@ -370,6 +372,34 @@
         <button type="button" class="btn btn-sm btn-primary" id="judgements-flyout-open">Open Judgements</button>
         <button type="button" class="btn btn-sm" id="judgements-ask-later" hidden>Not Now</button>
         <button type="button" class="btn btn-sm btn-primary" id="judgements-ask-on" hidden>Turn On</button>
+      </div>
+    </div>
+
+    <!-- The window assistant (assistant.js; the approved mockup is
+         docs/mockups/window-assistant). A line to type in, the person's
+         tasks as a list that scrolls, what changed since they last looked,
+         and one line that says what the last request did, with Undo. Each
+         part has its room from the start, so the popover has one size. -->
+    <div class="popover assistant" id="assistant-menu" popover role="dialog" aria-labelledby="assistant-title" data-menu-anchor="status-assistant">
+      <div class="popover-head">
+        <h2 class="popover-title" id="assistant-title">Assistant</h2>
+        <button class="icon-btn popover-close" type="button" popovertarget="assistant-menu" popovertargetaction="hide" aria-label="Close"></button>
+      </div>
+      <form class="assistant-ask" id="assistant-form">
+        <input class="form-input" id="assistant-line" type="text" autocomplete="off" maxlength="600" aria-label="Ask the assistant" placeholder="Find, arrange or tidy windows">
+        <button class="btn btn-primary" type="submit" id="assistant-go">Ask</button>
+      </form>
+      <div class="md-section-label assistant-label"><span id="assistant-tasks-title">Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
+      <div class="assistant-tasks" id="assistant-tasks" role="group" aria-labelledby="assistant-tasks-title"></div>
+      <div class="md-section-label assistant-label"><span id="assistant-news-title">Since You Last Looked</span></div>
+      <div class="assistant-news" role="group" aria-labelledby="assistant-news-title" tabindex="0"><ul id="assistant-news"></ul></div>
+      <div class="md-section-label assistant-label"><span id="assistant-said-title">What Was Done</span></div>
+      <p class="assistant-said" id="assistant-said" role="status" aria-labelledby="assistant-said-title" tabindex="0">Nothing asked yet.</p>
+      <!-- Undo is in the foot, where a popover's buttons are, and not beside
+           the words it undoes, where it sat at the end of a line of changing
+           length (Paul, 20 November 2026). -->
+      <div class="popover-actions">
+        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo the Last Change</button>
       </div>
     </div>
 
@@ -698,6 +728,7 @@
            <button type="button" class="status-item status-count" id="status-decisions" hidden aria-label="Decisions: reading open requests" title="Decisions: reading open requests" data-status-state="idle" data-status-glyph="comments" data-status-colour="warn"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="status-words">Decisions</span><span data-status-badge data-status-reserve="99+" class="badge warn" aria-hidden="true">&hellip;</span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
            <button type="button" class="status-item status-count" id="status-agent" popovertarget="agent-menu" aria-label="Agent: not started" title="Agent: not started"><span class="glyph" style="--glyph: var(--glyph-ring)" aria-hidden="true"></span><span class="status-words">Agent</span><span data-status-badge data-status-reserve="starting" class="badge" id="status-agent-badge" aria-hidden="true">off</span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>starting</span></button>
            <button type="button" class="status-item status-count" id="status-judgements" popovertarget="judgements-status-menu" hidden aria-label="Judgements" title="Judgements"><span class="glyph" style="--glyph: var(--glyph-tick)" aria-hidden="true"></span><span class="status-words">Judgements</span><span data-status-badge data-status-reserve="99+" class="badge" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
+           <button type="button" class="status-item" id="status-assistant" popovertarget="assistant-menu" aria-label="Assistant" title="Assistant (Ctrl+Space)"><span class="glyph" style="--glyph: var(--glyph-window)" aria-hidden="true"></span><span class="status-words">Assistant</span></button>
          </nav>
          <a class="icon-btn" data-win-close-all href="?" aria-label="Close All Windows" data-tooltip="Close All Windows"></a>
          <a class="icon-btn" data-win-restore href="?" aria-label="Restore All Windows" data-tooltip="Restore All Windows"></a>
