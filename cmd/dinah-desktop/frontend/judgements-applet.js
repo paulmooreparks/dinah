@@ -445,21 +445,21 @@
         graphHost.append(legend, graph);
       });
     }
-    function breakdownTable(host_, title, rows, nameOf) {
+    function breakdownTable(host_, title, rows, nameOf, secondOf) {
       var card = node('div', 'judgements-by vstack gap-2');
       card.appendChild(node('h4', 'card-subtitle', title));
       var wrap = node('div', 'data-table-wrap');
       var t = node('table', 'data-table');
-      t.innerHTML = '<thead><tr><th>' + title.slice(3) + '</th><th>Calls</th><th>By the Rule</th><th>Disagreed</th><th>Corrected</th><th>Average</th><th>Longest</th><th>Cost</th></tr></thead>';
+      t.innerHTML = '<thead><tr><th>' + (secondOf ? 'Kind</th><th>Model' : title.slice(3)) + '</th><th>Calls</th><th>By the Rule</th><th>Disagreed</th><th>Corrected</th><th>Average</th><th>Longest</th><th>Cost</th></tr></thead>';
       var body = node('tbody');
       if (!rows.length) {
         var empty = node('tr', 'data-table-empty');
-        empty.innerHTML = '<td colspan="8">Nothing to break down.</td>';
+        empty.innerHTML = '<td colspan="' + (secondOf ? 9 : 8) + '">Nothing to break down.</td>';
         body.appendChild(empty);
       }
       rows.forEach(function (g) {
         var tr = node('tr');
-        [nameOf(g), String(g.calls), String(g.fallbacks), String(g.disagreed), String(g.corrected), g.avgMs + ' ms', g.maxMs + ' ms', g.costUnit ? (g.costIn + g.costOut) + ' ' + g.costUnit : 'Not reported'].forEach(function (text) {
+        [nameOf(g)].concat(secondOf ? [secondOf(g)] : [], [String(g.calls), String(g.fallbacks), String(g.disagreed), String(g.corrected), g.avgMs + ' ms', g.maxMs + ' ms', g.costUnit ? (g.costIn + g.costOut).toLocaleString() + ' ' + g.costUnit : 'Not reported']).forEach(function (text) {
           tr.appendChild(node('td', null, text));
         });
         body.appendChild(tr);
@@ -476,7 +476,8 @@
         total.textContent = s.calls ? s.calls + (s.calls === 1 ? ' call' : ' calls') + ' in the last ' + range + ' days: ' + (s.calls - s.fallbacks) + ' answered by the judge, ' + s.fallbacks + ' by the rule.'
           : 'Nothing has been judged yet. When a judgement agent answers a call in place of a rule, the call is recorded here.';
         breakdown.replaceChildren();
-        breakdownTable(breakdown, 'By Kind', s.groups, function (g) { return g.kind; });
+        // A kind has a row for each model that judged it, so the model is said; without it the rows of one kind could not be told apart (Paul, 20 November 2026).
+        breakdownTable(breakdown, 'By Kind and Model', s.groups, function (g) { return g.kind; }, function (g) { return g.model || 'No judge'; });
         var byModel = {};
         s.groups.forEach(function (g) {
           var key = g.model || '(no judge)';
@@ -1085,10 +1086,11 @@
       saveSettings({ pool: { min: min, max: max } }, 'judgements-status', 'The judge’s pool stays between ' + min + ' and ' + max + ' at once.');
     });
     $('judgements-run-calibration').addEventListener('click', function () {
-      var b = this, status = $('judgements-status');
+      var b = this, status = $('judgements-calibration-status');
       b.disabled = true;
+      status.textContent = 'Starting…';
       Promise.resolve().then(function () { return app().RunJudgementCalibration(); }).then(function () {
-        status.textContent = 'Calibration is running; its report lands here when it finishes.';
+        status.textContent = 'Calibration is running. Its report appears here when it finishes.';
         refreshCalibrationLine(true);
       }, function (error) {
         status.textContent = 'Calibration could not start: ' + error;
@@ -1096,7 +1098,7 @@
     });
     $('judgements-use-chosen').addEventListener('click', function () {
       var chosen = this.dataset.model;
-      if (chosen) saveSettings({ model: chosen }, 'judgements-status', chosen + ' is the judge now, your choice.');
+      if (chosen) saveSettings({ model: chosen }, 'judgements-calibration-status', chosen + ' is the judge now, your choice.');
     });
     $('judgements-open-page').addEventListener('click', openPage);
   }

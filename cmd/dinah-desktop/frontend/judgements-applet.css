@@ -87,3 +87,11 @@
 .judgements-md .md-detail { min-width: 0; }
 .judgements-md .judgement-detail { margin: var(--space-2); }
 .judgements-more-row { padding: var(--space-2) var(--space-3); }
+/* What a button did is said beside the button. The section's one status
+   line was at its end, far below Run Calibration, so a refusal to start was
+   out of sight and the button seemed to do nothing (Paul, 20 November 2026).
+   The line beside the calibration buttons has its room from the start. The
+   section's own line stays in sight at the foot of the section's view,
+   whichever control was used. */
+.judgements-near-status { min-block-size: 1lh; margin: var(--space-1) 0 0; }
+#judgements-status { position: sticky; inset-block-end: 0; z-index: 1; margin: 0; padding-block: var(--space-2); min-block-size: calc(1lh + 2 * var(--space-2)); background: var(--surface); }

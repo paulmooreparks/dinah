@@ -98,6 +98,9 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => __setCalls.length === 4);
     ok('a kind’s switch writes kindsOff', JSON.stringify(await p.evaluate(() => __setCalls[3][0].kindsOff)) === JSON.stringify(['mention-choice']) && /mention-choice now uses its rule/.test(await status.textContent()));
     ok('and shows the kind off after the save', (await mention.locator('[role="switch"]').getAttribute('aria-checked')) === 'false');
+    // The section's status line stays in sight at the foot of the section's view, whichever control was used (Paul, 20 November 2026: a message far below the button that caused it).
+    const seen = await p.evaluate(() => { const s = document.getElementById('judgements-status'), r = s.getBoundingClientRect(); let v = s.parentElement; while (v && !/(auto|scroll)/.test(getComputedStyle(v).overflowY)) v = v.parentElement; const box = (v || document.documentElement).getBoundingClientRect(); const top = document.elementFromPoint(r.left + 10, r.top + r.height / 2); return { inView: r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1, onTop: !!top && (top === s || s.contains(top)), position: getComputedStyle(s).position }; });
+    ok('the status of a save is in sight after the save', seen.inView && seen.onTop && seen.position === 'sticky', JSON.stringify(seen));
     // A save that meets newer settings is not lost: the engine writes nothing for it and answers with the settings as they stand, and the page puts the same change on those and saves again (Paul, 20 November 2026: a chosen model did not show until it was chosen a second time).
     const before = await toggle.getAttribute('aria-checked');
     await p.evaluate(() => { window.__conflictNext = true; });

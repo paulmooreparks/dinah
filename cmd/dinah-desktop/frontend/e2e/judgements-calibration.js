@@ -77,5 +77,12 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => { window.__calibrationState = { state: 'idle', at: '', chosen: '' }; __emit('judgements:changed', { stateGen: 'g1', stateVer: 3, state: 'on', why: '', calls: 12, fallbacks: 0, streak: 0, warnStreak: 3, latest: new Date().toISOString(), budget: [], pool: { size: 1, min: 1, max: 4, growAt: 0.5, shrinkAfter: 10, inFlight: 0 }, calibration: window.__calibrationState }); });
     await p.waitForFunction(() => !/running now/.test(document.getElementById('judgement-calibration-line').textContent));
     ok('the button is offered again when no run is in flight', await settings.locator('#judgements-run-calibration').isEnabled());
+    // A run that cannot start says why beside the button, in sight of it. The reason was at the foot of the section, far below, and the button seemed to do nothing (Paul, 20 November 2026).
+    await p.evaluate(() => { window.go.main.App.RunJudgementCalibration = async () => { throw new Error('this provider’s models are not calibrated'); }; });
+    await settings.locator('#judgements-run-calibration').click();
+    await p.waitForFunction(() => /could not start/.test(document.getElementById('judgements-calibration-status').textContent));
+    const near = await p.evaluate(() => { const b = document.getElementById('judgements-run-calibration').getBoundingClientRect(), s = document.getElementById('judgements-calibration-status').getBoundingClientRect(); return { gap: Math.round(s.top - b.bottom), shown: s.height > 0, text: document.getElementById('judgements-calibration-status').textContent }; });
+    ok('a calibration that cannot start says why right under its button', near.shown && near.gap >= 0 && near.gap < 24 && /Calibration could not start: .*not calibrated/.test(near.text), JSON.stringify(near));
+    ok('the button can be pressed again', await settings.locator('#judgements-run-calibration').isEnabled());
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
