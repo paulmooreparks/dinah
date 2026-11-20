@@ -15,7 +15,7 @@
     .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
     .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
     .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
-    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 700px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
+    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 760px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
     .mock-win { position: absolute; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); transition: left .25s, top .25s, width .25s, height .25s, opacity .2s; overflow: hidden; }
     .mock-win[data-away] { opacity: 0; pointer-events: none; }
     .mock-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-size: var(--text-sm); font-weight: 600; background: var(--surface-alt); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -36,7 +36,7 @@
        that says what the last request did, with Undo. Each part has its room
        from the start, so nothing in it moves when an answer arrives or a
        task is added. */
-    .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 24rem; max-inline-size: calc(100% - 2 * var(--space-2)); margin: 0; display: block; z-index: 5; }
+    .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 24rem; max-inline-size: calc(100% - 2 * var(--space-2)); max-block-size: none; margin: 0; display: block; z-index: 5; }
     .assistant[hidden] { display: none; }
     .assistant-ask { display: flex; gap: var(--space-2); }
     .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
@@ -48,6 +48,13 @@
     .assistant-offers { block-size: 4.6rem; overflow: auto; }
     .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
     .assistant-result { block-size: 4lh; overflow: auto; font-size: var(--text-sm); }
+    /* The chats a request would act on, each with a tick, so one can be
+       left out before Run. The list has its room whether or not a request
+       acts on chats, so the popover keeps its size. */
+    .assistant-chosen { block-size: 5.6rem; overflow: auto; margin: var(--space-2) 0 0; padding: var(--space-1) var(--space-2); list-style: none; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); }
+    .assistant-chosen li { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); padding-block: 2px; }
+    .assistant-chosen .note { flex-basis: 100%; padding-inline-start: 1.6rem; color: var(--text-muted); }
+    .assistant-chosen[data-empty] { color: var(--text-muted); }
     .assistant-result p { flex: 1; margin: 0; }
 
     /* ---- Proposed: the Assistant Tasks window ----------------------------
@@ -86,7 +93,7 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Fourth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Fifth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
@@ -156,6 +163,7 @@
       <div class="assistant-result" role="status">
         <p id="assistant-said"></p>
       </div>
+      <ul class="assistant-chosen" id="assistant-chosen" aria-label="The chats it would act on"></ul>
       <!-- Run and Undo are in the foot, where a popover's buttons are. A task
            or a request is first read, and what it would do is said above.
            Run does it, and Undo puts the windows back (Paul, 20 November
@@ -173,6 +181,14 @@
   </div>
 
   <section class="mock-notes">
+    <h2>New in this mockup: chats and teams</h2>
+    <ul>
+      <li><strong>The assistant acts on chats as well as windows.</strong> Three of the stand-in chats are a team called Pricing. Type "change all of the Pricing team members from Claude to Devin", "stop the Pricing team", or "tell the Pricing team to report where they are".</li>
+      <li><strong>It lists the chats it would act on,</strong> each with a tick, under what it says it would do. Untick one to leave it out. Run acts on the ticked ones only.</li>
+      <li><strong>It says what Undo can take back.</strong> A switch of provider can be switched back, and Undo does that. A stopped turn and a sent message cannot, the answer says so before Run, and Undo stays disabled after.</li>
+      <li>A chat that is working is switched when its turn ends, and the list says so beside it.</li>
+      <li>These can be saved as tasks like any other request.</li>
+    </ul>
     <h2>What changed from the second mockup</h2>
     <ul>
       <li><strong>Nothing runs on a press.</strong> Pressing a task chooses it, and "What It Does" says what it would do to which windows, by name. Typing a request and pressing Ask does the same.</li>
@@ -200,13 +216,15 @@
       var $ = function (id) { return document.getElementById(id); };
       var desk = $('desk');
       var WINDOWS = [
-        { id: 'c1', kind: 'Chat', title: 'Pricing Rules for Bundles', words: 'pricing price bundle bundles discount', working: true, x: 20, y: 20, w: 300, h: 150 },
+        { id: 'c1', kind: 'Chat', title: 'Pricing Rules for Bundles', words: 'pricing price bundle bundles discount', provider: 'Claude', team: 'Pricing', working: true, x: 20, y: 20, w: 300, h: 150 },
         { id: 'd1', kind: 'Document', title: 'Pricing Design.md', words: 'pricing price design', x: 120, y: 80, w: 320, h: 170 },
-        { id: 'c2', kind: 'Chat', title: 'Release Notes Draft', words: 'release notes version', x: 240, y: 40, w: 300, h: 150 },
+        { id: 'c2', kind: 'Chat', title: 'Release Notes Draft', words: 'release notes version', provider: 'Claude', x: 240, y: 40, w: 300, h: 150 },
         { id: 'g1', kind: 'Diagram', title: 'Discount Flow.d2', words: 'pricing discount flow', x: 330, y: 170, w: 300, h: 160 },
-        { id: 'c3', kind: 'Chat', title: 'Tax Rule Question', words: 'tax rule vat', done: true, x: 430, y: 60, w: 280, h: 140 },
+        { id: 'c3', kind: 'Chat', title: 'Tax Rule Question', words: 'tax rule vat', provider: 'Codex', done: true, x: 430, y: 60, w: 280, h: 140 },
         { id: 'd2', kind: 'Document', title: 'Meeting Notes.md', words: 'meeting notes release', done: true, unsaved: true, x: 60, y: 250, w: 300, h: 150 },
-        { id: 'c4', kind: 'Chat', title: 'Build Check', words: 'build check release', done: true, x: 520, y: 260, w: 260, h: 140 }
+        { id: 'c4', kind: 'Chat', title: 'Build Check', words: 'build check release', provider: 'Claude', done: true, x: 520, y: 260, w: 260, h: 140 },
+        { id: 'c5', kind: 'Chat', title: 'Pricing Tests', words: 'pricing tests', provider: 'Claude', team: 'Pricing', done: true, x: 40, y: 420, w: 280, h: 140 },
+        { id: 'c6', kind: 'Chat', title: 'Pricing Review', words: 'pricing review', provider: 'Codex', team: 'Pricing', working: true, x: 340, y: 440, w: 280, h: 140 }
       ];
       var STARTER = [
         { name: 'Tile the Windows That Are Showing', ask: 'tile the windows that are showing' },
@@ -227,9 +245,9 @@
             node.innerHTML = '<div class="bar"><span class="kind"></span><span class="title"></span></div><div class="body"></div>';
             desk.insertBefore(node, $('tasks-win'));
           }
-          node.querySelector('.kind').textContent = w.kind;
+          node.querySelector('.kind').textContent = w.kind + (w.provider ? ' · ' + w.provider : '');
           node.querySelector('.title').textContent = w.title;
-          node.querySelector('.body').textContent = w.working ? 'A turn is running.' : w.unsaved ? 'Changes not saved.' : w.done ? 'Idle since its last turn.' : 'Open.';
+          node.querySelector('.body').textContent = (w.team ? w.team + ' team. ' : '') + (w.working ? 'A turn is running.' : w.unsaved ? 'Changes not saved.' : w.done ? 'Idle since its last turn.' : 'Open.');
           node.style.left = w.x + 'px'; node.style.top = w.y + 'px'; node.style.width = w.w + 'px'; node.style.height = w.h + 'px';
           node.toggleAttribute('data-away', w.away); node.toggleAttribute('data-working', !!w.working); node.toggleAttribute('data-gathered', w.gathered);
         });
@@ -245,13 +263,15 @@
       var SKIP = { find: 1, all: 1, the: 1, windows: 1, window: 1, 'for': 1, about: 1, work: 1, show: 1, everything: 1, related: 1, to: 1, which: 1, are: 1, is: 1, gather: 1, me: 1, of: 1, on: 1, and: 1, a: 1, my: 1, with: 1, that: 1, open: 1 };
       function topic(text) { return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w && !SKIP[w]; }); }
       var IDLE = 'Choose a task or ask, and what it would do is said here. Nothing happens until you press Run.';
-      var pending = null, picked = -1;
+      var pending = null, picked = -1, listed = null, noUndo = false;
       function titles(list) { return list.map(function (w) { return w.title; }).join(', '); }
       function count(n) { return n === 1 ? '1 window' : n + ' windows'; }
       /* read says what a request would do and gives the function that does
          it, or no function when there is nothing to do. It changes nothing. */
       function read(text) {
         var t = text.toLowerCase(), W = desk.clientWidth - 16, H = desk.clientHeight - 16;
+        var about = chats(text);
+        if (about) return about;
         if (/side by side|next to each other/.test(t)) {
           var docs = shown().filter(function (w) { return w.kind === 'Document'; }), chat = shown().filter(function (w) { return w.kind === 'Chat'; })[0];
           if (!docs.length) return { will: 'No document is showing to put side by side.' };
@@ -307,8 +327,59 @@
       function would(text) { $('task-would').textContent = text; }
       /* In the Assistant Tasks window Run is for what Try It read there,
          and Undo for what Run did there. */
+      /* Requests about chats and teams. Each says which chats it would act
+         on, as a list with ticks, and whether Undo can take it back. */
+      var PROVIDERS = { claude: 'Claude', codex: 'Codex', devin: 'Devin', antigravity: 'Antigravity', ollama: 'Ollama' };
+      function chats(text) {
+        var t = text.toLowerCase();
+        var teams = state.map(function (w) { return w.team; }).filter(function (name, i, all) { return name && all.indexOf(name) === i; });
+        var team = teams.filter(function (name) { return t.indexOf(name.toLowerCase()) >= 0; })[0] || '';
+        var mine = state.filter(function (w) { return w.kind === 'Chat' && (!team || w.team === team); });
+        var of = team ? ' of the ' + team + ' team' : '';
+        function rows(list, noteOf) { return list.map(function (w) { return { id: w.id, label: w.title + ' (' + w.provider + ')', note: noteOf ? noteOf(w) : '' }; }); }
+        function picked(list, ids) { return list.filter(function (w) { return ids.indexOf(w.id) >= 0; }); }
+        var sw = /\b(?:change|switch|move)\b.*?\b(?:from (\w+) )?to (\w+)\b/.exec(t);
+        if (sw && PROVIDERS[sw[2]]) {
+          var to = PROVIDERS[sw[2]], from = PROVIDERS[sw[1]] || '';
+          if (!team && !from) return { will: 'Say which chats to switch: a team, or the provider they use now.' };
+          var members = mine.filter(function (w) { return w.provider !== to && (!from || w.provider === from); });
+          if (!members.length) return { will: 'No chat' + of + ' uses ' + (from || 'a provider other than ' + to) + ', so there is nothing to switch.' };
+          return { will: 'Will switch ' + count2(members.length) + of + (from ? ' from ' + from : '') + ' to ' + to + '. Each goes on from its history in a new ' + to + ' session. Untick any to leave it as it is.',
+            list: rows(members, function (w) { return w.working ? 'working, so it is switched when its turn ends' : ''; }),
+            run: function (ids) { var done = picked(members, ids); done.forEach(function (w) { w.provider = to; }); return 'Switched ' + count2(done.length) + ' to ' + to + ': ' + titles(done) + '. Undo switches them back.'; } };
+        }
+        if (/\bstop\b/.test(t)) {
+          var busy = mine.filter(function (w) { return w.working; });
+          if (!busy.length) return { will: 'No chat' + of + ' is working, so there is nothing to stop.' };
+          return { will: 'Will stop the turn of ' + count2(busy.length) + of + '. Undo cannot start a stopped turn again.', list: rows(busy), noUndo: true,
+            run: function (ids) { var done = picked(busy, ids); done.forEach(function (w) { w.working = false; w.done = true; }); return 'Stopped ' + count2(done.length) + ': ' + titles(done) + '.'; } };
+        }
+        var tell = /^(?:tell|ask) (?:the )?(.+?) team (?:to |that )?(.+)$/i.exec(text.trim());
+        if (tell && team) {
+          return { will: 'Will send this to the ' + count2(mine.length) + ' of the ' + team + ' team, in its group chat: "' + tell[2] + '". A message that is sent cannot be undone.', list: rows(mine), noUndo: true,
+            run: function (ids) { var done = picked(mine, ids); return 'Sent to ' + count2(done.length) + ' of the ' + team + ' team: ' + titles(done) + '.'; } };
+        }
+        return null;
+      }
+      function count2(n) { return n === 1 ? '1 chat' : n + ' chats'; }
+      function chosenList(list) {
+        var host = $('assistant-chosen');
+        host.innerHTML = '';
+        host.toggleAttribute('data-empty', !list);
+        if (!list) { host.appendChild(el('li', '', 'A request that acts on chats lists them here.')); return; }
+        list.forEach(function (row) {
+          var li = el('li'), label = el('label', 'check'), box = el('input');
+          box.type = 'checkbox'; box.checked = true; box.value = row.id;
+          box.addEventListener('change', buttons);
+          label.append(box, document.createTextNode(' ' + row.label));
+          li.appendChild(label);
+          if (row.note) li.appendChild(el('span', 'note', row.note));
+          host.appendChild(li);
+        });
+      }
+      function ticked() { return Array.prototype.map.call($('assistant-chosen').querySelectorAll('input:checked'), function (b) { return b.value; }); }
       function buttons() {
-        $('assistant-run').disabled = !pending; $('assistant-undo').disabled = !before;
+        $('assistant-run').disabled = !pending || (!!listed && !ticked().length); $('assistant-undo').disabled = !before;
         if (tried && tried !== pending) tried = null;
         if (!before) ranHere = false;
         $('task-run').disabled = !tried; $('task-undo').disabled = !ranHere;
@@ -317,7 +388,8 @@
       /* ask reads a request and shows what it would do. Run does it. */
       function ask(text) {
         var found = read(text);
-        pending = found.run || null;
+        pending = found.run || null; listed = found.list || null; noUndo = !!found.noUndo;
+        chosenList(listed);
         say(found.will + (pending ? ' Press Run to do it.' : ''));
         buttons();
         return found;
@@ -325,10 +397,13 @@
       function run() {
         if (!pending) return;
         keep();
-        var said = pending();
-        pending = null;
+        var said = pending(listed ? ticked() : null);
+        // What cannot be taken back leaves nothing for Undo.
+        if (noUndo) before = null;
+        pending = null; listed = null;
+        chosenList(null);
         say(said); draw(); buttons();
-        $('assistant-undo').focus();
+        if (before) $('assistant-undo').focus({ preventScroll: true });
       }
       function drawTasks() {
         var list = $('assistant-tasks'); list.innerHTML = '';
@@ -371,9 +446,9 @@
         tried = found.run || null;
         would(found.will + (found.run ? ' Nothing is done yet. Press Run to do it.' : ''));
         buttons();
-        if (found.run) $('task-run').focus();
+        if (found.run) $('task-run').focus({ preventScroll: true });
       });
-      $('task-run').addEventListener('click', function () { if (!tried) return; run(); tried = null; ranHere = true; would($('assistant-said').textContent); buttons(); $('task-undo').focus(); });
+      $('task-run').addEventListener('click', function () { if (!tried) return; run(); tried = null; ranHere = true; would($('assistant-said').textContent); buttons(); $('task-undo').focus({ preventScroll: true }); });
       $('task-undo').addEventListener('click', function () { $('assistant-undo').click(); would($('assistant-said').textContent); buttons(); });
       $('task-ask').addEventListener('input', untry);
       $('assistant-edit').addEventListener('click', function () { $('tasks-win').hidden = false; });
@@ -403,17 +478,17 @@
         var text = $('assistant-line').value.trim(); if (!text) return;
         picked = -1; drawTasks();
         var found = ask(text); $('assistant-line').value = '';
-        if (found.run) $('assistant-run').focus();
+        if (found.run) $('assistant-run').focus({ preventScroll: true });
       });
       $('assistant-run').addEventListener('click', run);
-      $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; pending = null; draw(); say('Put back as it was.'); buttons(); });
-      $('mock-reset').addEventListener('click', function () { fresh(); pending = null; picked = -1; tried = null; draw(); drawTasks(); offers(); say(IDLE); would(WOULD); buttons(); note(''); });
+      $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; pending = null; listed = null; chosenList(null); draw(); say('Put back as it was.'); buttons(); });
+      $('mock-reset').addEventListener('click', function () { fresh(); pending = null; picked = -1; tried = null; listed = null; chosenList(null); draw(); drawTasks(); offers(); say(IDLE); would(WOULD); buttons(); note(''); });
       $('mock-theme').addEventListener('click', function () {
         var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         this.textContent = dark ? 'Light Theme' : 'Dark Theme';
       });
-      fresh(); draw(); drawTasks(); offers(); say(IDLE); would(WOULD); buttons();
+      fresh(); draw(); drawTasks(); offers(); chosenList(null); say(IDLE); would(WOULD); buttons();
     })();
   </script>
 </body>
