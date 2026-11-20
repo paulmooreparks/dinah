@@ -193,6 +193,8 @@
     setTimeout(function () {
       var again = setupOf(state), menu = $('judgements-status-menu');
       if (!again || again.shown || $('status-judgements').hidden) return;
+      // The guided set-up asks this question itself when it opens by itself (setup.js).
+      if (window.dinahSetup && window.dinahSetup.opening()) return;
       Promise.resolve().then(function () { return app().NoteJudgementSetupShown(); }).catch(function () {});
       if (!menu.matches(':popover-open')) $('status-judgements').click();
     }, SETUP_OFFER_AFTER);

@@ -25,6 +25,12 @@ func init() {
 		Adapter:       codexAdapter,
 		Judge:         acpJudgeModule(),
 		Skills:        codexSkills,
+		// The choices are Settings > Agents' own, in its order and words.
+		Asking: &askingModule{
+			Choices: []SetupChoice{{codexagent.ApprovalsAsk, "Ask Before Commands"}, {codexagent.ApprovalsWorkspace, "Workspace, Unattended"}, {codexagent.ApprovalsFull, "Full Access, Unattended"}},
+			Current: codexApprovals,
+			Set:     (*App).SetCodexApprovals,
+		},
 		Unattended: func(s Settings) bool {
 			how := codexApprovals(s)
 			mode := codexAppletApprovals(s.CodexAppletApprovals)

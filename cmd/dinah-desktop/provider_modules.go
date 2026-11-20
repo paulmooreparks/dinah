@@ -57,6 +57,20 @@ type providerModule struct {
 	// Judge lets the provider's models make judgement calls (judgements.go);
 	// nil for a provider that cannot.
 	Judge *judgeModule
+	// Asking is the provider's setting for what it asks the person before
+	// it acts, for the set-up to offer (setup.go); nil for a provider whose
+	// setting is one of the options its own catalog offers, or that has
+	// none.
+	Asking *askingModule
+}
+
+// askingModule is a provider's setting for what it asks the person before it
+// acts: its choices in the words Settings uses, in Settings' order, the one
+// the saved settings give, and the way one is saved.
+type askingModule struct {
+	Choices []SetupChoice
+	Current func(s Settings) string
+	Set     func(a *App, id string) error
 }
 
 // providerModules are the modules of the providers the window can run, by ID.

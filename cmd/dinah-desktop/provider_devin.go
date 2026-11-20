@@ -37,6 +37,17 @@ func init() {
 		Adapter:        devinAdapter,
 		Prices:         devinModelPrices,
 		Judge:          devinJudgeModule(),
+		// The choices are Settings > Agents' own, in its order and words.
+		Asking: &askingModule{
+			Choices: []SetupChoice{{ApprovalsDevin, "Use My Own Devin Settings"}, {ApprovalsAll, "Approve Everything"}, {ApprovalsDinah, "Allow Reading and Looking"}, {ApprovalsAsk, "Ask Before Every Action"}},
+			Current: func(s Settings) string {
+				if s.Approvals == "" {
+					return ApprovalsDevin
+				}
+				return s.Approvals
+			},
+			Set: (*App).SetApprovals,
+		},
 	})
 }
 

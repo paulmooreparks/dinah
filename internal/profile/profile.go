@@ -20,6 +20,7 @@
 package profile
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 )
@@ -146,6 +147,37 @@ type Profile struct {
 	// the person accepts or rejects (the Documents applet). The person's
 	// own editing is the same either way.
 	AgentsProposeDocumentChanges bool
+
+	// InstallPages are the pages that say how to install an agent
+	// provider's program, by the provider's ID, for a product that has a
+	// page of its own for one. The set-up opens a provider's page here
+	// when it has one, and its maker's own page otherwise
+	// (providers.Row.InstallPage). Dinah has none.
+	InstallPages map[string]string
+	// SetupUses are the answers the set-up offers to what the product is
+	// used for most, in their order, for a product whose people do other
+	// work than the set-up's own answers say
+	// (cmd/dinah-desktop/setup.go). Dinah has none of its own.
+	SetupUses []SetupUse
+}
+
+// SetupUse is one answer to what the product is used for most: its ID, the
+// answer as the person reads it, the kinds of window it opens, and those
+// windows as the person reads them.
+type SetupUse struct {
+	ID      string
+	Label   string
+	Windows []string
+	Opens   string
+}
+
+// cloneUses copies the uses with their lists of windows.
+func cloneUses(uses []SetupUse) []SetupUse {
+	out := slices.Clone(uses)
+	for i := range out {
+		out[i].Windows = slices.Clone(out[i].Windows)
+	}
+	return out
 }
 
 // ToolServer is one MCP server of a product's own: the name agents know it
@@ -252,6 +284,8 @@ func Current() Profile {
 	p.Providers = slices.Clone(current.Providers)
 	p.ReservedPrograms = slices.Clone(current.ReservedPrograms)
 	p.EarlierCommandPrograms = slices.Clone(current.EarlierCommandPrograms)
+	p.InstallPages = maps.Clone(current.InstallPages)
+	p.SetupUses = cloneUses(current.SetupUses)
 	return p
 }
 
@@ -265,6 +299,8 @@ func Source() Profile {
 	p.Providers = slices.Clone(dinah.Providers)
 	p.ReservedPrograms = slices.Clone(dinah.ReservedPrograms)
 	p.EarlierCommandPrograms = slices.Clone(dinah.EarlierCommandPrograms)
+	p.InstallPages = maps.Clone(dinah.InstallPages)
+	p.SetupUses = cloneUses(dinah.SetupUses)
 	return p
 }
 

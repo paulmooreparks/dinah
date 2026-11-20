@@ -23,7 +23,13 @@ func init() {
 		FileReadScope: ollamaFileFolderList,
 		Info:          func(_ *App, p *AgentProviderInfo, _ []string) { ollamaInfo(p) },
 		Adapter:       ollamaAdapter,
-		Context:       &contextModule{State: ollamaContextState, SetAside: ollamaSetAside, Choose: ollamaChoose},
+		// The choices are Settings > Agents' own, in its order and words.
+		Asking: &askingModule{
+			Choices: []SetupChoice{{ollamaagent.ApprovalsChat, "Once in Each Chat"}, {ollamaagent.ApprovalsEvery, "Every Command"}, {ollamaagent.ApprovalsNone, "Never"}, {ollamaagent.ApprovalsAll, "Approve Everything"}},
+			Current: ollamaApprovals,
+			Set:     (*App).SetOllamaApprovals,
+		},
+		Context: &contextModule{State: ollamaContextState, SetAside: ollamaSetAside, Choose: ollamaChoose},
 		Judge: &judgeModule{
 			Build: func(_ *App, _, model string) judge.Judge {
 				return &judge.Ollama{Host: ollamaagent.Host(), Model: model}

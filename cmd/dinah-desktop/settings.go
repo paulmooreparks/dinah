@@ -51,6 +51,9 @@ type Settings struct {
 	// (judge_assistant.go).
 	AssistantTasks    []AssistantTask `json:"assistantTasks,omitempty"`
 	AssistantTasksSet bool            `json:"assistantTasksSet,omitempty"`
+	// SetupShown says the guided set-up has opened by itself, which it does
+	// once (setup.go).
+	SetupShown bool `json:"setupShown,omitempty"`
 	// DocumentViews are the views documents open in, by media type, where
 	// the person chose other than the default (document_views.go).
 	DocumentViews map[string]string `json:"documentViews,omitempty"`

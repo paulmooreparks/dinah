@@ -28,7 +28,7 @@ const { launch } = require('./lib/page');
     const documents = await rows('[data-command-menu="documents"]');
     t.ok('Documents has Find and Open after Open, and no In Progress', documents.join('|').startsWith('New Document|Open…|Find and Open…') && !documents.includes('In Progress'));
     const help = await rows('[data-command-menu="help"]');
-    t.ok('Help has Commands after its help rows', help.join('|') === 'Keyboard Shortcuts|Working with Chats|Commands…|-|About Dinah');
+    t.ok('Help has Commands after its help rows, then the set-up', help.join('|') === 'Keyboard Shortcuts|Working with Chats|Commands…|Set Up Dinah…|-|About Dinah', help.join('|'));
     const win = await rows('#host-windows');
     const at = win.indexOf('Next Window');
     t.ok('Window moves between windows, then documents, then has the two Go to rows', at >= 0 && win.slice(at, at + 7).join('|') === 'Next Window|Previous Window|Next Document|Previous Document|Go to the Question|Go to the Chat|-', win.join('|'));

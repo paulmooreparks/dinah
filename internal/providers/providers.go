@@ -40,6 +40,10 @@ type Row struct {
 	ChooseExecutable bool
 	// SignIn says the provider has a sign-in step.
 	SignIn bool
+	// InstallPage is its maker's own page that says how to install its
+	// program, which the set-up opens for a provider that is not found
+	// (cmd/dinah-desktop/setup.go). Each was read on 20 November 2026.
+	InstallPage string
 	// SessionPrefix begins the ID of every chat the provider makes. A chat whose
 	// ID has none is the legacy provider's (profile.LegacyProvider).
 	SessionPrefix string
@@ -136,10 +140,10 @@ type FileLimit struct {
 // one in claudeagent.Prefix, which a test checks.
 var Registry = map[string]Row{
 	"devin": {Name: "Devin", BudgetUnit: "acu", ImageInput: "none", Removal: "deletes", Prices: true, Usage: "link", OwnCommands: true, TakesSkills: true,
-		Executable: "Devin", ChooseExecutable: true, SignIn: true, HookSteering: true, HookNamespace: "devin:",
+		Executable: "Devin", ChooseExecutable: true, SignIn: true, InstallPage: "https://docs.devin.ai/cli", HookSteering: true, HookNamespace: "devin:",
 		FileLimit: FileLimit{Source: "Devin's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Devin's error if it refuses a file."}},
 	"codex": {Name: "Codex", BudgetUnit: "tokens", JudgeCallCost: 10_000, RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
-		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true, NativeSessionsRequireImport: true,
+		SignIn: true, InstallPage: "https://learn.chatgpt.com/docs/codex/cli", SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true, NativeSessionsRequireImport: true,
 		// The App Server takes effort as a turn/start override, and turn/steer takes none.
 		EffortChange: "next-turn",
 		// 600,000 is under the app-server's 1,048,576-character request cap, leaving room for the turn that follows and for the thread to grow.
@@ -148,7 +152,7 @@ var Registry = map[string]Row{
 			Source: "OpenAI's images and vision guide allows up to 1,500 images and 512 MB in one request. The default of 20 is Paul's own choice, lower than that ceiling.",
 			URL:    "https://developers.openai.com/api/docs/guides/images-vision"}},
 	"claude": {Name: "Claude", BudgetUnit: "tokens", JudgeCallCost: 1_000, ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
-		SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
+		InstallPage: "https://code.claude.com/docs/en/setup", SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
 		// "default" is the mode Claude Code's documentation calls default and the
 		// agent shows as Manual: Claude asks before each action that needs
 		// permission. Paul chose it on 10 November 2026.
@@ -166,7 +170,7 @@ var Registry = map[string]Row{
 		// Its models and options are its own. Without this a new chat was
 		// offered the shared list, which is Devin's, until the first message
 		// (Paul, 20 November 2026), and its own list then took the shared one's place.
-		SessionPrefix: "antigravity:", OwnPreferences: true,
+		SessionPrefix: "antigravity:", OwnPreferences: true, InstallPage: "https://antigravity.google/docs/getting-started?tab=cli",
 		// A conversation's window is about a million tokens; 400,000 characters is a tenth of it.
 		HandoffChars: 400_000,
 		FileLimit:    FileLimit{Source: "Antigravity's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Antigravity's error if it refuses a file."},
@@ -175,7 +179,7 @@ var Registry = map[string]Row{
 		// think belongs to each chat request, and an agent turn can make several.
 		EffortChange: "next-request",
 		// 90,000 is for a chat whose context length is not known yet.
-		HandoffChars: 90_000, HandoffFromContext: true,
+		HandoffChars: 90_000, HandoffFromContext: true, InstallPage: "https://ollama.com/download",
 		FileLimit: FileLimit{Source: "Ollama's API documentation gives no limit on the images in one request, so there is none unless you set one. {product} sends what you attach and shows Ollama's error if it refuses a file."},
 		UsageNote: "Ollama reports no account usage. A model on this computer has no limit but its memory; a cloud model's usage is on your ollama.com account."},
 }

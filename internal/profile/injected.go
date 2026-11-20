@@ -154,6 +154,18 @@ func (p Profile) check() error {
 	if len(p.ReservedPrograms) == 0 {
 		problems = append(problems, "ReservedPrograms must list the product's own programs")
 	}
+	for id, page := range p.InstallPages {
+		if !slices.Contains(p.Providers, id) || !strings.HasPrefix(page, "https://") {
+			problems = append(problems, "each of InstallPages needs one of Providers and a page that begins https://")
+			break
+		}
+	}
+	for _, u := range p.SetupUses {
+		if !providerID.MatchString(u.ID) || strings.TrimSpace(u.Label) == "" || strings.TrimSpace(u.Opens) == "" || len(u.Windows) == 0 {
+			problems = append(problems, "each of SetupUses needs an ID of lowercase letters, digits and hyphens, a Label, the Windows it opens and Opens, which says them")
+			break
+		}
+	}
 	if p.Updater != "" && p.Updater != UpdaterInstalled {
 		problems = append(problems, "Updater must be "+UpdaterInstalled+" or empty")
 	}
