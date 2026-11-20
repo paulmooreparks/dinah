@@ -22,7 +22,8 @@ const { launch } = require('./lib/page');
         JudgementRecords: async () => ({ records: [], next: 0 }),
         JudgementKinds: async () => kinds,
         JudgementSettings: async () => ({ settings: window.__settings, revision: window.__revision, conflict: false }),
-        JudgementModels: async () => [{ name: 'kimi-k3:cloud', provider: 'ollama' }, { name: 'deepseek-v4.1-flash:cloud', provider: 'ollama' }],
+        // One model is another provider's, which the picker leaves out while Ollama is the judge's provider.
+        JudgementModels: async () => [{ name: 'kimi-k3:cloud', provider: 'ollama' }, { name: 'deepseek-v4.1-flash:cloud', provider: 'ollama' }, { name: 'another-providers-model', provider: 'claude' }],
         SetJudgementSettings: async (s, revision) => {
           window.__setCalls.push([s, revision]);
           if (window.__conflictNext) {
@@ -54,6 +55,7 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => document.querySelectorAll('#judgement-model option').length === 3);
     ok('the section shows the on switch, the chosen model and the two numbers', (await toggle.getAttribute('aria-checked')) === 'true' && (await model.inputValue()) === 'kimi-k3:cloud' && (await card.locator('#judgement-retention').inputValue()) === '90' && (await card.locator('#judgement-warn-streak').inputValue()) === '3');
     ok('the picker offers the models Ollama reports, with none chosen first', /No model yet; every call uses its rule/.test(await model.locator('option').first().textContent()));
+    ok('the picker lists only the chosen provider’s models, by their own names', (await model.locator('option').allTextContents()).join('|') === 'No model yet; every call uses its rule|kimi-k3:cloud|deepseek-v4.1-flash:cloud', (await model.locator('option').allTextContents()).join('|'));
     // The kinds are listed with what they say about themselves, and their switches.
     const kinds = card.locator('#judgement-kinds > li');
     await kinds.nth(1).waitFor();

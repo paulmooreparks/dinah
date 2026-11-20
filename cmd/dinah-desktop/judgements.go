@@ -854,17 +854,18 @@ func (a *App) JudgementModels() ([]JudgementModel, error) {
 	return out, nil
 }
 
-// pickerJudgeProviders are the providers whose models the picker lists. A
-// provider whose calls use the person's plan is listed only when it is the
-// chosen judge: listing its models starts it and a session.
+// pickerJudgeProviders are the providers whose models the picker lists: the
+// chosen judge's provider alone, since a model judges through the provider
+// chosen with it. Every provider that could be listed without starting it
+// used to be listed as well, and its models stood ahead of the chosen
+// provider's in one long list (Paul, 20 November 2026).
 func (a *App) pickerJudgeProviders() []string {
 	settings, _, _ := a.judgementSettings()
 	var out []string
 	for _, id := range judgeProviders() {
-		if providerModules[id].Judge.Note != "" && id != settings.Provider {
-			continue
+		if id == settings.Provider {
+			out = append(out, id)
 		}
-		out = append(out, id)
 	}
 	return out
 }

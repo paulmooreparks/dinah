@@ -755,11 +755,14 @@
     var model = $('judgement-model');
     if (!model || !settings) return;
     model.replaceChildren(new Option('No model yet; every call uses its rule', ''));
-    pickerModels.forEach(function (m) {
-      // A provider's name comes from its record, never from a word here.
-      var pname = m.provider ? (window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider) : '';
+    /* Only the chosen provider's models are listed, since a model judges
+       through the provider chosen above it. Every provider's were listed
+       together, the local ones first, so with another provider chosen its
+       own few models were out of sight at the end of a long list (Paul,
+       20 November 2026: the list showed only one provider's models). */
+    pickerModels.filter(function (m) { return !m.provider || m.provider === (settings.provider || ''); }).forEach(function (m) {
       var price = pickerPrice(m);
-      model.appendChild(new Option(m.name + (pname && pname !== m.name ? ' (' + pname + ')' : '') + (price ? ', ' + price : ''), m.name));
+      model.appendChild(new Option(m.name + (price ? ', ' + price : ''), m.name));
     });
     model.value = settings.model || '';
   }
