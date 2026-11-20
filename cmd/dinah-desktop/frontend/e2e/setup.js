@@ -46,6 +46,8 @@ const { launch } = require('./lib/page');
     const win = p.locator('.win[data-win-kind="setup"]');
     await win.waitFor({ timeout: 15000 });
     ok('the set-up opens by itself and says so to the engine first', await p.evaluate(() => window.__s.noted) === 1);
+    const where = await p.evaluate(() => { const f = document.querySelector('.win[data-win-kind="setup"]').getBoundingClientRect(), room = document.querySelector('[data-win-layer] > .win-inner').getBoundingClientRect(); return { mode: pudlWindows.state().place[pudlWindows.state().top].mode, top: pudlWindows.state().top, dx: Math.abs((f.left + f.right) / 2 - (room.left + room.right) / 2), dy: Math.abs((f.top + f.bottom) / 2 - (room.top + room.bottom) / 2), inside: f.left >= room.left - 1 && f.right <= room.right + 1 }; });
+    ok('it floats in the middle of the room the docked windows leave, in front and wholly in sight', where.mode === 'floating' && /setup/.test(where.top) && where.dx < 2 && where.dy < 2 && where.inside, JSON.stringify(where));
     ok('its title has the product’s name', /^Set Up \S/.test((await win.locator('.win-title').textContent()).trim()));
     const rows = async () => (await win.locator('.setup-agents tr').allTextContents()).join(' | ');
     const next = win.locator('.setup-foot .btn-primary, .setup-foot .btn').last();

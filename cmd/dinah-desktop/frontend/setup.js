@@ -16,8 +16,7 @@
   function app() { return H.app(); }
   function P() { return window.pudlWindows; }
   function productName() { return window.dinahProduct ? window.dinahProduct.name : ''; }
-  var KIND = 'setup', MIN_W = 760, MIN_H = 540;
-  var PLACE = { x: 1 / 6, y: 0, w: 4 / 6, h: 1 }, ROOM = { x: 0, y: 0, w: 1, h: 1 };
+  var KIND = 'setup', MIN_W = 600, MIN_H = 480, WIDE = 760, TALL = 540;
   var opening = false;
 
   function init(root) {
@@ -31,14 +30,6 @@
       frame.style.setProperty('--win-min-w', MIN_W + 'px'); frame.style.setProperty('--win-min-h', MIN_H + 'px');
     }
     if (key && window.dinahWorkbench.retitle) window.dinahWorkbench.retitle(key, 'Set Up ' + productName());
-    /* The window takes the middle of the room between the docked windows,
-       where all of it is seen: a floating window's first place is over the
-       whole page, and a docked window was in front of its buttons. */
-    function placed(zone) { return !disposed && P().state().open.indexOf(key) >= 0 && (P().snap(key, zone), true); }
-    if (key) requestAnimationFrame(function () {
-      // Where the middle is too narrow for the window's parts, it takes the whole room.
-      if (placed(PLACE)) requestAnimationFrame(function () { if (frame.getBoundingClientRect().width < MIN_W) placed(ROOM); });
-    });
     var disposed = false;
 
     /* ---- The parts, each made once ---------------------------------------- */
@@ -335,7 +326,21 @@
     return { focus: function () { next.focus(); }, destroy: function () { disposed = true; } };
   }
 
-  function open() { return window.dinahWorkbench.open(KIND); }
+  /* The window floats in the middle of the room the docked windows leave, at
+     the size the approved mockup has where the room allows it, and in front (Paul, 20 November 2026; it had
+     been snapped from the top of that room to its bottom). The window layer
+     asks where a window opens (its pudl:window-place event) and takes a
+     place as fractions of that room, so the room is measured: by the box
+     the layer keeps for measuring it, or the layer itself. The window opens
+     here every time, whatever place it had before. */
+  function centred() {
+    var room = document.querySelector('[data-win-layer] > .win-inner') || document.querySelector('[data-win-layer]');
+    var r = room ? room.getBoundingClientRect() : { width: 0, height: 0 };
+    var w = r.width ? Math.min(1, WIDE / r.width) : 0.6, h = r.height ? Math.min(1, TALL / r.height) : 0.7;
+    return { mode: 'floating', x: (1 - w) / 2, y: (1 - h) / 2, w: w, h: h };
+  }
+  document.addEventListener('pudl:window-place', function (e) { if (e.detail.key === KIND) e.detail.placement = centred(); }, true);
+  function open() { return window.dinahWorkbench.open(KIND).then(function (key) { P().raise(key); return key; }); }
   window.dinahWorkbench.register(KIND, { pinnable: false, singleton: true, title: 'Set-Up', glyph: 'gear', init: init });
   window.dinahSetup = { open: open, opening: function () { return opening; } };
 
