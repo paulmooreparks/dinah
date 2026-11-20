@@ -74,7 +74,7 @@
     <h1>Guided set-up</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">First mockup, 20 November 2026. It opens by itself at the first start.</span>
+    <span class="mock-tag">Second mockup, 20 November 2026. It opens by itself at the first start.</span>
   </header>
 
   <div class="mock-desk">
@@ -129,7 +129,8 @@
     <ul>
       <li><strong>It opens by itself at the first start,</strong> and Skip Set-Up or the close button leaves at once with today's defaults. Help, Set Up Dinah opens it again whenever you like.</li>
       <li><strong>Step 1 has no model in it.</strong> It lists the agent programs found, says which are ready, and offers the one thing to do about each that is not. Press Sign In on Codex to see a row become ready.</li>
-      <li><strong>Step 2 is the guide,</strong> speaking through the agent chosen. Each question has its choices as a list. Choose one and press Continue.</li>
+      <li><strong>Step 2 is the guide,</strong> speaking through the agent chosen. Each of its five questions has its choices as a list. Choose one and press Continue.</li>
+      <li><strong>It asks what the agents should call you,</strong> offering the name of this computer's account, no name, or a name you type.</li>
       <li><strong>Or say it in your own words.</strong> Type "I write requirement documents for a client in C:\Work\Pricing and I want to be asked before anything runs" and press Say. The guide takes every answer it can from that, says which, and asks only what is left.</li>
       <li><strong>Step 3 shows every setting before anything is set,</strong> with where each value came from. Change goes back to that question. Set It Up sets them. Undo, which takes its place, puts every one back.</li>
       <li><strong>The question about answering small questions in the background</strong> is the one the Judgements item in the tray asks today. Asked here, it is not asked a second time.</li>
@@ -165,18 +166,21 @@
         { id: 'folder', setting: 'Workspace', ask: 'Which folder has your work?', choices: [
           ['pick', 'Choose a Folder…', 'C:\\Work\\Pricing'],
           ['none', 'Not now', 'None yet'] ] },
+        { id: 'name', setting: 'What agents call you', ask: 'What should the agents call you? Choose one, or type another name below.', choices: [
+          ['account', 'Alex Morgan, from this computer\u2019s account', 'Alex Morgan'],
+          ['none', 'No name', 'None'] ] },
         { id: 'judge', setting: 'Small questions in the background', ask: '', choices: [
           ['on', 'Yes', 'On, at most 200 calls a day'],
           ['off', 'Not now', 'Off'] ] }
       ];
-      var step, agents, agent, answers, from, at, picked, applied, folder;
-      function fresh() { step = 0; agents = AGENTS.map(function (a) { return Object.assign({}, a); }); agent = 'claude'; answers = {}; from = {}; at = 0; picked = null; applied = false; folder = 'C:\\Work\\Pricing'; $('setup-said').innerHTML = ''; $('setup').hidden = false; bar('Set-up is open. Help has Set Up Dinah, which opens it again at any time.'); }
+      var step, agents, agent, answers, from, at, picked, applied, folder, called;
+      function fresh() { step = 0; agents = AGENTS.map(function (a) { return Object.assign({}, a); }); agent = 'claude'; answers = {}; from = {}; at = 0; picked = null; applied = false; folder = 'C:\\Work\\Pricing'; called = ''; $('setup-said').innerHTML = ''; $('setup').hidden = false; bar('Set-up is open. Help has Set Up Dinah, which opens it again at any time.'); }
       function bar(text) { $('mock-bar').textContent = text; }
       function status(text) { $('setup-status').textContent = text; }
       function agentName() { return agents.filter(function (a) { return a.id === agent; })[0].name; }
       function question(i) { var q = QUESTIONS[i]; return q.id === 'judge' ? 'May ' + agentName() + ' answer small questions in the background, such as a chat\u2019s title and a suggested reply? At most 200 calls a day.' : q.ask; }
-      function valueOf(q) { var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return !c ? '' : q.id === 'folder' && c[0] === 'pick' ? folder : c[2]; }
-      function labelOf(q) { var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return c ? (q.id === 'folder' && c[0] === 'pick' ? folder : c[1]) : ''; }
+      function valueOf(q) { if (q.id === 'name' && answers.name === 'typed') return called; var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return !c ? '' : q.id === 'folder' && c[0] === 'pick' ? folder : c[2]; }
+      function labelOf(q) { if (q.id === 'name' && answers.name === 'typed') return called; var c = q.choices.filter(function (c) { return c[0] === answers[q.id]; })[0]; return c ? (q.id === 'folder' && c[0] === 'pick' ? folder : c[1]) : ''; }
 
       function drawAgents() {
         var body = $('setup-agents'); body.innerHTML = '';
@@ -229,6 +233,10 @@
         var path = /[a-z]:\\[^\s,.;]+(?:\\[^\s,.;]+)*/i.exec(text);
         if (path) { folder = path[0]; take('folder', 'pick'); }
         if (/\bbackground\b.*\b(yes|fine|ok)\b|\byes\b.*\bbackground\b/.test(t)) take('judge', 'on');
+        var name = /\b(?:call me|my name is|i am called)\s+([A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)?)/i.exec(text);
+        // At the question about the name, what is typed is the name.
+        if (!name && !took.length && QUESTIONS[at].id === 'name' && text.length <= 60) name = [text, text];
+        if (name) { called = name[1]; take('name', 'typed'); }
         return took;
       }
       function toQuestions() {
