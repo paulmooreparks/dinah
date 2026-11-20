@@ -939,9 +939,18 @@
     else if (cal.state === 'none') words = 'The last run found no model that answered every case correctly, ' + ago(cal.at) + '. ' + current;
     else if (cal.state === 'stopped') words = 'The last run was stopped, ' + ago(cal.at) + '. ' + current;
     else words = current + ' Calibration has not run. With no model chosen it runs by itself against the resident models; it never replaces a choice of yours.';
+    // A provider whose models are not calibrated has no run to offer, so the line says only who judges.
+    if (cal.noCalibration) words = current;
     line.textContent = words;
-    var run = $('judgements-run-calibration');
-    if (run) run.disabled = !settings.enabled || cal.state === 'running';
+    /* The button is always there. When no run can start it is disabled, and
+       the line under it says why, so it is never pressed in vain (Paul,
+       20 November 2026: the reason was far below and the button seemed to do
+       nothing). The reason is not written over what a press has just said. */
+    var run = $('judgements-run-calibration'), near = $('judgements-calibration-status');
+    var why = cal.noCalibration ? 'Calibration is not offered for this provider: ' + cal.noCalibration
+      : !settings.enabled ? 'Calibration needs judgement agents turned on, above.' : '';
+    if (run) { run.disabled = !!why || cal.state === 'running'; run.title = why; }
+    if (near && (why || near.dataset.reason)) { near.textContent = why; near.dataset.reason = why ? '1' : ''; }
     var use = $('judgements-use-chosen');
     if (use) {
       var chosen = cal.state === 'chosen' && cal.chosen;

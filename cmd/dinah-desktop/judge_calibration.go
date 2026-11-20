@@ -71,6 +71,10 @@ type JudgementCalibrationState struct {
 	State  string     `json:"state"`
 	At     *time.Time `json:"at,omitempty"`
 	Chosen string     `json:"chosen"`
+	// NoCalibration is why the chosen provider's models are not calibrated,
+	// as a sentence, or empty when they are. The page then has no run to
+	// offer and says why beside the button, which it disables.
+	NoCalibration string `json:"noCalibration"`
 }
 
 // JudgementCalibrationView is the last run's report and the fixed set it scored by.
@@ -94,6 +98,9 @@ func (a *App) calibrationState() JudgementCalibrationState {
 	}
 	if j.calibrating {
 		st.State = "running"
+	}
+	if module, ok := providerModules[j.cur.Provider]; ok && module.Judge != nil {
+		st.NoCalibration = module.Judge.NoCalibration
 	}
 	return st
 }
