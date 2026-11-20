@@ -215,6 +215,10 @@ type App struct {
 	// update is the installed build the window watches for Restart to
 	// Update (update.go); updateStop ends the watch.
 	updMu  sync.Mutex
+	// resuming counts the telling of paused chats to carry on that a cancelled
+	// restart started in the background (CancelRestart), so that a test waits
+	// for it before its folder and its bus go.
+	resuming sync.WaitGroup
 	update *updateWatch
 	// writing is how many documents are being written to where they are
 	// kept (admitWrite), guarded by updMu.

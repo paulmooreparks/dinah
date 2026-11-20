@@ -189,6 +189,13 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 		c.Close() // turns waiting on the agent end because the agent is gone
 		a.turnIO().Close(3 * time.Second)
 	})
+	// A cancelled restart tells the paused chats to carry on in the background.
+	// It is waited for first of all, while the bus is open and the test's folder
+	// is the one in use. Left running, it found the bus closed, tried again for
+	// up to thirty seconds with the pause record's lock held, and then wrote
+	// its record into the next test's folder, which made the pause tests fail
+	// most times they ran one after another (found 20 November 2026).
+	t.Cleanup(a.resuming.Wait)
 	return a, c
 }
 

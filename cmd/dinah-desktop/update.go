@@ -404,7 +404,11 @@ func (a *App) CancelRestart() {
 	a.emitUpdate()
 	// The chats that were asked to pause are told to carry on.
 	if paused {
-		go a.resumePaused(false)
+		a.resuming.Add(1)
+		go func() {
+			defer a.resuming.Done()
+			a.resumePaused(false)
+		}()
 	}
 }
 
