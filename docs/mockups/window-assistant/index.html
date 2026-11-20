@@ -40,21 +40,26 @@
     .assistant[hidden] { display: none; }
     /* The line and Ask act at once, and a rule sets them apart from the
        tasks, which are chosen and then run. */
-    .assistant-ask { display: flex; gap: var(--space-2); padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
+    .assistant-ask { display: flex; align-items: flex-end; gap: var(--space-2); padding-block-end: var(--space-3); border-block-end: 1px solid var(--border); }
+    /* The prompt is the chat window's: it is as tall as its words, up to six
+       lines, and scrolls after that. Enter asks and Shift+Enter starts a new
+       line. The popover is held by its foot, so the prompt grows upward and
+       nothing under it moves. */
+    .assistant-ask textarea { resize: none; field-sizing: content; height: auto; block-size: auto; min-block-size: 0; max-block-size: calc(6lh + 18px); overflow-y: auto; }
     .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
     .assistant .md-section-label { display: flex; align-items: center; margin: var(--space-3) 0 var(--space-1); padding: 0; }
     .assistant .md-section-label .btn { margin-inline-start: auto; }
     .assistant-tasks { block-size: 9.5rem; overflow: auto; border: 1px solid var(--border); background: var(--surface); }
     .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
     .assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
-    .assistant-result { block-size: 4lh; overflow: auto; font-size: var(--text-sm); }
-    /* The chats a request would act on, each with a tick, so one can be
-       left out before Run. The list has its room whether or not a request
-       acts on chats, so the popover keeps its size. */
-    .assistant-chosen { block-size: 5.6rem; overflow: auto; margin: var(--space-2) 0 0; padding: var(--space-1) var(--space-2); list-style: none; border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); }
+    /* What It Does has the sentence and, under it, the chats a task would
+       act on, each with a tick. It has one size and scrolls. */
+    .assistant-result { block-size: 10.5rem; overflow: auto; font-size: var(--text-sm); }
+    .assistant-result p { margin: 0; }
+    .assistant-chosen { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+    .assistant-chosen[hidden] { display: none; }
     .assistant-chosen li { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); padding-block: 2px; }
     .assistant-chosen .note { flex-basis: 100%; padding-inline-start: 1.6rem; color: var(--text-muted); }
-    .assistant-chosen[data-empty] { color: var(--text-muted); }
     .assistant-result p { flex: 1; margin: 0; }
 
     /* ---- Proposed: the Assistant Tasks window ----------------------------
@@ -90,7 +95,7 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Sixth mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Seventh mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
@@ -141,7 +146,7 @@
         <button class="icon-btn popover-close" type="button" id="assistant-close" aria-label="Close"></button>
       </div>
       <form class="assistant-ask" id="assistant-form">
-        <input class="form-input" id="assistant-line" type="text" autocomplete="off" aria-label="Ask the assistant" placeholder="Find, gather, arrange or tidy, in your own words.">
+        <textarea class="form-input" id="assistant-line" rows="1" autocomplete="off" aria-label="Ask the assistant" placeholder="Say what you want done."></textarea>
         <button class="btn" type="submit">Ask</button>
       </form>
       <div class="md-section-label"><span>Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
@@ -149,8 +154,8 @@
       <div class="md-section-label"><span>What It Does</span></div>
       <div class="assistant-result" role="status">
         <p id="assistant-said"></p>
+        <ul class="assistant-chosen" id="assistant-chosen" aria-label="The chats it would act on" hidden></ul>
       </div>
-      <ul class="assistant-chosen" id="assistant-chosen" aria-label="The chats it would act on"></ul>
       <!-- Run and Undo are in the foot, where a popover's buttons are. A task
            or a request is first read, and what it would do is said above.
            Run does it, and Undo puts the windows back (Paul, 20 November
@@ -170,16 +175,22 @@
   <section class="mock-notes">
     <h2>New in this mockup</h2>
     <ul>
-      <li><strong>Ask does what you type at once.</strong> What it did is said under What It Does, Undo takes it back, and Run does it again. A rule sets the line and Ask apart from the tasks.</li>
-      <li><strong>A task from the list still waits for Run.</strong></li>
-      <li><strong>A typed request that acts on chats also waits for Run,</strong> so that its list of chats can be read and unticked first. This is the one exception to Ask acting at once.</li>
-      <li><strong>Since You Last Looked is gone.</strong></li>
-      <li><strong>Assistant Tasks:</strong> Try It and Save are at the right under the words, Save last; the help lines and headings are gone; Undo and Run are under what the words would do.</li>
+      <li><strong>The prompt is the chat window's.</strong> It grows with what you type, up to six lines, and scrolls after that. Enter asks and Shift+Enter starts a new line. It grows upward, so nothing under it moves.</li>
+      <li><strong>Ask always acts at once,</strong> for windows and for chats. Type "stop the Pricing team" and it is stopped.</li>
+      <li><strong>A task always says what it would do and waits for Run.</strong> A task that acts on chats lists them under the sentence, each with a tick, in What It Does. The separate box is gone.</li>
+      <li><strong>A typed request must say its team exactly.</strong> Type "stop the Billing team": nothing is done, and it says which teams there are.</li>
+      <li><strong>What Undo cannot take back is said in the result,</strong> and Run does not offer it a second time.</li>
+    </ul>
+    <h2>Try</h2>
+    <ul>
+      <li>Type a long request over several lines with Shift+Enter, then Enter.</li>
+      <li>Type "change all of the Pricing team members from Claude to Devin" and press Enter, then Undo.</li>
+      <li>Open Edit Tasks, add a task that asks "change all of the Pricing team members from Claude to Devin", save it, choose it in the assistant, untick a chat, and press Run.</li>
     </ul>
     <h2>Chats and teams</h2>
     <ul>
       <li><strong>The assistant acts on chats as well as windows.</strong> Three of the stand-in chats are a team called Pricing. Type "change all of the Pricing team members from Claude to Devin", "stop the Pricing team", or "tell the Pricing team to report where they are".</li>
-      <li><strong>It lists the chats it would act on,</strong> each with a tick, under what it says it would do. Untick one to leave it out. Run acts on the ticked ones only.</li>
+      <li><strong>A task lists the chats it would act on,</strong> each with a tick, under what it says it would do. Untick one to leave it out. Run acts on the ticked ones only.</li>
       <li><strong>It says what Undo can take back.</strong> A switch of provider can be switched back, and Undo does that. A stopped turn and a sent message cannot, the answer says so before Run, and Undo stays disabled after.</li>
       <li>A chat that is working is switched when its turn ends, and the list says so beside it.</li>
       <li>These can be saved as tasks like any other request.</li>
@@ -333,6 +344,7 @@
         var of = team ? ' of the ' + team + ' team' : '';
         function rows(list, noteOf) { return list.map(function (w) { return { id: w.id, label: w.title + ' (' + w.provider + ')', note: noteOf ? noteOf(w) : '' }; }); }
         function picked(list, ids) { return list.filter(function (w) { return ids.indexOf(w.id) >= 0; }); }
+        if (/\bteam\b/.test(t) && !team) return { will: 'No team is called that, so nothing is done. ' + (teams.length ? 'The teams are: ' + teams.join(', ') + '.' : 'There are no teams.') };
         var sw = /\b(?:change|switch|move)\b.*?\b(?:from (\w+) )?to (\w+)\b/.exec(t);
         if (sw && PROVIDERS[sw[2]]) {
           var to = PROVIDERS[sw[2]], from = PROVIDERS[sw[1]] || '';
@@ -347,12 +359,12 @@
           var busy = mine.filter(function (w) { return w.working; });
           if (!busy.length) return { will: 'No chat' + of + ' is working, so there is nothing to stop.' };
           return { will: 'Will stop the turn of ' + count2(busy.length) + of + '. Undo cannot start a stopped turn again.', list: rows(busy), noUndo: true,
-            run: function (ids) { var done = picked(busy, ids); done.forEach(function (w) { w.working = false; w.done = true; }); return 'Stopped ' + count2(done.length) + ': ' + titles(done) + '.'; } };
+            run: function (ids) { var done = picked(busy, ids); done.forEach(function (w) { w.working = false; w.done = true; }); return 'Stopped ' + count2(done.length) + ': ' + titles(done) + '. A stopped turn cannot be started again by Undo.'; } };
         }
         var tell = /^(?:tell|ask) (?:the )?(.+?) team (?:to |that )?(.+)$/i.exec(text.trim());
         if (tell && team) {
           return { will: 'Will send this to the ' + count2(mine.length) + ' of the ' + team + ' team, in its group chat: "' + tell[2] + '". A message that is sent cannot be undone.', list: rows(mine), noUndo: true,
-            run: function (ids) { var done = picked(mine, ids); return 'Sent to ' + count2(done.length) + ' of the ' + team + ' team: ' + titles(done) + '.'; } };
+            run: function (ids) { var done = picked(mine, ids); return 'Sent to ' + count2(done.length) + ' of the ' + team + ' team: ' + titles(done) + '. A sent message cannot be undone.'; } };
         }
         return null;
       }
@@ -360,8 +372,8 @@
       function chosenList(list) {
         var host = $('assistant-chosen');
         host.innerHTML = '';
-        host.toggleAttribute('data-empty', !list);
-        if (!list) { host.appendChild(el('li', '', 'A request that acts on chats lists them here.')); return; }
+        host.hidden = !list;
+        if (!list) return;
         list.forEach(function (row) {
           var li = el('li'), label = el('label', 'check'), box = el('input');
           box.type = 'checkbox'; box.checked = true; box.value = row.id;
@@ -460,12 +472,16 @@
         var text = $('assistant-line').value.trim(); if (!text) return;
         picked = -1; drawTasks();
         var found = ask(text); $('assistant-line').value = '';
-        /* Ask is "do this now": what was typed is done at once, Undo takes
-           it back and Run does it again. A request that acts on chats is
-           the exception, since its list of chats is there to be read and
-           unticked first; it waits for Run. */
-        if (found.run && !found.list) { var again = pending; run(); pending = again; buttons(); $('assistant-line').focus({ preventScroll: true }); }
-        else if (found.run) $('assistant-run').focus({ preventScroll: true });
+        /* Ask is "do this now", for windows and for chats alike: what was
+           typed is done at once. Undo takes back what can be taken back,
+           and Run does it again, except for what cannot be undone, which is
+           not offered a second time. */
+        if (found.run) { var again = found.noUndo ? null : pending; run(); pending = again; buttons(); }
+        $('assistant-line').focus({ preventScroll: true });
+      });
+      // Enter asks, and Shift+Enter starts a new line, as in a chat.
+      $('assistant-line').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('assistant-form').requestSubmit(); }
       });
       $('assistant-run').addEventListener('click', run);
       $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; pending = null; listed = null; chosenList(null); draw(); say('Put back as it was.'); buttons(); });
