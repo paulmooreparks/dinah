@@ -54,7 +54,7 @@
        A window of the workbench like any other, with the list of tasks on
        one side and the chosen task on the other. A task is a name and the
        words the assistant is asked, the same words a person could type. */
-    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 24px; inline-size: 640px; max-inline-size: calc(100% - 48px); block-size: 420px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
+    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 24px; inline-size: 640px; max-inline-size: calc(100% - 48px); block-size: 500px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
     .tasks-win[hidden] { display: none; }
     .tasks-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-weight: 600; font-size: var(--text-sm); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
     .tasks-win .bar .icon-btn { margin-inline-start: auto; }
@@ -63,9 +63,9 @@
     .tasks-list { overflow: auto; border-inline-end: 1px solid var(--border); }
     .tasks-form { padding: var(--space-3); overflow: auto; display: flex; flex-direction: column; gap: var(--space-3); }
     .tasks-form .form-group { margin: 0; }
-    .tasks-form textarea { min-block-size: 6rem; resize: vertical; }
+    .tasks-form textarea { min-block-size: 5rem; resize: vertical; }
     .tasks-actions { display: flex; gap: var(--space-2); align-items: center; }
-    .tasks-actions .status { color: var(--text-muted); font-size: var(--text-sm); min-block-size: 1lh; }
+    .tasks-status { margin: 0; min-block-size: 3lh; color: var(--text-muted); font-size: var(--text-sm); }
     .md-row[aria-current="true"] .md-item, .md-row .md-item[aria-current="true"] { font-weight: 600; }
   </style>
 </head>
@@ -103,8 +103,12 @@
             <button type="submit" class="btn btn-primary">Save</button>
             <button type="button" class="btn" id="task-try">Try It</button>
             <button type="button" class="btn" id="task-delete">Delete Task</button>
-            <span class="status" id="task-status" role="status"></span>
           </div>
+          <!-- What a button did is said on a line of its own under the
+               buttons, which has its room from the start. Beside them it
+               was squeezed into a narrow column and made the form scroll
+               (Paul, 20 November 2026). -->
+          <p class="tasks-status" id="task-status" role="status"></p>
         </form>
       </div>
     </section>

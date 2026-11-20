@@ -13,12 +13,13 @@
    list, which is what it is one of. */
 .assistant-tasks .md-item, .assistant-tasks-list .md-item { display: block; inline-size: 100%; padding-block: var(--space-1); border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .assistant-tasks .md-item:disabled { cursor: default; color: var(--text-muted); }
+.assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
 .assistant-none { margin: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); }
 .assistant-news { block-size: 4.6rem; overflow: auto; font-size: var(--text-sm); }
 .assistant-news ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .assistant-news button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-align: start; text-decoration: underline; cursor: pointer; }
 .assistant-news li[data-none] { color: var(--text-muted); }
-.assistant-said { block-size: 4lh; overflow: auto; margin: 0; font-size: var(--text-sm); }
+.assistant-said { block-size: 5lh; overflow: auto; margin: 0; font-size: var(--text-sm); }
 
 /* The Assistant Tasks window: the list of tasks on one side and the chosen
    task on the other. A task is a name and the words the assistant is asked,

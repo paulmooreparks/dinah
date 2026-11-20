@@ -1,7 +1,8 @@
 // The window assistant (assistant.js, judge_assistant.go; the approved mockup
 // is docs/mockups/window-assistant): the tray's popover of one size, a
-// request carried out on the real window layer and undone, the tasks as a
-// list, and the Assistant Tasks window that changes the list.
+// request or a task read into what it would do, done on the real window
+// layer only when Run is pressed and undone, the tasks as a list, and the
+// Assistant Tasks window that changes the list.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -38,6 +39,7 @@ const { launch } = require('./lib/page');
     const menu = p.locator('#assistant-menu');
     const said = () => p.locator('#assistant-said').textContent();
     const answered = async before => { await p.waitForFunction(b => { const x = document.getElementById('assistant-said').textContent; return x !== b && x !== 'Looking at the windows…'; }, before); };
+    const run = p.locator('#assistant-run');
 
     // The tray item and its key open the popover, with the tasks as a list.
     await p.keyboard.press('Control+Space');
@@ -46,7 +48,7 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => document.querySelectorAll('#assistant-tasks .md-row').length === 2);
     const size0 = await menu.boundingBox();
     ok('the tasks are a list of rows', (await p.locator('#assistant-tasks .md-item').allTextContents()).join('|') === 'Tile the Windows That Are Showing|Tidy Up');
-    ok('Undo is in the foot and is disabled with nothing to undo', await p.locator('#assistant-menu .popover-actions #assistant-undo').isDisabled());
+    ok('Run and Undo are in the foot, both disabled with nothing read or done', await p.locator('#assistant-menu .popover-actions #assistant-undo').isDisabled() && await p.locator('#assistant-menu .popover-actions #assistant-run').isDisabled());
 
     // A request to find: the engine is told every window, and its answer is done.
     await p.evaluate(k => { window.__a.plan = () => ({ do: 'gather', windows: [k], say: 'Found 1 window about pricing: Pricing Rules. The rest are put away, not closed.', judged: true }); }, keys['Pricing Rules']);
@@ -55,13 +57,19 @@ const { launch } = require('./lib/page');
     await p.locator('#assistant-line').fill('find all the windows for the pricing work');
     await p.keyboard.press('Enter');
     await answered(was);
+    let now = await layout();
+    ok('a typed request is read and says what it would do, and nothing has moved', /^Will show 1 window, tiled: Pricing Rules\. Will put the other 2 windows away, and close nothing\. Press Run to do it\.$/.test(await said()) && JSON.stringify(now) === JSON.stringify(before), await said());
+    ok('Run is enabled and has the focus, so Enter again runs it', await run.isEnabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-run');
+    was = await said();
+    await p.keyboard.press('Enter');
+    await answered(was);
     const told = await p.evaluate(() => window.__a.asked[0]);
     ok('the engine is told what was asked and each window by title, kind and state', told.ask === 'find all the windows for the pricing work' && ['Pricing Rules', 'Release Notes', 'Tax Question'].every(n => told.windows.some(w => w.title === n && w.kind === 'chat')) && !told.windows.some(w => 'item' in w), JSON.stringify(told.windows));
-    let now = await layout();
+    now = await layout();
     ok('the window found is showing and the others are put away, none closed', !now.min[keys['Pricing Rules']] && now.min[keys['Release Notes']] && now.min[keys['Tax Question']] && now.open.length === before.open.length, JSON.stringify(now.min));
     ok('the window found fills the layer', now.place[keys['Pricing Rules']].mode === 'maximized', JSON.stringify(now.place[keys['Pricing Rules']]));
     ok('the line says what was done', /Found 1 window about pricing/.test(await said()));
-    ok('the popover is still open, with the line focused for the next request', await menu.evaluate(el => el.matches(':popover-open')) && await p.evaluate(() => document.activeElement.id) === 'assistant-line');
+    ok('the popover is still open, Run is disabled again and Undo has the focus', await menu.evaluate(el => el.matches(':popover-open')) && await run.isDisabled() && await p.evaluate(() => document.activeElement.id) === 'assistant-undo');
     const size1 = await menu.boundingBox();
     ok('the popover is the size it was', size0.width === size1.width && size0.height === size1.height, JSON.stringify([size0, size1]));
     await t.shot('assistant');
@@ -73,10 +81,16 @@ const { launch } = require('./lib/page');
     ok('Undo shows the windows that were put away and returns the one that was moved', !now.min[keys['Release Notes']] && !now.min[keys['Tax Question']] && now.place[keys['Pricing Rules']].mode === before.place[keys['Pricing Rules']].mode && now.top === before.top, JSON.stringify([now.min, now.place[keys['Pricing Rules']], now.top, before.top]));
     ok('Undo is disabled again', await p.locator('#assistant-undo').isDisabled());
 
-    // A task is one press, and tiles what is showing.
+    // A press chooses a task and says what it would do; Run tiles what is showing.
     await p.evaluate(() => { window.__a.plan = () => ({ do: 'tile', windows: [], say: 'Tiled.' }); });
     was = await said();
+    const unmoved = await layout();
     await p.locator('#assistant-tasks .md-item', { hasText: 'Tile the Windows' }).click();
+    await answered(was);
+    now = await layout();
+    ok('pressing a task chooses it and says what it would do, and nothing has moved', /^Will tile the \d windows that are showing\. Press Run to do it\.$/.test(await said()) && JSON.stringify(now) === JSON.stringify(unmoved) && await p.locator('#assistant-tasks .md-item[aria-selected="true"]').textContent() === 'Tile the Windows That Are Showing', await said());
+    was = await said();
+    await run.click();
     await answered(was);
     now = await layout();
     const zones = Object.values(keys).map(k => now.place[k]);
@@ -87,6 +101,10 @@ const { launch } = require('./lib/page');
     const idle = await p.evaluate(() => window.dinahAssistant.desk());
     was = await said();
     await p.locator('#assistant-tasks .md-item', { hasText: 'Tidy Up' }).click();
+    await answered(was);
+    ok('tidying first names the windows it would close, and closes none', /^Will close 2 windows: /.test(await said()) && (await layout()).open.length === unmoved.open.length, await said());
+    was = await said();
+    await run.click();
     await answered(was);
     now = await layout();
     const idleKeys = idle.filter(w => w.state === 'idle').map(w => w.id);

@@ -4,10 +4,12 @@
    A small place in the tray where the person says what they want of the
    windows in their own words, or presses one of their tasks. The page tells
    the engine what was asked and which windows are open, by title, kind,
-   workspace and state. The engine says one thing to do, and this file does
-   it with the window layer's own operations, each of which the person could
-   do by hand. What a request changed is kept, so one press puts the windows
-   back as they were.
+   workspace and state. The engine says one thing to do, and the popover
+   says what that would do to which windows. Nothing happens until the
+   person presses Run (Paul, 20 November 2026: running at once on a press
+   was a bad idea). Then this file does it with the window layer's own
+   operations, each of which the person could do by hand. What a request
+   changed is kept, so Undo puts the windows back as they were.
 
    Assistant Tasks is a window of the workbench in which the person changes
    the list: a task is a name and the words the assistant is asked. */
@@ -119,8 +121,13 @@
     rows.forEach(function (w) { items[w.id] = w.item; });
     return { state: P().state(), items: items, moved: {}, closed: [] };
   }
-  function carryOut(plan, rows) {
-    var by = {}, before = snapshot(rows);
+  /* carryOut does what a plan says and gives the line that says what was
+     done, with what Undo needs. Asked only to describe (dry), it changes
+     nothing and gives what the plan would do, in will, and whether there is
+     anything to run, in can. */
+  function carryOut(plan, rows, dry) {
+    function nothing(text) { return dry ? { will: text, can: false } : { said: text, before: null }; }
+    var by = {}, before = dry ? null : snapshot(rows);
     rows.forEach(function (w) { by[w.id] = w; });
     var chosen = (plan.windows || []).filter(function (id) { return by[id]; });
     var showing = rows.filter(function (w) { return !w.away; });
@@ -131,9 +138,16 @@
       case 'side': {
         var under = plan.do === 'side' && by[plan.under] && chosen.indexOf(plan.under) < 0 ? plan.under : '';
         var all = under ? chosen.concat(under) : chosen;
-        if (!all.length) return { said: 'None of the open windows could be found to do that with.', before: null };
+        if (!all.length) return nothing('None of the open windows could be found to do that with.');
         var rest = '';
         if (all.length > TILE_LIMIT) { rest = ' Only the first ' + TILE_LIMIT + ' are arranged.'; all = all.slice(0, TILE_LIMIT); chosen = chosen.slice(0, TILE_LIMIT - (under ? 1 : 0)); }
+        if (dry) {
+          var others = rows.filter(function (w) { return all.indexOf(w.id) < 0 && !w.away; }).length;
+          var row = chosen.map(function (id) { return by[id]; }), every = all.map(function (id) { return by[id]; });
+          var will = plan.do === 'gather' ? 'Will show ' + plural(every.length, 'window', 'windows') + ', tiled: ' + names(every) + '.'
+            : 'Will put ' + names(row) + ' side by side' + (under ? ' with ' + by[under].name + ' under ' + (row.length === 1 ? 'it' : 'them') : '') + '.';
+          return { will: will + (others ? ' Will put the other ' + plural(others, 'window', 'windows') + ' away, and close nothing.' : '') + rest, can: true };
+        }
         move(all);
         showOnly(rows, all);
         if (plan.do === 'gather') tile(all);
@@ -143,9 +157,10 @@
       }
       case 'tile': {
         var keys = showing.map(function (w) { return w.id; });
-        if (!keys.length) return { said: 'No window is showing to tile.', before: null };
+        if (!keys.length) return nothing('No window is showing to tile.');
         var more = keys.length > TILE_LIMIT ? ' The ' + plural(keys.length - TILE_LIMIT, 'window', 'windows') + ' furthest back stayed as they were.' : '';
         keys = keys.slice(0, TILE_LIMIT);
+        if (dry) return { will: 'Will tile the ' + plural(keys.length, 'window', 'windows') + ' that ' + (keys.length === 1 ? 'is' : 'are') + ' showing.' + more.replace('stayed as they were', 'will stay as they are'), can: true };
         move(keys);
         tile(keys);
         return { said: 'Tiled the ' + plural(keys.length, 'window', 'windows') + ' that ' + (keys.length === 1 ? 'is' : 'are') + ' showing.' + more, before: before };
@@ -154,7 +169,8 @@
         /* A chat that has ended its turn and a document with nothing
            unsaved are put away. Every other window stays where it is. */
         var done = showing.filter(function (w) { return w.state === 'idle' || (w.content && w.clean); });
-        if (!done.length) return { said: 'Every window that is showing has work in it, or is one I leave alone.', before: null };
+        if (!done.length) return nothing('Every window that is showing has work in it, or is one I leave alone.');
+        if (dry) return { will: 'Will put away ' + plural(done.length, 'window', 'windows') + ' with no work in ' + (done.length === 1 ? 'it' : 'them') + ': ' + names(done) + '. Nothing will be closed.', can: true };
         done.forEach(function (w) { P().minimize(w.id); });
         return { said: 'Put away ' + plural(done.length, 'window', 'windows') + ' with no work in ' + (done.length === 1 ? 'it' : 'them') + ': ' + names(done) + '. Nothing is closed.', before: before };
       }
@@ -165,25 +181,30 @@
         var front = P().top();
         var finished = rows.filter(function (w) { return w.id !== front && (w.state === 'idle' || (w.content && w.clean)); });
         var kept = rows.filter(function (w) { return w.state === 'unsaved'; });
+        var leaves = kept.length ? ' ' + names(kept) + (kept.length === 1 ? ' stays open, since it has' : ' stay open, since they have') + ' changes not saved.' : '';
+        if (!finished.length) return nothing('Nothing is finished, so there is nothing to close.' + leaves);
+        if (dry) return { will: 'Will close ' + plural(finished.length, 'window', 'windows') + ': ' + names(finished) + '.' + leaves, can: true };
         finished.forEach(function (w) { P().close(w.id); });
         var gone = finished.filter(function (w) { return !P().isOpen(w.id); });
         before.closed = gone.map(function (w) { return w.id; });
         var line = gone.length ? 'Closed ' + plural(gone.length, 'window', 'windows') + ': ' + names(gone) + '.' : 'Nothing was finished, so nothing is closed.';
-        if (kept.length) line += ' Left ' + names(kept) + ' open, since ' + (kept.length === 1 ? 'it has' : 'they have') + ' changes not saved.';
+        line += leaves;
         return { said: line, before: gone.length ? before : null };
       }
       case 'all': {
-        if (!rows.some(function (w) { return w.away; })) return { said: 'Every window is showing already.', before: null };
+        if (!rows.some(function (w) { return w.away; })) return nothing('Every window is showing already.');
+        if (dry) return { will: 'Will show all ' + plural(rows.length, 'window', 'windows') + ' again.', can: true };
         P().restoreAll();
         return { said: 'All ' + plural(rows.length, 'window is', 'windows are') + ' showing again.', before: before };
       }
       case 'front': {
-        if (!chosen.length) return { said: 'None of the open windows could be found to bring to the front.', before: null };
+        if (!chosen.length) return nothing('None of the open windows could be found to bring to the front.');
+        if (dry) return { will: 'Will bring ' + names(chosen.map(function (id) { return by[id]; })) + ' to the front.', can: true };
         chosen.slice().reverse().forEach(function (key) { P().raise(key); });
         return { said: said, before: before };
       }
       default:
-        return { said: said || 'Tell me what to find, gather, arrange or tidy.', before: null };
+        return nothing(said || 'Tell me what to find, gather, arrange or tidy.');
     }
   }
   function place(key, p) {
@@ -213,35 +234,55 @@
 
   /* ---- Asking --------------------------------------------------------------- */
 
-  var busy = false, undoable = null, looked = {};
+  var busy = false, undoable = null, looked = {}, pending = null, selected = -1;
   function say(text) { H.setText($('assistant-said'), text); }
   function controls() {
     $('assistant-go').disabled = busy;
+    $('assistant-run').disabled = busy || !pending;
     $('assistant-undo').disabled = busy || !undoable;
     Array.prototype.forEach.call($('assistant-tasks').querySelectorAll('button'), function (b) { b.disabled = busy; });
   }
-  /* ask reads a request and does it, and resolves with the line that says
-     what was done. One request runs at a time. */
-  function ask(words) {
+  function inPopover(el) { if ($('assistant-menu').matches(':popover-open')) el.focus({ preventScroll: true }); }
+  /* preview reads a request and says what it would do, and does nothing.
+     What it would do is kept for Run. It resolves with the words and
+     whether there is anything to run. One request is read at a time. */
+  function preview(words) {
     words = String(words || '').trim();
-    if (!words) return Promise.resolve('');
-    if (busy) return Promise.resolve('The assistant is still on the last request.');
-    if (!app() || !app().AskAssistant) return Promise.resolve('The assistant is not ready yet.');
-    busy = true; controls();
+    if (!words) return Promise.resolve({ will: '', can: false });
+    if (busy) return Promise.resolve({ will: 'The assistant is still on the last request.', can: false });
+    if (!app() || !app().AskAssistant) return Promise.resolve({ will: 'The assistant is not ready yet.', can: false });
+    busy = true; pending = null; controls();
     say('Looking at the windows…');
     return desk().then(function (rows) {
       return Promise.resolve(app().AskAssistant(words, told(rows))).then(function (plan) {
-        var done = carryOut(plan || {}, rows);
-        if (done.before) undoable = done.before;
-        return done.said;
+        var found = carryOut(plan || {}, rows, true);
+        if (found.can) pending = { plan: plan, words: words };
+        return found;
       });
-    }).then(function (said) { say(said); return said; }, function (err) {
-      var said = 'That could not be done: ' + H.message(err, 'sentence');
-      say(said);
-      return said;
-    }).finally(function () {
+    }).catch(function (err) {
+      return { will: 'That could not be read: ' + H.message(err, 'sentence'), can: false };
+    }).then(function (found) {
+      say(found.can ? found.will + ' Press Run to do it.' : found.will);
       busy = false; controls(); news();
-      if ($('assistant-menu').matches(':popover-open')) $('assistant-line').focus({ preventScroll: true });
+      inPopover(found.can ? $('assistant-run') : $('assistant-line'));
+      return found;
+    });
+  }
+  /* run does what the last request read would do, on the windows as they
+     are now. */
+  function run() {
+    if (busy || !pending) return Promise.resolve('');
+    var plan = pending.plan;
+    pending = null; busy = true; controls();
+    return desk().then(function (rows) {
+      var done = carryOut(plan, rows);
+      if (done.before) undoable = done.before;
+      return done.said;
+    }).catch(function (err) { return 'That could not be done: ' + H.message(err, 'sentence'); }).then(function (said) {
+      say(said);
+      busy = false; controls(); news();
+      inPopover(undoable ? $('assistant-undo') : $('assistant-line'));
+      return said;
     });
   }
   function undo() {
@@ -296,15 +337,21 @@
   var tasks = [], taskViews = [];
   function drawTasks() {
     var host = $('assistant-tasks');
-    var rows = tasks.map(function (t) {
-      var row = node('div', 'md-row'), b = node('button', 'md-item', t.name);
+    if (selected >= tasks.length) selected = -1;
+    /* A press chooses a task and shows what it would do. Run does it. The
+       list keeps its place when it is drawn again for the choice. */
+    var at = host.scrollTop;
+    var rows = tasks.map(function (t, i) {
+      var row = node('div', 'md-row' + (i === selected ? ' active' : '')), b = node('button', 'md-item', t.name);
       b.type = 'button'; b.title = 'Asks: ' + t.ask; b.disabled = busy;
-      b.addEventListener('click', function () { ask(t.ask); });
+      b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === selected));
+      b.addEventListener('click', function () { selected = i; drawTasks(); preview(t.ask); });
       row.appendChild(b);
       return row;
     });
     if (!rows.length) rows.push(node('p', 'assistant-none', 'No tasks yet. Add one with Edit Tasks.'));
     host.replaceChildren.apply(host, rows);
+    host.scrollTop = at;
     taskViews.forEach(function (draw) { draw(); });
   }
   function setTasks(list) { tasks = (list || []).map(function (t) { return { name: t.name, ask: t.ask }; }); drawTasks(); }
@@ -434,7 +481,9 @@
       var w = words.value.trim();
       if (!w) { note('Say what to ask first.'); return; }
       note('Asking…');
-      ask(w).then(function (said) { if (!disposed) note('The assistant: ' + said + (undoable ? ' Undo is in the assistant, in the tray.' : '')); });
+      /* Try It shows what the words would do and does nothing; Run, in the
+         assistant, does it. */
+      preview(w).then(function (found) { if (!disposed) note(found.will + (found.can ? ' Nothing is done yet. Run is in the assistant, in the tray.' : '')); });
     });
     taskViews.push(fromEngine);
     fromEngine();
@@ -446,7 +495,7 @@
 
   function toggle() { $('status-assistant').click(); }
   window.dinahWorkbench.register(TASKS_KIND, { pinnable: false, singleton: true, title: 'Assistant Tasks', glyph: 'list', init: initTasks });
-  window.dinahAssistant = { ask: ask, undo: undo, open: toggle, openTasks: openTasks, desk: function () { return desk().then(told); } };
+  window.dinahAssistant = { preview: preview, run: run, undo: undo, open: toggle, openTasks: openTasks, desk: function () { return desk().then(told); } };
   document.addEventListener('DOMContentLoaded', function () {
     var menu = $('assistant-menu');
     if (!menu) return;
@@ -471,9 +520,11 @@
       var line = $('assistant-line'), words = line.value.trim();
       if (!words || busy) return;
       line.value = '';
-      ask(words);
+      if (selected >= 0) { selected = -1; drawTasks(); }
+      preview(words);
     });
     $('assistant-undo').addEventListener('click', undo);
+    $('assistant-run').addEventListener('click', run);
     $('assistant-edit').addEventListener('click', function () { menu.hidePopover(); openTasks().catch(window.dinahHost.fail || function () {}); });
     menu.addEventListener('toggle', function (e) {
       if (e.newState === 'open') { news(); if (!tasks.length) loadTasks(); $('assistant-line').focus({ preventScroll: true }); }

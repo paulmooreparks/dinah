@@ -378,7 +378,7 @@
     <!-- The window assistant (assistant.js; the approved mockup is
          docs/mockups/window-assistant). A line to type in, the person's
          tasks as a list that scrolls, what changed since they last looked,
-         and one line that says what the last request did, with Undo. Each
+         what the chosen task or the request would do, and Run and Undo. Each
          part has its room from the start, so the popover has one size. -->
     <div class="popover assistant" id="assistant-menu" popover role="dialog" aria-labelledby="assistant-title" data-menu-anchor="status-assistant">
       <div class="popover-head">
@@ -387,19 +387,21 @@
       </div>
       <form class="assistant-ask" id="assistant-form">
         <input class="form-input" id="assistant-line" type="text" autocomplete="off" maxlength="600" aria-label="Ask the assistant" placeholder="Find, arrange or tidy windows">
-        <button class="btn btn-primary" type="submit" id="assistant-go">Ask</button>
+        <button class="btn" type="submit" id="assistant-go">Ask</button>
       </form>
       <div class="md-section-label assistant-label"><span id="assistant-tasks-title">Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
-      <div class="assistant-tasks" id="assistant-tasks" role="group" aria-labelledby="assistant-tasks-title"></div>
+      <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-labelledby="assistant-tasks-title"></div>
       <div class="md-section-label assistant-label"><span id="assistant-news-title">Since You Last Looked</span></div>
       <div class="assistant-news" role="group" aria-labelledby="assistant-news-title" tabindex="0"><ul id="assistant-news"></ul></div>
-      <div class="md-section-label assistant-label"><span id="assistant-said-title">What Was Done</span></div>
-      <p class="assistant-said" id="assistant-said" role="status" aria-labelledby="assistant-said-title" tabindex="0">Nothing asked yet.</p>
-      <!-- Undo is in the foot, where a popover's buttons are, and not beside
-           the words it undoes, where it sat at the end of a line of changing
-           length (Paul, 20 November 2026). -->
+      <div class="md-section-label assistant-label"><span id="assistant-said-title">What It Does</span></div>
+      <p class="assistant-said" id="assistant-said" role="status" aria-labelledby="assistant-said-title" tabindex="0">Choose a task or ask, and what it would do is said here. Nothing happens until you press Run.</p>
+      <!-- Run and Undo are in the foot, where a popover's buttons are. A
+           task or a request is first read and what it would do is said
+           above; Run does it and Undo puts the windows back (Paul,
+           20 November 2026). -->
       <div class="popover-actions">
-        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo the Last Change</button>
+        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo</button>
+        <button type="button" class="btn btn-sm btn-primary" id="assistant-run" disabled>Run</button>
       </div>
     </div>
 
