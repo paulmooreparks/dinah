@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The window assistant: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* The frame and the stand-in windows are styled here. The assistant is
+       PUDL's popover with PUDL's inputs, buttons and notices; the rules
+       under "Proposed" are what the product would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-desk { position: relative; margin: var(--space-4) var(--space-5) 0; height: 520px; border: 1px solid var(--border); background: var(--surface-alt); overflow: hidden; }
+    .mock-win { position: absolute; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); transition: left .25s, top .25s, width .25s, height .25s, opacity .2s; overflow: hidden; }
+    .mock-win[data-away] { opacity: 0; pointer-events: none; }
+    .mock-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-size: var(--text-sm); font-weight: 600; background: var(--surface-alt); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-win .bar .kind { font-weight: 400; color: var(--text-muted); }
+    .mock-win .body { padding: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+    .mock-win[data-working] .bar::after { content: "working"; margin-inline-start: auto; font-weight: 400; font-size: var(--text-xs); color: var(--text-muted); }
+    .mock-win[data-gathered] { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .mock-bar { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-5); padding: var(--space-2); border: 1px solid var(--border); border-top: 0; background: var(--surface); }
+    .mock-bar .spacer { flex: 1; }
+    .mock-bar .hint { font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-notes { margin: var(--space-3) var(--space-5) var(--space-5); max-width: 60rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* ---- Proposed -------------------------------------------------------
+       The assistant is one popover over its item in the tray, of one size.
+       It has a line to type in, the standing requests as buttons, what the
+       assistant has to offer (the morning line), and one line that says what
+       the last request did, with Undo. Each part has its room from the
+       start, so nothing in it moves when an answer arrives. */
+    .assistant { position: absolute; inset-inline-end: var(--space-2); inset-block-end: var(--space-2); inline-size: 26rem; max-inline-size: calc(100% - 2 * var(--space-2)); margin: 0; display: block; z-index: 5; }
+    .assistant[hidden] { display: none; }
+    .assistant-ask { display: flex; gap: var(--space-2); }
+    .assistant-ask .form-input { flex: 1; min-inline-size: 0; }
+    .assistant-standing { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-3); }
+    .assistant-offers { block-size: 6.5rem; overflow: auto; }
+    .assistant-offers .md-section-label { margin: 0 0 var(--space-1); padding: 0; }
+    .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
+    .assistant-offers .none { color: var(--text-muted); font-size: var(--text-sm); margin: 0; }
+    .assistant-result { display: flex; align-items: center; gap: var(--space-2); block-size: 5em; overflow: hidden; margin-block-start: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); font-size: var(--text-sm); }
+    .assistant-result p { flex: 1; margin: 0; }
+    .assistant-result .btn[disabled] { visibility: visible; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>The window assistant</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
+    <span class="mock-tag">Mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+  </header>
+
+  <div class="mock-desk" id="desk">
+    <div class="popover assistant" id="assistant" role="dialog" aria-labelledby="assistant-title" hidden>
+      <div class="popover-head">
+        <h2 class="popover-title" id="assistant-title">Assistant</h2>
+        <button class="icon-btn popover-close" type="button" id="assistant-close" aria-label="Close"></button>
+      </div>
+      <form class="assistant-ask" id="assistant-form">
+        <input class="form-input" id="assistant-line" type="text" autocomplete="off" aria-label="Ask the assistant" placeholder="Arrange, find, gather or tidy. Say it in your own words.">
+        <button class="btn btn-primary" type="submit">Ask</button>
+      </form>
+      <div class="assistant-standing" role="group" aria-label="Standing requests">
+        <button type="button" class="btn btn-sm" data-ask="tile">Tile the Active Windows</button>
+        <button type="button" class="btn btn-sm" data-ask="active">Show Only Active Windows</button>
+        <button type="button" class="btn btn-sm" data-ask="tidy">Tidy Up</button>
+        <button type="button" class="btn btn-sm" data-ask="gather">Gather the Payment Work</button>
+      </div>
+      <div class="assistant-offers">
+        <div class="md-section-label">Since You Last Looked</div>
+        <ul id="assistant-offers"></ul>
+      </div>
+      <div class="assistant-result" role="status">
+        <p id="assistant-said">Nothing asked yet.</p>
+        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo</button>
+      </div>
+    </div>
+  </div>
+  <div class="mock-bar">
+    <span class="hint">Bottom bar and tray</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-sm" id="assistant-open" aria-expanded="false" aria-controls="assistant">Assistant</button>
+  </div>
+
+  <section class="mock-notes">
+    <h2>What is proposed</h2>
+    <ul>
+      <li>The assistant is opened from its item in the tray and with a key, and nowhere else. It is one popover of one size.</li>
+      <li>A request is typed in the person's own words, or pressed as one of the standing requests. A standing request that needs no judgement, such as tiling, is carried out with no model call.</li>
+      <li>The first version does four things: it arranges windows, it gathers what belongs together by meaning, it tidies, and it says what changed since the person last looked.</li>
+      <li>Its answer is the thing done, and one line that says what it did, with Undo. It never opens a window to answer.</li>
+      <li>"Since You Last Looked" is the morning line: at most three things, each a link to its window. It is in the assistant's own place and never over the person's work.</li>
+      <li>It can only do what the person could do by hand in the window. Closing is limited to chats that are idle and documents with nothing unsaved, and Tidy Up says what it left open and why.</li>
+    </ul>
+    <h2>Try typing</h2>
+    <ul>
+      <li>"put the documents side by side and the chat under them"</li>
+      <li>"show everything about the payment work"</li>
+      <li>"close what is finished"</li>
+      <li>Anything else gets the answer a real request would get when the assistant cannot do it: what it can do, in one line.</li>
+    </ul>
+  </section>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var desk = $('desk');
+      var WINDOWS = [
+        { id: 'c1', kind: 'Chat', title: 'Payment Retry Rules', about: 'payment', working: true, x: 20, y: 20, w: 300, h: 150 },
+        { id: 'd1', kind: 'Document', title: 'Payment Design.md', about: 'payment', x: 120, y: 80, w: 320, h: 170 },
+        { id: 'c2', kind: 'Chat', title: 'Release Notes Draft', about: 'release', x: 240, y: 40, w: 300, h: 150 },
+        { id: 'g1', kind: 'Diagram', title: 'Refund Flow.d2', about: 'payment', x: 330, y: 170, w: 300, h: 160 },
+        { id: 'c3', kind: 'Chat', title: 'Tax Rule Question', about: 'tax', done: true, x: 430, y: 60, w: 280, h: 140 },
+        { id: 'd2', kind: 'Document', title: 'Meeting Notes.md', about: 'notes', done: true, unsaved: true, x: 60, y: 250, w: 300, h: 150 },
+        { id: 'c4', kind: 'Chat', title: 'Build Check', about: 'build', done: true, x: 520, y: 260, w: 260, h: 140 }
+      ];
+      var state, before = null;
+      function fresh() { state = WINDOWS.map(function (w) { return Object.assign({ away: false, gathered: false }, w); }); before = null; }
+      function draw() {
+        state.forEach(function (w) {
+          var el = $('win-' + w.id);
+          if (!el) {
+            el = document.createElement('div'); el.className = 'mock-win'; el.id = 'win-' + w.id;
+            el.innerHTML = '<div class="bar"><span class="kind"></span><span class="title"></span></div><div class="body"></div>';
+            desk.insertBefore(el, $('assistant'));
+          }
+          el.querySelector('.kind').textContent = w.kind;
+          el.querySelector('.title').textContent = w.title;
+          el.querySelector('.body').textContent = w.working ? 'A turn is running.' : w.unsaved ? 'Changes not saved.' : w.done ? 'Idle since its last turn.' : 'Open.';
+          el.style.left = w.x + 'px'; el.style.top = w.y + 'px'; el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
+          el.toggleAttribute('data-away', w.away); el.toggleAttribute('data-working', !!w.working); el.toggleAttribute('data-gathered', w.gathered);
+        });
+        $('assistant-undo').disabled = !before;
+      }
+      function keep() { before = JSON.stringify(state); }
+      function say(text) { $('assistant-said').textContent = text; }
+      function shown() { return state.filter(function (w) { return !w.away; }); }
+      function tile(list) {
+        var n = list.length; if (!n) return;
+        var cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), W = desk.clientWidth - 16, H = desk.clientHeight - 16;
+        list.forEach(function (w, i) { w.x = 8 + (i % cols) * (W / cols); w.y = 8 + Math.floor(i / cols) * (H / rows); w.w = W / cols - 8; w.h = H / rows - 8; });
+      }
+      var ASK = {
+        tile: function () { keep(); tile(shown()); say('Tiled the ' + shown().length + ' windows that are showing.'); },
+        active: function () {
+          keep(); var kept = 0;
+          state.forEach(function (w) { w.away = !!w.done && !w.unsaved; if (!w.away) kept++; });
+          tile(shown()); say('Showing the ' + kept + ' windows with work in them. The others are put away, not closed.');
+        },
+        tidy: function () {
+          keep(); var closed = [], left = [];
+          state.forEach(function (w) { if (w.done && !w.unsaved && !w.away) { w.away = true; closed.push(w.title); } else if (w.done && w.unsaved) left.push(w.title); });
+          tile(shown());
+          say('Closed ' + closed.length + ' idle windows' + (left.length ? ' and left ' + left.join(', ') + ' open, since it has changes not saved.' : '.'));
+        },
+        gather: function () {
+          keep(); var n = 0;
+          state.forEach(function (w) { w.gathered = w.about === 'payment'; w.away = !w.gathered; if (w.gathered) n++; });
+          tile(shown()); say('Gathered ' + n + ' windows about the payment work: a chat, a document and a diagram. The rest are put away.');
+        },
+        side: function () {
+          keep(); var docs = shown().filter(function (w) { return w.kind === 'Document'; }), chat = shown().filter(function (w) { return w.kind === 'Chat'; })[0];
+          var W = desk.clientWidth - 16, H = desk.clientHeight - 16;
+          state.forEach(function (w) { w.away = docs.indexOf(w) < 0 && w !== chat; });
+          docs.forEach(function (w, i) { w.x = 8 + i * (W / docs.length); w.y = 8; w.w = W / docs.length - 8; w.h = H * .6 - 8; });
+          if (chat) { chat.x = 8; chat.y = 8 + H * .6; chat.w = W - 8; chat.h = H * .4 - 8; }
+          say('Put the ' + docs.length + ' documents side by side with ' + (chat ? chat.title : 'no chat') + ' under them.');
+        }
+      };
+      function understand(text) {
+        var t = text.toLowerCase();
+        if (/side by side|next to each other/.test(t)) return 'side';
+        if (/tile|arrange|grid/.test(t)) return 'tile';
+        if (/payment|everything about|related to|gather/.test(t)) return 'gather';
+        if (/close|tidy|clean|finished/.test(t)) return 'tidy';
+        if (/active|only|working/.test(t)) return 'active';
+        return '';
+      }
+      function offers() {
+        var list = $('assistant-offers'); list.innerHTML = '';
+        [['c3', 'Tax Rule Question finished its turn 20 minutes ago.'], ['c1', 'Payment Retry Rules is still working, 12 minutes now.'], ['d2', 'Meeting Notes.md has changes not saved.']].forEach(function (o) {
+          var li = document.createElement('li'), a = document.createElement('a');
+          a.href = '#'; a.textContent = o[1];
+          a.addEventListener('click', function (e) {
+            e.preventDefault(); keep();
+            state.forEach(function (w) { if (w.id === o[0]) { w.away = false; w.x = 180; w.y = 110; w.w = 420; w.h = 240; } });
+            draw(); desk.insertBefore($('win-' + o[0]), $('assistant')); say('Brought it to the front.');
+          });
+          li.appendChild(a); list.appendChild(li);
+        });
+      }
+      function open(on) { $('assistant').hidden = !on; $('assistant-open').setAttribute('aria-expanded', String(on)); if (on) $('assistant-line').focus(); }
+      $('assistant-open').addEventListener('click', function () { open($('assistant').hidden); });
+      $('assistant-close').addEventListener('click', function () { open(false); });
+      document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && e.code === 'Space') { e.preventDefault(); open($('assistant').hidden); }
+        if (e.key === 'Escape') open(false);
+      });
+      document.querySelectorAll('[data-ask]').forEach(function (b) { b.addEventListener('click', function () { ASK[b.dataset.ask](); draw(); }); });
+      $('assistant-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = $('assistant-line').value.trim(); if (!text) return;
+        var what = understand(text);
+        if (what) { ASK[what](); draw(); } else say('I can arrange windows, gather what belongs together, tidy up, and say what changed. I cannot do that one.');
+        $('assistant-line').value = '';
+      });
+      $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; draw(); say('Put back as it was.'); });
+      $('mock-reset').addEventListener('click', function () { fresh(); draw(); offers(); say('Nothing asked yet.'); });
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+      });
+      fresh(); draw(); offers();
+    })();
+  </script>
+</body>
+</html>
