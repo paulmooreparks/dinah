@@ -29,7 +29,7 @@ func TestDinahProfile(t *testing.T) {
 		BusPort:           47615,
 		AppletServer:      "dinah-applets",
 		DefaultProvider:   "devin",
-		Providers:         []string{"devin", "codex", "claude", "ollama"},
+		Providers:         []string{"devin", "codex", "claude", "antigravity", "ollama"},
 		DefaultTheme:      "clear-chime",
 		Updater:           UpdaterInstalled,
 

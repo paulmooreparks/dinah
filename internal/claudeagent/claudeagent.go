@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"studio/internal/acp"
+	"studio/internal/acpprefix"
 )
 
 // Package and Version are the adapter release Dinah runs and is tested
@@ -550,54 +551,12 @@ func (p prefixHandler) Request(ctx context.Context, method string, params json.R
 	return p.h.Request(ctx, method, params)
 }
 
-func add(id string) string {
-	if strings.HasPrefix(id, Prefix) {
-		return id
-	}
-	return Prefix + id
-}
+func add(id string) string { return acpprefix.Add(Prefix)(id) }
 
-func strip(id string) string { return strings.TrimPrefix(id, Prefix) }
+func strip(id string) string { return acpprefix.Strip(Prefix)(id) }
 
-// rewrite applies change to every "sessionId" string in a JSON value,
-// however deep, and to every "subagentSessionId", which the ACP subagent
-// RFD's subagent_spawned and subagent_state_update use for a child session
-// whose own updates then carry it as their "sessionId". It returns the
-// value as JSON. Numbers keep their text.
+// rewrite applies change to every session ID in a JSON value
+// (acpprefix.Rewrite, which Antigravity's adapter uses too).
 func rewrite(v any, change func(string) string) (json.RawMessage, error) {
-	data, ok := v.(json.RawMessage)
-	if !ok {
-		var err error
-		if data, err = json.Marshal(v); err != nil {
-			return nil, err
-		}
-	}
-	if len(data) == 0 || (!bytes.Contains(data, []byte(`"sessionId"`)) && !bytes.Contains(data, []byte(`"subagentSessionId"`))) {
-		return data, nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	var tree any
-	if err := dec.Decode(&tree); err != nil {
-		return nil, err
-	}
-	walk(tree, change)
-	return json.Marshal(tree)
-}
-
-func walk(v any, change func(string) string) {
-	switch x := v.(type) {
-	case map[string]any:
-		for k, child := range x {
-			if s, ok := child.(string); ok && (k == "sessionId" || k == "subagentSessionId") {
-				x[k] = change(s)
-				continue
-			}
-			walk(child, change)
-		}
-	case []any:
-		for _, child := range x {
-			walk(child, change)
-		}
-	}
+	return acpprefix.Rewrite(v, change)
 }

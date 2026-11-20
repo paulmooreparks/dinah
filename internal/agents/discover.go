@@ -82,6 +82,10 @@ func executablesIn(name string, workspaces []string, searchPath string) []string
 			candidates = append(candidates, filepath.Join(os.Getenv("ProgramFiles"), "nodejs", "node.exe"))
 		case "codex":
 			candidates = append(candidates, filepath.Join(os.Getenv("APPDATA"), "npm", "codex.cmd"))
+		case "agy":
+			// Antigravity's install script puts its command line here and
+			// leaves the folder off the search path of running programs.
+			candidates = append(candidates, filepath.Join(os.Getenv("LOCALAPPDATA"), "agy", "bin", "agy.exe"))
 		}
 	}
 	for _, candidate := range candidates {

@@ -159,6 +159,15 @@ var Registry = map[string]Row{
 			Source: "Anthropic's vision guide allows up to 600 images in one API request, and 100 for models with a 200k-token context window. When a request has more than 20 images, any image over 2000 px on a side is refused, and images sent in earlier turns count toward the 20. {product} reduces any picture over 2000 px on its longer side before Claude sees it.",
 			URL:    "https://platform.claude.com/docs/en/build-with-claude/vision"},
 		UsageNote: "Claude's plan limits cannot be read by {product}; see your usage in Claude Code or at claude.ai, or in the Claude Console for an API key."},
+	// Antigravity is Google's command line for Gemini. Its protocol server
+	// says at initialize that it takes pictures, and it has no operation
+	// that deletes a session, so removing a chat hides it.
+	"antigravity": {Name: "Antigravity", BudgetUnit: "tokens", ImageInput: "initialize", Removal: "hides", Usage: "none", Executable: "Antigravity", ChooseExecutable: true,
+		SessionPrefix: "antigravity:",
+		// A conversation's window is about a million tokens; 400,000 characters is a tenth of it.
+		HandoffChars: 400_000,
+		FileLimit:    FileLimit{Source: "Antigravity's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Antigravity's error if it refuses a file."},
+		UsageNote:    "Antigravity's plan limits cannot be read by {product}; see your usage in Antigravity itself."},
 	"ollama": {Name: "Ollama", BudgetUnit: "tokens", JudgeLocal: true, RequestUsage: true, ImageInput: "adapter", Removal: "deletes", Usage: "none", SessionPrefix: "ollama:", ManagedServers: true, OwnPreferences: true,
 		// think belongs to each chat request, and an agent turn can make several.
 		EffortChange: "next-request",

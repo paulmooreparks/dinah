@@ -29,10 +29,10 @@ import (
 // fell without the list being lowered, so each step deletes its own lines and
 // the list shows how much is left.
 
-var providerIDs = []string{"devin", "codex", "claude", "ollama"}
+var providerIDs = []string{"devin", "codex", "claude", "antigravity", "ollama"}
 
 // adapterDirs are each provider's own code: the adapters.
-var adapterDirs = []string{"internal/claudeagent", "internal/codexagent", "internal/ollamaagent", "internal/agents"}
+var adapterDirs = []string{"internal/claudeagent", "internal/codexagent", "internal/ollamaagent", "internal/antigravityagent", "internal/agents"}
 
 // ownFileProvider is the provider a file belongs to when it is named
 // provider_<id>.go in the window, or judge_<id>.go in the judgement package, for
