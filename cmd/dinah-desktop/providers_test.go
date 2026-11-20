@@ -195,7 +195,19 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	// up to thirty seconds with the pause record's lock held, and then wrote
 	// its record into the next test's folder, which made the pause tests fail
 	// most times they ran one after another (found 20 November 2026).
-	t.Cleanup(a.resuming.Wait)
+	// So is a restart that is still waiting for the chats to finish: its wait
+	// went on after its test, saw no chat working once the test's were closed,
+	// and wrote the pause record of whichever test was running by then
+	// (found 20 November 2026, when a later test lost its carry-on message
+	// two runs in three). The wait is ended here and waited for.
+	t.Cleanup(func() {
+		a.updMu.Lock()
+		if a.update != nil {
+			a.update.pending, a.update.pausing = false, false
+		}
+		a.updMu.Unlock()
+		a.resuming.Wait()
+	})
 	return a, c
 }
 

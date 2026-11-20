@@ -386,7 +386,11 @@ func (a *App) requestRestart(now, pause bool) error {
 		return nil
 	}
 	if !already {
-		go a.restartWhenIdle()
+		a.resuming.Add(1)
+		go func() {
+			defer a.resuming.Done()
+			a.restartWhenIdle()
+		}()
 	}
 	return nil
 }
