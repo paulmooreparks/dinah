@@ -59,6 +59,10 @@
 .judgement-detail .judgement-detail-title { margin: 0; }
 .judgement-field .judgement-value { margin: 0; padding: var(--space-2); background: var(--surface-alt); border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; }
 .judgement-correct .form-input { max-width: 320px; }
+.judgement-correct .form-help { margin: 0; }
+.judgements-day-note { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-block: var(--space-2); }
+.judgements-day-note .form-help { margin: 0; min-inline-size: 0; }
+.judgements-day-note .btn { flex: none; }
 
 #judgements-card .judgement-kind { padding-block: var(--space-2); }
 #judgements-card .judgement-kind-name { font-weight: 600; }

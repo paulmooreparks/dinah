@@ -323,6 +323,29 @@
     sideHead.appendChild(node('h3', 'card-subtitle', 'Decisions'));
     sideHead.appendChild(bar);
     side.appendChild(sideHead);
+    /* Which days the list has is said above it, always. Pressing a day in the
+       graph limits the list to that day, the choice is kept with the window,
+       and the graph can be scrolled out of sight, so a list limited days ago
+       looked like a list that had stopped being brought up to date (Paul,
+       20 November 2026: the page did not show the most recent judgements).
+       The button is always there, and is disabled when no day is chosen. */
+    var dayNote = node('div', 'judgements-day-note');
+    var dayWords = node('span', 'form-help', 'Every day, newest first.');
+    var dayClear = node('button', 'btn btn-sm', 'Show Every Day');
+    dayClear.type = 'button'; dayClear.disabled = true;
+    dayClear.addEventListener('click', function () {
+      if (!selectedDay) return;
+      selectedDay = null; pages = 1; chosenId = 0;
+      tell(); loadGraph(); loadRecords(true);
+    });
+    dayNote.append(dayWords, dayClear);
+    side.appendChild(dayNote);
+    function drawDayNote() {
+      var words = selectedDay ? 'Only ' + selectedDay.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) + '.' : 'Every day, newest first.';
+      if (dayWords.textContent !== words) dayWords.textContent = words;
+      dayClear.disabled = !selectedDay;
+      dayClear.title = selectedDay ? 'Show the decisions of every day' : 'The list already shows every day.';
+    }
     var listWrap = node('div', 'judgements-list');
     side.appendChild(listWrap);
     var more = node('button', 'btn btn-sm judgements-more', 'More');
@@ -513,6 +536,7 @@
     }
     function loadRecords(reset) {
       var epoch = ++request;
+      drawDayNote();
       var filter = { limit: 50 };
       if (filters.kind) filter.kind = filters.kind;
       if (filters.used) filter.used = filters.used;
@@ -589,19 +613,23 @@
       if (r.correctedAt) {
         detail.appendChild(field('Your Correction', r.correction + ', ' + whenFull(r.correctedAt)));
       } else if (kind.correctable) {
-        var box = node('div', 'judgement-correct hstack gap-3 align-center');
-        var button = node('button', 'btn btn-sm', 'Correct…');
-        button.type = 'button';
+        /* A correction is the person's own answer in place of the judge's. It
+           is put where the answer was used, as a chat is renamed, and kept
+           with the record, where it counts as a decision the judge got wrong.
+           The box says so and is there to type in; it used to be behind a
+           button that said only "Correct" (Paul, 20 November 2026). */
+        var box = node('div', 'judgement-correct vstack gap-1');
+        var label = node('label', 'form-label', 'If This Was Wrong, the Right Answer');
+        var line = node('div', 'hstack gap-3 align-center');
         var input = node('input', 'form-input');
-        input.type = 'text'; input.hidden = true;
-        input.setAttribute('aria-label', 'Your correction');
-        var save = node('button', 'btn btn-sm btn-primary', 'Save');
-        save.type = 'button'; save.hidden = true;
+        input.type = 'text'; input.id = 'judgement-correction-' + r.id; label.htmlFor = input.id;
+        var save = node('button', 'btn btn-sm', 'Use This Instead');
+        save.type = 'button';
         var status = node('span', 'form-help', '');
-        button.addEventListener('click', function () { input.hidden = false; save.hidden = false; button.hidden = true; input.focus(); });
+        var help = node('p', 'form-help', 'Your answer takes the place of the judge\u2019s where it was used, and is kept with this record as a decision the judge got wrong.');
         save.addEventListener('click', function () {
           var value = input.value.trim();
-          if (!value) { status.textContent = 'Say what it should have been.'; return; }
+          if (!value) { status.textContent = 'Type what it should have been.'; input.focus(); return; }
           save.disabled = true;
           Promise.resolve(app().CorrectJudgement(r.id, value)).then(function (fresh) {
             Object.assign(r, fresh);
@@ -612,7 +640,8 @@
           }).finally(function () { save.disabled = false; });
         });
         input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save.click(); } });
-        box.append(button, input, save, status);
+        line.append(input, save, status);
+        box.append(label, line, help);
         detail.appendChild(box);
       }
     }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -66,5 +67,36 @@ func TestTheStartingBudgetFollowsWhatACallCosts(t *testing.T) {
 		if offer.Limit != nil && *offer.Limit%(judgementStartCalls*7) != 0 {
 			t.Fatalf("the budget is not a week of calls: %+v", offer)
 		}
+	}
+}
+
+// A change event has everything the state has, so that what the page shows
+// after an event is what it shows after reading the state. The chosen judge
+// was missing from it, and the flyout then said that none was chosen.
+func TestAJudgementChangeEventHasTheWholeState(t *testing.T) {
+	a, _, _ := judgementApp(t)
+	var event map[string]any
+	a.sink = func(name string, data any) {
+		if name == "judgements:changed" {
+			raw, _ := json.Marshal(data)
+			event = nil
+			_ = json.Unmarshal(raw, &event)
+		}
+	}
+	a.emitJudgementsChanged()
+	st, err := a.JudgementState()
+	if err != nil || event == nil {
+		t.Fatalf("no event: %v", err)
+	}
+	raw, _ := json.Marshal(st)
+	var state map[string]any
+	_ = json.Unmarshal(raw, &state)
+	for key := range state {
+		if _, ok := event[key]; !ok {
+			t.Errorf("the change event has no %q, which the state has", key)
+		}
+	}
+	if event["setup"] == nil {
+		t.Error("the change event has no first-start question although the state is the question")
 	}
 }

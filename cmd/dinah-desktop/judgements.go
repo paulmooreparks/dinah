@@ -621,6 +621,10 @@ func (a *App) emitJudgementsChanged() {
 	a.emit("judgements:changed", sessionhost.Stamp(map[string]any{
 		"state": st.State, "why": st.Why, "calls": st.Calls, "fallbacks": st.Fallbacks, "streak": st.Streak,
 		"warnStreak": st.WarnStreak, "latest": st.Latest, "warnings": st.Warnings, "unseen": st.Unseen, "paused": st.Paused, "budget": st.Budget, "pool": st.Pool, "calibration": st.Calibration,
+		// The judge that is chosen and the first-start question go with every
+		// change. They were left out, so after any change the flyout said no
+		// judge was chosen although one was (Paul, 20 November 2026).
+		"provider": st.Provider, "model": st.Model, "setup": st.Setup,
 	}, st.StateGen, st.StateVer))
 }
 

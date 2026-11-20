@@ -52,7 +52,7 @@ const { launch } = require('./lib/page');
     // A price the provider says is shown beside its model, and a model with none is listed by its name alone.
     await settings.locator('#judgement-model option', { hasText: '$5 / MTok In' }).first().waitFor({ state: 'attached' });
     const priced = (await settings.locator('#judgement-model option').allTextContents()).map(t => t.trim());
-    ok('a model is listed with the price its provider says', priced.some(t => t === 'opus-max (Claude Code), $5 / MTok In · $25 / MTok Out') && priced.some(t => t === 'sonnet-max (Claude Code)'), JSON.stringify(priced));
+    ok('a model is listed with the price its provider says', priced.some(t => t === 'opus-max, $5 / MTok In · $25 / MTok Out') && priced.some(t => t === 'sonnet-max'), JSON.stringify(priced));
     ok('and the list is as wide as it was', Math.abs((await settings.locator('#judgement-model').boundingBox()).width - modelWidth) < 0.5);
     ok('and the note says in its words what its calls are', /Each call starts a session and uses your plan/.test(await settings.locator('#judgement-provider-note').textContent()));
     // Choosing its model is confirmed with the measured cost, Cancel first.
@@ -60,7 +60,7 @@ const { launch } = require('./lib/page');
     await settings.locator('#judgement-model').selectOption('opus-max');
     const conf = p.locator('dialog.judgement-model-confirm[open]');
     await conf.waitFor();
-    ok('the cost is confirmed first, in numbers, with the calls it rests on', /A judgement on Claude Code has cost about 41,000 tokens a call \(the median of 3 calls\)/.test(await conf.textContent()) && /No budget is set/.test(await conf.textContent()), (await conf.textContent()).slice(0, 400));
+    ok('the cost is confirmed first, in numbers, with the calls it rests on', /A judgement on Claude Code has cost about 41,000 tokens a call \(the median of the latest 3 calls\)/.test(await conf.textContent()) && /No budget is set/.test(await conf.textContent()), (await conf.textContent()).slice(0, 400));
     await t.shot('judgements-hosted-confirm');
     ok('Cancel comes first, Use last', (await conf.locator('.dialog-actions button').first().textContent()) === 'Cancel' && /Use Claude Code/.test(await conf.locator('.dialog-actions .btn-primary').textContent()));
     await conf.getByRole('button', { name: 'Cancel' }).click();

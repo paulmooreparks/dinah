@@ -113,9 +113,13 @@ const { settled, settledCount } = require('./lib/settled');
     await p.waitForFunction(() => { const a = __recordArgs[__recordArgs.length - 1]; return a.kind === 'chat-title' && !a.used; });
     ok('the kind filter narrows it to the titles', (await rows.count()) === 26, String(await rows.count()));
     // A bar filters the list to its day, pressed as its state says.
+    ok('before a day is chosen the list says it has every day, and the button is there and disabled', /Every day, newest first/.test(await win.locator('.judgements-day-note .form-help').textContent()) && await win.locator('.judgements-day-note button').isDisabled());
     await todaybar.click();
     await p.waitForFunction(() => { const a = __recordArgs[__recordArgs.length - 1]; return !!a.from && !!a.to; });
     ok('pressing a bar filters the list to its day and stays pressed', (await todaybar.getAttribute('aria-pressed')) === 'true' && (await rows.count()) === 4, String(await rows.count()));
+    // The list says which day it is limited to, above it, with the way back; a list limited days ago looked like one that had stopped being brought up to date (Paul, 20 November 2026).
+    const note = win.locator('.judgements-day-note');
+    ok('the list says it has one day only and offers every day', /^Only /.test(await note.locator('.form-help').textContent()) && await note.getByRole('button', { name: 'Show Every Day' }).isEnabled(), await note.textContent());
     const dayBefore = await p.evaluate(() => ({ query: __recordArgs[__recordArgs.length - 1], ids: Array.from(document.querySelectorAll('.judgements-list [data-judgement]'), n => n.dataset.judgement) }));
     await p.reload();
     await t.waitReady();
@@ -172,9 +176,10 @@ const { settled, settledCount } = require('./lib/settled');
       const selected = win.querySelector('.judgements-list a[aria-current="true"]');
       return !!detail && !!selected && kindSel && kindSel.value === 'chat-title';
     }));
-    await detail.locator('button', { hasText: /^Correct/ }).click();
-    await detail.getByLabel('Your correction').fill('A Better Title');
-    await detail.getByRole('button', { name: 'Save' }).click();
+    // The box is there to type in, with words that say what a correction does; it used to be behind a button that said only "Correct" (Paul, 20 November 2026).
+    ok('the correction box says what it is for', /takes the place of the judge/.test(await detail.locator('.judgement-correct').textContent()));
+    await detail.getByLabel('If This Was Wrong, the Right Answer').fill('A Better Title');
+    await detail.getByRole('button', { name: 'Use This Instead' }).click();
     await p.waitForFunction(() => __corrected.length === 1);
     await detail.getByText('Your Correction').waitFor();
     ok('a correction is saved to the record and shown with it', JSON.stringify(await p.evaluate(() => __corrected)) === JSON.stringify([[51, 'A Better Title']]) && /A Better Title/.test(await detail.textContent()) && await win.locator('[data-judgement="51"] .badge', { hasText: 'Corrected' }).count() === 1);
