@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"studio/internal/acp"
+	"studio/internal/claudeagent"
+	"studio/internal/codexagent"
 	"studio/internal/judge"
 	"studio/internal/providers"
 	"studio/internal/sessionhost"
@@ -208,7 +210,17 @@ func (j *acpJudge) chooseModel(ctx context.Context, conn agentConnection, ns acp
 func newJudgeSession(ctx context.Context, conn agentConnection, sessions *sessionhost.JudgeSessions, dir string) (acp.NewSessionResult, error) {
 	var ns acp.NewSessionResult
 	sessions.Begin()
-	if err := conn.Call(ctx, "session/new", acp.NewSessionParams{Cwd: dir, McpServers: []any{}}, &ns); err != nil {
+	var params any = acp.NewSessionParams{Cwd: dir, McpServers: []any{}}
+	// Codex gives every thread texts and tools that a one-question call has
+	// no use for and pays for all the same (codexagent/bare.go).
+	switch conn.(type) {
+	case *codexagent.Conn:
+		params = codexagent.SessionParams{LoadSessionParams: acp.LoadSessionParams{Cwd: dir, McpServers: []any{}}, Bare: true}
+	case *claudeagent.Conn:
+		// Claude Code does the same (claudeagent/bare.go).
+		params = claudeNewSession{NewSessionParams: acp.NewSessionParams{Cwd: dir, McpServers: []any{}}, Meta: claudeagent.BareMeta()}
+	}
+	if err := conn.Call(ctx, "session/new", params, &ns); err != nil {
 		sessions.Abandon()
 		return ns, err
 	}

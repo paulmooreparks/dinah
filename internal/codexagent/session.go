@@ -22,6 +22,11 @@ type SessionParams struct {
 	// Approvals is how far Codex may go without asking the person:
 	// ApprovalsAsk (or empty), ApprovalsWorkspace or ApprovalsFull.
 	Approvals string `json:"dinahApprovals,omitempty"`
+	// Bare starts a thread for one question that is to be answered from the
+	// question alone, as a judgement is: with instructions of its own, kept
+	// in memory only, and without the tools and the texts Codex gives every
+	// thread (bare.go).
+	Bare bool `json:"dinahBare,omitempty"`
 }
 
 // How far Codex may go without asking the person, the choice in Settings.
@@ -361,6 +366,9 @@ func (c *Conn) openWithReceipt(ctx context.Context, method string, params, out a
 	rpcMethod := "thread/start"
 	if method == "session/new" {
 		q["ephemeral"] = false
+	}
+	if method == "session/new" && p.Bare {
+		c.bare(ctx, q, config)
 	}
 	if method == "session/load" {
 		id, err := native(p.SessionID)
