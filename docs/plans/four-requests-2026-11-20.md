@@ -76,3 +76,40 @@ Decisions: question 6.
 4. Should the assistant be reachable only from the tray and a key, or also have a place in the window, such as a line in the title bar's launcher?
 5. Should the guided set-up start by itself at the first start, or be offered as a button on the start page with the form of today kept beside it?
 6. Which Gemini do you mean, and which can you sign in to: the Gemini CLI with a Code Assist licence, the Antigravity CLI, or an API key?
+
+## Paul's answers of 20 November 2026, and what follows from them
+
+**Judgements ask first.** At the first start the product asks once whether judgements may run on the default provider and model, with what they do and what they may cost in one short paragraph, and Yes, Not Now and Settings as the answers. It chooses nothing by itself.
+
+**The starting budget, and a person who has just installed.** Paul agreed to base the budget on real use and asked what a new person gets, who has no use yet. A new person gets a figure that ships with the product, counted in judgement calls a day and not in tokens, since a call is what the person can picture. The product turns it into the provider's own unit. After two weeks of the person's own use the Judgements page offers a figure from their own records, and changes nothing by itself.
+
+The records of the last three weeks show something that has to be dealt with first. A judgement made through Codex cost about 33,000 tokens a call, whatever was asked: a suggested reply 33,600 on average, a summary 28,200, a chat's title 11,500. The question itself is capped at 8,000 characters, so nearly all of that is what the agent program sends with every request of its own accord. The 52 suggested replies of one day came to about 1.7 million tokens. Through Ollama a call cost a few hundred tokens. Devin reported no cost at all for its calls, so nothing is known there. A default that is on for everybody must not cost that much, so before judgements are offered at first start I would find out what a provider's smallest documented request is and use it for judging, and measure again.
+
+**The window assistant is reached from the tray and a key only.**
+
+**What the assistant could do.** Paul asked for ideas, unguided and guided, and said this is where the product shows that the model is part of it.
+
+Unguided, where the person says what they want:
+
+- Arrange: "tile the active windows", "put the two documents side by side and the chat under them", "give me the layout I had this morning".
+- Gather by meaning: "show everything about the payment work", across chats, documents, diagrams and files, whatever they are titled. The assistant reads titles, workspaces and the first lines of what is open, and brings the set to the front as a named group that can be dismissed as one.
+- Find: "where did I ask about the tax rule last week?", which opens the chat at that message.
+- Tidy: "close what is finished", which closes idle chats whose last turn ended and documents with nothing unsaved, and says what it left open and why.
+- Ask about the window: "why is this chat waiting?", "what is using my allowance today?", "which chats have a question for me?".
+- Set: "make the text larger", "always open chats maximised", "stop notifying me about finished turns", each answered with the setting it changed and Undo.
+- Do across chats: "ask every chat in this workspace to commit and stop", "pause everything but this chat".
+
+Guided, where the assistant offers:
+
+- A morning line when the window starts: the three things that changed since the person last looked, such as a chat that finished, a question waiting and a document someone edited, each a link.
+- Focus: when more than a set number of windows are open and the person keeps working in three, it offers to put the rest away as a group, once, and remembers a No.
+- Stalled work: a chat that has waited for an answer for an hour is offered with its question in one line.
+- Naming: a group of windows the person has kept together for a while is offered a name and a place in the tray, so it can be brought back as one.
+- Teaching: the first time the person does by hand, three times, something that has a key or a command, the assistant says so once.
+- End of day: an offer to write down where each working chat stands, as a note in the workspace.
+
+Every offer appears in the assistant's own place in the tray and never over the person's work, each kind can be turned off where it appears, and none of them acts without a Yes.
+
+**The guided set-up starts by itself and can be cancelled.** Paul asked what today's form is. There is none: a new person lands in the default layout with a New Chat pane, and Settings is where everything is chosen, unprompted. So the guide replaces nothing. It starts at the first start, Cancel leaves the defaults of today, and Help starts it again.
+
+**Gemini is the Antigravity CLI.** Paul asked for whichever is newest, has support ahead of it, and is most like the other integrations. That is Antigravity. Google's developer blog said on 19 May 2026 that the Antigravity CLI is available to everyone and that the Gemini CLI stops serving Google AI Pro and Ultra on 18 June 2026, and the Gemini CLI's README says it is not optimised for Gemini 4 and later. The Antigravity CLI documents `agy acp`, an Agent Client Protocol server on standard input and output that reuses the person's cached sign-in, which is how Devin is hosted. It also documents continuing a conversation, a list of models with an effort setting, MCP servers, lifecycle hooks, and approval modes. It installs on Windows by a script into the person's own folder. Not found in its documentation, and to be read from the installed program: whether it sends its thinking, whether it takes pictures, and whether its protocol server is called stable. Its repository shows no licence, which matters only if any of it were to be shipped with the product, and nothing would be.
