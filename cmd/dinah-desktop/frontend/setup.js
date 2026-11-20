@@ -84,9 +84,11 @@
         choices: offer.uses.map(function (u) { return { id: u.id, label: u.label, value: u.opens }; }) });
       if (asking && asking.choices.length) qs.push({ id: 'ask', setting: 'Before ' + agentName() + ' acts', ask: 'How much should ' + agentName() + ' ask you before it acts?',
         choices: asking.choices.map(function (c) { return { id: c.id, label: c.label, value: c.label }; }) });
-      var folders = [{ id: 'pick', label: values.folder ? values.folder : 'Choose a Folder…', value: values.folder || '' }];
+      /* The folder chosen is made a workspace and put in front (ApplySetup), and
+         the question and the review say so. */
+      var folders = [{ id: 'pick', label: values.folder ? 'Make a workspace of ' + values.folder : 'Choose a Folder…', value: values.folder ? 'A workspace is made of ' + values.folder : '' }];
       folders.push(offer.workspace ? { id: 'keep', label: 'Keep ' + offer.workspace, value: 'No change, ' + offer.workspace } : { id: 'none', label: 'Not now', value: 'None yet' });
-      qs.push({ id: 'folder', setting: 'Workspace', ask: 'Which folder has your work?', choices: folders });
+      qs.push({ id: 'folder', setting: 'Workspace', ask: 'Which folder has your work? ' + productName() + ' makes it ' + (offer.workspace ? 'a workspace and puts it in front.' : 'your first workspace.'), choices: folders });
       var names = [];
       if (offer.personName) names.push({ id: 'keep', label: offer.personName + ', as now', value: 'No change, ' + offer.personName });
       names.push({ id: 'account', label: offer.accountName + ', from this computer’s account', value: offer.accountName });
