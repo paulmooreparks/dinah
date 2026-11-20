@@ -130,9 +130,17 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => { window.__a.plan = () => ({ do: 'all', windows: [], say: 'Shown.' }); });
     await p.evaluate(() => window.pudlWindows.minimize(window.pudlWindows.state().open.find(k => /^item-/.test(k))));
     const tried = tasks.locator('.assistant-tasks-status');
+    // Something read in the popover does not enable Run here.
+    await p.evaluate(() => window.dinahAssistant.preview('show every window again'));
+    ok('Run in the window is disabled until Try It is pressed there', await tasks.getByRole('button', { name: 'Run', exact: true }).isDisabled() && await tasks.getByRole('button', { name: 'Undo', exact: true }).isDisabled() && await p.locator('#assistant-run').isEnabled());
     await tasks.getByRole('button', { name: 'Try It' }).click();
     await p.waitForFunction(() => /Press Run to do it\.$/.test(document.querySelector('.assistant-tasks-status').textContent));
     ok('Try It says what the words would do, here, and does nothing', /^Will show all \d+ windows again\. Nothing is done yet\./.test(await tried.textContent()) && Object.keys((await layout()).min).length === 1 && !(await menu.evaluate(el => el.matches(':popover-open'))), await tried.textContent());
+    await tasks.getByLabel('What the Assistant Is Asked').pressSequentially(' ');
+    ok('changing the words disables Run until Try It is pressed again', await tasks.getByRole('button', { name: 'Run', exact: true }).isDisabled());
+    await tasks.getByRole('button', { name: 'Try It' }).click();
+    await tasks.getByRole('button', { name: 'Run', exact: true }).waitFor({ state: 'visible' });
+    await p.waitForFunction(() => document.activeElement && document.activeElement.textContent === 'Run');
     await tasks.getByRole('button', { name: 'Run', exact: true }).click();
     await p.waitForFunction(() => /showing again\.$/.test(document.querySelector('.assistant-tasks-status').textContent));
     ok('Run, in the window, does it', Object.keys((await layout()).min).length === 0, await tried.textContent());

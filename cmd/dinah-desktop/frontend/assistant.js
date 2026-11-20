@@ -413,7 +413,7 @@
       rows.replaceChildren.apply(rows, list.map(function (t, i) {
         var row = node('div', 'md-row'), b = node('button', 'md-item', t.name || 'New Task');
         b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === chosen));
-        b.addEventListener('click', function () { chosen = i; draw(); });
+        b.addEventListener('click', function () { chosen = i; untry(); draw(); });
         row.appendChild(b);
         return row;
       }));
@@ -496,13 +496,29 @@
          assistant, does it. */
       preview(w).then(function (found) {
         if (disposed) return;
+        tried = found.can ? pending : null;
         note(found.will + (found.can ? ' Nothing is done yet. Press Run to do it.' : ''));
+        tryControls();
         if (found.can) runIt.focus();
       });
     });
-    runIt.addEventListener('click', function () { run().then(function (said) { if (!disposed && said) { note(said); if (!undoIt.disabled) undoIt.focus(); } }); });
+    runIt.addEventListener('click', function () {
+      if (!tried || tried !== pending) return;
+      tried = null;
+      run().then(function (said) { if (disposed || !said) return; ranHere = undoable; note(said); tryControls(); if (!undoIt.disabled) undoIt.focus(); });
+    });
     undoIt.addEventListener('click', function () { var done = undo(); if (done) done.then(function () { if (!disposed) note($('assistant-said').textContent); }); });
-    function tryControls() { runIt.disabled = busy || !pending; undoIt.disabled = busy || !undoable; tryIt.disabled = busy || !list[chosen] || saving; }
+    /* Run here is for what Try It read here, for the words as they are,
+       and Undo for what Run did here. What the popover read or did enables
+       neither (Paul, 20 November 2026: Run was enabled before Try It). */
+    var tried = null, ranHere = null;
+    function untry() { if (tried) { tried = null; tryControls(); } }
+    words.addEventListener('input', untry);
+    function tryControls() {
+      runIt.disabled = busy || !tried || tried !== pending;
+      undoIt.disabled = busy || !ranHere || ranHere !== undoable;
+      tryIt.disabled = busy || !list[chosen] || saving;
+    }
     controlViews.push(tryControls);
     taskViews.push(fromEngine);
     fromEngine();
