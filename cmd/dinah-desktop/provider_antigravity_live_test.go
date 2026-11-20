@@ -43,6 +43,17 @@ func TestLiveAntigravityChatAndReopen(t *testing.T) {
 	if end.err != nil || end.stopReason != "end_turn" || !strings.Contains(strings.ToLower(words), "noted") {
 		t.Fatalf("the first turn: %q %s %v", words, end.stopReason, end.err)
 	}
+	// The chat is in the list of its workspace's chats, and the list is taken:
+	// the command line lists every folder's sessions, which the host refuses
+	// unless the adapter keeps the asked folder's only.
+	listed, err := a.sessionsLifecycle().ListProvider(ws, antigravityID)
+	found := false
+	for _, row := range listed {
+		found = found || row.ID == s.ID()
+	}
+	if err != nil || !found {
+		t.Fatalf("listing the workspace's Antigravity chats: %d rows, found %v, %v", len(listed), found, err)
+	}
 	a.AgentStop(antigravityID)
 	if _, err := a.OpenSessionAt(ws, s.ID()); err != nil {
 		t.Fatalf("reopening the chat: %v", err)
