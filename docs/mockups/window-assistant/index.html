@@ -44,6 +44,7 @@
     .assistant .md-section-label .btn { margin-inline-start: auto; }
     .assistant-tasks { block-size: 9.5rem; overflow: auto; border: 1px solid var(--border); background: var(--surface); }
     .assistant-tasks .md-row .md-item { padding-block: var(--space-1); }
+    .assistant-tasks .md-item[aria-selected="true"] { font-weight: 600; }
     .assistant-offers { block-size: 4.6rem; overflow: auto; }
     .assistant-offers ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
     .assistant-result { block-size: 4lh; overflow: auto; font-size: var(--text-sm); }
@@ -73,7 +74,7 @@
     <h1>The window assistant</h1>
     <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
     <button type="button" class="btn btn-sm" id="mock-reset">Start Over</button>
-    <span class="mock-tag">Second mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
+    <span class="mock-tag">Third mockup, 20 November 2026. Press Assistant in the bar, or Ctrl+Space.</span>
   </header>
 
   <div class="mock-desk" id="desk">
@@ -115,19 +116,23 @@
       </div>
       <form class="assistant-ask" id="assistant-form">
         <input class="form-input" id="assistant-line" type="text" autocomplete="off" aria-label="Ask the assistant" placeholder="Find, gather, arrange or tidy, in your own words.">
-        <button class="btn btn-primary" type="submit">Ask</button>
+        <button class="btn" type="submit">Ask</button>
       </form>
       <div class="md-section-label"><span>Tasks</span><button type="button" class="btn btn-sm" id="assistant-edit">Edit Tasks…</button></div>
-      <div class="assistant-tasks" id="assistant-tasks" role="group" aria-label="Tasks"></div>
+      <div class="assistant-tasks" id="assistant-tasks" role="listbox" aria-label="Tasks"></div>
       <div class="md-section-label"><span>Since You Last Looked</span></div>
       <div class="assistant-offers"><ul id="assistant-offers"></ul></div>
-      <div class="md-section-label"><span>What Was Done</span></div>
+      <div class="md-section-label"><span>What It Does</span></div>
       <div class="assistant-result" role="status">
-        <p id="assistant-said">Nothing asked yet.</p>
+        <p id="assistant-said"></p>
       </div>
-      <!-- Undo is in the foot, where a popover's buttons are (Paul, 20 November 2026: beside the words it was in a bad spot). -->
+      <!-- Run and Undo are in the foot, where a popover's buttons are. A task
+           or a request is first read, and what it would do is said above.
+           Run does it, and Undo puts the windows back (Paul, 20 November
+           2026: running at once on a press was a bad idea). -->
       <div class="popover-actions">
-        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo the Last Change</button>
+        <button type="button" class="btn btn-sm" id="assistant-undo" disabled>Undo</button>
+        <button type="button" class="btn btn-sm btn-primary" id="assistant-run" disabled>Run</button>
       </div>
     </div>
   </div>
@@ -138,22 +143,24 @@
   </div>
 
   <section class="mock-notes">
-    <h2>What changed from the first mockup</h2>
+    <h2>What changed from the second mockup</h2>
     <ul>
-      <li><strong>Finding by what you say.</strong> "Find all the windows for the pricing work" is the assistant's first job. Here it looks for your words in the stand-in windows' titles; in the product the model reads each window's title, workspace, sources and first lines, so the words need not be in a title. When nothing matches it says so, and never says it cannot look.</li>
-      <li><strong>Tasks are a list that scrolls,</strong> in place of buttons. One press runs a task.</li>
-      <li><strong>Assistant Tasks is a window of its own,</strong> opened with Edit Tasks. A task is a name and the words the assistant is asked. The list starts with a starter set, which you can change, reorder, delete, and restore.</li>
+      <li><strong>Nothing runs on a press.</strong> Pressing a task chooses it, and "What It Does" says what it would do to which windows, by name. Typing a request and pressing Ask does the same.</li>
+      <li><strong>Run does it.</strong> Run is disabled until there is something to run, and again once it has run. After Ask, Run has the focus, so Enter a second time runs what you typed.</li>
+      <li><strong>Undo is beside Run,</strong> in the foot, and puts the windows back as Run found them.</li>
+      <li>A question, such as What Needs Me?, is answered in the same place and has nothing to run.</li>
     </ul>
     <h2>Try</h2>
     <ul>
-      <li>Type "find all the windows for the pricing work", "show everything about the release", or "which windows are about tax?".</li>
-      <li>Type "put the documents side by side and the chat under them", or "close what is finished".</li>
-      <li>Open Edit Tasks, add a task such as "Pricing" asking "find all the windows for the pricing work", save it, and run it from the list.</li>
+      <li>Press Tidy Up, read which windows it would close, then press Run, then Undo.</li>
+      <li>Type "find all the windows for the pricing work", press Enter, read the answer, and press Enter again.</li>
+      <li>Press one task and then another without pressing Run. Nothing moves.</li>
+      <li>Open Edit Tasks and press Try It: it says what the words would do and does nothing.</li>
     </ul>
     <h2>What is the same</h2>
     <ul>
       <li>The assistant is reached from the tray and a key only, and is one popover of one size.</li>
-      <li>Its answer is the thing done and one line that says what it did, with Undo.</li>
+      <li>Tasks are a list that scrolls, and Assistant Tasks is a window of its own with a starter set.</li>
       <li>It can only do what you could do by hand in the window. Closing is limited to idle chats and documents with nothing unsaved.</li>
     </ul>
   </section>
@@ -196,7 +203,6 @@
           node.style.left = w.x + 'px'; node.style.top = w.y + 'px'; node.style.width = w.w + 'px'; node.style.height = w.h + 'px';
           node.toggleAttribute('data-away', w.away); node.toggleAttribute('data-working', !!w.working); node.toggleAttribute('data-gathered', w.gathered);
         });
-        $('assistant-undo').disabled = !before;
       }
       function keep() { before = JSON.stringify(state); }
       function say(text) { $('assistant-said').textContent = text; }
@@ -208,53 +214,88 @@
       }
       var SKIP = { find: 1, all: 1, the: 1, windows: 1, window: 1, 'for': 1, about: 1, work: 1, show: 1, everything: 1, related: 1, to: 1, which: 1, are: 1, is: 1, gather: 1, me: 1, of: 1, on: 1, and: 1, a: 1, my: 1, with: 1, that: 1, open: 1 };
       function topic(text) { return text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w && !SKIP[w]; }); }
-      function gather(words) {
+      var IDLE = 'Choose a task or ask, and what it would do is said here. Nothing happens until you press Run.';
+      var pending = null, picked = -1;
+      function titles(list) { return list.map(function (w) { return w.title; }).join(', '); }
+      function count(n) { return n === 1 ? '1 window' : n + ' windows'; }
+      /* read says what a request would do and gives the function that does
+         it, or no function when there is nothing to do. It changes nothing. */
+      function read(text) {
+        var t = text.toLowerCase(), W = desk.clientWidth - 16, H = desk.clientHeight - 16;
+        if (/side by side|next to each other/.test(t)) {
+          var docs = shown().filter(function (w) { return w.kind === 'Document'; }), chat = shown().filter(function (w) { return w.kind === 'Chat'; })[0];
+          if (!docs.length) return { will: 'No document is showing to put side by side.' };
+          var others = shown().filter(function (w) { return docs.indexOf(w) < 0 && w !== chat; }).length;
+          return { will: 'Will put ' + titles(docs) + ' side by side' + (chat ? ' with ' + chat.title + ' under them' : '') + '.' + (others ? ' Will put the other ' + count(others) + ' away, and close nothing.' : ''),
+            run: function () {
+              state.forEach(function (w) { w.away = docs.indexOf(w) < 0 && w !== chat; });
+              docs.forEach(function (w, i) { w.x = 8 + i * (W / docs.length); w.y = 8; w.w = W / docs.length - 8; w.h = H * .6 - 8; });
+              if (chat) { chat.x = 8; chat.y = 8 + H * .6; chat.w = W - 8; chat.h = H * .4 - 8; }
+              return 'Put ' + titles(docs) + ' side by side' + (chat ? ' with ' + chat.title + ' under them.' : '.');
+            } };
+        }
+        if (/every window|bring everything|show all/.test(t)) {
+          if (!state.some(function (w) { return w.away; })) return { will: 'Every window is showing already.' };
+          return { will: 'Will show all ' + count(state.length) + ' again.', run: function () { state.forEach(function (w) { w.away = false; w.gathered = false; }); tile(shown()); return 'All ' + count(state.length) + ' are showing again.'; } };
+        }
+        if (/waiting for me|needs me|need me/.test(t)) {
+          var waiting = state.filter(function (w) { return w.unsaved || (w.done && w.kind === 'Chat'); });
+          return { will: waiting.length ? count(waiting.length) + ' may need you: ' + waiting.map(function (w) { return w.title + (w.unsaved ? ' (not saved)' : ' (finished)'); }).join(', ') + '.' : 'Nothing is waiting for you.' };
+        }
+        if (/close|tidy|clean/.test(t)) {
+          var finished = state.filter(function (w) { return w.done && !w.unsaved && !w.away; }), left = state.filter(function (w) { return w.done && w.unsaved; });
+          var leaves = left.length ? ' ' + titles(left) + ' stays open, since it has changes not saved.' : '';
+          if (!finished.length) return { will: 'Nothing is finished, so there is nothing to close.' + leaves };
+          return { will: 'Will close ' + count(finished.length) + ': ' + titles(finished) + '.' + leaves,
+            run: function () { finished.forEach(function (w) { w.away = true; }); return 'Closed ' + count(finished.length) + ': ' + titles(finished) + '.' + leaves; } };
+        }
+        if (/only|with work|active/.test(t) && !/about|for the/.test(t)) {
+          var idle = shown().filter(function (w) { return w.done && !w.unsaved; });
+          if (!idle.length) return { will: 'Every window that is showing has work in it.' };
+          return { will: 'Will put away ' + count(idle.length) + ' with no work in them: ' + titles(idle) + '. Nothing will be closed.',
+            run: function () { idle.forEach(function (w) { w.away = true; }); return 'Put away ' + count(idle.length) + ': ' + titles(idle) + '. Nothing is closed.'; } };
+        }
+        if (/tile|arrange|grid/.test(t)) {
+          var n = shown().length;
+          if (!n) return { will: 'No window is showing to tile.' };
+          return { will: 'Will tile the ' + count(n) + ' that are showing.', run: function () { tile(shown()); return 'Tiled the ' + count(n) + ' that are showing.'; } };
+        }
+        var words = topic(text);
+        if (!words.length) return { will: 'Tell me what to find, gather, arrange or tidy.' };
         var match = state.filter(function (w) { var hay = (w.title + ' ' + w.words).toLowerCase(); return words.some(function (x) { return hay.indexOf(x) >= 0; }); });
         var name = words.join(' ');
-        if (!match.length) { say('No open window is about ' + name + '. I looked at the titles and contents of all ' + state.length + '.'); return; }
-        keep();
-        state.forEach(function (w) { w.gathered = match.indexOf(w) >= 0; w.away = !w.gathered; });
-        tile(shown());
-        var kinds = match.map(function (w) { return w.kind.toLowerCase() + ' ' + w.title; });
-        say('Found ' + match.length + ' about ' + name + ': ' + kinds.join(', ') + '. The rest are put away, not closed.');
+        if (!match.length) return { will: 'No open window is about ' + name + '. I looked at the titles and contents of all ' + state.length + '.' };
+        var rest = state.filter(function (w) { return match.indexOf(w) < 0 && !w.away; }).length;
+        return { will: 'Found ' + count(match.length) + ' about ' + name + ': ' + titles(match) + '. Will show them, tiled.' + (rest ? ' Will put the other ' + count(rest) + ' away, and close nothing.' : ''),
+          run: function () {
+            state.forEach(function (w) { w.gathered = match.indexOf(w) >= 0; w.away = !w.gathered; });
+            tile(shown());
+            return 'Showing ' + count(match.length) + ' about ' + name + ': ' + titles(match) + '. The rest are put away, not closed.';
+          } };
       }
+      function buttons() { $('assistant-run').disabled = !pending; $('assistant-undo').disabled = !before; }
+      /* ask reads a request and shows what it would do. Run does it. */
       function ask(text) {
-        var t = text.toLowerCase();
-        if (/side by side|next to each other/.test(t)) {
-          keep(); var docs = shown().filter(function (w) { return w.kind === 'Document'; }), chat = shown().filter(function (w) { return w.kind === 'Chat'; })[0];
-          var W = desk.clientWidth - 16, H = desk.clientHeight - 16;
-          state.forEach(function (w) { w.away = docs.indexOf(w) < 0 && w !== chat; });
-          docs.forEach(function (w, i) { w.x = 8 + i * (W / docs.length); w.y = 8; w.w = W / docs.length - 8; w.h = H * .6 - 8; });
-          if (chat) { chat.x = 8; chat.y = 8 + H * .6; chat.w = W - 8; chat.h = H * .4 - 8; }
-          say('Put the ' + docs.length + ' documents side by side with ' + (chat ? chat.title : 'no chat') + ' under them.');
-        } else if (/every window|bring everything|show all/.test(t)) {
-          keep(); state.forEach(function (w) { w.away = false; w.gathered = false; }); tile(shown()); say('All ' + state.length + ' windows are showing again.');
-        } else if (/waiting for me|needs me|need me/.test(t)) {
-          var waiting = state.filter(function (w) { return w.unsaved || (w.done && w.kind === 'Chat'); });
-          say(waiting.length + ' may need you: ' + waiting.map(function (w) { return w.title + (w.unsaved ? ' (not saved)' : ' (finished)'); }).join(', ') + '.');
-        } else if (/close|tidy|clean|finished/.test(t)) {
-          keep(); var closed = 0, left = [];
-          state.forEach(function (w) { if (w.done && !w.unsaved && !w.away) { w.away = true; closed++; } else if (w.done && w.unsaved) left.push(w.title); });
-          tile(shown());
-          say('Closed ' + closed + ' idle windows' + (left.length ? ' and left ' + left.join(', ') + ' open, since it has changes not saved.' : '.'));
-        } else if (/only|with work|active/.test(t) && !/about|for the/.test(t)) {
-          keep(); var kept = 0;
-          state.forEach(function (w) { w.away = !!w.done && !w.unsaved; if (!w.away) kept++; });
-          tile(shown()); say('Showing the ' + kept + ' windows with work in them. The others are put away, not closed.');
-        } else if (/tile|arrange|grid/.test(t)) {
-          keep(); tile(shown()); say('Tiled the ' + shown().length + ' windows that are showing.');
-        } else {
-          var words = topic(text);
-          if (words.length) gather(words); else say('Tell me what to find, gather, arrange or tidy.');
-        }
-        draw();
+        var found = read(text);
+        pending = found.run || null;
+        say(found.will + (pending ? ' Press Run to do it.' : ''));
+        buttons();
+        return found;
+      }
+      function run() {
+        if (!pending) return;
+        keep();
+        var said = pending();
+        pending = null;
+        say(said); draw(); buttons();
+        $('assistant-undo').focus();
       }
       function drawTasks() {
         var list = $('assistant-tasks'); list.innerHTML = '';
         tasks.forEach(function (t) {
-          var row = el('div', 'md-row'), a = el('a', 'md-item', t.name);
-          a.href = '#'; a.title = 'Asks: ' + t.ask;
-          a.addEventListener('click', function (e) { e.preventDefault(); ask(t.ask); });
+          var row = el('div', 'md-row' + (tasks.indexOf(t) === picked ? ' active' : '')), a = el('a', 'md-item', t.name);
+          a.href = '#'; a.title = 'Asks: ' + t.ask; a.setAttribute('role', 'option'); a.setAttribute('aria-selected', String(tasks.indexOf(t) === picked));
+          a.addEventListener('click', function (e) { e.preventDefault(); picked = tasks.indexOf(t); drawTasks(); ask(t.ask); });
           row.appendChild(a); list.appendChild(row);
         });
         var edit = $('tasks-list'); edit.innerHTML = '';
@@ -282,7 +323,7 @@
       $('task-up').addEventListener('click', function () { if (chosen > 0) { tasks.splice(chosen - 1, 0, tasks.splice(chosen, 1)[0]); chosen--; drawTasks(); } });
       $('task-down').addEventListener('click', function () { if (chosen < tasks.length - 1) { tasks.splice(chosen + 1, 0, tasks.splice(chosen, 1)[0]); chosen++; drawTasks(); } });
       $('task-restore').addEventListener('click', function () { tasks = STARTER.map(function (t) { return Object.assign({}, t); }); chosen = 0; drawTasks(); note('The starter set is back. In the product this asks first, since it replaces your tasks.'); });
-      $('task-try').addEventListener('click', function () { var words = $('task-ask').value.trim(); if (words) { ask(words); note('Asked. The assistant’s answer is in its own place.'); } });
+      $('task-try').addEventListener('click', function () { var words = $('task-ask').value.trim(); if (words) { var found = ask(words); note(found.will + (found.run ? ' Nothing is done yet. Run is in the assistant, in the tray.' : '')); } });
       $('assistant-edit').addEventListener('click', function () { $('tasks-win').hidden = false; });
       $('tasks-close').addEventListener('click', function () { $('tasks-win').hidden = true; });
       function offers() {
@@ -291,9 +332,9 @@
           var li = el('li'), a = el('a', '', o[1]);
           a.href = '#';
           a.addEventListener('click', function (e) {
-            e.preventDefault(); keep();
+            e.preventDefault(); keep(); pending = null;
             state.forEach(function (w) { if (w.id === o[0]) { w.away = false; w.x = 180; w.y = 110; w.w = 420; w.h = 240; } });
-            draw(); desk.insertBefore($('win-' + o[0]), $('tasks-win')); say('Brought it to the front.');
+            draw(); desk.insertBefore($('win-' + o[0]), $('tasks-win')); say('Brought it to the front.'); buttons();
           });
           li.appendChild(a); list.appendChild(li);
         });
@@ -308,16 +349,19 @@
       $('assistant-form').addEventListener('submit', function (e) {
         e.preventDefault();
         var text = $('assistant-line').value.trim(); if (!text) return;
-        ask(text); $('assistant-line').value = '';
+        picked = -1; drawTasks();
+        var found = ask(text); $('assistant-line').value = '';
+        if (found.run) $('assistant-run').focus();
       });
-      $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; draw(); say('Put back as it was.'); });
-      $('mock-reset').addEventListener('click', function () { fresh(); draw(); drawTasks(); offers(); say('Nothing asked yet.'); note(''); });
+      $('assistant-run').addEventListener('click', run);
+      $('assistant-undo').addEventListener('click', function () { if (!before) return; state = JSON.parse(before); before = null; pending = null; draw(); say('Put back as it was.'); buttons(); });
+      $('mock-reset').addEventListener('click', function () { fresh(); pending = null; picked = -1; draw(); drawTasks(); offers(); say(IDLE); buttons(); note(''); });
       $('mock-theme').addEventListener('click', function () {
         var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         this.textContent = dark ? 'Light Theme' : 'Dark Theme';
       });
-      fresh(); draw(); drawTasks(); offers();
+      fresh(); draw(); drawTasks(); offers(); say(IDLE); buttons();
     })();
   </script>
 </body>
