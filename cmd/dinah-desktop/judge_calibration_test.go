@@ -118,6 +118,13 @@ func calibrationApp(t *testing.T) (*App, *calibrationServer) {
 func TestAnAutomaticCalibrationNeverLoadsAModelAndChoosesOne(t *testing.T) {
 	a, cs := calibrationApp(t)
 	a.judging.noAuto = false
+	// No run starts before the person has said yes to the first-start question.
+	a.judgeChatTitle("invented-before-the-answer", "A title that genuinely needs judgement")
+	time.Sleep(200 * time.Millisecond)
+	if a.calibrationState().State == "running" || cs.count("big:cloud") != 0 {
+		t.Fatal("a calibration ran before the person answered the first-start question")
+	}
+	judgementSetupSaidYes(t, a)
 	a.judgeChatTitle("invented-first-judgement", "A title that genuinely needs judgement")
 	waitFor(t, "the calibration", func() bool {
 		s, _, _ := a.judgementSettings()

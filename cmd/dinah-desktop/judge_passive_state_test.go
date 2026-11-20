@@ -31,6 +31,7 @@ func TestEnabledJudgementStateReadsStayPassiveUntilFirstRealCall(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	t.Setenv("OLLAMA_HOST", srv.URL)
+	judgementSetupSaidYes(t, a)
 	if _, err := a.JudgementState(); err != nil {
 		t.Fatal(err)
 	}
@@ -80,6 +81,7 @@ func TestVisibleJudgementInventoryCanTriggerDueCalibration(t *testing.T) {
 		},
 	}}
 	t.Cleanup(func() { providerModules = previous })
+	judgementSetupSaidYes(t, a)
 	if _, err := a.JudgementState(); err != nil || inventories.Load() != 0 {
 		t.Fatalf("state read started inventory: %v", err)
 	}
@@ -89,5 +91,21 @@ func TestVisibleJudgementInventoryCanTriggerDueCalibration(t *testing.T) {
 	waitFor(t, "visible-settings calibration to finish", func() bool { return a.calibrationState().State == "none" })
 	if inventories.Load() != 2 {
 		t.Fatalf("expected explicit picker inventory and due calibration, got %d", inventories.Load())
+	}
+}
+
+// judgementSetupSaidYes keeps the person's yes to the first-start question
+// without starting anything, for a test of what follows it. Until the yes no
+// model is chosen and no call is made (judge_setup.go).
+func judgementSetupSaidYes(t *testing.T, a *App) {
+	t.Helper()
+	snap, err := a.JudgementSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := snap.Settings
+	s.Setup = "on"
+	if _, err := a.SetJudgementSettings(s, snap.Revision); err != nil {
+		t.Fatal(err)
 	}
 }

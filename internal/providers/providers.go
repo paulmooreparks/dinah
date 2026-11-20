@@ -98,6 +98,13 @@ type Row struct {
 	// budget for its judgement calls is set in: tokens for most, ACUs for Devin
 	// (docs/plans/judgement-agents.md). Every row declares one.
 	BudgetUnit string
+	// JudgeCallCost is about what one judgement call costs in BudgetUnit, as
+	// measured on 20 November 2026 with a bare session
+	// (docs/proposals/judgement-agents.md), or 0 where a call's cost is not
+	// known. The starting budget is worked out from it. JudgeLocal says the
+	// judge runs on the person's own computer and its calls cost nothing.
+	JudgeCallCost int
+	JudgeLocal    bool
 	// RequestUsage says the provider's adapter reports what each request used, as a turn_cost update, which a team's budget counts;
 	// a provider without it has its turns recorded as unknown, and none is estimated (docs/plans/teams.md).
 	RequestUsage bool
@@ -131,7 +138,7 @@ var Registry = map[string]Row{
 	"devin": {Name: "Devin", BudgetUnit: "acu", ImageInput: "none", Removal: "deletes", Prices: true, Usage: "link", OwnCommands: true, TakesSkills: true,
 		Executable: "Devin", ChooseExecutable: true, SignIn: true, HookSteering: true, HookNamespace: "devin:",
 		FileLimit: FileLimit{Source: "Devin's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Devin's error if it refuses a file."}},
-	"codex": {Name: "Codex", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
+	"codex": {Name: "Codex", BudgetUnit: "tokens", JudgeCallCost: 10_000, RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
 		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true, NativeSessionsRequireImport: true,
 		// The App Server takes effort as a turn/start override, and turn/steer takes none.
 		EffortChange: "next-turn",
@@ -140,7 +147,7 @@ var Registry = map[string]Row{
 		FileLimit: FileLimit{Default: 20, Ceiling: 1500,
 			Source: "OpenAI's images and vision guide allows up to 1,500 images and 512 MB in one request. The default of 20 is Paul's own choice, lower than that ceiling.",
 			URL:    "https://developers.openai.com/api/docs/guides/images-vision"}},
-	"claude": {Name: "Claude", BudgetUnit: "tokens", ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
+	"claude": {Name: "Claude", BudgetUnit: "tokens", JudgeCallCost: 1_000, ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
 		SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
 		// "default" is the mode Claude Code's documentation calls default and the
 		// agent shows as Manual: Claude asks before each action that needs
@@ -152,7 +159,7 @@ var Registry = map[string]Row{
 			Source: "Anthropic's vision guide allows up to 600 images in one API request, and 100 for models with a 200k-token context window. When a request has more than 20 images, any image over 2000 px on a side is refused, and images sent in earlier turns count toward the 20. {product} reduces any picture over 2000 px on its longer side before Claude sees it.",
 			URL:    "https://platform.claude.com/docs/en/build-with-claude/vision"},
 		UsageNote: "Claude's plan limits cannot be read by {product}; see your usage in Claude Code or at claude.ai, or in the Claude Console for an API key."},
-	"ollama": {Name: "Ollama", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "adapter", Removal: "deletes", Usage: "none", SessionPrefix: "ollama:", ManagedServers: true, OwnPreferences: true,
+	"ollama": {Name: "Ollama", BudgetUnit: "tokens", JudgeLocal: true, RequestUsage: true, ImageInput: "adapter", Removal: "deletes", Usage: "none", SessionPrefix: "ollama:", ManagedServers: true, OwnPreferences: true,
 		// think belongs to each chat request, and an agent turn can make several.
 		EffortChange: "next-request",
 		// 90,000 is for a chat whose context length is not known yet.

@@ -189,6 +189,11 @@ func (a *App) maybeCalibrate() {
 	if err != nil || !settings.Enabled || settings.Model != "" || settings.ModelSource == "person" {
 		return
 	}
+	// A run makes calls, and none is made before the person has said yes to
+	// the first-start question (judge_setup.go).
+	if settings.Setup != "on" {
+		return
+	}
 	if !a.beginCalibration() {
 		return
 	}

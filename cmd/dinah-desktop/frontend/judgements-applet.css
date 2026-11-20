@@ -11,6 +11,14 @@
    says why has room for two lines whether or not it has words. A value
    that does not fit its row is cut, and its whole text is its tooltip. */
 .judgements-flyout { inline-size: 22rem; max-inline-size: calc(100vw - 16px); }
+/* The facts and the first-start question share one place, and the one not
+   shown keeps its room, so the flyout is the same size whichever it shows. */
+.judgements-flyout-body { display: grid; }
+.judgements-flyout-body > * { grid-area: 1 / 1; min-inline-size: 0; }
+.judgements-flyout-body > [data-off] { visibility: hidden; }
+.judgements-flyout-ask p { margin: 0 0 var(--space-2); }
+.judgements-flyout-ask ul { margin: 0 0 var(--space-2); padding-inline-start: var(--space-5); }
+.judgements-ask-cost { color: var(--text-muted); font-size: var(--text-sm); }
 .judgements-flyout-state { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-weight: 600; }
 .judgements-flyout-why { margin: 0 0 var(--space-2); color: var(--text-muted); font-size: var(--text-sm); block-size: 2lh; overflow: hidden; }
 .judgements-flyout .kv-table { font-size: var(--text-sm); }

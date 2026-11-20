@@ -13,3 +13,11 @@ The SDK's documentation says that `tools` takes a list of tool names and does no
 Devin reports no cost for a call, so nothing is known there, and Ollama's calls cost a few hundred tokens already.
 
 Both measurements are kept as opt-in live tests (`TestLiveABareThreadCostsLess`, `TestLiveABareSessionUsesLess`).
+
+## The first-start question (20 November 2026)
+
+Judgements were on from the first start and did nothing a person could see, since no model was chosen, and a calibration run then chose one in the background without a word. Paul decided that judgements ask first. Until the person answers, the state is "setup": the bottom bar's item says Set Up, the flyout asks the question in place of its facts and opens by itself once, no model is chosen and no call is made, calibration included (`cmd/dinah-desktop/judge_setup.go`, mockup in docs/mockups/judgements-first-start).
+
+Turn On chooses the default provider when it can judge, sets the starting budget and starts the choice of the model. Not Now keeps the question in the flyout. An installation that already has a model was set up and is not asked. The answer is kept in judgements.json as `setup`, which the page never writes.
+
+The starting budget is 200 calls a day, about four times what a busy day used in the records, turned into the provider's unit for a week from what a bare call was measured to cost (`JudgeCallCost` in the provider table): 1,000 tokens through Claude and 10,000 through Codex. A local judge has no budget, and neither has a provider whose calls report no cost.

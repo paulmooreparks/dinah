@@ -88,6 +88,7 @@ var pageMethods = func() map[string]pageMethodClass {
  EnableExtension ExportThemeFile ExportWorkspace FindPackageUpdates ForgetAppletGrant
  ForgetWorkspace HideSession ImportThemeFile ImportWorkspace InstallClaudeAdapter
  InstallExtension InstallPackages InstallPersonalPackages InvokeAppletAt
+ AcceptJudgementSetup DeferJudgementSetup NoteJudgementSetupShown
  LoadFullHistory ReopenSessionWith MakeWorkspaceDirectory MarkBusInboxRead MergeIntoDraft MoveWorkspaceMount
  MoveWorkspacePin NewEmptyDraft NewSession NewSessionAt NewSessionWithProviderAt 
  OpenComputerDocument OpenComputerFile OpenDraft OpenPath OpenProviderUsage

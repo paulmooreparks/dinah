@@ -42,6 +42,14 @@ type JudgementSettings struct {
 	// different model makes it the person's, and a model the person chose stands
 	// until they change it (judge_calibration.go).
 	ModelSource string `json:"modelSource"`
+	// Setup is the person's answer to the question asked at the first start
+	// (judge_setup.go): "on" when they turned judgements on or chose a model
+	// themselves, "later" when they said Not Now, and empty while they have
+	// not been asked. Nothing is chosen and no call is made until it is "on".
+	// SetupShown says the question has opened by itself once. Both are the
+	// engine's, and the page does not write them.
+	Setup      string `json:"setup"`
+	SetupShown bool   `json:"setupShown"`
 	// RetentionDays is how long records are kept.
 	RetentionDays int `json:"retentionDays"`
 	// WarnStreak is how many calls in a row must fall back to the rule before the
@@ -102,7 +110,8 @@ type JudgementSettingsSnapshot struct {
 // midnight, and are not all-time. StateGen and StateVer number it like the
 // window's other state (internal/sessionhost/state_events.go).
 type JudgementState struct {
-	// State is "on", "off" or "warning".
+	// State is "on", "off", "warning" or, while the person has not answered
+	// the first-start question, "setup", with the question in Setup.
 	State      string `json:"state"`
 	Why        string `json:"why"`
 	Calls      int    `json:"calls"`
@@ -126,6 +135,7 @@ type JudgementState struct {
 	Pool   judge.PoolState   `json:"pool"`
 	// Calibration is where the choice of the judge's model stands.
 	Calibration JudgementCalibrationState `json:"calibration"`
+	Setup       *JudgementSetupOffer      `json:"setup,omitempty"`
 	StateGen    string                    `json:"stateGen"`
 	StateVer    uint64                    `json:"stateVer"`
 }
@@ -319,6 +329,14 @@ func normalizeJudgementSettings(s JudgementSettings) JudgementSettings {
 	// A model chosen before the source was kept was the person's.
 	if s.Model != "" && s.ModelSource == "" {
 		s.ModelSource = "person"
+	}
+	// Judgements with a model were set up before the question existed, or by
+	// the person on the page.
+	if s.Model != "" {
+		s.Setup = "on"
+	}
+	if s.Setup != "on" && s.Setup != "later" {
+		s.Setup = ""
 	}
 	if s.Period.Weekday < 0 || s.Period.Weekday > 6 || s.Period.Hour < 0 || s.Period.Hour > 23 {
 		s.Period = d.Period
@@ -515,8 +533,10 @@ func stateOf(s JudgementSettings, sum judge.Summary) JudgementState {
 	switch {
 	case !s.Enabled:
 		st.State, st.Why = "off", "turned off"
+	case s.Model == "" && s.Setup != "on":
+		st.State, st.Why = "setup", "not set up"
 	case s.Model == "":
-		st.State, st.Why = "off", "no model chosen"
+		st.State, st.Why = "off", "choosing a model"
 	}
 	return st
 }
@@ -549,6 +569,9 @@ func (a *App) JudgementState() (JudgementState, error) {
 	}
 	st.Pool = set.PoolState()
 	st.Calibration = a.calibrationState()
+	if st.State == "setup" {
+		st.Setup = a.judgementSetupOffer(settings)
+	}
 	if st.Warnings, err = set.Store().Warnings(); err != nil {
 		return JudgementState{}, err
 	}
@@ -764,6 +787,12 @@ func (a *App) SetJudgementSettings(settings JudgementSettings, revision string) 
 	} else {
 		settings.ModelSource = before.ModelSource
 	}
+	// The answer to the first-start question is the engine's too: the page
+	// sends none, and what is kept stands.
+	if settings.Setup == "" {
+		settings.Setup = before.Setup
+	}
+	settings.SetupShown = settings.SetupShown || before.SetupShown
 	settings = normalizeJudgementSettings(settings)
 	slices.Sort(settings.KindsOff)
 	settings.KindsOff = slices.Compact(settings.KindsOff)

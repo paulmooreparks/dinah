@@ -30,6 +30,9 @@ type providerModule struct {
 	AuthRequired func(a *App) error
 	// SessionParams are the parameters of a session, built from the protocol's.
 	SessionParams func(a *App, p acp.LoadSessionParams) any
+	// BilledByKey says the person uses the provider with their own API key,
+	// which is billed for each token; nil for a provider used on a sign-in.
+	BilledByKey func(a *App) bool
 	// PrepareApplets makes the applet integration ready for a workspace.
 	PrepareApplets func(workspace string) error
 	// Unattended says the person's settings for the provider let a chat run

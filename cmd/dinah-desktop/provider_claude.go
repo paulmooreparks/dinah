@@ -24,6 +24,7 @@ func init() {
 		Adapter:       claudeAdapter,
 		Picture:       claudePicture,
 		SessionParams: claudeSessionParams,
+		BilledByKey:   func(*App) bool { key, _ := claudeKeys.get(); return key != "" },
 		Judge:         acpJudgeModule(),
 		SignInHelp:    "Claude signs in through your own Claude Code. Run claude in a terminal and sign in there with /login, or store an API key in Settings > Agents. This notice goes away when Claude next answers.",
 		SignIn: func(*App) error {

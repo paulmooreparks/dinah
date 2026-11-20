@@ -334,6 +334,8 @@
         <h2 class="popover-title" id="judgements-flyout-title">Judgements</h2>
         <button class="icon-btn popover-close" type="button" popovertarget="judgements-status-menu" popovertargetaction="hide" aria-label="Close"></button>
       </div>
+      <div class="judgements-flyout-body">
+      <div class="judgements-flyout-facts" id="judgements-flyout-facts">
       <p class="judgements-flyout-state"><span class="glyph" id="judgements-flyout-glyph" aria-hidden="true"></span><span id="judgements-flyout-word">Reading</span></p>
       <p class="judgements-flyout-why" id="judgements-flyout-why"></p>
       <table class="kv-table" aria-label="The judges now">
@@ -351,9 +353,23 @@
         <ul class="judgements-flyout-list" id="judgements-flyout-warnings" aria-labelledby="judgements-flyout-warnings-title"></ul>
         <p class="judgements-flyout-none" id="judgements-flyout-none">No warnings.</p>
       </div>
+      </div>
+      <!-- The first-start question (judge_setup.go, docs/mockups/judgements-first-start). It has the room of the facts it stands in for, so the flyout is one size. -->
+      <div class="judgements-flyout-ask" id="judgements-flyout-ask" data-off>
+        <p id="judgements-ask-question"></p>
+        <ul id="judgements-ask-kinds">
+          <li>A title for each new chat</li>
+          <li>A reply you can take with Tab</li>
+          <li>A summary when a chat moves to another agent</li>
+        </ul>
+        <p class="judgements-ask-cost" id="judgements-ask-cost"></p>
+      </div>
+      </div>
       <div class="popover-actions">
         <button type="button" class="btn btn-sm" id="judgements-flyout-settings">Judgement Settings…</button>
         <button type="button" class="btn btn-sm btn-primary" id="judgements-flyout-open">Open Judgements</button>
+        <button type="button" class="btn btn-sm" id="judgements-ask-later" hidden>Not Now</button>
+        <button type="button" class="btn btn-sm btn-primary" id="judgements-ask-on" hidden>Turn On</button>
       </div>
     </div>
 

@@ -135,7 +135,9 @@ func TestTheJudgementsStartOffForWantOfAModel(t *testing.T) {
 		t.Fatalf("defaults %+v", snap)
 	}
 	st, err := a.JudgementState()
-	if err != nil || st.State != "off" || st.Why != "no model chosen" || st.Calls != 0 || st.WarnStreak != 3 || st.StateGen == "" || st.StateVer == 0 {
+	// Until the person answers the first-start question the state is the
+	// question, and nothing is chosen (judge_setup.go).
+	if err != nil || st.State != "setup" || st.Why != "not set up" || st.Setup == nil || st.Setup.Shown || st.Calls != 0 || st.WarnStreak != 3 || st.StateGen == "" || st.StateVer == 0 {
 		t.Fatalf("state %+v %v", st, err)
 	}
 	if page, err := a.JudgementRecords(JudgementFilter{}); err != nil || page.Records == nil || len(page.Records) != 0 || page.Next != 0 {

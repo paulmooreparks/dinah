@@ -57,6 +57,7 @@
   function stateWords(s) {
     if (!s) return 'Judgements: reading';
     if (s.state === 'off') return 'Judgements: off (' + (s.why || 'turned off') + ')';
+    if (s.state === 'setup') return s.setup && s.setup.provider ? 'Judgements: not set up yet. Open to answer one question.' : 'Judgements: they need a working agent program.';
     if (s.paused) return 'Judgements: paused until ' + whenFull(s.paused.until) + ', ' + providerDisplayName(s.paused.provider) + ': ' + s.paused.reason;
     if (s.state === 'warning') return 'Judgements: warning, ' + (s.why || 'the judge is failing');
     return 'Judgements: on, ' + s.calls + (s.calls === 1 ? ' call' : ' calls') + ' today, ' + s.fallbacks + ' answered by the rule';
@@ -71,7 +72,7 @@
     // A paused judge needs the person while its badge stays a neutral 0, so
     // the item gives PUDL's folded Status item the waiting tone (0.97.2).
     if (item.dataset.statusState === 'waiting') item.setAttribute('data-status-tone', 'waiting'); else item.removeAttribute('data-status-tone');
-    item.dataset.statusText = !state ? 'Reading' : state.paused ? 'Paused' : state.state === 'off' ? 'Off' : state.state === 'warning' ? 'Warning' : 'On';
+    item.dataset.statusText = !state ? 'Reading' : state.paused ? 'Paused' : state.state === 'setup' ? (state.setup && state.setup.provider ? 'Set Up' : 'Needs an Agent') : state.state === 'off' ? 'Off' : state.state === 'warning' ? 'Warning' : 'On';
     item.dataset.statusGlyph = state && (state.paused || state.state === 'warning') ? 'warning' : state && state.state === 'on' ? 'tick' : 'ring';
     item.dataset.statusColour = state && (state.paused || state.state === 'warning') ? 'warn' : state && state.state === 'on' ? 'positive' : 'text-muted';
     item.dataset.statusCount = state && state.unseen || 0;
@@ -81,19 +82,21 @@
     badge.className = 'badge';
     // While the state is being read the badge stays empty, never a false 0;
     // once read, no undismissed warnings is a neutral 0.
-    if (state && state.state !== 'off') item.dataset.statusCountKnown = ''; else delete item.dataset.statusCountKnown;
+    if (state && state.state !== 'off' && state.state !== 'setup') item.dataset.statusCountKnown = ''; else delete item.dataset.statusCountKnown;
     // A state not read yet is pending, so PUDL's folded Status total waits
     // for it (0.97.1).
     badge.toggleAttribute('data-status-pending', !state);
     if (!state) { badge.hidden = true; badge.textContent = ''; }
     else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen); }
     else if (state.state === 'off') { badge.hidden = false; badge.textContent = 'off'; }
+    else if (state.state === 'setup') { badge.hidden = false; badge.textContent = 'set up'; }
     else { badge.hidden = false; badge.textContent = '0'; }
     var words = stateWords(state);
     if (state && state.unseen > 0) words += ', ' + state.unseen + (state.unseen === 1 ? ' undismissed warning' : ' undismissed warnings');
     item.setAttribute('aria-label', words);
     item.title = words;
     if ($('judgements-status-menu').matches(':popover-open')) syncPopup();
+    offerSetupOnce();
   }
   function readState() {
     if (!available()) { drawWidget(); return Promise.resolve(); }
@@ -141,6 +144,7 @@
     if (!s) return '';
     if (s.paused) return 'Until ' + whenShort(s.paused.until) + '. ' + providerDisplayName(s.paused.provider) + ': ' + s.paused.reason;
     if (s.state === 'warning') { var why = s.why || 'the judge is failing'; return why.charAt(0).toUpperCase() + why.slice(1) + '.'; }
+    if (s.state === 'off' && s.why === 'choosing a model') return 'On. The best model for judging is being chosen now; until then every decision uses its rule.';
     if (s.state === 'off') return s.model ? 'Judging is turned off. Every decision uses its rule.' : 'No model is chosen. Choose one in Judgement Settings, or run a calibration there.';
     if (s.calibration && s.calibration.state === 'running') return 'A calibration is choosing the judge’s model now.';
     return '';
@@ -157,7 +161,51 @@
     if (!p || !p.max) return ['Not running', 'No call is with a judge.'];
     return [p.size + ' at once (may grow to ' + p.max + ')' + (p.inFlight ? ', ' + p.inFlight + ' in flight' : ''), poolLine(p)];
   }
+  /* The first-start question (judge_setup.go). Until the person answers it
+     the flyout asks it in place of its facts, and nothing is chosen for them.
+     It opens by itself once, a moment after the window has started, and is
+     in the flyout whenever they open it after that. */
+  function setupOf(s) { return s && s.state === 'setup' ? s.setup || {} : null; }
+  function tokens(n) { return n >= 1000000 ? (Math.round(n / 100000) / 10) + ' million' : n.toLocaleString(); }
+  function setupCost(o) {
+    var most = 'At most ' + o.callsPerDay + ' calls a day';
+    if (o.billing === 'local') return 'Answered by ' + o.providerName + ' on this computer. It costs nothing but its time.';
+    var week = o.limit ? ', about ' + tokens(o.limit) + ' ' + o.unit + ' a week' : '';
+    if (o.billing === 'key') return 'Answered by ' + o.providerName + ', which is billed for each token on your API key. ' + most + week + '.';
+    return 'Answered by ' + o.providerName + '. ' + most + week + (o.limit ? ' of your plan' : '') + '. Most days use far less.';
+  }
+  function syncSetup() {
+    var o = setupOf(state), asking = !!o;
+    $('judgements-flyout-facts').toggleAttribute('data-off', asking);
+    $('judgements-flyout-ask').toggleAttribute('data-off', !asking);
+    $('judgements-flyout-open').hidden = asking;
+    $('judgements-ask-later').hidden = $('judgements-ask-on').hidden = !asking || !o.provider;
+    if (!asking) return;
+    words($('judgements-ask-question'), o.provider ? 'May ' + o.providerName + ' answer small questions for you in the background?' : 'Judgements are small questions an agent answers for you in the background. They need a working agent program.');
+    $('judgements-ask-kinds').style.visibility = o.provider ? '' : 'hidden';
+    words($('judgements-ask-cost'), o.provider ? setupCost(o) : 'Sign in to an agent in Settings, and this question is asked then.');
+  }
+  var setupOffered = false;
+  function offerSetupOnce() {
+    var o = setupOf(state);
+    if (setupOffered || !o || !o.provider || o.shown) return;
+    setupOffered = true;
+    setTimeout(function () {
+      var again = setupOf(state), menu = $('judgements-status-menu');
+      if (!again || again.shown || $('status-judgements').hidden) return;
+      Promise.resolve().then(function () { return app().NoteJudgementSetupShown(); }).catch(function () {});
+      if (!menu.matches(':popover-open')) $('status-judgements').click();
+    }, SETUP_OFFER_AFTER);
+  }
+  var SETUP_OFFER_AFTER = 4000;
+  function answerSetup(yes, button) {
+    button.disabled = true;
+    Promise.resolve().then(function () { return yes ? app().AcceptJudgementSetup() : app().DeferJudgementSetup(); }).then(readState).then(function () {
+      if (!yes) $('judgements-status-menu').hidePopover();
+    }).catch(host().fail).finally(function () { button.disabled = false; });
+  }
   function syncPopup() {
+    syncSetup();
     var s = state, item = $('status-judgements'), glyph = $('judgements-flyout-glyph');
     glyph.style.setProperty('--glyph', 'var(--glyph-' + (item.dataset.statusGlyph || 'ring') + ')');
     glyph.style.color = 'var(--' + (item.dataset.statusColour || 'text-muted') + ')';
@@ -1029,6 +1077,8 @@
     $('judgements-dismiss-all').addEventListener('click', function () { dismissWarning(null, this); });
     $('judgements-flyout-open').addEventListener('click', function () { $('judgements-status-menu').hidePopover(); openPage(); });
     $('judgements-flyout-settings').addEventListener('click', function () { $('judgements-status-menu').hidePopover(); openSection(); });
+    $('judgements-ask-on').addEventListener('click', function () { answerSetup(true, this); });
+    $('judgements-ask-later').addEventListener('click', function () { answerSetup(false, this); });
     $('status-judgements').addEventListener('keydown', function (event) {
       if (event.key !== 'ArrowDown' || event.altKey || event.ctrlKey || event.metaKey) return;
       event.preventDefault();
