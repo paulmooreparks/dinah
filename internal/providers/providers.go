@@ -163,7 +163,10 @@ var Registry = map[string]Row{
 	// says at initialize that it takes pictures, and it has no operation
 	// that deletes a session, so removing a chat hides it.
 	"antigravity": {Name: "Antigravity", BudgetUnit: "tokens", ImageInput: "initialize", Removal: "hides", Usage: "none", Executable: "Antigravity", ChooseExecutable: true,
-		SessionPrefix: "antigravity:",
+		// Its models and options are its own. Without this a new chat was
+		// offered the shared list, which is Devin's, until the first message
+		// (Paul, 20 November 2026), and its own list then took the shared one's place.
+		SessionPrefix: "antigravity:", OwnPreferences: true,
 		// A conversation's window is about a million tokens; 400,000 characters is a tenth of it.
 		HandoffChars: 400_000,
 		FileLimit:    FileLimit{Source: "Antigravity's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Antigravity's error if it refuses a file."},

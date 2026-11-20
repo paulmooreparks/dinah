@@ -177,9 +177,9 @@ const { settled, settledCount } = require('./lib/settled');
       return !!detail && !!selected && kindSel && kindSel.value === 'chat-title';
     }));
     // The box is there to type in, with words that say what a correction does; it used to be behind a button that said only "Correct" (Paul, 20 November 2026).
-    ok('the correction box says what it is for', /takes the place of the judge/.test(await detail.locator('.judgement-correct').textContent()));
-    await detail.getByLabel('If This Was Wrong, the Right Answer').fill('A Better Title');
-    await detail.getByRole('button', { name: 'Use This Instead' }).click();
+    ok('the correction box says what it does: the chat is renamed and the decision counted as corrected', /the chat is renamed to it/.test(await detail.locator('.judgement-correct').textContent()) && /counted under Corrected/.test(await detail.locator('.judgement-correct').textContent()));
+    await detail.getByLabel('A Better Title for This Chat').fill('A Better Title');
+    await detail.getByRole('button', { name: 'Rename the Chat' }).click();
     await p.waitForFunction(() => __corrected.length === 1);
     await detail.getByText('Your Correction').waitFor();
     ok('a correction is saved to the record and shown with it', JSON.stringify(await p.evaluate(() => __corrected)) === JSON.stringify([[51, 'A Better Title']]) && /A Better Title/.test(await detail.textContent()) && await win.locator('[data-judgement="51"] .badge', { hasText: 'Corrected' }).count() === 1);

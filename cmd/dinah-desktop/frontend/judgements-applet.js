@@ -613,24 +613,29 @@
       }
       if (r.correctedAt) {
         detail.appendChild(field('Your Correction', r.correction + ', ' + whenFull(r.correctedAt)));
+      } else if (kind.correctable && r.effectKind !== 'chat') {
+        // A calibration's test call named nothing, so there is nothing to put right.
+        detail.appendChild(field('Correcting It', 'This call was a test made by a calibration, and its answer was used for nothing, so there is nothing to correct.'));
       } else if (kind.correctable) {
-        /* A correction is the person's own answer in place of the judge's. It
-           is put where the answer was used, as a chat is renamed, and kept
-           with the record, where it counts as a decision the judge got wrong.
-           The box says so and is there to type in; it used to be behind a
-           button that said only "Correct" (Paul, 20 November 2026). */
+        /* A correction is the person's own answer in place of the judge's.
+           For a chat's title, the one kind that can be corrected, it renames
+           the chat, and the decision then counts under Corrected in the
+           tables above, which is how the person sees how often a model gets
+           it wrong. The box says that in those words. It used to be behind a
+           button that said only "Correct", and then said "the right answer"
+           without saying what would happen (Paul, 20 November 2026). */
         var box = node('div', 'judgement-correct vstack gap-1');
-        var label = node('label', 'form-label', 'If This Was Wrong, the Right Answer');
+        var label = node('label', 'form-label', 'A Better Title for This Chat');
         var line = node('div', 'hstack gap-3 align-center');
         var input = node('input', 'form-input');
         input.type = 'text'; input.id = 'judgement-correction-' + r.id; label.htmlFor = input.id;
-        var save = node('button', 'btn btn-sm', 'Use This Instead');
+        var save = node('button', 'btn btn-sm', 'Rename the Chat');
         save.type = 'button';
         var status = node('span', 'form-help', '');
-        var help = node('p', 'form-help', 'Your answer takes the place of the judge\u2019s where it was used, and is kept with this record as a decision the judge got wrong.');
+        var help = node('p', 'form-help', 'The judge gave this chat its title. If the title is wrong, type a better one and the chat is renamed to it. The decision is then counted under Corrected in the tables above, which shows how often this model gets a title wrong. Nothing is sent to the model.');
         save.addEventListener('click', function () {
           var value = input.value.trim();
-          if (!value) { status.textContent = 'Type what it should have been.'; input.focus(); return; }
+          if (!value) { status.textContent = 'Type the better title first.'; input.focus(); return; }
           save.disabled = true;
           Promise.resolve(app().CorrectJudgement(r.id, value)).then(function (fresh) {
             Object.assign(r, fresh);
