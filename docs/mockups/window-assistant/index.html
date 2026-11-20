@@ -54,7 +54,7 @@
        A window of the workbench like any other, with the list of tasks on
        one side and the chosen task on the other. A task is a name and the
        words the assistant is asked, the same words a person could type. */
-    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 24px; inline-size: 640px; max-inline-size: calc(100% - 48px); block-size: 500px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
+    .tasks-win { position: absolute; inset-inline-start: 24px; inset-block-start: 24px; inline-size: 640px; max-inline-size: calc(100% - 48px); block-size: 540px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--raise-shadow); z-index: 4; }
     .tasks-win[hidden] { display: none; }
     .tasks-win .bar { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); font-weight: 600; font-size: var(--text-sm); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
     .tasks-win .bar .icon-btn { margin-inline-start: auto; }
@@ -101,8 +101,15 @@
           </div>
           <div class="tasks-actions">
             <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" class="btn" id="task-try">Try It</button>
             <button type="button" class="btn" id="task-delete">Delete Task</button>
+          </div>
+          <!-- Trying a task is done here, with its own Run and Undo, since
+               the assistant's popover is closed while this window is used
+               (Paul, 20 November 2026). -->
+          <div class="tasks-actions">
+            <button type="button" class="btn" id="task-try">Try It</button>
+            <button type="button" class="btn" id="task-run" disabled>Run</button>
+            <button type="button" class="btn" id="task-undo" disabled>Undo</button>
           </div>
           <!-- What a button did is said on a line of its own under the
                buttons, which has its room from the start. Beside them it
@@ -159,7 +166,7 @@
       <li>Press Tidy Up, read which windows it would close, then press Run, then Undo.</li>
       <li>Type "find all the windows for the pricing work", press Enter, read the answer, and press Enter again.</li>
       <li>Press one task and then another without pressing Run. Nothing moves.</li>
-      <li>Open Edit Tasks and press Try It: it says what the words would do and does nothing.</li>
+      <li>Open Edit Tasks, close the assistant, and press Try It: it says what the words would do and does nothing. Run and Undo are beside it, in that window.</li>
     </ul>
     <h2>What is the same</h2>
     <ul>
@@ -277,7 +284,7 @@
             return 'Showing ' + count(match.length) + ' about ' + name + ': ' + titles(match) + '. The rest are put away, not closed.';
           } };
       }
-      function buttons() { $('assistant-run').disabled = !pending; $('assistant-undo').disabled = !before; }
+      function buttons() { $('assistant-run').disabled = $('task-run').disabled = !pending; $('assistant-undo').disabled = $('task-undo').disabled = !before; }
       /* ask reads a request and shows what it would do. Run does it. */
       function ask(text) {
         var found = read(text);
@@ -327,7 +334,9 @@
       $('task-up').addEventListener('click', function () { if (chosen > 0) { tasks.splice(chosen - 1, 0, tasks.splice(chosen, 1)[0]); chosen--; drawTasks(); } });
       $('task-down').addEventListener('click', function () { if (chosen < tasks.length - 1) { tasks.splice(chosen + 1, 0, tasks.splice(chosen, 1)[0]); chosen++; drawTasks(); } });
       $('task-restore').addEventListener('click', function () { tasks = STARTER.map(function (t) { return Object.assign({}, t); }); chosen = 0; drawTasks(); note('The starter set is back. In the product this asks first, since it replaces your tasks.'); });
-      $('task-try').addEventListener('click', function () { var words = $('task-ask').value.trim(); if (words) { var found = ask(words); note(found.will + (found.run ? ' Nothing is done yet. Run is in the assistant, in the tray.' : '')); } });
+      $('task-try').addEventListener('click', function () { var words = $('task-ask').value.trim(); if (words) { var found = ask(words); note(found.will + (found.run ? ' Nothing is done yet. Press Run to do it.' : '')); if (found.run) $('task-run').focus(); } });
+      $('task-run').addEventListener('click', function () { run(); note($('assistant-said').textContent); });
+      $('task-undo').addEventListener('click', function () { $('assistant-undo').click(); note($('assistant-said').textContent); });
       $('assistant-edit').addEventListener('click', function () { $('tasks-win').hidden = false; });
       $('tasks-close').addEventListener('click', function () { $('tasks-win').hidden = true; });
       function offers() {

@@ -235,12 +235,15 @@
   /* ---- Asking --------------------------------------------------------------- */
 
   var busy = false, undoable = null, looked = {}, pending = null, selected = -1;
+  // What else has a Run and an Undo to enable: the Assistant Tasks window.
+  var controlViews = [];
   function say(text) { H.setText($('assistant-said'), text); }
   function controls() {
     $('assistant-go').disabled = busy;
     $('assistant-run').disabled = busy || !pending;
     $('assistant-undo').disabled = busy || !undoable;
     Array.prototype.forEach.call($('assistant-tasks').querySelectorAll('button'), function (b) { b.disabled = busy; });
+    controlViews.forEach(function (draw) { draw(); });
   }
   function inPopover(el) { if ($('assistant-menu').matches(':popover-open')) el.focus({ preventScroll: true }); }
   /* preview reads a request and says what it would do, and does nothing.
@@ -286,10 +289,10 @@
     });
   }
   function undo() {
-    if (busy || !undoable) return;
+    if (busy || !undoable) return null;
     var before = undoable;
     undoable = null; busy = true; controls();
-    putBack(before).then(function (missing) {
+    return putBack(before).then(function (missing) {
       say(missing ? 'Put back as it was, but ' + plural(missing, 'window', 'windows') + ' could not be opened again.' : 'Put back as it was.');
     }, function (err) { say('It could not be put back: ' + H.message(err, 'sentence')); })
       .finally(function () { busy = false; controls(); news(); });
@@ -390,10 +393,17 @@
     var words = node('textarea', 'form-input'); words.maxLength = 600;
     var save = button('Save', 'btn btn-primary'); save.type = 'submit';
     var tryIt = button('Try It', 'btn'), remove = button('Delete Task', 'btn');
-    var actions = node('div', 'assistant-tasks-actions'); actions.append(save, tryIt, remove);
+    var actions = node('div', 'assistant-tasks-actions'); actions.append(save, remove);
+    /* Trying a task is done here, with its own Run and Undo. They were in
+       the assistant's popover only, which is closed while this window is
+       used, so Try It said what the words would do and left no way to do it
+       (Paul, 20 November 2026). */
+    var runIt = button('Run', 'btn'), undoIt = button('Undo', 'btn');
+    runIt.disabled = undoIt.disabled = true;
+    var trying = node('div', 'assistant-tasks-actions'); trying.append(tryIt, runIt, undoIt);
     var status = node('p', 'assistant-tasks-status'); status.setAttribute('role', 'status');
     form.append(group('Name', name, 'What the task is called in the assistant’s list.'),
-      group('What the Assistant Is Asked', words, 'The same words you could type to the assistant. It is asked this when you choose the task.'), actions, status);
+      group('What the Assistant Is Asked', words, 'The same words you could type to the assistant. It is asked this when you choose the task.'), actions, trying, status);
     var body = node('div', 'assistant-tasks-body'); body.append(rows, form);
     root.append(tools, body);
 
@@ -409,7 +419,8 @@
       }));
       var t = list[chosen];
       name.value = t ? t.name : ''; words.value = t ? t.ask : '';
-      [name, words, save, tryIt, remove].forEach(function (c) { c.disabled = !t || saving; });
+      [name, words, save, remove].forEach(function (c) { c.disabled = !t || saving; });
+      tryIt.disabled = busy || !t || saving;
       add.disabled = restore.disabled = saving;
       up.disabled = saving || !t || chosen === 0; down.disabled = saving || !t || chosen === list.length - 1;
     }
@@ -483,12 +494,20 @@
       note('Asking…');
       /* Try It shows what the words would do and does nothing; Run, in the
          assistant, does it. */
-      preview(w).then(function (found) { if (!disposed) note(found.will + (found.can ? ' Nothing is done yet. Run is in the assistant, in the tray.' : '')); });
+      preview(w).then(function (found) {
+        if (disposed) return;
+        note(found.will + (found.can ? ' Nothing is done yet. Press Run to do it.' : ''));
+        if (found.can) runIt.focus();
+      });
     });
+    runIt.addEventListener('click', function () { run().then(function (said) { if (!disposed && said) { note(said); if (!undoIt.disabled) undoIt.focus(); } }); });
+    undoIt.addEventListener('click', function () { var done = undo(); if (done) done.then(function () { if (!disposed) note($('assistant-said').textContent); }); });
+    function tryControls() { runIt.disabled = busy || !pending; undoIt.disabled = busy || !undoable; tryIt.disabled = busy || !list[chosen] || saving; }
+    controlViews.push(tryControls);
     taskViews.push(fromEngine);
     fromEngine();
     if (!tasks.length) loadTasks();
-    return { focus: function () { (list.length ? name : add).focus(); }, destroy: function () { disposed = true; taskViews = taskViews.filter(function (f) { return f !== fromEngine; }); } };
+    return { focus: function () { (list.length ? name : add).focus(); }, destroy: function () { disposed = true; taskViews = taskViews.filter(function (f) { return f !== fromEngine; }); controlViews = controlViews.filter(function (f) { return f !== tryControls; }); } };
   }
 
   /* ---- The tray --------------------------------------------------------------- */
