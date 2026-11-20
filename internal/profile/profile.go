@@ -159,6 +159,10 @@ type Profile struct {
 	// work than the set-up's own answers say
 	// (cmd/dinah-desktop/setup.go). Dinah has none of its own.
 	SetupUses []SetupUse
+	// SetupAsksNoUse leaves that question out of the set-up, for a product
+	// whose people all use it for one kind of work. The set-up then opens no
+	// windows. It cannot be set together with SetupUses.
+	SetupAsksNoUse bool
 }
 
 // SetupUse is one answer to what the product is used for most: its ID, the

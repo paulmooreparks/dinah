@@ -107,7 +107,15 @@ var setupUses = []SetupUse{
 }
 
 // offeredSetupUses are the uses this product's set-up offers.
-func offeredSetupUses() []SetupUse {
+func offeredSetupUses() []SetupUse { return setupUsesOf(product) }
+
+// setupUsesOf are the uses a product's set-up offers: none for a product
+// that leaves the question out, its own when it gives some, and the
+// set-up's own otherwise.
+func setupUsesOf(product profile.Profile) []SetupUse {
+	if product.SetupAsksNoUse {
+		return []SetupUse{}
+	}
 	if len(product.SetupUses) == 0 {
 		return slices.Clone(setupUses)
 	}

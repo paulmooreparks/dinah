@@ -160,6 +160,9 @@ func (p Profile) check() error {
 			break
 		}
 	}
+	if p.SetupAsksNoUse && len(p.SetupUses) > 0 {
+		problems = append(problems, "SetupAsksNoUse cannot be set together with SetupUses")
+	}
 	for _, u := range p.SetupUses {
 		if !providerID.MatchString(u.ID) || strings.TrimSpace(u.Label) == "" || strings.TrimSpace(u.Opens) == "" || len(u.Windows) == 0 {
 			problems = append(problems, "each of SetupUses needs an ID of lowercase letters, digits and hyphens, a Label, the Windows it opens and Opens, which says them")

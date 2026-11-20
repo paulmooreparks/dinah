@@ -162,6 +162,12 @@ func TestEveryProviderHasAnInstallPage(t *testing.T) {
 // The uses the set-up offers are its own unless the product gives others,
 // and each opens windows.
 func TestTheSetUpsUsesOpenWindows(t *testing.T) {
+	if got := setupUsesOf(profile.Profile{SetupAsksNoUse: true}); len(got) != 0 {
+		t.Fatalf("a product that leaves the question out was given uses: %+v", got)
+	}
+	if got := setupUsesOf(profile.Profile{SetupUses: []profile.SetupUse{{ID: "own", Label: "Own", Windows: []string{"files"}, Opens: "Files"}}}); len(got) != 1 || got[0].ID != "own" {
+		t.Fatalf("a product's own uses were not offered: %+v", got)
+	}
 	uses := offeredSetupUses()
 	if len(uses) == 0 {
 		t.Fatal("no uses")

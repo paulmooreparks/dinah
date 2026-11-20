@@ -86,8 +86,11 @@
        left out for an agent that has none; the one about the background is
        left out when it is answered already or no agent can answer it. */
     function questions() {
-      var qs = [{ id: 'use', setting: 'Windows open at the start', ask: 'What will you use ' + productName() + ' for most?',
-        choices: offer.uses.map(function (u) { return { id: u.id, label: u.label, value: u.opens }; }) }];
+      /* A product whose people all do one kind of work offers no uses, and
+         the question is left out. */
+      var qs = [];
+      if (offer.uses && offer.uses.length) qs.push({ id: 'use', setting: 'Windows open at the start', ask: 'What will you use ' + productName() + ' for most?',
+        choices: offer.uses.map(function (u) { return { id: u.id, label: u.label, value: u.opens }; }) });
       if (asking && asking.choices.length) qs.push({ id: 'ask', setting: 'Before ' + agentName() + ' acts', ask: 'How much should ' + agentName() + ' ask you before it acts?',
         choices: asking.choices.map(function (c) { return { id: c.id, label: c.label, value: c.label }; }) });
       var folders = [{ id: 'pick', label: values.folder ? values.folder : 'Choose a Folder…', value: values.folder || '' }];
@@ -234,7 +237,7 @@
     function setIt() {
       var c = { agent: agent, asking: answers.ask || '', folder: answers.folder === 'pick' ? values.folder : '', judge: answers.judge === 'on',
         setName: answers.name === 'account' || answers.name === 'typed', name: answers.name === 'typed' ? values.name : '' };
-      var use = offer.uses.filter(function (u) { return u.id === answers.use; })[0];
+      var use = (offer.uses || []).filter(function (u) { return u.id === answers.use; })[0];
       busy = true; note('Setting it up…'); draw();
       return Promise.resolve().then(function () { return app().ApplySetup(c); }).then(function () {
         applied = true; opened = [];
