@@ -710,8 +710,10 @@
       title.textContent = 'Use ' + rec.name + ' for Judgements?';
       var body = document.createElement('div'); body.className = 'dialog-body vstack gap-3';
       var cost = document.createElement('p'); cost.className = 'form-help';
+      // The figure is from the latest calls made the way a call is made now, or, with none yet, from what such a call was measured to cost.
       cost.textContent = rec.calls
-        ? 'A judgement on ' + rec.name + ' has cost about ' + rec.typicalCost.toLocaleString() + ' ' + rec.unit + ' a call (the median of ' + rec.calls + (rec.calls === 1 ? ' call' : ' calls') + ').'
+        ? 'A judgement on ' + rec.name + ' has cost about ' + rec.typicalCost.toLocaleString() + ' ' + rec.unit + ' a call (the median of the latest ' + rec.calls + (rec.calls === 1 ? ' call' : ' calls') + ').'
+        : rec.expectedCost ? 'A judgement on ' + rec.name + ' costs about ' + rec.expectedCost.toLocaleString() + ' ' + rec.unit + ' a call, as it was measured. None is recorded here yet.'
         : 'The cost of a call is not known yet. Each call starts a session on your plan.';
       body.appendChild(cost);
       var row = (settings && settings.budgets || []).filter(function (b) { return b.provider === rec.id && b.limit !== null; })[0];
@@ -942,30 +944,43 @@
       });
     }).catch(function () {});
   }
+  /* A save is the change the person made, put on the settings as they are
+     now. The engine takes a save only against the revision it was read at,
+     and calibration and the first-start question write the settings too, so
+     the page's copy can be a step behind. A save that was a step behind used
+     to be dropped with a line of status, and so was one made while another
+     was on its way, which is how a chosen model did not show until it was
+     chosen again (Paul, 20 November 2026). Now saves run one after another,
+     and one that meets a newer revision puts the same change on the newer
+     settings and saves again. */
+  var saveQueue = Promise.resolve();
   function saveSettings(patch, statusId, said) {
-    if (settingsBusy || !settings) return;
+    if (!settings) return;
+    saveQueue = saveQueue.then(function () { return saveNow(patch, statusId, said, 3); }).catch(function () {});
+    return saveQueue;
+  }
+  function saveNow(patch, statusId, said, tries) {
+    if (!settings) return;
     settingsBusy = true;
     var status = $(statusId);
     var next = Object.assign({}, settings, patch);
-    /* SetJudgementSettings takes the values and the revision they were read
-       at; a stale one writes nothing and answers with the current settings
-       and conflict true (the other writer is calibration, in step 5). */
     var revision = settings.revision;
     delete next.revision;
     delete next.conflict;
-    Promise.resolve().then(function () { return app().SetJudgementSettings(next, revision); }).then(function (r) {
+    return Promise.resolve().then(function () { return app().SetJudgementSettings(next, revision); }).then(function (r) {
       settings = unpackSettings(r) || next;
+      if (settings.conflict && tries > 1) return saveNow(patch, statusId, said, tries - 1);
       loadJudgementProviders();
       if (status) {
         status.classList.remove('notice', 'danger');
-        status.textContent = settings.conflict ? 'The settings changed since you read them; the newer ones are shown.' : said || 'Saved.';
+        status.textContent = settings.conflict ? 'The settings kept changing while this was saved, and it was not saved. Try again.' : said || 'Saved.';
       }
       drawSettings();
     }, function (error) {
       if (status) status.textContent = 'The settings could not be saved: ' + error;
       /* The other writer's version stands, so read it back rather than keep
          the page's copy. */
-      Promise.resolve().then(function () { return app().JudgementSettings(); }).then(function (r) { settings = unpackSettings(r); drawSettings(); }).catch(function () {});
+      return Promise.resolve().then(function () { return app().JudgementSettings(); }).then(function (r) { settings = unpackSettings(r); drawSettings(); }).catch(function () {});
     }).finally(function () { settingsBusy = false; });
   }
   function disclosure(label, body, className, bodyId) {

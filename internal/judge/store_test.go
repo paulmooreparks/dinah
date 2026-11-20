@@ -216,3 +216,26 @@ func TestTypicalCostIsTheMedianOfTheCallsThatCostSomething(t *testing.T) {
 		t.Fatalf("even count: %d %d %v", m, n, err)
 	}
 }
+
+// The recent typical cost is the median of the latest calls since a time, so
+// that calls from before the way a call is made changed are not quoted.
+func TestRecentTypicalCostLeavesOutEarlierAndOlderCalls(t *testing.T) {
+	s, clock := openTest(t)
+	old := *clock
+	for _, in := range []int{42000, 43000, 44000} {
+		add(t, s, old, Record{Kind: "k", Provider: "claude", CostUnit: "tokens", CostIn: in})
+	}
+	later := old.Add(time.Hour)
+	if m, n, err := s.RecentTypicalCost("claude", "tokens", later, 20); err != nil || m != 0 || n != 0 {
+		t.Fatalf("only earlier calls: %d %d %v", m, n, err)
+	}
+	for i, in := range []int{5000, 900, 1000, 1100} {
+		add(t, s, later.Add(time.Duration(i)*time.Minute), Record{Kind: "k", Provider: "claude", CostUnit: "tokens", CostIn: in})
+	}
+	if m, n, err := s.RecentTypicalCost("claude", "tokens", later, 20); err != nil || m != (1000+1100)/2 || n != 4 {
+		t.Fatalf("the calls since: %d %d %v", m, n, err)
+	}
+	if m, n, err := s.RecentTypicalCost("claude", "tokens", later, 3); err != nil || m != 1000 || n != 3 {
+		t.Fatalf("the latest three: %d %d %v", m, n, err)
+	}
+}

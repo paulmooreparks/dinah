@@ -931,7 +931,18 @@ type JudgementProvider struct {
 	// recorded, and the page then uses its own wording.
 	TypicalCost int `json:"typicalCost"`
 	Calls       int `json:"calls"`
+	// ExpectedCost is about what a call costs in Unit as it was measured
+	// (providers.Row.JudgeCallCost), for when no call is recorded yet, or 0.
+	ExpectedCost int `json:"expectedCost"`
 }
+
+// judgeCostSince is when a judgement call began to start a bare session
+// (docs/proposals/judgement-agents.md). A call recorded before it cost tens
+// of times what one costs now, so the typical cost is taken from the calls
+// since, and from the latest judgeCostCalls of them.
+var judgeCostSince = time.Date(2026, time.November, 20, 3, 0, 0, 0, time.UTC)
+
+const judgeCostCalls = 20
 
 // JudgementProviders lists the providers that could judge, in order, with whether each
 // can now. A provider that is not installed or not running is listed, with the reason,
@@ -940,14 +951,14 @@ func (a *App) JudgementProviders() ([]JudgementProvider, error) {
 	out := []JudgementProvider{}
 	for _, id := range judgeProviders() {
 		m := providerModules[id].Judge
-		p := JudgementProvider{ID: id, Name: providerName(id), Unit: providers.Registry[id].BudgetUnit, Available: true, Note: m.Note}
+		p := JudgementProvider{ID: id, Name: providerName(id), Unit: providers.Registry[id].BudgetUnit, Available: true, Note: m.Note, ExpectedCost: providers.Registry[id].JudgeCallCost}
 		if m.Available != nil {
 			p.Why = m.Available(a, id)
 			p.Available = p.Why == ""
 		}
 		if m.Note != "" {
 			if set, err := a.judges(); err == nil {
-				if median, calls, err := set.TypicalCost(id, p.Unit); err == nil {
+				if median, calls, err := set.RecentTypicalCost(id, p.Unit, judgeCostSince, judgeCostCalls); err == nil {
 					p.TypicalCost, p.Calls = median, calls
 				}
 			}

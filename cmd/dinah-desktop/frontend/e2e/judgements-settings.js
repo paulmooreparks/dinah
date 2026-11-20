@@ -98,12 +98,17 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => __setCalls.length === 4);
     ok('a kind’s switch writes kindsOff', JSON.stringify(await p.evaluate(() => __setCalls[3][0].kindsOff)) === JSON.stringify(['mention-choice']) && /mention-choice now uses its rule/.test(await status.textContent()));
     ok('and shows the kind off after the save', (await mention.locator('[role="switch"]').getAttribute('aria-checked')) === 'false');
-    // A stale page loses: nothing is written, and the settings as they now
-    // stand come back with conflict true and are shown.
+    // A save that meets newer settings is not lost: the engine writes nothing for it and answers with the settings as they stand, and the page puts the same change on those and saves again (Paul, 20 November 2026: a chosen model did not show until it was chosen a second time).
+    const before = await toggle.getAttribute('aria-checked');
     await p.evaluate(() => { window.__conflictNext = true; });
     await toggle.click();
-    await p.waitForFunction(() => __setCalls.length === 5);
-    await p.waitForFunction(() => /changed since you read them/.test(document.getElementById('judgements-status').textContent));
-    ok('a stale save writes nothing and the newer settings are shown', /changed since you read them; the newer ones are shown/.test(await status.textContent()) && (await toggle.getAttribute('aria-checked')) === 'false' && (await p.evaluate(() => __revision)) === 'rev-other', await status.textContent());
+    await p.waitForFunction(() => __setCalls.length === 6);
+    await p.waitForFunction(b => document.getElementById('judgements-enabled').getAttribute('aria-checked') !== b, before);
+    ok('a save that meets newer settings is made again on them, and shows', (await p.evaluate(() => __setCalls[5][1])) === 'rev-other' && (await toggle.getAttribute('aria-checked')) !== before && (await p.evaluate(() => String(__settings.enabled))) === (await toggle.getAttribute('aria-checked')) && !/changed|not saved/.test(await status.textContent()), await status.textContent());
+    // Two changes made one straight after the other are both saved, in order.
+    const calls = await p.evaluate(() => __setCalls.length);
+    await p.evaluate(() => { document.getElementById('judgements-enabled').click(); document.getElementById('judgements-enabled').click(); });
+    await p.waitForFunction(n => __setCalls.length === n + 2, calls);
+    ok('two changes in a row are both saved', (await p.evaluate(() => __setCalls.length)) === calls + 2);
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

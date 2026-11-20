@@ -440,6 +440,43 @@ func (s *Store) TypicalCost(provider, unit string) (median, calls int, err error
 	return (costs[mid-1] + costs[mid]) / 2, len(costs), nil
 }
 
+// RecentTypicalCost is the median cost of the latest calls a provider has
+// recorded in its unit since a time, at most latest of them, and how many it
+// rests on. What a call costs changes when the way it is made changes, and a
+// median over every call ever recorded went on quoting the old cost.
+func (s *Store) RecentTypicalCost(provider, unit string, since time.Time, latest int) (median, calls int, err error) {
+	rows, err := s.db.Query(`SELECT cost FROM (SELECT cost_in + cost_out AS cost FROM calls WHERE provider = ? AND cost_unit = ? AND cost_in + cost_out > 0 AND at >= ? ORDER BY at DESC, id DESC LIMIT ?) ORDER BY cost`,
+		provider, unit, since.UnixMilli(), latest)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+	var costs []int
+	for rows.Next() {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			return 0, 0, err
+		}
+		costs = append(costs, n)
+	}
+	if err := rows.Err(); err != nil || len(costs) == 0 {
+		return 0, 0, err
+	}
+	mid := len(costs) / 2
+	if len(costs)%2 == 1 {
+		return costs[mid], len(costs), nil
+	}
+	return (costs[mid-1] + costs[mid]) / 2, len(costs), nil
+}
+
+// RecentTypicalCost is the typical cost of a provider's latest calls (Store.RecentTypicalCost).
+func (j *Judges) RecentTypicalCost(provider, unit string, since time.Time, latest int) (median, calls int, err error) {
+	if j.store == nil {
+		return 0, 0, nil
+	}
+	return j.store.RecentTypicalCost(provider, unit, since, latest)
+}
+
 // TypicalCost is the typical cost of a provider's recorded calls (Store.TypicalCost).
 func (j *Judges) TypicalCost(provider, unit string) (median, calls int, err error) {
 	if j.store == nil {
