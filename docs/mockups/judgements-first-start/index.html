@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Judgements at the first start: mockup</title>
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/judgements-applet.css">
+  <style>
+    /* The frame around the example is styled here. The flyout is the shipped
+       one (PUDL's popover); the rules under "Proposed" are what the product
+       would gain. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .form-group { margin: 0; }
+    .mock-stage { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); width: 560px; max-width: calc(100% - 2 * var(--space-5)); margin: var(--space-4) var(--space-5); padding: var(--space-4); border: 1px solid var(--border); background: var(--surface-alt); min-height: 400px; justify-content: flex-end; }
+    .mock-stage .popover { position: static; margin: 0; display: block; }
+    .mock-stage .popover[hidden] { display: none; }
+    .mock-bar { display: flex; align-items: center; gap: var(--space-2); align-self: stretch; padding: var(--space-2); border: 1px solid var(--border); background: var(--surface); }
+    .mock-bar .spacer { flex: 1; }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-notes { margin: var(--space-3) var(--space-5) var(--space-5); max-width: 58rem; font-size: var(--text-sm); }
+    .mock-notes h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+
+    /* ---- Proposed -------------------------------------------------------
+       The question is asked in the Judgements flyout itself, which opens
+       once by itself at the first start and is where the same question
+       stays until it is answered. It has the flyout's one width, and its
+       parts have their room from the start, so nothing moves when the
+       answer is given. */
+    .judgements-flyout { inline-size: 24rem; max-inline-size: calc(100vw - 16px); }
+    /* One height for the question, the answer and the case of no agent, so the flyout is one size whatever it says. */
+    .judgements-ask { block-size: 13.5rem; overflow: hidden; }
+    .judgements-ask p { margin: 0 0 var(--space-2); }
+    .judgements-ask ul { margin: 0 0 var(--space-2); padding-inline-start: var(--space-5); }
+    .judgements-ask .muted { color: var(--text-muted); font-size: var(--text-sm); }
+    .judgements-ask-result { min-height: 3em; }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Judgements at the first start</h1>
+    <button type="button" class="btn btn-sm" id="mock-theme">Dark Theme</button>
+    <span class="mock-tag">Mockup, 20 November 2026. Press the buttons in the flyout; Start Over begins again.</span>
+  </header>
+
+  <div class="mock-controls">
+    <div class="form-group">
+      <label class="form-label" for="mock-provider">The default agent program</label>
+      <span class="form-select-wrap"><select class="form-select" id="mock-provider">
+        <option value="plan">Signed in with a plan (Claude, Codex, Devin)</option>
+        <option value="key">Used with an API key billed per token</option>
+        <option value="local">Ollama, on this computer</option>
+        <option value="none">None is working yet</option>
+      </select></span>
+    </div>
+    <button type="button" class="btn" id="mock-again">Start Over</button>
+  </div>
+
+  <div class="mock-stage">
+    <div class="popover judgements-flyout" id="flyout" role="dialog" aria-labelledby="flyout-title">
+      <div class="popover-head">
+        <h2 class="popover-title" id="flyout-title">Judgements</h2>
+        <button class="icon-btn popover-close" type="button" id="flyout-close" aria-label="Close"></button>
+      </div>
+      <div class="judgements-ask" id="ask"></div>
+      <div class="popover-actions" id="actions"></div>
+    </div>
+    <div class="mock-bar">
+      <span class="muted" style="font-size: var(--text-sm); color: var(--text-muted)">Bottom bar</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm" id="status"></button>
+    </div>
+  </div>
+  <p class="mock-said" id="said" role="status"></p>
+
+  <section class="mock-notes">
+    <h2>What is proposed</h2>
+    <ul>
+      <li>At the first start, once an agent program works, the Judgements flyout opens by itself over its item in the bottom bar and asks one question. It opens by itself only that once.</li>
+      <li>Until the question is answered, the bottom bar's item says "Judgements: Set Up" in place of "Off", and pressing it shows the same question again. Nothing is chosen for the person.</li>
+      <li>The question says what judgements do, which model would answer them, and what a day of them may cost at most, in the provider's own unit.</li>
+      <li>Turn On chooses the default provider and its default model, sets the starting budget, and tunes the choice of model in the background. Not Now leaves judgements off and the item at "Set Up". Judgement Settings opens the page with nothing chosen.</li>
+      <li>With an API key billed per token the question says so and gives the budget as money where the provider reports prices.</li>
+      <li>With no working agent program there is no question yet. The item says "Judgements: Needs an Agent" and the flyout says what to do.</li>
+    </ul>
+    <h2>The starting budget</h2>
+    <ul>
+      <li>A new person has no history, so the figure ships with the product: 200 calls a day. That is about four times what a busy day used in the records so far.</li>
+      <li>The product turns it into the provider's unit from what a call measured there. A call through Claude or Codex now costs a small fraction of what it did, since a judgement no longer carries the agent's tools and settings with it.</li>
+      <li>After two weeks the Judgements page offers a figure from the person's own records and changes nothing by itself.</li>
+    </ul>
+  </section>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var state = 'ask';
+      var PROVIDERS = {
+        plan: { name: 'Codex', model: 'its default model', cost: 'At most 200 calls a day, about 2 million tokens of your plan. Most days use far less.' },
+        key: { name: 'Claude', model: 'its default model', cost: 'At most 200 calls a day. This agent is billed for each token on your API key: at most about 180,000 tokens a day.' },
+        local: { name: 'Ollama', model: 'the model you chat with', cost: 'It runs on this computer and costs nothing but its time.' },
+        none: null
+      };
+      function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+      function button(label, primary, run) {
+        var b = el('button', 'btn btn-sm' + (primary ? ' btn-primary' : ''), label); b.type = 'button';
+        b.addEventListener('click', run); return b;
+      }
+      function draw() {
+        var p = PROVIDERS[$('mock-provider').value], ask = $('ask'), actions = $('actions');
+        ask.innerHTML = ''; actions.innerHTML = '';
+        if (!p) {
+          $('status').textContent = 'Judgements: Needs an Agent';
+          ask.appendChild(el('p', '', 'Judgements are small questions an agent answers for you in the background. They need a working agent program.'));
+          ask.appendChild(el('p', 'muted', 'Sign in to an agent in Settings, and this question is asked then.'));
+          actions.appendChild(button('Agent Settings…', true, function () { say('Settings opens at Agents.'); }));
+          return;
+        }
+        if (state === 'on') {
+          $('status').textContent = 'Judgements: On';
+          var r = el('div', 'judgements-ask-result');
+          r.appendChild(el('p', '', 'Judgements are on, answered by ' + p.name + '.'));
+          r.appendChild(el('p', 'muted', 'The best model for them is being chosen in the background. You can change the model, the budget and which kinds run in Judgement Settings.'));
+          ask.appendChild(r);
+          actions.appendChild(button('Judgement Settings…', false, function () { say('The Judgements page opens.'); }));
+          actions.appendChild(button('Close', true, function () { $('flyout').hidden = true; }));
+          return;
+        }
+        $('status').textContent = 'Judgements: Set Up';
+        ask.appendChild(el('p', '', 'May ' + p.name + ' answer small questions for you in the background?'));
+        var list = el('ul');
+        ['A title for each new chat', 'A reply you can take with Tab', 'A summary when a chat moves to another agent'].forEach(function (t) { list.appendChild(el('li', '', t)); });
+        ask.appendChild(list);
+        ask.appendChild(el('p', 'muted', 'Answered by ' + p.name + ', ' + p.model + '. ' + p.cost));
+        actions.appendChild(button('Judgement Settings…', false, function () { say('The Judgements page opens with nothing chosen.'); }));
+        actions.appendChild(button('Not Now', false, function () { $('flyout').hidden = true; say('Judgements stay off. The bottom bar still says Set Up, and pressing it asks again.'); }));
+        actions.appendChild(button('Turn On', true, function () { state = 'on'; draw(); say(''); }));
+      }
+      function say(text) { $('said').textContent = text; }
+      $('status').addEventListener('click', function () { $('flyout').hidden = !$('flyout').hidden; });
+      $('flyout-close').addEventListener('click', function () { $('flyout').hidden = true; });
+      $('mock-again').addEventListener('click', function () { state = 'ask'; $('flyout').hidden = false; say(''); draw(); });
+      $('mock-provider').addEventListener('change', function () { state = 'ask'; $('flyout').hidden = false; say(''); draw(); });
+      $('mock-theme').addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+      });
+      draw();
+    })();
+  </script>
+</body>
+</html>
