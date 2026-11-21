@@ -20,8 +20,25 @@ func (a *App) wakeClock() time.Time {
 	return time.Now()
 }
 
-// ChatWindows reports the chats whose windows are open.
-func (a *App) ChatWindows(ids []string) { a.busCoordinator().ChatWindows(ids) }
+// ChatWindows reports the chats whose windows are open. A chat that had a
+// window in the last report and has none in this one was closed by the
+// person, which chatWindowClosed is told. It starts its own goroutine, so the
+// page's call never waits for an agent.
+func (a *App) ChatWindows(ids []string) {
+	a.mu.Lock()
+	known, before := a.runtime.WindowsLocked()
+	a.mu.Unlock()
+	a.busCoordinator().ChatWindows(ids)
+	if !known {
+		return
+	}
+	for _, id := range ids {
+		delete(before, id)
+	}
+	for id := range before {
+		a.chatWindowClosed(id)
+	}
+}
 
 // backgroundUsedLocked requires the shared App.mu.
 func (a *App) backgroundUsedLocked() int { return a.runtime.BackgroundUsedLocked() }

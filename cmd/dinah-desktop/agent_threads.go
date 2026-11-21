@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"studio/internal/bus"
 )
 
 // An agent that keeps one store of threads for every program that uses it
@@ -18,7 +20,8 @@ import (
 //     Recycle Bin (archiveAgentThread). It is taken out of the archive
 //     before the chat is loaded again (unarchiveBeforeLoad).
 //   - With the person's setting, the thread of a chat whose session was
-//     ended is archived as well (chatSessionEnded).
+//     ended is archived as well (chatSessionEnded), and the session of an
+//     idle chat is ended when its last window is closed (chatWindowClosed).
 //
 // Each of these is an optional capability of a provider's connection, which
 // shared code asks for by interface, as it does for a receipt of a new
@@ -242,6 +245,137 @@ func (a *App) chatSessionEnded(s *Session) {
 	if why != "" {
 		a.archiveAgentThread(provider, id, why)
 	}
+}
+
+// windowCloseSettleDefault is how long a chat whose last window was closed is
+// left before its session is ended early. The page reports its windows at
+// every change, and a page that is loading again reports them one by one as
+// it restores them, so a chat can be missing from one report and back in the
+// next. The wait keeps such a chat from being ended and loaded again.
+const windowCloseSettleDefault = 5 * time.Second
+
+// archivesClosed says the person's settings archive the thread of a closed
+// chat of this provider (ArchiveClosed in the provider's module).
+func (a *App) archivesClosed(provider string) bool {
+	m := providerModules[normalizedProvider(provider)]
+	if !m.ArchivesThreads || m.ArchiveClosed == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return m.ArchiveClosed(a.settings)
+}
+
+// chatWindowClosed is called when the person has closed a chat's last window.
+// Where the person's settings archive the thread of a closed chat, the chat's
+// session is ended now instead of after closedSessionEnd, when the chat is
+// idle, and the end archives the thread (chatSessionEnded). This is the
+// trial of docs/design/codex-thread-housekeeping.md, section 3b: it gives up
+// the quick reopening of a chat that was just closed, which keeping its
+// session loaded is for, so that the thread leaves the agent's list at once.
+//
+// With the setting off this does nothing. With it on the work runs in a
+// goroutine, so closing a window never waits for it, and a failure is logged
+// only. A chat that is working, or that anything else keeps loaded, is left
+// to the ordinary path, which ends its session when it has been closed for
+// closedSessionEnd.
+func (a *App) chatWindowClosed(id string) {
+	s := a.session(id)
+	if s == nil || !a.archivesClosed(s.Provider()) {
+		return
+	}
+	a.windowCloseMu.Lock()
+	if a.windowCloseStop == nil {
+		a.windowCloseStop = make(chan struct{})
+	}
+	stop := a.windowCloseStop
+	select {
+	case <-stop:
+		a.windowCloseMu.Unlock()
+		return
+	default:
+	}
+	a.windowCloses.Add(1)
+	a.windowCloseMu.Unlock()
+	settle := a.windowCloseSettle
+	if settle == 0 {
+		settle = windowCloseSettleDefault
+	}
+	go func() {
+		defer a.windowCloses.Done()
+		if settle > 0 {
+			timer := time.NewTimer(settle)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-stop:
+				return
+			}
+		}
+		a.endClosedChatNow(id)
+	}()
+}
+
+// endClosedChatNow ends the session of a chat whose window was closed, when
+// the setting still asks for it and nothing waits for the chat. The rules for
+// what keeps a chat loaded are the session engine's (ClosedSessions.EndNow);
+// the two looked at here are the ones it cannot see, which are a message on
+// the bus that would wake the chat and a delivery of such a message that is
+// under way.
+func (a *App) endClosedChatNow(id string) {
+	s := a.session(id)
+	if s == nil || !a.archivesClosed(s.Provider()) {
+		return
+	}
+	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(id); active {
+		return
+	}
+	waits, err := a.messageWaitsFor(id)
+	if err != nil {
+		logf("chat", "warning", "chat %s keeps its session after its window was closed, because the messages waiting could not be read: %v", id, err)
+		return
+	}
+	if waits {
+		return
+	}
+	a.closedSessions().EndNow(id, "whose window was closed while its provider's closed chats are archived")
+}
+
+// messageWaitsFor says whether a message that would wake the chat waits for
+// it on the bus (bus.Waking).
+func (a *App) messageWaitsFor(id string) (bool, error) {
+	waits := false
+	err := a.busHost().With(func(b *bus.Bus) error {
+		ctx, cancel := context.WithTimeout(context.Background(), agentThreadPatience)
+		defer cancel()
+		wakes, err := b.Waking(ctx)
+		if err != nil {
+			return err
+		}
+		for _, w := range wakes {
+			if a.chatOfBus(w.Session) == id {
+				waits = true
+			}
+		}
+		return nil
+	})
+	return waits, err
+}
+
+// stopWindowCloses keeps any further look at a closed window from beginning,
+// ends the ones that are still waiting, and waits for the ones at work.
+func (a *App) stopWindowCloses() {
+	a.windowCloseMu.Lock()
+	if a.windowCloseStop == nil {
+		a.windowCloseStop = make(chan struct{})
+	}
+	select {
+	case <-a.windowCloseStop:
+	default:
+		close(a.windowCloseStop)
+	}
+	a.windowCloseMu.Unlock()
+	a.windowCloses.Wait()
 }
 
 // chatThreadOpened is the session engine's AfterOpen work for the agent's threads:

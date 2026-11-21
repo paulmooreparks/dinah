@@ -22,6 +22,9 @@ type threadConnection struct {
 	asked     []string
 	fail      map[string]error // by "name", "archive" or "unarchive"
 	ephemeral map[string]bool
+	// onCall runs before a request is answered, with the request's method,
+	// which a test uses to keep the agent from answering.
+	onCall func(method string)
 }
 
 func (c *threadConnection) note(line string) error {
@@ -33,6 +36,12 @@ func (c *threadConnection) note(line string) error {
 
 func (c *threadConnection) Call(ctx context.Context, method string, params, result any) error {
 	_ = c.note(method)
+	c.mu.Lock()
+	onCall := c.onCall
+	c.mu.Unlock()
+	if onCall != nil {
+		onCall(method)
+	}
 	return c.testProviderConnection.Call(ctx, method, params, result)
 }
 func (c *threadConnection) SetSessionTitle(_ context.Context, id, title string) error {

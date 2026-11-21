@@ -54,6 +54,16 @@ type App struct {
 	// with taking it out of the archive, and with the record of both
 	// (agent_threads.go).
 	agentThreadMu sync.Mutex
+	// windowCloses are the looks at chats whose last window the person
+	// closed, which end a chat's session early where a setting asks for it
+	// (agent_threads.go, chatWindowClosed). windowCloseMu guards the stop
+	// channel, which shutdown closes so that no look begins or waits after
+	// it. windowCloseSettle replaces windowCloseSettleDefault in a test, and
+	// a negative value is no wait.
+	windowCloseMu     sync.Mutex
+	windowCloseStop   chan struct{}
+	windowCloses      sync.WaitGroup
+	windowCloseSettle time.Duration
 
 	drawingMu       sync.Mutex
 	drawingService  *diagrampicture.Service
@@ -399,6 +409,9 @@ func (a *App) shutdown(ctx context.Context) {
 	a.closeResponsiveness()
 	// The watcher stops before the handle it shares is closed.
 	a.busHost().StopWatcher()
+	// A look at a chat whose window was closed ends a session too. None
+	// begins after this, and the ones running are waited for.
+	a.stopWindowCloses()
 	// The watcher admits session-close and fallback provider-stop work. Join
 	// its final round before waiting, so no new work can enter the wait group.
 	// Keep teardown dependencies available until that tracked work finishes.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"studio/internal/acp"
 	"studio/internal/agents"
+	"time"
 )
 
 //go:embed options.go
@@ -22,7 +23,12 @@ type OptionsHost struct {
 	Save         func(*Conversation, []acp.ConfigOption, map[string]json.RawMessage) error
 	Emit         func(string, any)
 }
-type Options struct{ host OptionsHost }
+type Options struct {
+	host OptionsHost
+	// RestoreLimit replaces RestoreSettingsLimit when it is positive, which a
+	// test uses to meet the limit quickly. It is set before the first open.
+	RestoreLimit time.Duration
+}
 
 func NewOptions(host OptionsHost) *Options { return &Options{host: host} }
 func (o *Options) Finish(s *Conversation, opts []acp.ConfigOption) error {

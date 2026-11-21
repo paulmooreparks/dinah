@@ -380,9 +380,23 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 	l.mu.Unlock()
 	l.host.InitTranscript(s, false)
 	l.host.BeginLog(s.ID(), l.host.NormalizeProvider(provider), ws, "")
-	opts, _, err := l.host.RestoreOptions(conn, s.ID(), ns.ConfigOptions, defaults, nil)
+	opts, applied, err := l.host.RestoreOptions(conn, s.ID(), ns.ConfigOptions, defaults, nil)
 	if err == nil {
 		err = l.host.FinishOptions(s, opts)
+	}
+	// A default the agent did not answer for in time leaves the new chat with
+	// the agent's own value, which the chat's settings then show. The page has
+	// no place for a note on a chat it has just made, so the line goes to the
+	// chat's log and to Dinah's log.
+	if err == nil {
+		for _, sub := range applied {
+			if sub.Unanswered() && sub.Note() != "" {
+				l.host.Log("warning", "chat %s was started with settings unrestored: %s", s.ID(), sub.Note())
+				if l.host.NoteLog != nil {
+					l.host.NoteLog(s.ID(), sub.Note())
+				}
+			}
+		}
 	}
 	if err != nil {
 		l.mu.Lock()
@@ -846,7 +860,15 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 	EmitInfo(l.host.Emit, info)
 	// A substitution the person stored is said in the chat, and kept in its
 	// log, each time it is made.
+	// A setting the agent did not answer for in time is said the same way,
+	// in one line for all such settings (Options.Restore), and in Dinah's log.
 	for _, sub := range applied {
+		if sub.Note() == "" {
+			continue
+		}
+		if sub.Unanswered() {
+			l.host.Log("warning", "chat %s was opened with settings unrestored: %s", id, sub.Note())
+		}
 		l.host.NoteLog(id, sub.Note())
 		info.Notes = append(info.Notes, sub.Note())
 	}
@@ -865,7 +887,10 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 // bushost.ConnectPatience (two minutes) less the grace the page is given to
 // open a chat first (five seconds), because the wake scheduler forgets a
 // connect it asked for after that patience, and a failure that arrived later
-// would not be reported to the chat's team or to the person.
+// would not be reported to the chat's team or to the person. The requests
+// that restore the chat's settings come after the load and have a limit of
+// their own for all of them together (RestoreSettingsLimit), so the two
+// limits and the grace have to fit the patience as a sum.
 // TestTheReopenLimitFitsTheWakePatience keeps that relation. The limit is a
 // constant in code, since a wrong value can only be found by reading logs. A
 // chat whose healthy load takes longer than this needs the limit and

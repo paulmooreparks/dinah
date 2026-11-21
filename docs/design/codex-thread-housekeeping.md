@@ -66,11 +66,35 @@ Final deletion from the Recycle Bin is unchanged. It uses `thread/delete` (`Thre
 
 ### 3b. Archiving closed chats, as a trial
 
-Settings › Agents has a new choice under Codex, **Archive Closed Chats in Codex**, which is off unless the person turns it on (`codexArchiveClosed` in `settings.json`). With it on, the thread of a Codex chat is archived when the chat's session is ended, which Dinah does after the chat has been closed with no window for four hours (`sessionhost.ClosedSessions`). The thread is taken out of the archive before the chat is loaded again, by the same record as above, so a chat that a waiting message opens is opened as any other. Turning the choice off leaves archived threads as they are until their chats are next loaded.
+Settings › Agents has a new choice under Codex, **Archive Closed Chats in Codex**, which is off unless the person turns it on (`codexArchiveClosed` in `settings.json`). With it on, the thread of a Codex chat is archived when the chat's session is ended. The thread is taken out of the archive before the chat is loaded again, by the same record as above, so a chat that a waiting message opens is opened as any other. Turning the choice off leaves archived threads as they are until their chats are next loaded.
 
-Whether the Codex desktop app hides archived threads from its list is not documented. The schema documents the filter of `thread/list` and nothing about the app. The trial is how the owner finds out. The quickest look needs no setting: move a Codex chat to the Recycle Bin and see whether the Codex app still lists it.
+A session is ended at one of two moments.
 
-Chats that are closed because Dinah itself is closed are not archived. Their sessions end with the Codex process, and Dinah makes no calls for them on its way out.
+- **When the person closes the chat's last window, if the chat is idle.** This was added on 22 November 2026 so that the trial can be judged in minutes. Dinah waits five seconds (`windowCloseSettleDefault`), because the page reports its windows at every change and a page that is loading again restores them one by one, and a chat whose window is back by then is left alone. Then it closes the session with `session/close`, which the Codex adapter carries out as `thread/unsubscribe`, and archives the thread.
+- **After the chat has been closed with no window for four hours** (`sessionhost.ClosedSessions`). This is the path every provider's chats take, and it is the one a chat takes when it was not idle at the moment its window closed.
+
+A chat is idle for the first case when every one of these holds, which are the rules the four-hour path already follows (`ClosedSessions.EndNow`, `Activity.ClosedIdleLocked` and `BeginEndLocked`) with the bus looked at as well:
+
+- No turn is running in it, which covers a question or an approval the agent waits for, since the agent asks those inside a turn.
+- No work of the agent's goes on after a turn, and no subagent of the chat is running.
+- It is not open in the background for a message or for its team.
+- Nothing holds its runtime, as a task and a service chat do (`HoldRuntime`).
+- It is not being configured, switched to another program, loaded or ended.
+- No message that would wake it waits on the bus (`bus.Waking`), and no delivery of such a message is under way.
+
+A chat that fails any of these keeps its session and is ended by the four-hour path. Dinah does not look again when the chat becomes idle, so a chat that was working when its window closed is archived four hours after it stops, at the earliest. If the messages waiting cannot be read, the chat keeps its session.
+
+The work runs apart from the page's report of its windows, so closing a window never waits for Codex. A session that Codex does not close stays loaded, and a thread that cannot be archived stays as it is. Both are written to the log and nothing else changes.
+
+### What the trial costs
+
+Dinah keeps a closed chat's session loaded for four hours for a reason: the person, or a message, brings the chat back at once, without a load (`docs/plans/group-chats.md`, decision 11). With this choice on, a Codex chat that the person closes while it is idle gives that up. Opening it again takes out of the archive first and then loads the thread, which for a long conversation takes seconds where it took none. A message for the chat that arrives after the window was closed pays the same, since it opens the chat in the background by a load.
+
+That is the trade the choice makes: a tidy list in Codex against a quick reopen. It is a trial switch, off unless the person turns it on, and with it off nothing here happens and closed chats keep their sessions as before.
+
+Whether the Codex desktop app hides archived threads from its list is not documented. The schema documents the filter of `thread/list` and nothing about the app. The trial is how the owner finds out. With the choice on, close the window of a Codex chat that is not working, wait about ten seconds, and see whether the Codex app still lists it; the log has the line "archived the thread of chat ..., which was closed" when Codex accepted the request. A look that needs no setting is to move a Codex chat to the Recycle Bin.
+
+Chats that are closed because Dinah itself is closed are not archived. Their sessions end with the Codex process, and Dinah makes no calls for them on its way out: shutdown ends the five-second waits that have not finished, and starts no new one.
 
 ## 4. The live test deletes its thread
 

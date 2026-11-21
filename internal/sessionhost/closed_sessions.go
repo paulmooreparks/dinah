@@ -193,6 +193,49 @@ func (c *ClosedSessions) EndClosed() {
 	}
 }
 
+// EndNow ends the session of one chat that has no window and is idle, without
+// waiting for ClosedSessionEnd, and reports whether it did. The host calls it
+// when the person has closed a chat's last window and a setting asks for the
+// chat's session to be ended then (docs/design/codex-thread-housekeeping.md,
+// section 3b). why completes the log line "ended the session of chat X, ...".
+//
+// The chat is ended under the rules EndClosed follows, and under no weaker
+// one: it has no window, it is open and ready, no turn runs in it, it is not
+// open in the background, no work of the agent's or subagent runs after a
+// turn, nothing holds its runtime (HoldRuntime, which a task and a service
+// chat use), and it is not being configured or ended already. A chat that
+// fails any of these is left as it is, for EndClosed to end when it is due.
+// Only an agent that advertises session/close is asked; an agent without it
+// is never stopped for one chat.
+//
+// The call returns when the session is closed and the host's Ended work is
+// done, which can take CloseSessionPatience, so the host calls it from a
+// goroutine of its own and never from the page's call.
+func (c *ClosedSessions) EndNow(id, why string) bool {
+	c.mu.Lock()
+	known, windows := c.runtime.WindowsLocked()
+	s := c.runtime.ConversationLocked(id)
+	var conn Connection
+	var init acp.InitializeResult
+	if s != nil {
+		if p := c.runtime.ProviderLocked(c.host.NormalizeProvider(s.Provider())); p != nil {
+			conn, init = p.Connection(), p.Initialization()
+		}
+	}
+	c.mu.Unlock()
+	if !known || s == nil || windows[id] || conn == nil || init.AgentCapabilities.SessionCapabilities.Close == nil {
+		return false
+	}
+	if !s.ClosedIdle(c.host.Clock()) {
+		return false
+	}
+	done := c.beginEnd(s)
+	if done == nil {
+		return false
+	}
+	return c.closeSessionFor(conn, s, done, why)
+}
+
 // beginEnd marks a chat as having its session ended, unless it has
 // changed since it was found due: it is closed to the person and off the
 // bus, so nothing starts a turn in it meanwhile. It returns an opaque completion to
@@ -224,10 +267,16 @@ func (c *ClosedSessions) abandonEnd(s *Conversation, done *SessionEnd) {
 // closeSession ends one chat's session with session/close, and lets the
 // chat go as the end of its agent's process does (watchProvider).
 func (c *ClosedSessions) closeSession(conn Connection, s *Conversation, done *SessionEnd) {
+	c.closeSessionFor(conn, s, done, "closed for "+ClosedSessionEnd.String())
+}
+
+// closeSessionFor is closeSession with the reason the log gives, and it
+// reports whether the agent closed the session.
+func (c *ClosedSessions) closeSessionFor(conn Connection, s *Conversation, done *SessionEnd, why string) bool {
 	if err := c.host.CallWithin(conn, CloseSessionPatience, "session/close", acp.CloseSessionParams{SessionID: s.ID()}, nil); err != nil {
-		c.host.Log("error", "chat %s has been closed for %s, but its agent did not close its session, which stays loaded: %v", s.ID(), ClosedSessionEnd, err)
+		c.host.Log("error", "chat %s was to have its session ended, %s, but its agent did not close its session, which stays loaded: %v", s.ID(), why, err)
 		c.abandonEnd(s, done)
-		return
+		return false
 	}
 	c.mu.Lock()
 	c.runtime.RemoveExpectedLocked(s.ID(), s)
@@ -244,6 +293,7 @@ func (c *ClosedSessions) closeSession(conn Connection, s *Conversation, done *Se
 	}
 	s.FinishEnd()
 	done.Complete()
-	c.host.Log("info", "ended the session of chat %s, closed for %s", s.ID(), ClosedSessionEnd)
+	c.host.Log("info", "ended the session of chat %s, %s", s.ID(), why)
 	EmitSession(c.host.Emit, s)
+	return true
 }

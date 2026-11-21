@@ -196,6 +196,16 @@ func (c *Conversation) ClosedDue(window bool, now time.Time, after time.Duration
 	return c.activity.ClosedDueLocked(window, now, after)
 }
 
+// ClosedIdle reports whether a chat with no window is idle as ClosedDue
+// means it, and starts its closed clock when it is, so that BeginEnd admits
+// its end. It is what ClosedSessions.EndNow asks in place of waiting for the
+// clock to run out.
+func (c *Conversation) ClosedIdle(now time.Time) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.activity.ClosedIdleLocked(now)
+}
+
 func (c *Conversation) Ending() *SessionEnd {
 	c.mu.Lock()
 	defer c.mu.Unlock()

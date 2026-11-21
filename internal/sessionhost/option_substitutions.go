@@ -126,9 +126,17 @@ type Reopening struct {
 // AppliedSubstitution is a stored substitution restoreOptions used.
 type AppliedSubstitution struct {
 	OptionSubstitution
-	// note is the line the chat shows about it.
+	// note is the line the chat shows about it. It is empty for a setting
+	// that shares another's line (unansweredNote).
 	note string
+	// unanswered marks a setting left at the agent's value because the agent
+	// did not answer the request to restore it in time (Options.Restore).
+	unanswered bool
 }
+
+// Unanswered reports whether the setting was left at the agent's value
+// because the agent did not answer the request to restore it in time.
+func (s AppliedSubstitution) Unanswered() bool { return s.unanswered }
 
 // OfferedValue is one value the agent offers for an option, with its name.
 // Suggested marks a value whose name is the saved value's name or the saved

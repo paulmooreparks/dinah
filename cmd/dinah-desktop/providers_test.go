@@ -46,6 +46,9 @@ type testProviderConnection struct {
 	resumeErr error
 	// onLoad runs when session/load is called, to replay messages.
 	onLoad func()
+	// onSetOption runs when session/set_config_option is called, before the
+	// setting is changed, which a test uses to keep the agent from answering.
+	onSetOption func(id string)
 	// imageInput is the answer to the image-input request; empty is an error.
 	imageInput string
 	// window is what the context requests say; setAside and choice record what
@@ -136,6 +139,9 @@ func (c *testProviderConnection) Call(_ context.Context, method string, params a
 		*result.(*acp.LoadSessionResult) = acp.LoadSessionResult{ConfigOptions: c.options}
 	case "session/set_config_option":
 		p := params.(acp.SetConfigOptionParams)
+		if c.onSetOption != nil {
+			c.onSetOption(p.ConfigID)
+		}
 		options := append([]acp.ConfigOption(nil), c.options...)
 		// The setting asked for changes; the first is changed for an ID the agent does not list, as before.
 		changed := 0

@@ -95,9 +95,12 @@ func rawArgs(t *testing.T, values ...any) []json.RawMessage {
 
 // The wake scheduler forgets a connect it asked for after its patience, so a
 // load must fail inside it for the failure to be reported as that connect's.
+// The requests that restore the chat's settings follow the load and have one
+// limit for all of them, so the open's bounded steps are the grace, the load
+// and the restore, and their sum has to be inside the patience.
 func TestTheReopenLimitFitsTheWakePatience(t *testing.T) {
-	if sessionhost.ReopenLoadLimit+connectGraceDefault >= connectPatience {
-		t.Fatalf("a load may take %s after a grace of %s, which is not inside the wake patience of %s", sessionhost.ReopenLoadLimit, connectGraceDefault, connectPatience)
+	if sum := connectGraceDefault + sessionhost.ReopenLoadLimit + sessionhost.RestoreSettingsLimit; sum >= connectPatience {
+		t.Fatalf("a grace of %s, a load of %s and a restore of %s make %s, which is not inside the wake patience of %s", connectGraceDefault, sessionhost.ReopenLoadLimit, sessionhost.RestoreSettingsLimit, sum, connectPatience)
 	}
 	if sessionhost.ReopenLoadLimit <= reopenPatience {
 		t.Fatalf("the load limit of %s ends before the reopen watch has logged at %s", sessionhost.ReopenLoadLimit, reopenPatience)

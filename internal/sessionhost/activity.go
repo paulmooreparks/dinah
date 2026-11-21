@@ -279,6 +279,20 @@ func (a *Activity) ClosedDueLocked(window bool, now time.Time, after time.Durati
 	return false
 }
 
+// ClosedIdleLocked is ClosedDueLocked for a chat known to have no window,
+// with no time to wait: it reports whether the chat is ready and has nothing
+// running, and starts the closed clock when it does. A subagent still running
+// counts as work here, as it does for a chat that parks itself (ParkLocked).
+func (a *Activity) ClosedIdleLocked(now time.Time) bool {
+	if !a.ReadyLocked() || a.ending != nil || a.inBackground || a.WorkingLocked() || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0 {
+		return false
+	}
+	if a.closedSince.IsZero() {
+		a.closedSince = now
+	}
+	return true
+}
+
 // SessionEnd keeps the completion channel private. Wait and Complete retain
 // the caller's existing positions relative to session cleanup and events.
 type SessionEnd struct{ done chan struct{} }
