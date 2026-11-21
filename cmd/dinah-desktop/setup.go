@@ -86,8 +86,11 @@ type SetupOffer struct {
 	// chosen.
 	PersonName  string `json:"personName"`
 	AccountName string `json:"accountName"`
-	// Workspace is the folder of the workspace in front, or empty.
-	Workspace string `json:"workspace"`
+	// Workspace is the folder of the workspace in front, or empty, and
+	// Workspaces how many workspaces there are. The set-up offers to make a
+	// first one, and asks nothing about them once there is one.
+	Workspace  string `json:"workspace"`
+	Workspaces int    `json:"workspaces"`
 	// JudgeOn says the small questions in the background are answered
 	// already, so the set-up does not ask about them. JudgeName is the
 	// agent that would answer them when the chosen one cannot, or empty
@@ -139,7 +142,7 @@ func installPage(provider string, p profile.Profile) string {
 // program, which takes a moment.
 func (a *App) SetupOffer() (SetupOffer, error) {
 	a.mu.Lock()
-	offer := SetupOffer{Shown: a.settings.SetupShown, Default: defaultProviderOf(a.settings), Workspace: a.settings.Workspace, JudgeCalls: judgementStartCalls}
+	offer := SetupOffer{Shown: a.settings.SetupShown, Default: defaultProviderOf(a.settings), Workspace: a.settings.Workspace, Workspaces: len(a.settings.WorkspaceRecords), JudgeCalls: judgementStartCalls}
 	a.mu.Unlock()
 	offer.Uses = offeredSetupUses()
 	offer.PersonName, offer.AccountName = a.chosenPersonName(), accountName()
@@ -237,31 +240,6 @@ func (a *App) SetupAsking(provider string) *SetupAsking {
 		asking.Choices = append(asking.Choices, SetupChoice{ID: v.Value, Label: label})
 	}
 	return asking
-}
-
-// SetupFolder says what choosing a folder in the set-up would do. Known says
-// the folder is a workspace already, so none is made of it, Name is that
-// workspace's name, and Front says it is the one in front, so nothing
-// changes.
-type SetupFolder struct {
-	Known bool   `json:"known"`
-	Name  string `json:"name"`
-	Front bool   `json:"front"`
-}
-
-// SetupFolder reads what choosing a folder in the set-up would do.
-func (a *App) SetupFolder(folder string) SetupFolder {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if strings.TrimSpace(folder) == "" {
-		return SetupFolder{}
-	}
-	i := workspaces.IndexAt(a.settings.WorkspaceRecords, filepath.Clean(folder))
-	if i < 0 {
-		return SetupFolder{}
-	}
-	front := a.settings.Workspace != "" && workspaces.IndexAt(a.settings.WorkspaceRecords, a.settings.Workspace) == i
-	return SetupFolder{Known: true, Name: a.settings.WorkspaceRecords[i].Name, Front: front}
 }
 
 // SetupChoices are the answers the set-up sets. Asking is empty for an agent

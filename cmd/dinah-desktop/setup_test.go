@@ -76,14 +76,8 @@ func TestTheSetUpPutsAFolderThatIsAWorkspaceAlreadyInFront(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := a.SetupFolder(t.TempDir()); got.Known {
-		t.Fatalf("a folder that is no workspace: %+v", got)
-	}
-	if got := a.SetupFolder(known); !got.Known || got.Front || got.Name == "" {
-		t.Fatalf("a workspace that is not in front: %+v", got)
-	}
-	if got := a.SetupFolder(front); !got.Known || !got.Front {
-		t.Fatalf("the workspace in front: %+v", got)
+	if offer, err := a.SetupOffer(); err != nil || offer.Workspaces != 2 {
+		t.Fatalf("the offer counts %d workspaces: %v", offer.Workspaces, err)
 	}
 	a.mu.Lock()
 	agent := defaultProviderOf(a.settings)

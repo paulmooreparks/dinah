@@ -65,7 +65,7 @@
     /* ---- What is known and what was answered ------------------------------ */
     var offer = null, agent = '', tests = {}, asking = null, signed = '';
     var step = 0, at = 0, picked = null, answers = {}, from = {}, values = {};
-    var busy = false, applied = false, opened = [], folderIs = {};
+    var busy = false, applied = false, opened = [];
 
     function note(text) { H.setText(status, text); status.title = text; }
     function chosen() { return offer ? offer.agents.filter(function (a) { return a.id === agent; })[0] : null; }
@@ -84,14 +84,12 @@
         choices: offer.uses.map(function (u) { return { id: u.id, label: u.label, value: u.opens }; }) });
       if (asking && asking.choices.length) qs.push({ id: 'ask', setting: 'Before ' + agentName() + ' acts', ask: 'How much should ' + agentName() + ' ask you before it acts?',
         choices: asking.choices.map(function (c) { return { id: c.id, label: c.label, value: c.label }; }) });
-      /* The folder chosen is made a workspace and put in front (ApplySetup), and
-         the question and the review say so. A folder that is a workspace
-         already is only put in front, and they say that instead. */
-      var f = values.folder, known = folderIs.known ? 'your workspace ' + (folderIs.name || f) : '';
-      var folders = [{ id: 'pick', label: !f ? 'Choose a Folder…' : folderIs.front ? 'Keep ' + known + ' in front' : known ? 'Put ' + known + ' in front' : 'Make a workspace of ' + f,
-        value: !f ? '' : folderIs.front ? 'No change, ' + f : known ? 'Y' + known.slice(1) + ' is put in front' : 'A workspace is made of ' + f }];
-      folders.push(offer.workspace ? { id: 'keep', label: 'Keep ' + offer.workspace, value: 'No change, ' + offer.workspace } : { id: 'none', label: 'Not now', value: 'None yet' });
-      qs.push({ id: 'folder', setting: 'Workspace', ask: 'Which folder has your work? ' + productName() + ' makes it ' + (offer.workspace ? 'a workspace and puts it in front.' : 'your first workspace.'), choices: folders });
+      /* A person with no workspace yet is offered a first one, made of a
+         folder they choose (ApplySetup). One who has a workspace is asked
+         nothing about them: there are as many as a person wants, and they
+         are made and chosen in the Workspace window. */
+      if (!offer.workspaces) qs.push({ id: 'folder', setting: 'First workspace', ask: 'A workspace is a folder your agents work in, and you can have as many as you like. Make your first one now?',
+        choices: [{ id: 'pick', label: values.folder ? 'Make a workspace of ' + values.folder : 'Choose a Folder…', value: values.folder ? 'A workspace is made of ' + values.folder : '' }, { id: 'none', label: 'Not now', value: 'None yet' }] });
       var names = [];
       if (offer.personName) names.push({ id: 'keep', label: offer.personName + ', as now', value: 'No change, ' + offer.personName });
       names.push({ id: 'account', label: offer.accountName + ', from this computer’s account', value: offer.accountName });
@@ -176,15 +174,8 @@
     function pickFolder() {
       busy = true; draw();
       Promise.resolve().then(function () { return app().ChooseImportFolder(values.folder || offer.workspace || ''); }).then(function (path) {
-        if (path) { values.folder = path; picked = 'pick'; return folderKnown(); }
+        if (path) { values.folder = path; picked = 'pick'; }
       }, function (err) { note(H.message(err, 'sentence')); }).then(function () { busy = false; if (!disposed) draw(); });
-    }
-    /* Whether the folder chosen is a workspace already (SetupFolder). */
-    function folderKnown() {
-      folderIs = {};
-      if (!values.folder || !app().SetupFolder) return Promise.resolve();
-      var asked = values.folder;
-      return Promise.resolve().then(function () { return app().SetupFolder(asked); }).then(function (is) { if (asked === values.folder) folderIs = is || {}; }, function () {});
     }
     function toQuestions() {
       var qs = questions();
@@ -202,12 +193,8 @@
       var current = questions(), asked = current[at];
       busy = true; note(agentName() + ' is reading that…'); draw();
       var input = current.map(function (q) { return { id: q.id, choices: q.id === 'use' || q.id === 'ask' ? q.choices.map(function (c) { return { id: c.id, label: c.label }; }) : [] }; });
-      var got = {};
       return Promise.resolve().then(function () { return app().ReadSetupWords(text, agent, input); }).then(function (reading) {
-        got = reading && reading.answers || {};
-        if (got.folder) { values.folder = got.folder; return folderKnown(); }
-      }).then(function () {
-        var took = [];
+        var got = reading && reading.answers || {}, took = [];
         if (!Object.keys(got).length && asked.id === 'name' && text.length <= 80 && !/\n/.test(text)) got = { name: text };
         current.forEach(function (q) {
           var v = got[q.id]; if (!v) return;

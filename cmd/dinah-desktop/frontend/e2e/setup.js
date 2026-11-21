@@ -94,9 +94,9 @@ const { launch } = require('./lib/page');
     await win.locator('.setup-review').waitFor();
     const read = await p.evaluate(() => window.__s.read[1]);
     ok('the words go to the chosen agent with every question, so that what is said now replaces an earlier answer', read.agent === 'alpha' && read.open.join() === 'use,ask,folder,name,judge', JSON.stringify(read));
-    ok('what was taken is said, and review follows when nothing is left', /From that I take before alpha acts: Full Access, Unattended; workspace: A workspace is made of C:\/Work\/Pricing\./.test(await win.locator('.setup-said').textContent()), await win.locator('.setup-said').textContent());
+    ok('what was taken is said, and review follows when nothing is left', /From that I take before alpha acts: Full Access, Unattended; first workspace: A workspace is made of C:\/Work\/Pricing\./.test(await win.locator('.setup-said').textContent()), await win.locator('.setup-said').textContent());
     const review = async () => (await win.locator('.setup-review tbody tr').allTextContents()).join(' | ');
-    ok('review shows every setting with where it came from', /Before Alpha acts\s*Full Access, Unattended · What you said/.test(await review()) && /Workspace\s*A workspace is made of C:\/Work\/Pricing · What you said/.test(await review()) && /What agents call you\s*Alex Morgan · Your answer/.test(await review()), await review());
+    ok('review shows every setting with where it came from', /Before Alpha acts\s*Full Access, Unattended · What you said/.test(await review()) && /First workspace\s*A workspace is made of C:\/Work\/Pricing · What you said/.test(await review()) && /What agents call you\s*Alex Morgan · Your answer/.test(await review()), await review());
     ok('nothing is set before Set It Up', (await p.evaluate(() => window.__s.applied.length)) === 0 && (await next.textContent()) === 'Set It Up');
 
     // Change goes back to a question; a typed name is the name.
