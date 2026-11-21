@@ -25,6 +25,10 @@ type ConnectionView struct {
 	DefaultAddress string `json:"defaultAddress"`
 	HasToken       bool   `json:"hasToken"`
 	Testable       bool   `json:"testable"`
+	// TokenSteps say how a person makes the token and TokenStore where it
+	// is kept, for the guided set-up (setup.js).
+	TokenSteps []string `json:"tokenSteps"`
+	TokenStore string   `json:"tokenStore"`
 	// Problem says why the saved settings could not be read, when they
 	// could not: the keychain refusing, for one.
 	Problem string `json:"problem,omitempty"`
@@ -34,7 +38,7 @@ type ConnectionView struct {
 func (a *App) Connections() []ConnectionView {
 	out := []ConnectionView{}
 	for _, c := range connections.All() {
-		view := ConnectionView{ID: c.ID, Label: c.Label, Help: c.Help, DefaultAddress: c.DefaultAddress, Testable: c.Test != nil}
+		view := ConnectionView{ID: c.ID, Label: c.Label, Help: c.Help, DefaultAddress: c.DefaultAddress, Testable: c.Test != nil, TokenSteps: c.TokenSteps, TokenStore: c.TokenStore}
 		saved, err := c.Load()
 		if err != nil {
 			view.Problem = err.Error()
@@ -68,6 +72,25 @@ func (a *App) SetConnection(id, address, token string) error {
 	}
 	a.emitSettingsChanged()
 	return nil
+}
+
+// OpenConnectionSite opens a connection's service in the browser, at the
+// address the person has entered or, with none, the one offered, so that
+// they can make a token there.
+func (a *App) OpenConnectionSite(id, address string) error {
+	c, ok := connections.Lookup(id)
+	if !ok {
+		return connections.ErrUnknown
+	}
+	address = strings.TrimSpace(address)
+	if address == "" {
+		address = c.DefaultAddress
+	}
+	u, err := url.Parse(address)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
+		return errors.New("use a web address, such as https://example.com")
+	}
+	return a.openInBrowser(u.String())
 }
 
 // RemoveConnection forgets a connection's saved address and token.

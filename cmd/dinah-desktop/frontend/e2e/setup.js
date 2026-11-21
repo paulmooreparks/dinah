@@ -64,11 +64,11 @@ const { launch } = require('./lib/page');
     // An agent that does not answer cannot be continued with; signing in and testing again lets it.
     await win.locator('.setup-agents tr', { hasText: 'Beta' }).locator('input').check();
     await p.waitForFunction(() => /Does not answer/.test(document.querySelector('.setup-agents').textContent));
-    ok('an agent that does not answer says why at the foot, and the step’s button tests it again', /Beta does not answer\. Nobody is signed in\./.test(await status()) && (await next.textContent()) === 'Test Again', await status());
+    ok('an agent that does not answer says why at the foot, Next waits, and its row tests it again', /Beta does not answer\. Nobody is signed in\./.test(await status()) && (await next.textContent()) === 'Next' && await next.isDisabled() && await win.locator('.setup-agents tr', { hasText: 'Beta' }).getByRole('button', { name: 'Test Again' }).isVisible(), await status());
     ok('the rows did not move or change size while an agent was tested', await box('.setup-agents') === table && await box('.setup-body') === size);
-    await win.locator('.setup-agents tr', { hasText: 'Beta' }).getByRole('button').click();
+    await win.locator('.setup-agents tr', { hasText: 'Beta' }).getByRole('button', { name: 'Sign In…' }).click();
     await p.waitForFunction(() => /BetaAnswers/.test(document.querySelector('.setup-agents').textContent));
-    ok('after a sign-in the agent answers', (await next.textContent()) === 'Continue' && await next.isEnabled());
+    ok('after a sign-in the agent answers', (await next.textContent()) === 'Next' && await next.isEnabled() && (await win.locator('.setup-agents').getByRole('button', { name: 'Test Again' }).count()) === 0);
 
     // Beta has no setting for what it asks, and cannot answer in the background, so Alpha would.
     await next.click();
@@ -83,7 +83,7 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => /AlphaAnswers/.test(document.querySelector('.setup-agents').textContent));
     await next.click();
     ok('the question in hand is the first one not answered, which is what the agent asks', (await win.locator('.setup-question').textContent()) === 'How much should Alpha ask you before it acts?' && (await win.locator('.setup-choices .md-item').allTextContents()).join('|') === 'Ask Before Commands|Full Access, Unattended');
-    ok('Continue waits for a choice', await next.isDisabled());
+    ok('Next waits for a choice', await next.isDisabled());
 
     // The person's own words answer several questions at once.
     await win.locator('.setup-own textarea').fill('nothing useful');

@@ -40,6 +40,14 @@ type Connection struct {
 	Save func(Settings) error
 	// Remove forgets the saved settings.
 	Remove func() error
+	// TokenSteps say how a person makes the token, one step each, for the
+	// guided set-up, which has a step for every connection that gives
+	// them. The first step is to open the service, which the set-up's
+	// button does. With none, the set-up does not ask about the connection.
+	TokenSteps []string
+	// TokenStore is where Save keeps the token, as a person knows the
+	// place, such as the name of the system's credential store.
+	TokenStore string
 	// Test reaches the service with the saved settings and returns a line
 	// about who it signed in as, or an error. Nil, there is no Test button.
 	Test func(context.Context) (string, error)

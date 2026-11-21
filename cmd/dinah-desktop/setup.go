@@ -91,6 +91,10 @@ type SetupOffer struct {
 	// first one, and asks nothing about them once there is one.
 	Workspace  string `json:"workspace"`
 	Workspaces int    `json:"workspaces"`
+	// Connections are the services the product connects to with a token
+	// that say how the token is made and can be tested. The set-up has a
+	// step for each; a product with none has no such step.
+	Connections []ConnectionView `json:"connections"`
 	// JudgeOn says the small questions in the background are answered
 	// already, so the set-up does not ask about them. JudgeName is the
 	// agent that would answer them when the chosen one cannot, or empty
@@ -145,6 +149,12 @@ func (a *App) SetupOffer() (SetupOffer, error) {
 	offer := SetupOffer{Shown: a.settings.SetupShown, Default: defaultProviderOf(a.settings), Workspace: a.settings.Workspace, Workspaces: len(a.settings.WorkspaceRecords), JudgeCalls: judgementStartCalls}
 	a.mu.Unlock()
 	offer.Uses = offeredSetupUses()
+	offer.Connections = []ConnectionView{}
+	for _, c := range a.Connections() {
+		if len(c.TokenSteps) > 0 && c.Testable {
+			offer.Connections = append(offer.Connections, c)
+		}
+	}
 	offer.PersonName, offer.AccountName = a.chosenPersonName(), accountName()
 	for _, p := range a.AgentProviders() {
 		m := providerModules[p.ID]

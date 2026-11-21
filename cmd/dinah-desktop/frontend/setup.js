@@ -9,7 +9,17 @@
    them. Step 3 shows every setting before anything is set. Set It Up sets
    them and opens the windows chosen, and Undo, which takes its place, puts
    them back. Two rows say what Undo cannot take back: a sign-in stays, and
-   the small questions in the background are turned off again. */
+   the small questions in the background are turned off again.
+
+   A product that connects to services with a token has a step for each
+   after the first (internal/connections; Dinah has none). The step says
+   how the token is made, opens the service, and takes the token in a field
+   that saves it where the connection keeps its token and signs in with it
+   once. A token is saved when Save and Test is pressed, and Undo leaves it.
+
+   The foot has Back and Next at every step. Next is disabled while the
+   step cannot be passed and enabled when it can (Paul, 21 November 2026);
+   the last step's button is Set It Up, and then Undo. */
 (function () {
   'use strict';
   var H = window.dinahHelpers, node = H.node;
@@ -35,9 +45,16 @@
     /* ---- The parts, each made once ---------------------------------------- */
     function button(words, cls) { var b = node('button', cls || 'btn', words); b.type = 'button'; return b; }
     var steps = node('ol', 'setup-steps'); steps.setAttribute('aria-label', 'Steps');
-    ['Agent', 'Questions', 'Review'].forEach(function (name, i) {
-      var li = node('li'); li.dataset.step = String(i); li.append(node('span', 'n', String(i + 1)), node('span', '', name)); steps.appendChild(li);
-    });
+    /* The steps are listed when the offer says which connections there are:
+       the agent, each connection, the questions, review. Q and R are the
+       places of the last two. */
+    var Q = 1, R = 2, conns = [];
+    function listSteps() {
+      var names = ['Agent'].concat(conns.map(function (c) { return 'Connect ' + c.label; }), ['Questions', 'Review']);
+      steps.replaceChildren.apply(steps, names.map(function (name, i) {
+        var li = node('li'); li.dataset.step = String(i); li.append(node('span', 'n', String(i + 1)), node('span', '', name)); return li;
+      }));
+    }
     var panes = [node('div', 'setup-pane'), node('div', 'setup-pane'), node('div', 'setup-pane')];
     var agentRows = node('tbody'), agentTable = node('table', 'data-table setup-agents');
     agentTable.setAttribute('aria-label', 'Agents'); agentTable.appendChild(agentRows);
@@ -57,7 +74,7 @@
     head.appendChild(headRow); review.append(head, reviewRows); review.setAttribute('aria-labelledby', reviewTitle.id);
     panes[2].append(reviewTitle, review);
     var body = node('div', 'setup-body'); body.append(steps, panes[0], panes[1], panes[2]);
-    var skip = button('Skip Set-Up'), status = node('span', 'setup-status'), back = button('Back'), next = button('Continue', 'btn btn-primary');
+    var skip = button('Skip Set-Up'), status = node('span', 'setup-status'), back = button('Back'), next = button('Next', 'btn btn-primary');
     status.setAttribute('role', 'status');
     var foot = node('div', 'setup-foot'); foot.append(skip, status, back, next);
     root.append(body, foot);
@@ -133,6 +150,13 @@
         var word = !a.found ? 'Not found' : !t ? 'Found' : t.state === 'testing' ? 'Testing…' : t.state === 'ok' ? 'Answers' : 'Does not answer';
         state.appendChild(node('span', 'badge' + (word === 'Answers' ? ' accent' : ''), word));
         if (!a.found && a.words) state.title = a.words;
+        /* An agent that does not answer is tested again from its own row;
+           Next waits until it answers. */
+        if (t && t.state === 'fail') {
+          var again = button('Test Again', 'btn btn-sm'); again.disabled = busy || applied;
+          again.addEventListener('click', function () { note(''); test(a.id); });
+          act.appendChild(again);
+        }
         if (!a.found ? a.installPage : a.signIn) {
           var b = button(a.found ? 'Sign In…' : 'How to Install', 'btn btn-sm'); b.disabled = busy || applied;
           b.addEventListener('click', function () {
@@ -155,7 +179,58 @@
       }));
     }
 
-    /* ---- Step 2 ----------------------------------------------------------- */
+    /* ---- The connections ---------------------------------------------------
+       Each has a pane made once, when the offer comes, and only its words
+       change after that. A connection that has a token is tested at once,
+       so its step says who is signed in. */
+    var links = {};
+    function makeConn(c) {
+      var pane = node('div', 'setup-pane setup-conn'), head = node('div', 'setup-conn-head'), badge = node('span', 'badge');
+      head.append(node('h2', '', 'Connect ' + c.label), badge);
+      var list = node('ol', 'setup-conn-steps');
+      ['Press Open ' + c.label + ' and sign in.'].concat(c.tokenSteps).forEach(function (t) { list.appendChild(node('li', '', t)); });
+      var form = node('div', 'setup-conn-form');
+      var la = node('label', '', 'Address'), address = node('input', 'form-input'), site = button('Open ' + c.label);
+      address.type = 'url'; address.spellcheck = false; address.id = 'setup-address-' + c.id + '-' + key; la.htmlFor = address.id; address.value = c.address || c.defaultAddress || '';
+      var lt = node('label', '', 'Token'), token = node('input', 'form-input'), save = button('Save and Test');
+      token.type = 'password'; token.autocomplete = 'off'; token.spellcheck = false; token.id = 'setup-token-' + c.id + '-' + key; lt.htmlFor = token.id;
+      form.append(la, address, site, lt, token, save);
+      pane.append(head, list, form, node('p', 'setup-conn-kept', 'The token is kept in ' + (c.tokenStore || 'this computer’s credential store') + '. It is not shown again, and it is not sent to the agent.'));
+      var l = links[c.id] = { pane: pane, badge: badge, address: address, token: token, site: site, save: save, is: 'none', has: !!c.hasToken, line: '', why: c.problem || '', saved: false };
+      token.addEventListener('input', draw);
+      site.addEventListener('click', function () {
+        Promise.resolve().then(function () { return app().OpenConnectionSite(c.id, address.value); }).then(function () { note(c.label + ' is open in your browser.'); }, function (err) { note(H.message(err, 'sentence')); });
+      });
+      save.addEventListener('click', function () {
+        var value = token.value.trim();
+        l.is = 'testing'; note('Signing in to ' + c.label + '…'); draw();
+        Promise.resolve().then(function () { return app().SetConnection(c.id, address.value, value); }).then(function () {
+          token.value = ''; l.has = true; if (value) l.saved = true;
+          return signIn(c);
+        }, function (err) { l.is = l.line ? 'ok' : l.has ? 'fail' : 'none'; l.why = H.message(err, 'sentence'); if (!disposed) { sayConn(c); draw(); } });
+      });
+      return pane;
+    }
+    function signIn(c) {
+      var l = links[c.id];
+      l.is = 'testing'; draw();
+      return Promise.resolve().then(function () { return app().TestConnection(c.id); }).then(function (words) {
+        l.is = 'ok'; l.line = String(words || 'Connected to ' + c.label + '.'); l.why = '';
+      }, function (err) { l.is = 'fail'; l.line = ''; l.why = H.message(err, 'sentence'); }).then(function () { if (!disposed) { sayConn(c); draw(); } });
+    }
+    /* What is known of a connection is said at the foot while its step is
+       the one in hand. */
+    function sayConn(c) { if (conns[step - 1] === c) { var l = links[c.id]; note(l.is === 'ok' ? l.line : l.why); } }
+    function drawConn(c) {
+      var l = links[c.id], testing = l.is === 'testing';
+      var words = l.is === 'ok' ? l.line.replace(/\.$/, '') : testing ? 'Testing…' : l.is === 'fail' ? 'Not connected' : 'No token yet';
+      H.setText(l.badge, words); l.badge.title = words; l.badge.classList.toggle('accent', l.is === 'ok');
+      l.token.placeholder = l.has ? 'Paste another to replace it' : 'Paste the token here';
+      l.address.disabled = l.token.disabled = l.site.disabled = testing || busy || applied;
+      l.save.disabled = testing || busy || applied || !(l.token.value.trim() || l.has);
+    }
+
+    /* ---- The questions ---------------------------------------------------- */
     function drawQuestion() {
       var qs = questions(), q = qs[Math.min(at, qs.length - 1)];
       H.setText(question, q.ask);
@@ -211,17 +286,26 @@
     /* ---- Step 3 ----------------------------------------------------------- */
     function drawReview() {
       var qs = questions();
-      var rows = [['Agent', agentName(), 'Step 1' + (signed ? ' · Undo does not sign you out of ' + signed : ''), -1]].concat(qs.map(function (q, i) {
+      /* A row is its setting, its value, where the value came from, the
+         step that changes it and, for a question, which one. A connection's
+         row is not among what Set It Up sets, so its words stay as they are
+         afterwards. */
+      var rows = [['Agent', agentName(), 'Step 1' + (signed ? ' · Undo does not sign you out of ' + signed : ''), 0, -1, true]].concat(conns.map(function (c, i) {
+        var l = links[c.id];
+        return [c.label, l.is === 'ok' ? l.line.replace(/\.$/, '') : 'Not connected',
+          l.is === 'ok' ? (l.saved ? 'Token saved in step ' + (i + 2) + ' · Undo does not remove it' : 'Connected already') : 'Settings › Connections connects it later', i + 1, -1, false];
+      }), qs.map(function (q, i) {
         var c = choiceOf(q);
-        return [q.setting, c ? c.value : '', (from[q.id] || '') + (q.id === 'judge' && answers.judge === 'on' ? ' · Undo turns this off' : ''), i];
+        return [q.setting, c ? c.value : '', (from[q.id] || '') + (q.id === 'judge' && answers.judge === 'on' ? ' · Undo turns this off' : ''), Q, i, true];
       }));
       reviewRows.replaceChildren.apply(reviewRows, rows.map(function (r) {
         var tr = node('tr'), value = node('td', '', r[1] + ' '), act = node('td');
-        value.appendChild(node('span', 'from', '· ' + (applied ? r[2].replace(/^[^·]*/, 'set ').trim() : r[2])));
+        value.appendChild(node('span', 'from', '· ' + (applied && r[5] ? r[2].replace(/^[^·]*/, 'set ').trim() : r[2])));
         var b = button('Change', 'btn btn-sm'); b.disabled = busy || applied;
         b.addEventListener('click', function () {
-          if (r[3] < 0) step = 0; else { step = 1; at = r[3]; var c = choiceOf(questions()[at]); picked = c ? c.id : null; }
-          note(''); draw();
+          step = r[3]; enter();
+          if (r[4] >= 0) { at = r[4]; var c = choiceOf(questions()[at]); picked = c ? c.id : null; }
+          draw();
         });
         act.appendChild(b);
         tr.append(node('td', '', r[0]), value, act);
@@ -247,7 +331,7 @@
     function undoIt() {
       busy = true; note('Putting it back…'); draw();
       return Promise.resolve().then(function () { return app().UndoSetup(); }).then(function () {
-        note('The settings are back as they were.');
+        note('The settings are back as they were.' + (conns.some(function (c) { return links[c.id].saved; }) ? ' The tokens are still saved.' : ''));
       }, function (err) { note('Not everything could be put back: ' + H.message(err, 'sentence')); }).then(function () {
         opened.forEach(function (k) { try { if (P().state().open.indexOf(k) >= 0) P().close(k); } catch (err) { /* The window is gone already. */ } });
         opened = []; applied = false; busy = false;
@@ -267,35 +351,40 @@
       back.disabled = step === 0 || applied || busy;
       H.setText(skip, applied ? 'Close' : 'Skip Set-Up');
       var t = tests[agent];
-      if (step === 0) {
-        drawAgents();
-        var failed = t && t.state === 'fail';
-        H.setText(next, failed ? 'Test Again' : 'Continue');
-        next.disabled = busy || !t || t.state === 'testing';
-      } else if (step === 1) { drawQuestion(); H.setText(next, 'Continue'); next.disabled = busy || !picked; }
-      else { drawReview(); H.setText(next, applied ? 'Undo' : 'Set It Up'); next.disabled = busy; }
-      next.classList.toggle('btn-primary', !(step === 2 && applied));
+      /* Next waits for an agent that answers and for an answer to the
+         question in hand. A connection's step can be passed, so Next waits
+         there only while its token is tested. */
+      H.setText(next, step < R ? 'Next' : applied ? 'Undo' : 'Set It Up');
+      if (step === 0) { drawAgents(); next.disabled = busy || !t || t.state !== 'ok'; }
+      else if (step < Q) { drawConn(conns[step - 1]); next.disabled = busy || links[conns[step - 1].id].is === 'testing'; }
+      else if (step === Q) { drawQuestion(); next.disabled = busy || !picked; }
+      else { drawReview(); next.disabled = busy; }
+      next.classList.toggle('btn-primary', !(step === R && applied));
+    }
+    /* What a step needs when it becomes the one in hand. */
+    function enter() {
+      note('');
+      if (step > 0 && step < Q) sayConn(conns[step - 1]);
+      else if (step === Q) toQuestions();
     }
     next.addEventListener('click', function () {
-      if (step === 0) {
-        var t = tests[agent];
-        if (t && t.state === 'fail') { test(agent); return; }
-        step = 1; toQuestions(); note('');
-      } else if (step === 1) {
+      if (step < Q) { step++; enter(); }
+      else if (step === Q) {
         var qs = questions(), q = qs[at], c = q.choices.filter(function (x) { return x.id === picked; })[0];
         sayLine('guide', q.ask); answer(q, picked, 'Your answer'); sayLine('you', c ? c.label : '');
         at = nextOpen(questions());
-        if (at < 0) { step = 2; note(''); } else picked = null;
+        if (at < 0) { step = R; note(''); } else picked = null;
       } else if (!applied) { setIt(); return; }
       else { undoIt(); return; }
       draw();
     });
     back.addEventListener('click', function () {
       var qs = questions(), c;
-      if (step === 2) { step = 1; at = qs.length - 1; c = choiceOf(qs[at]); picked = c ? c.id : null; }
-      else if (step === 1 && at > 0) { at--; c = choiceOf(qs[at]); picked = c ? c.id : null; }
-      else step = 0;
-      note(''); draw();
+      note('');
+      if (step === R) { step = Q; at = qs.length - 1; c = choiceOf(qs[at]); picked = c ? c.id : null; }
+      else if (step === Q && at > 0) { at--; c = choiceOf(qs[at]); picked = c ? c.id : null; }
+      else { step--; if (step > 0) sayConn(conns[step - 1]); }
+      draw();
     });
     own.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -309,7 +398,7 @@
         sayLine('guide', 'From that I take ' + took.join('; ') + '.');
         var qs = questions(), left = qs.filter(function (q) { return !choiceOf(q); }).length;
         at = nextOpen(qs);
-        if (at < 0) { step = 2; note(''); } else { picked = null; sayLine('guide', 'That leaves ' + (left === 1 ? 'one question.' : left + ' questions.')); }
+        if (at < 0) { step = R; note(''); } else { picked = null; sayLine('guide', 'That leaves ' + (left === 1 ? 'one question.' : left + ' questions.')); }
         draw();
       });
     });
@@ -321,6 +410,12 @@
     Promise.resolve().then(function () { return app().SetupOffer(); }).then(function (o) {
       if (disposed) return;
       offer = o; note('');
+      conns = o.connections || []; Q = 1 + conns.length; R = Q + 1;
+      listSteps();
+      var made = conns.map(makeConn);
+      made.forEach(function (pane) { body.insertBefore(pane, panes[1]); });
+      panes.splice.apply(panes, [1, 0].concat(made));
+      conns.forEach(function (c) { if (c.hasToken) signIn(c); });
       var first = o.agents.filter(function (a) { return a.id === o.default && a.found; })[0] || o.agents.filter(function (a) { return a.found; })[0];
       if (first) choose(first.id); else note('No agent was found. Install one, then open this again from Help.');
       draw();

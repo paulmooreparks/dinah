@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"studio/internal/codexagent"
+	"studio/internal/connections"
 	"studio/internal/profile"
 	"studio/internal/providers"
 )
@@ -213,5 +214,18 @@ func TestTheSetUpsUsesOpenWindows(t *testing.T) {
 		if u.ID == "" || u.Label == "" || u.Opens == "" || len(u.Windows) == 0 {
 			t.Errorf("an incomplete use: %+v", u)
 		}
+	}
+}
+
+// This product connects to no service, so its set-up has no step for one,
+// and a service nobody registered cannot be opened.
+func TestTheSetUpOffersNoConnectionWhereThereIsNone(t *testing.T) {
+	a, _, _ := judgementApp(t)
+	offer, err := a.SetupOffer()
+	if err != nil || offer.Connections == nil || len(offer.Connections) != 0 {
+		t.Fatalf("the offer's connections: %+v, %v", offer.Connections, err)
+	}
+	if err := a.OpenConnectionSite("nobody", "https://example.com"); !errors.Is(err, connections.ErrUnknown) {
+		t.Fatalf("opening a service nobody registered: %v", err)
 	}
 }
