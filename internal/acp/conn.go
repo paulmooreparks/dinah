@@ -14,6 +14,7 @@ package acp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -339,22 +340,40 @@ func (c *Conn) send(m message) error {
 }
 
 func (c *Conn) read(r io.Reader) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 1<<20), 64<<20)
+	// A message is one line of any length. A chat's whole history comes back
+	// as one answer, so a limit on the line stopped the reader for a long
+	// chat and left every call on the connection waiting. bufio.Reader's
+	// ReadBytes has no limit, which a Scanner has.
+	br := bufio.NewReaderSize(r, 1<<20)
+	var readErr error
 	defer func() {
+		// A reader that has ended can deliver no answer, so the process is
+		// stopped before it is waited for. Without this, a process that
+		// outlives its reader keeps every pending call waiting.
+		c.cancel()
 		if c.cmd != nil {
 			c.exit = c.cmd.Wait()
 		}
 		// A reader that ends on an error, rather than on the process's end,
 		// is why the connection ended when the process says nothing itself.
-		if c.exit == nil {
-			c.exit = sc.Err()
+		if c.exit == nil && readErr != io.EOF {
+			c.exit = readErr
 		}
 		close(c.done)
 	}()
-	for sc.Scan() {
-		line := sc.Bytes()
+	for {
+		line, err := br.ReadBytes('\n')
+		if err != nil {
+			readErr = err
+			if len(bytes.TrimSpace(line)) == 0 {
+				return
+			}
+		}
+		line = bytes.TrimRight(line, "\r\n")
 		if len(line) == 0 {
+			if readErr != nil {
+				return
+			}
 			continue
 		}
 		var m message
@@ -390,6 +409,9 @@ func (c *Conn) read(r io.Reader) {
 				default:
 				}
 			}
+		}
+		if readErr != nil {
+			return
 		}
 	}
 }
