@@ -21,7 +21,12 @@ const { launch } = require('./lib/page');
         Send: async (id, text) => { __calls.push(['send', id, text]); }
       };
     },
-    init: () => { window.__calls = []; },
+    // The engine adds the Codex module's advice to every failed open of a Codex chat
+    // (agent_threads.go). codex:plain stands for a chat whose provider adds none.
+    init: () => {
+      window.__calls = [];
+      window.__openAdvice = (method, args) => args[1] === 'codex:plain' ? '' : 'Codex gives a conversation to one program at a time, so if this conversation is open in another program that uses Codex, such as the Codex app or an editor, closing it there and pressing Try Again may free it.';
+    },
     ready: () => window.dinahWorkbench && window.dinahEditor,
   });
   const { page, ok } = t;
@@ -33,6 +38,32 @@ const { launch } = require('./lib/page');
     await front().locator('[data-view-id="session-note-title"]').getByText('Codex could not open this session.', { exact: true }).waitFor();
     await front().getByText('The original work is saved.', { exact: true }).waitFor();
     ok('a failed Codex load retains local history and names the correct provider', !(await front().innerText()).includes('Devin could not open'));
+    // The note keeps the agent's own words as they were and adds the provider's advice as a
+    // paragraph of its own below them, inside the note and above its buttons.
+    const noteParts = () => front().evaluate(win => {
+      const box = id => { const el = win.querySelector('[data-view-id="' + id + '"]'), r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height, width: r.width, text: el.textContent, hidden: el.hidden }; };
+      const notice = win.querySelector('[data-view-id="session-note"] .notice');
+      return { note: box('session-note'), body: box('session-note-body'), advice: box('session-note-advice'), retry: box('session-retry'), prompt: box('prompt'), overflow: notice.scrollWidth - notice.clientWidth };
+    });
+    const withAdvice = await noteParts();
+    ok("the note keeps the agent's own words exactly as before", withAdvice.body.text === 'Codex reported: thread not loaded: missing Your saved history is shown above. You can save it or continue it in a fresh chat.');
+    ok('the advice is a paragraph of its own below those words and above the buttons', !withAdvice.advice.hidden && withAdvice.advice.text.startsWith('Codex gives a conversation to one program at a time, so ') && withAdvice.advice.text.endsWith('pressing Try Again may free it.') &&
+      withAdvice.advice.top >= withAdvice.body.bottom && withAdvice.retry.top >= withAdvice.advice.bottom && withAdvice.advice.left >= withAdvice.note.left && withAdvice.advice.right <= withAdvice.note.right);
+    // With the advice taken away the note is shorter by the paragraph and its gap, and nothing else has another size.
+    await front().evaluate(win => { win.querySelector('[data-view-id="session-note-advice"]').hidden = true; });
+    const without = await noteParts();
+    await front().evaluate(win => { win.querySelector('[data-view-id="session-note-advice"]').hidden = false; });
+    ok('the advice adds its own lines to the note and changes no other size', Math.abs((withAdvice.note.height - without.note.height) - (withAdvice.advice.height + 8)) <= 1 &&
+      without.body.height === withAdvice.body.height && without.note.width === withAdvice.note.width && without.prompt.width === withAdvice.prompt.width && without.prompt.left === withAdvice.prompt.left && without.retry.height === withAdvice.retry.height);
+    // At a narrow width the advice wraps inside the note.
+    const wide = page.viewportSize();
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const narrow = await noteParts();
+    ok('at a narrow width the advice wraps inside the note', narrow.overflow <= 0 && narrow.advice.left >= narrow.note.left && narrow.advice.right <= narrow.note.right && narrow.advice.height > withAdvice.advice.height && narrow.retry.top >= narrow.advice.bottom);
+    await front().locator('[data-view-id="session-note"]').screenshot({ path: require('path').join(process.argv[3] || '.', 'session-note-advice-narrow.png') });
+    await page.setViewportSize(wide);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await front().locator('[data-view-id="session-save-history"]').click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'save'));
     ok('saved history can be exported without the provider', await page.evaluate(() => __calls.find(c => c[0] === 'save')[1].includes('The original work is saved.')));
@@ -64,5 +95,11 @@ const { launch } = require('./lib/page');
     ok('a long saved chat draws only its latest 400 messages and counts the rest at the top', marker.startsWith('600 earlier entries') &&
       await front().getByText('Long message 600', { exact: true }).count() === 1 && await front().getByText('Long message 599', { exact: true }).count() === 0);
     ok('a chat cut off mid-turn says so and can still be recovered', (await front().locator('[data-view-id="session-note-body"]').innerText()).includes('cut off') && !(await front().locator('[data-view-id="session-recover"]').isDisabled()));
+
+    // A chat whose provider adds no advice has the note as it was, with no line for one.
+    await page.evaluate(() => __emit('agent:session', { sessionId: 'codex:plain', provider: 'codex', cwd: 'C:/Test', open: false }));
+    await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'codex:plain' }));
+    await front().locator('[data-view-id="session-note-title"]').getByText('Codex could not open this session.', { exact: true }).waitFor();
+    ok('a failed open with no advice shows no line for it', await front().locator('[data-view-id="session-note-advice"]').isHidden() && (await front().locator('[data-view-id="session-note-advice"]').textContent()) === '');
   } finally { await t.close(); }
 })();

@@ -12,7 +12,8 @@ func (a *App) closedSessions() *sessionhost.ClosedSessions {
 			Emit: a.emit, StopProvider: a.AgentStop, CallWithin: a.callWithin,
 			RevokeSession: a.revokeAppletSession, CloseChatLog: func(id string) { a.chatLogs().Close(id) },
 			CancelQuestions: func(session string) { a.permissions().CancelSession(session) }, DisconnectSubagents: func(root *Session) { a.subagentService().Disconnect(root) },
-			Log: func(level, format string, args ...any) { logf("chat", level, format, args...) },
+			Ended: func(_ agentConnection, s *Session) { a.chatSessionEnded(s) },
+			Log:   func(level, format string, args ...any) { logf("chat", level, format, args...) },
 		})
 	})
 	return a.closedService

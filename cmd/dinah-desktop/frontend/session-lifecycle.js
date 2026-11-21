@@ -222,7 +222,7 @@
       s.saved = false;
       resetMessageItems(s); s.log.innerHTML = ''; s.rows = {}; s.current = null; s.trimmed = 0; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       s.settling = true;
-      s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null; s.notFound = null; s.timedOut = false;
+      s.loading = true; s.replayed = 0; s.failed = ''; s.failedAdvice = ''; s.unoffered = null; s.notFound = null; s.timedOut = false;
       if (s.view) s.view.drawLoadingChip(); // the window's title bar says it is loading
       s.info.resumed = false; // omitted from an opening that replayed, so a stale true would stay
       s.log.hidden = true;
@@ -267,25 +267,29 @@
         if (sessions[id] === s) { s.historyWarning = 'The saved copy could not be read. ' + String(error); if (s.view) s.view.sessionNote(); }
       });
       s.displayBuild = display;
+      // A failed open can come with one sentence of advice from the chat's provider, which the note
+      // shows below the error (sessionNote).
+      var advice = '';
+      function outcome(o) { advice = (o && o.error && o.advice) || ''; }
       return s.loadingPromise = Promise.resolve().then(function () {
         if (sessions[id] !== s) return null;
         var delivery = s.deliveryOpening; s.deliveryOpening = null;
-        if (delivery && app().OpenWaitingSession) return chatOpen('OpenWaitingSession', [delivery.origin, delivery.attempt]);
+        if (delivery && app().OpenWaitingSession) return chatOpen('OpenWaitingSession', [delivery.origin, delivery.attempt], outcome);
         // Open With… reopens the chat with the value the person chose in
         // place of its saved one (option_substitutions.go).
         var openWith = s.openWith; s.openWith = null;
         // The engine holds a message sent to the chat from here until its history is loaded (s.holding).
         s.holding = true;
-        if (openWith) return chatOpen('OpenSessionWith', [s.info.cwd || workspace(), id, openWith.option, openWith.value, openWith.always]);
+        if (openWith) return chatOpen('OpenSessionWith', [s.info.cwd || workspace(), id, openWith.option, openWith.value, openWith.always], outcome);
         // Load Full History: the agent replays the whole conversation, as a chat closed and opened again.
         // A choice the agent takes only when a session is made closes and opens the chat in the same way,
         // with that choice (reopenWith).
         if (s.loadFull) {
           s.loadFull = false;
           var again = s.reopenWith; s.reopenWith = null;
-          return again ? chatOpen('ReopenSessionWith', [s.info.cwd || workspace(), id, again.option, again.value]) : chatOpen('LoadFullHistory', [s.info.cwd || workspace(), id]);
+          return again ? chatOpen('ReopenSessionWith', [s.info.cwd || workspace(), id, again.option, again.value], outcome) : chatOpen('LoadFullHistory', [s.info.cwd || workspace(), id], outcome);
         }
-        return chatOpen('OpenSessionAt', [s.info.cwd || workspace(), id]);
+        return chatOpen('OpenSessionAt', [s.info.cwd || workspace(), id], outcome);
       }).then(async function (info) {
         s.holding = false;
         await drainAgentEvents();
@@ -313,7 +317,7 @@
         await drainAgentEvents();
         if (sessions[id] !== s) return null;
         await display;
-        s.failed = String(err); s.failedHistory = providerOpened;
+        s.failed = String(err); s.failedHistory = providerOpened; s.failedAdvice = providerOpened ? '' : advice;
         // A refusal for a saved value the agent no longer offers lists the
         // values it offers instead, for Open With… (sessionNote).
         var detail = err && err.detail;

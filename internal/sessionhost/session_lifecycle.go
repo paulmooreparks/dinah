@@ -72,6 +72,11 @@ type SessionLifecycleHost struct {
 	// AfterOpen is called once a chat has opened, for what the provider keeps
 	// for it that the chat's information should say.
 	AfterOpen func(*Conversation)
+	// BeforeLoad is called once before the agent is asked to load or resume a
+	// saved chat, for anything the host must undo at the agent first. It
+	// returns nothing: a host that fails here logs it, and the load is asked
+	// for all the same. It may be nil.
+	BeforeLoad func(conn Connection, provider, id string)
 	// ResolveContinuation gives the newest chat that continues the one asked
 	// for with another provider, or the chat itself.
 	ResolveContinuation    func(string) (string, error)
@@ -756,6 +761,9 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 			l.host.Log("info", "chat %s is reopened with session/load: %s", id, why)
 		}
 		closable := init.AgentCapabilities.SessionCapabilities.Close != nil
+		if l.host.BeforeLoad != nil {
+			l.host.BeforeLoad(conn, provider, id)
+		}
 		stop := l.host.WatchReopen(id, method)
 		err = l.boundedLoad(conn, id, method, l.host.SessionParams(provider, id, cwd, servers), &res, closable)
 		stop()

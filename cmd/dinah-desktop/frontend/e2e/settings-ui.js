@@ -22,7 +22,7 @@ const shotPath = name => path.join(OUT, name + '.png');
         SaveUIState:async value=>localStorage.setItem('fixture-ui',JSON.stringify(value)),
         AgentProviders:async()=>[{id:'devin',name:'Devin',installed:true,available:true},{id:'codex',name:'Codex',installed:true,available:true},{id:'ollama',name:'Ollama',installed:true,available:true}],
         SetNewWindowMode: value=>save('newWindowMode',value), SetDefaultProvider:value=>save('defaultProvider',value),
-        SetShowThinking:value=>save('showThinking',value),SetUsagePage:value=>save('usagePage',value),SetCodexAppletApprovals:value=>save('codexAppletApprovals',value),
+        SetShowThinking:value=>save('showThinking',value),SetUsagePage:value=>save('usagePage',value),SetCodexAppletApprovals:value=>save('codexAppletApprovals',value),SetCodexArchiveClosed:value=>save('codexArchiveClosed',value),
         SetOllamaApprovals:value=>save('ollamaApprovals',value),
         SetLogLevel:value=>save('logLevel',value),SetNotifyWhenNeeded:value=>save('notifyWhenNeeded',value),
         ReportWindowFocus:async value=>{__focusReports.push(value);}
@@ -89,6 +89,17 @@ const shotPath = name => path.join(OUT, name + '.png');
     await page.waitForFunction(()=>!document.querySelector('#codex-applet-approvals button').disabled);
     ok('failed Codex approval save restores the saved selection',await codexApproval('allow').getAttribute('aria-checked')==='true' && (await settings.locator('#codex-applet-approvals-status').textContent()).includes('could not be saved'));
     await page.evaluate(()=>{__failPreference=false;delete window.__releasePreference;});
+    // Archiving the threads of closed Codex chats is a choice the person turns on, and is off until then.
+    const archiveClosed = settings.locator('#codex-archive-closed');
+    ok('archiving closed Codex chats is listed under its plain label and is off',!(await archiveClosed.isChecked()) && (await settings.locator('[aria-labelledby="set-codex-archive-closed"] label.check').first().innerText()).trim()==='Archive Closed Chats in Codex');
+    await archiveClosed.click();
+    await page.waitForFunction(()=>__preferences.codexArchiveClosed===true && !document.querySelector('#codex-archive-closed').disabled);
+    ok('turning it on is saved and stays on after the settings are read again',await archiveClosed.isChecked() && (await settings.locator('#codex-archive-closed-status').textContent()).includes('Saved'));
+    await page.evaluate(()=>{__failPreference=true;});
+    await archiveClosed.click();
+    await page.waitForFunction(()=>document.querySelector('#codex-archive-closed-status').textContent.includes('could not be saved'));
+    ok('a save that fails puts the box back as it was saved',await archiveClosed.isChecked() && await page.evaluate(()=>__preferences.codexArchiveClosed===true));
+    await page.evaluate(()=>{__failPreference=false;});
     for (const [id, key] of [['codex-applet-approvals','codexAppletApprovals'],['ollama-approvals','ollamaApprovals']]) {
       const control = settings.locator('#'+id);
       await control.locator('[data-value="all"]').click();

@@ -62,6 +62,17 @@ type providerModule struct {
 	// setting is one of the options its own catalog offers, or that has
 	// none.
 	Asking *askingModule
+	// OpenFailureAdvice is one sentence the page adds below the agent's own
+	// words when a chat of the provider could not be opened, for every such
+	// failure; empty for a provider with nothing to advise.
+	OpenFailureAdvice string
+	// ArchivesThreads says the provider's connection can archive a chat's
+	// thread in the provider's own store (agent_threads.go).
+	ArchivesThreads bool
+	// ArchiveClosed says the person's settings have the thread of a chat
+	// archived once the chat was closed and its session ended; nil for a
+	// provider without that setting. It is called with the settings locked.
+	ArchiveClosed func(s Settings) bool
 }
 
 // askingModule is a provider's setting for what it asks the person before it

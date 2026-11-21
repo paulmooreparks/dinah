@@ -86,6 +86,11 @@ type session struct {
 	streamed            map[string]bool
 	requestContext      context.Context
 	cancelRequests      context.CancelFunc
+	// ephemeral says the thread was started in memory only, and name is the
+	// thread's title as Codex last returned it or as it was last set here
+	// (threads.go).
+	ephemeral bool
+	name      string
 }
 type turn struct {
 	ID     string            `json:"id"`
@@ -99,6 +104,7 @@ type thread struct {
 	ID        string `json:"id"`
 	Cwd       string `json:"cwd"`
 	Name      string `json:"name"`
+	Ephemeral bool   `json:"ephemeral"`
 	Preview   string `json:"preview"`
 	UpdatedAt int64  `json:"updatedAt"`
 	Turns     []turn `json:"turns"`
@@ -417,7 +423,8 @@ func (c *Conn) openWithReceipt(ctx context.Context, method string, params, out a
 			return err
 		}
 	}
-	s := &session{model: r.Model, effort: r.Effort, approvals: policy, baseApprovals: approvalsPolicy(p.Approvals), appletApprovals: p.AppletApprovals, streamed: map[string]bool{}}
+	ephemeral, _ := q["ephemeral"].(bool)
+	s := &session{model: r.Model, effort: r.Effort, approvals: policy, baseApprovals: approvalsPolicy(p.Approvals), appletApprovals: p.AppletApprovals, streamed: map[string]bool{}, ephemeral: ephemeral || r.Thread.Ephemeral, name: r.Thread.Name}
 	c.mu.Lock()
 	if err := ctx.Err(); err != nil {
 		c.mu.Unlock()
@@ -736,7 +743,10 @@ func (c *Conn) closeSession(ctx context.Context, params any) error {
 	var r struct {
 		Status string `json:"status"`
 	}
-	if err := c.Conn.Call(ctx, "thread/unsubscribe", map[string]any{"threadId": id}, &r); err != nil {
+	err = c.Conn.Call(ctx, "thread/unsubscribe", map[string]any{"threadId": id}, &r)
+	// An ephemeral thread cannot be resumed, so its entry is of no use once
+	// its close was asked for, whatever Codex answered.
+	if err != nil && !s.ephemeral {
 		return err
 	}
 	c.mu.Lock()
@@ -744,7 +754,7 @@ func (c *Conn) closeSession(ctx context.Context, params any) error {
 		delete(c.sessions, p.SessionID)
 	}
 	c.mu.Unlock()
-	return nil
+	return err
 }
 
 func mcpConfig(servers []any) (map[string]any, error) {

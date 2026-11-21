@@ -314,6 +314,12 @@ func (a *App) finishRetainingChat(group string) error {
 	}); err != nil {
 		return err
 	}
+	// The chat is in the Recycle Bin now, so each of its threads is archived
+	// at its agent, before a provider nothing else uses is stopped
+	// (agent_threads.go).
+	for _, member := range archive.Membership.Members {
+		a.archiveAgentThread(member.Provider, member.NativeID, "is in the Recycle Bin")
+	}
 	a.releaseUnusedCleanupProviders()
 	// Removing a member changes the remaining chats' lead and team state.
 	// Publish those changes before a caller starts its next inventory read.
@@ -500,6 +506,10 @@ func (a *App) finishRestoredCleanup(group string) error {
 		return err
 	}
 	for _, id := range ids {
+		// A thread archived when the chat went to the Recycle Bin is taken out
+		// of the archive now where the agent runs, and before the chat is
+		// loaded otherwise (agent_threads.go).
+		a.unarchiveAgentThread(a.liveThreadConnection(providerForSession(id)), id)
 		a.emit("chat:restored", map[string]string{"sessionId": id})
 	}
 	a.emit("notification:delivery", nil)

@@ -1687,6 +1687,11 @@
         $('session-note-title').textContent = s.recoveryReview ? 'Recover the original message recipient' : s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : s.timedOut ? agentName() + ' did not finish opening this session.' : agentName() + ' could not open this session.';
         $('session-note-body').textContent = (s.recoveryReview || s.timedOut ? '' : s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
       }
+      /* The provider's advice for a failed open is a line of its own below the error, in the cases
+         that offer Try Again, which the advice speaks of (agent_threads.go). */
+      var advice = $('session-note-advice');
+      advice.hidden = !(s.failedAdvice && !s.notFound && !s.failedHistory && !s.recoveryReview);
+      advice.textContent = advice.hidden ? '' : s.failedAdvice;
       var retry = $('session-retry'), recover = $('session-recover'), fresh = $('session-new');
       retry.hidden = !!s.notFound;
       recover.hidden = !!s.notFound && !recoverable;

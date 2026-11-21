@@ -156,6 +156,17 @@ type Settings struct {
 	ChatBindings        map[string]string       `json:"chatBindings,omitempty"`
 	ChatTransfers       map[string]chatTransfer `json:"chatTransfers,omitempty"`
 	ChatTransferHistory []chatTransfer          `json:"chatTransferHistory,omitempty"`
+	// ArchivedThreads are the chats whose thread Dinah archived at the agent,
+	// by session id, so that the thread is taken out of the archive before
+	// the chat is loaded again. ThreadsToArchive are the chats whose thread
+	// was to be archived while their agent was not running, which is done
+	// once it runs (agent_threads.go).
+	ArchivedThreads  map[string]bool `json:"archivedThreads,omitempty"`
+	ThreadsToArchive map[string]bool `json:"threadsToArchive,omitempty"`
+	// CodexArchiveClosed archives a Codex chat's thread once the chat has
+	// been closed and its session ended, and is off unless the person turns
+	// it on in Settings › Agents (agent_threads.go).
+	CodexArchiveClosed bool `json:"codexArchiveClosed,omitempty"`
 	// TerminalShell is the shell a new Terminal runs (terminal_shells.go).
 	TerminalShell    string            `json:"terminalShell,omitempty"`
 	TerminalProfiles []TerminalProfile `json:"terminalProfiles,omitempty"`

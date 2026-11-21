@@ -165,7 +165,13 @@ function stub({ state, app, init, args }) {
       Promise.resolve().then(() => window.go.main.App[method](...args)).then(
         info => ({ open: token, method, info }),
         error => (error && error.detail ? { open: token, method, error: String(error.message), detail: error.detail } : { open: token, method, error: String(error) })
-      ).then(outcome => { opens.set(token, outcome); window.__emit('chat:open-result', outcome); });
+      ).then(outcome => {
+        // The advice a provider's module adds to a failed open is a field of the outcome beside the
+        // error (agent_threads.go). A suite that shows it sets window.__openAdvice.
+        const advice = outcome.error && window.__openAdvice ? window.__openAdvice(method, args) : '';
+        if (advice) outcome.advice = advice;
+        opens.set(token, outcome); window.__emit('chat:open-result', outcome);
+      });
       return { state: 'opening' };
     };
   }

@@ -184,6 +184,7 @@ func (a *App) judgeChatTitle(id, line string) {
 		logf("judge", "warning", "the judged title of chat %s could not be kept: %v", id, err)
 		return
 	}
+	a.nameAgentThread(id)
 	if s := a.session(id); s != nil {
 		title := a.withJudgedTitle(id, s.Title())
 		s.UpdateDisplay(&title, nil)

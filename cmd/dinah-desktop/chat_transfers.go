@@ -38,6 +38,11 @@ func (a *App) finishTransfer(source string) {
 			logf("chat", "error", "the binding committed, but its waiting hold remains until reconciliation: %v", err)
 		}
 	}
+	// The chat goes on in the new thread, so the earlier stage's thread is
+	// archived at its agent (agent_threads.go).
+	if tr.Stage == "committed" {
+		a.archiveAgentThread(providerForSession(source), source, "continues in a new thread")
+	}
 	a.emit("notification:delivery", nil)
 }
 

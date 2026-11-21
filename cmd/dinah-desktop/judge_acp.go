@@ -229,18 +229,33 @@ func newJudgeSession(ctx context.Context, conn agentConnection, sessions *sessio
 
 // endJudgeSession ends a call's session: deleted when the agent can, so that it is
 // not among the agent's own sessions, else closed, else left, which the agent frees
-// with its connection.
+// with its connection. A session the agent keeps in memory only (agent_threads.go)
+// has nothing stored to delete, so it is closed where the agent can close one. A
+// failure is logged, because a session that was not ended stays with the agent.
 func endJudgeSession(conn agentConnection, init acp.InitializeResult, id string) {
 	ctx, cancel := context.WithTimeout(context.Background(), judgeEndTimeout)
 	defer cancel()
 	caps := init.AgentCapabilities.SessionCapabilities
+	inMemory := false
+	if agent, ok := conn.(ephemeralSessions); ok {
+		inMemory = agent.SessionEphemeral(id)
+	}
+	how, err := "session/cancel", error(nil)
 	switch {
+	case inMemory && caps.Close != nil:
+		how = "session/close"
+		err = conn.Call(ctx, how, acp.CloseSessionParams{SessionID: id}, nil)
 	case caps.Delete != nil:
-		_ = conn.Call(ctx, "session/delete", acp.DeleteSessionParams{SessionID: id}, nil)
+		how = "session/delete"
+		err = conn.Call(ctx, how, acp.DeleteSessionParams{SessionID: id}, nil)
 	case caps.Close != nil:
-		_ = conn.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: id}, nil)
+		how = "session/close"
+		err = conn.Call(ctx, how, acp.CloseSessionParams{SessionID: id}, nil)
 	default:
-		_ = conn.Notify("session/cancel", acp.CancelParams{SessionID: id})
+		err = conn.Notify(how, acp.CancelParams{SessionID: id})
+	}
+	if err != nil {
+		logf("judge", "warning", "the session %s of a judgement call could not be ended with %s: %v", id, how, err)
 	}
 }
 

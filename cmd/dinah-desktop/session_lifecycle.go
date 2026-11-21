@@ -43,7 +43,11 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 				return a.withDiagramServers(capability.(*lifecycleChannel).channel, provider, workspace, servers)
 			},
 			ManagedServers: managedAppletServers, BusSessionID: a.busSessionID, WithBusServer: a.withBusServer, AdoptBusServer: a.adoptBusServer, EndBusSession: func(id string) { a.busCoordinator().EndBusSession(id) },
-			Call: a.call, CallWithin: a.callWithin, SessionParams: a.providerSessionParams, InitTranscript: func(s *Session, replay bool) { a.transcriptCapture().Initialize(s, replay) }, ResumeTranscript: func(s *Session) string { return a.transcriptCapture().Resume(s) }, StartWaiting: func(s *Session) { a.turnIO().StartWaiting(s) }, RestoreQueue: func(s *Session) { a.queueRestorer().Restore(s) }, AfterOpen: func(s *Session) { a.loadContextChoice(s); a.restartChatOpened(s.ID(), s.Cwd(), nil) }, ResolveContinuation: a.ResolveSessionContinuation,
+			Call: a.call, CallWithin: a.callWithin, SessionParams: a.providerSessionParams, InitTranscript: func(s *Session, replay bool) { a.transcriptCapture().Initialize(s, replay) }, ResumeTranscript: func(s *Session) string { return a.transcriptCapture().Resume(s) }, StartWaiting: func(s *Session) { a.turnIO().StartWaiting(s) }, RestoreQueue: func(s *Session) { a.queueRestorer().Restore(s) }, AfterOpen: func(s *Session) {
+				a.loadContextChoice(s)
+				a.restartChatOpened(s.ID(), s.Cwd(), nil)
+				a.chatThreadOpened(s)
+			}, BeforeLoad: a.unarchiveBeforeLoad, ResolveContinuation: a.ResolveSessionContinuation,
 			BeginLog: func(id, provider, ws, title string) { a.chatLogs().Begin(id, provider, ws, title) }, NoteLog: func(id, note string) { a.chatLogs().Note(id, note) },
 			RestoreOptions: func(conn agentConnection, session string, opts []acp.ConfigOption, chosen map[string]json.RawMessage, reopen *reopening) ([]acp.ConfigOption, []appliedSubstitution, error) {
 				return a.optionService().Restore(conn, session, opts, chosen, reopen)
@@ -56,7 +60,12 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 			FinishTranscriptReplay: func(s *Session, succeeded bool) { a.transcriptCapture().FinishReplay(s, succeeded) }, Reopening: a.reopeningFor, WatchReopen: watchReopen, Connected: func(chat string, err error) { a.busCoordinator().Connected(chat, err) },
 			Cancel: func(s *Session) error { return a.turnIO().CancelConversation(s) }, Tombstone: func(id string) error { return a.transcriptCapture().Tombstone(id) }, ForgetTeam: a.forgetTeam,
 			ForgetOptions: func(id string) {
-				_ = a.updateSettings(func(s *Settings) error { delete(s.SessionProviders, id); delete(s.SessionOptions, id); return nil })
+				_ = a.updateSettings(func(s *Settings) error {
+					delete(s.SessionProviders, id)
+					delete(s.SessionOptions, id)
+					forgetAgentThread(s, id)
+					return nil
+				})
 			},
 			ForgetTitle: func(id string) {
 				_ = a.updateSettings(func(s *Settings) error { delete(s.SessionTitles, id); delete(s.JudgedTitles, id); return nil })

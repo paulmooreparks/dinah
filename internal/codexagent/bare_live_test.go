@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"regexp"
@@ -21,6 +22,10 @@ import (
 // reports what each cost. A bare thread has to answer, and to cost less. On
 // 20 November 2026 the ordinary thread cost about 26,600 tokens and the bare
 // one about 9,600.
+//
+// The ordinary thread is stored by Codex, so the test deletes it with the
+// documented thread/delete when its answer is in. The bare thread is
+// ephemeral and is closed.
 func TestLiveABareThreadCostsLess(t *testing.T) {
 	if os.Getenv("DINAH_LIVE_CODEX") != "1" {
 		t.Skip("set DINAH_LIVE_CODEX=1 to send live Codex turns")
@@ -40,6 +45,14 @@ func TestLiveABareThreadCostsLess(t *testing.T) {
 	if err := c.Call(ctx, "initialize", acp.InitializeParams{ProtocolVersion: 1}, nil); err != nil {
 		t.Fatal(err)
 	}
+	// The thread is the test's own, started in a folder of its own. A
+	// descendant would be a thread the test did not make, so none is deleted.
+	c.SetDeletionGuard(func(_ context.Context, _ string, descendants []string) error {
+		if len(descendants) > 0 {
+			return errors.New("the test's thread has descendants the test did not make")
+		}
+		return nil
+	})
 	cost := regexp.MustCompile(`"sessionUpdate":"turn_cost","tokens":(\d+)`)
 	ask := func(bare bool) int {
 		var s acp.NewSessionResult
@@ -73,7 +86,13 @@ func TestLiveABareThreadCostsLess(t *testing.T) {
 		if !said {
 			t.Fatalf("the thread (bare %v) gave no answer", bare)
 		}
-		_ = c.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: s.SessionID}, nil)
+		if bare {
+			if err := c.Call(ctx, "session/close", acp.CloseSessionParams{SessionID: s.SessionID}, nil); err != nil {
+				t.Errorf("the bare thread was not closed: %v", err)
+			}
+		} else if err := c.Call(ctx, "session/delete", acp.DeleteSessionParams{SessionID: s.SessionID}, nil); err != nil {
+			t.Errorf("the ordinary thread was left behind: %v", err)
+		}
 		return tokens
 	}
 	plain, bare := ask(false), ask(true)

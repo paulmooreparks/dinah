@@ -31,6 +31,9 @@ func init() {
 			Current: codexApprovals,
 			Set:     (*App).SetCodexApprovals,
 		},
+		OpenFailureAdvice: codexagent.OpenFailureAdvice,
+		ArchivesThreads:   true,
+		ArchiveClosed:     codexArchiveClosed,
 		Unattended: func(s Settings) bool {
 			how := codexApprovals(s)
 			mode := codexAppletApprovals(s.CodexAppletApprovals)
@@ -245,4 +248,22 @@ var codexAdapter = &providerAdapter{
 			return conn, err
 		}}, nil
 	},
+}
+
+// codexArchiveClosed says the person's settings archive the thread of a
+// Codex chat that was closed.
+func codexArchiveClosed(s Settings) bool { return s.CodexArchiveClosed }
+
+// SetCodexArchiveClosed turns the archiving of closed Codex chats on or off.
+// Turning it off leaves the threads already archived as they are; each is
+// taken out of the archive when its chat is next loaded.
+func (a *App) SetCodexArchiveClosed(on bool) error {
+	if err := a.updateSettings(func(s *Settings) error {
+		s.CodexArchiveClosed = on
+		return nil
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }

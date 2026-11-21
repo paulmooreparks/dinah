@@ -27,6 +27,12 @@
   <p class="form-help">Workspace, Unattended lets Codex run commands and change files in the workspace without a question, so you can start it and walk away. A command that would write outside the workspace or reach the network is refused, not put to you. Full Access, Unattended also allows those, with no sandbox at all.</p>
   <p class="form-help">This choice applies to new chats and chats you reconnect. Approve Everything overrides it with full access. It also covers the applet actions of those chats, which are otherwise asked about here.</p>
   <p class="settings-status" id="codex-approvals-status" role="status"></p>
+</section>
+<section class="card vstack gap-3" aria-labelledby="set-codex-archive-closed">
+  <h3 class="card-title" id="set-codex-archive-closed">Codex Threads</h3>
+  <label class="check"><input type="checkbox" id="codex-archive-closed"> Archive Closed Chats in Codex</label>
+  <p class="form-help">When this is on, ${product} archives a Codex chat's thread in Codex once the chat has been closed for four hours and its session has ended, and takes the thread out of the archive before the chat opens again. The chat stays in ${product} as it is. This is off unless you turn it on.</p>
+  <p class="settings-status" id="codex-archive-closed-status" role="status"></p>
 </section>`;
     function $(id) { return root.querySelector('#' + id); }
     var app = api.app, settingsStatus = api.settingsStatus, reload = api.reloadSettingsAfterSave;
@@ -88,9 +94,26 @@
       }).finally(function () { control.querySelectorAll('button').forEach(function (item) { item.disabled = false; }); });
     });
 
+    /* Whether the thread of a closed Codex chat is archived in Codex (agent_threads.go). */
+    $('codex-archive-closed').addEventListener('change', function () {
+      var box = this, on = box.checked;
+      box.disabled = true;
+      settingsStatus('codex-archive-closed-status', 'Saving…');
+      Promise.resolve().then(function () { return app().SetCodexArchiveClosed(on); }).then(function () {
+        box.dataset.saved = String(on);
+        settingsStatus('codex-archive-closed-status', on ? 'Saved. Chats closed from now on are archived in Codex.' : 'Saved. Threads already archived stay archived until their chats open again.');
+        return reload('codex-archive-closed-status');
+      }, function (error) {
+        box.checked = box.dataset.saved === 'true';
+        settingsStatus('codex-archive-closed-status', 'The preference could not be saved: ' + error, true);
+      }).finally(function () { box.disabled = false; });
+    });
+
     // What State says, at start and after each save.
     return {
       apply: function (state) {
+        $('codex-archive-closed').checked = !!state.codexArchiveClosed;
+        $('codex-archive-closed').dataset.saved = String(!!state.codexArchiveClosed);
         setSandbox(state.codexApprovals || 'ask');
         if (state.codexAppletApprovals) setApplet(state.codexAppletApprovals);
       }

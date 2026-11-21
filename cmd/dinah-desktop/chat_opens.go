@@ -47,6 +47,9 @@ type ChatOpenOutcome struct {
 	Info   *SessionInfo    `json:"info,omitempty"`
 	Error  string          `json:"error,omitempty"`
 	Detail json.RawMessage `json:"detail,omitempty"`
+	// Advice is one sentence the provider's module adds for a failed open,
+	// which the page shows below the error (agent_threads.go).
+	Advice string `json:"advice,omitempty"`
 }
 
 // ChatOpenState is what BeginChatOpen returns: "opening" while the open runs,
@@ -130,6 +133,7 @@ func (a *App) BeginChatOpen(token, method string, args []json.RawMessage) (ChatO
 			info, err := call()
 			if err != nil {
 				outcome.Error = err.Error()
+				outcome.Advice = a.openFailureAdvice(chatOpenTarget(method, args))
 				var detailed bridge.DetailedError
 				if errors.As(err, &detailed) {
 					if raw, encErr := json.Marshal(detailed.ErrorDetail()); encErr == nil {

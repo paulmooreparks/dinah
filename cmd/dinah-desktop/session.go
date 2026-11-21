@@ -207,6 +207,9 @@ func (a *App) RenameSession(id, title string) (map[string]string, error) {
 		return titles, err
 	}
 	a.emit("agent:titles", titles)
+	// The agent's own thread takes the title too, where the agent can name
+	// one (agent_threads.go).
+	a.nameAgentThread(id)
 	if s := a.session(id); s != nil {
 		a.busCoordinator().PublishBusTitle(s)
 	} else if t := strings.TrimSpace(title); t != "" {

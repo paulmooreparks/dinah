@@ -305,6 +305,8 @@
 /* A session Devin could not open: the reason and what to do, over the
    prompt, where the eye is. */
 .session-note { flex: none; padding: var(--space-3) var(--space-5) 0; background: var(--surface); border-top: 1px solid var(--border); }
+/* The provider's advice for a failed open is a paragraph of its own below the error. */
+.session-note-advice { margin-top: var(--space-2); }
 /* Open With… lists the values the agent offers under the note's buttons. */
 .session-open-with { margin-top: var(--space-3); }
 /* A thought is a row of the transcript (chat-applet.js). It is flat, since

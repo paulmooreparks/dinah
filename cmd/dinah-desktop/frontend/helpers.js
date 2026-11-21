@@ -97,13 +97,16 @@
      failed call of it rejects with, so the code after an open is what it was. The page chooses the
      token, since the event can arrive before the starting call's answer does. After a resync the
      page may have missed the event, so each open it still waits for is asked for again with its
-     token, and the answer says whether the open still runs or how it ended. */
+     token, and the answer says whether the open still runs or how it ended. A caller that shows
+     more of a failed open than its error, such as the advice a provider adds (agent_threads.go),
+     gives a function that is called with the outcome before the promise settles. */
   const chatOpens = new Map();
   let chatOpenCount = 0, chatOpenListening = false;
   function settleChatOpen(outcome) {
     const waiting = outcome && chatOpens.get(outcome.open);
     if (!waiting) return;
     chatOpens.delete(outcome.open);
+    if (waiting.outcome) waiting.outcome(outcome);
     if (!outcome.error) waiting.resolve(outcome.info);
     else if (outcome.detail) { const error = new Error(outcome.error); error.detail = outcome.detail; waiting.reject(error); }
     else waiting.reject(outcome.error);
@@ -114,7 +117,7 @@
       if (state && state.state === 'done') settleChatOpen(state.outcome);
     }).catch(error => { if (chatOpens.delete(token)) waiting.reject(error); });
   }
-  function chatOpen(method, args) {
+  function chatOpen(method, args, outcome) {
     if (!chatOpenListening) {
       chatOpenListening = true;
       on('chat:open-result', settleChatOpen);
@@ -123,7 +126,7 @@
     return new Promise((resolve, reject) => {
       // getRandomValues needs no secure context, which randomUUID does.
       const token = Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join('') + '-' + (++chatOpenCount);
-      chatOpens.set(token, { method, args, resolve, reject });
+      chatOpens.set(token, { method, args, resolve, reject, outcome });
       askChatOpen(token);
     });
   }

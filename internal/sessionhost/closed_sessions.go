@@ -21,7 +21,10 @@ type ClosedSessionsHost struct {
 	CloseChatLog        func(string)
 	CancelQuestions     func(string)
 	DisconnectSubagents func(*Conversation)
-	Log                 func(string, string, ...any)
+	// Ended is called once a chat's session has been closed at the agent and
+	// let go here, with the connection that closed it. It may be nil.
+	Ended func(Connection, *Conversation)
+	Log   func(string, string, ...any)
 }
 
 // ClosedSessions uses the host's state mutex for Runtime operations and owns
@@ -233,6 +236,12 @@ func (c *ClosedSessions) closeSession(conn Connection, s *Conversation, done *Se
 	c.host.CloseChatLog(s.ID())
 	c.host.CancelQuestions(s.ID())
 	c.host.DisconnectSubagents(s)
+	// The host's work for an ended session is done before the end is
+	// complete, so that an open of the chat, which waits for the end
+	// (WaitForEnd), starts only after it.
+	if c.host.Ended != nil {
+		c.host.Ended(conn, s)
+	}
 	s.FinishEnd()
 	done.Complete()
 	c.host.Log("info", "ended the session of chat %s, closed for %s", s.ID(), ClosedSessionEnd)
