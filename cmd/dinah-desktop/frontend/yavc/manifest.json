@@ -1,5 +1,5 @@
 {
-  "digest": "9d831d938d63732b1985ad9f6e39b1b9113cb8ae8c2fd39e64de78165cd3f0ef",
+  "digest": "b47b7814b569f8096fdae702c48ca51f398232d8fce647bab963599e9a64a05d",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -1300,8 +1300,8 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8622289,
-      "sha256": "b388dafa11d9619bd5b0d2617170b0d62bafe9a04250c1a91cf9626170430853"
+      "bytes": 8622920,
+      "sha256": "1a50b34a1a16a8b6458c6f00a0b07c8cecc6eb5762d7502aa6f79f780347eae1"
     },
     {
       "path": "content/shortcodes.json",
