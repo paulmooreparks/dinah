@@ -50,7 +50,7 @@ func Register(name string, s Service) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if _, taken := registry[name]; taken || windowFactories[name] != nil {
+	if _, taken := registry[name]; taken || windowFactories[name] != nil || chatWindowFactories[name] != nil {
 		panic("services: service registered twice: " + name)
 	}
 	registry[name] = s
@@ -73,6 +73,9 @@ func Names() []string {
 		out = append(out, name)
 	}
 	for name := range windowFactories {
+		out = append(out, name)
+	}
+	for name := range chatWindowFactories {
 		out = append(out, name)
 	}
 	sort.Strings(out)

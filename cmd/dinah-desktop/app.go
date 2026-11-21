@@ -231,6 +231,7 @@ type App struct {
 	appletMu      sync.Mutex
 	appletHost    *host.Service
 	taskServices  taskServiceState
+	serviceChats  serviceChatState
 	taskQuestions taskQuestionState
 
 	// notices are the operating system's notifications (host_notices.go).

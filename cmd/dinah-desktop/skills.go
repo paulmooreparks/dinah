@@ -93,19 +93,26 @@ func (a *App) SkillsForProviderAt(workspace, provider string) []Skill {
 }
 
 func (a *App) providerSkillPrompt(s *Session, text string) (string, error) {
-	if providerRegistry[normalizedProvider(s.Provider())].OwnCommands || !strings.HasPrefix(strings.TrimSpace(text), "/") {
+	return a.skillPromptFor(s.Provider(), s.Cwd(), text)
+}
+
+// skillPromptFor prepares text for a provider in a workspace folder, as
+// providerSkillPrompt does for a chat. A product's service reads the same
+// preparation through its chat port (service_chats.go).
+func (a *App) skillPromptFor(provider, cwd, text string) (string, error) {
+	if providerRegistry[normalizedProvider(provider)].OwnCommands || !strings.HasPrefix(strings.TrimSpace(text), "/") {
 		return text, nil
 	}
 	name := strings.Fields(strings.TrimSpace(text))[0][1:]
 	var catalog SkillCatalog
 	for _, record := range (workspaceVFS{service: a.resourceService()}).records() {
-		if layout.SamePath(workspaces.ExecutionPath(record), s.Cwd()) {
+		if layout.SamePath(workspaces.ExecutionPath(record), cwd) {
 			catalog = a.skillCatalog(record.ID, false)
 			break
 		}
 	}
 	if catalog.Skills == nil {
-		a = legacySkillCatalog(s.Cwd())
+		a = legacySkillCatalog(cwd)
 		catalog = a.skillCatalog("legacy-skills", false)
 	}
 	var selected *CatalogSkill

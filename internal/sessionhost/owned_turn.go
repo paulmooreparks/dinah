@@ -20,6 +20,16 @@ var ErrOwnedTurnBusy = errors.New("the chat is not idle for an exclusive task tu
 // occupied chats instead of steering or queueing work into another owner's turn.
 // The native runner keeps its work reservation until the native call settles.
 func (t *TurnIO) TakeTurn(ctx context.Context, s *Conversation, text, label string, prepared func() error) (string, End) {
+	return t.TakeTurnStoppable(ctx, nil, s, text, label, prepared)
+}
+
+// TakeTurnStoppable is TakeTurn with a second way to stop the turn. When stop
+// is closed, the agent is asked to cancel this call's dispatched prompt, under
+// the guard a cancelled context has, and the call goes on waiting for the
+// turn's end. It therefore returns the agent's own stop reason and the words
+// written so far, which a cancelled context gives up. A nil stop never fires,
+// and the call is then TakeTurn exactly.
+func (t *TurnIO) TakeTurnStoppable(ctx context.Context, stop <-chan struct{}, s *Conversation, text, label string, prepared func() error) (string, End) {
 	fail := func(err error) (string, End) { return "", End{StopReason: "error", Err: err} }
 	if err := ctx.Err(); err != nil {
 		return fail(err)
@@ -85,6 +95,7 @@ func (t *TurnIO) TakeTurn(ctx context.Context, s *Conversation, text, label stri
 		defer close(cancellationDone)
 		select {
 		case <-ctx.Done():
+		case <-stop:
 		case <-p.reply.done:
 			return
 		case <-settled:

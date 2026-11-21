@@ -15,6 +15,7 @@ import (
 
 	"studio/internal/agents"
 	"studio/internal/layout"
+	"studio/internal/servicechats"
 	"studio/internal/services"
 	"studio/internal/sessionhost"
 	"studio/internal/taskhost"
@@ -107,7 +108,13 @@ func (a *App) startTaskServices() error {
 		})
 		var window *services.Window
 		if err == nil {
-			window, err = services.NewWindow(h)
+			// The services that use the plain chat port are made with the
+			// task services and shut down with them (service_chats.go).
+			chats := servicechats.New(serviceChatBackend{a})
+			a.serviceChats.mu.Lock()
+			a.serviceChats.window = chats
+			a.serviceChats.mu.Unlock()
+			window, err = services.NewWindowWithChats(h, chats)
 		}
 		a.taskServices.mu.Lock()
 		a.taskServices.host = h
@@ -128,6 +135,12 @@ func (a *App) closeTaskServices() {
 		return
 	}
 	h.CloseAdmission()
+	// The chat port closes its admission and cancels its running turns
+	// before the services are asked to finish, as the task host does.
+	a.serviceChats.mu.Lock()
+	chats := a.serviceChats.window
+	a.serviceChats.mu.Unlock()
+	chats.CloseAdmission()
 	a.closeTaskQuestions()
 	// Cleanup has its own bounded context after execution and page calls stop.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -135,6 +148,10 @@ func (a *App) closeTaskServices() {
 	if err := w.Shutdown(ctx); err != nil {
 		logf("core", "error", "task services did not finish checkpointing: %v", err)
 	}
+	if err := chats.Shutdown(ctx); err != nil {
+		logf("core", "error", "service chat calls did not finish: %v", err)
+	}
+	a.closeServiceChats()
 	if err := h.Shutdown(ctx); err != nil {
 		logf("core", "error", "task receipt cleanup did not settle: %v", err)
 	}

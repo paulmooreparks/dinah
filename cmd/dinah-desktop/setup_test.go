@@ -217,13 +217,34 @@ func TestTheSetUpsUsesOpenWindows(t *testing.T) {
 	}
 }
 
-// This product connects to no service, so its set-up has no step for one,
-// and a service nobody registered cannot be opened.
+// Dinah connects to no service, so its set-up has no step for one. A product
+// built from this source may register connections, and its set-up then has a
+// step for each one that gives token steps and can be tested, and for no
+// other. The test counts this build's own registry, so it proves both: with
+// nothing registered the offer has to be empty. A service nobody registered
+// cannot be opened in either case.
 func TestTheSetUpOffersNoConnectionWhereThereIsNone(t *testing.T) {
 	a, _, _ := judgementApp(t)
 	offer, err := a.SetupOffer()
-	if err != nil || offer.Connections == nil || len(offer.Connections) != 0 {
+	if err != nil || offer.Connections == nil {
 		t.Fatalf("the offer's connections: %+v, %v", offer.Connections, err)
+	}
+	guided := map[string]bool{}
+	for _, c := range connections.All() {
+		if len(c.TokenSteps) > 0 && c.Test != nil {
+			guided[c.ID] = true
+		}
+	}
+	if len(offer.Connections) != len(guided) {
+		t.Fatalf("the set-up offers %d connections where this build registered %d that it can guide: %+v", len(offer.Connections), len(guided), offer.Connections)
+	}
+	for _, c := range offer.Connections {
+		if !guided[c.ID] {
+			t.Fatalf("the set-up offers the connection %q, which this build did not register for it", c.ID)
+		}
+	}
+	if _, registered := connections.Lookup("nobody"); registered {
+		t.Fatal("this build registered a connection called nobody, which this test uses as the name of none")
 	}
 	if err := a.OpenConnectionSite("nobody", "https://example.com"); !errors.Is(err, connections.ErrUnknown) {
 		t.Fatalf("opening a service nobody registered: %v", err)

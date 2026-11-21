@@ -88,3 +88,33 @@ func TestOwnedTurnBuildsPromptAndPersistsBeforeNativeDispatch(t *testing.T) {
 		t.Fatal("failed task did not join")
 	}
 }
+
+func TestStoppableOwnedTurnReturnsTheAgentsCancelledEnd(t *testing.T) {
+	io, chat := turnFixture()
+	chat.ReleaseWork()
+	peer := &ownedPromptPeer{Connection: io.host.SessionConnection(chat), entered: make(chan struct{}), release: make(chan struct{})}
+	io.host.SessionConnection = func(*Conversation) Connection { return peer }
+	io.host.ResolveContinuation = func(id string) (string, error) { return id, nil }
+	io.host.MakePrompt = func(_ *Conversation, text string, _ *DocRef, _ []Attachment) (Prompt, error) {
+		return NewPrompt(text, []acp.ContentBlock{{Type: "text", Text: text}}), nil
+	}
+	io.host.CancelQuestions = func(string) {}
+	stop := make(chan struct{})
+	done := make(chan End, 1)
+	go func() {
+		_, end := io.TakeTurnStoppable(context.Background(), stop, chat, "owned", "Task", func() error { return nil })
+		done <- end
+	}()
+	<-peer.entered
+	close(stop)
+	end := <-done
+	if end.Err != nil || end.StopReason != "cancelled" {
+		t.Fatalf("a stopped turn: %+v", end)
+	}
+	if !io.Close(time.Second) {
+		t.Fatal("the stopped turn did not join")
+	}
+	if peer.prompts.Load() != 1 || peer.cancels.Load() != 1 || chat.Working() {
+		t.Fatalf("prompts=%d cancels=%d working=%v", peer.prompts.Load(), peer.cancels.Load(), chat.Working())
+	}
+}

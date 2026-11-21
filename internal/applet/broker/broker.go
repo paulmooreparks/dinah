@@ -262,7 +262,9 @@ func (b *Broker) StartID(workspace, ownerKind, ownerID, id, ref, inputJSON, expe
 	if (workspace == "" && ownerKind != "applet") || (workspace != "" && !filepath.IsAbs(workspace)) || ownerID == "" || !recordID.MatchString(id) {
 		return Invocation{}, fmt.Errorf("%w: invalid invocation context", ErrRecovery)
 	}
-	if ownerKind != "chat" && ownerKind != "applet" && ownerKind != "task" {
+	// A "service" owner is a product's own service, which runs an action
+	// through its chat port (docs/design/service-chats.md).
+	if ownerKind != "chat" && ownerKind != "applet" && ownerKind != "task" && ownerKind != "service" {
 		return Invocation{}, fmt.Errorf("%w: unsupported invocation owner", ErrRecovery)
 	}
 	action, err := b.Registry.Describe(ref)

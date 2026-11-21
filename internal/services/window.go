@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"studio/internal/servicechats"
 	"studio/internal/taskhost"
 )
 
@@ -30,10 +31,47 @@ type WindowPresentation struct {
 	Pages []string
 }
 
+// ChatWindowFactory makes a window service that works in chats through the
+// plain port (docs/design/service-chats.md). The port has no review and no
+// confirmation of a run, so the service asks the person before it starts
+// work. The participant's Shutdown is called after the port has closed
+// admission and cancelled the service's running turns.
+type ChatWindowFactory func(servicechats.Port) (Service, Participant, error)
+
 var windowFactories = map[string]WindowFactory{}
+var chatWindowFactories = map[string]ChatWindowFactory{}
 var windowPresentations = map[string]WindowPresentation{}
 
-func HasWindowServices() bool { mu.RLock(); defer mu.RUnlock(); return len(windowFactories) > 0 }
+func HasWindowServices() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return len(windowFactories) > 0 || len(chatWindowFactories) > 0
+}
+
+// RegisterChatWindow registers a window service whose factory receives the
+// plain chat port of its own name. The page calls the service through
+// CallService, as it calls every other service. A name is registered once,
+// whichever kind of service it is.
+func RegisterChatWindow(name, displayName string, pages []string, make ChatWindowFactory) {
+	if !namePattern.MatchString(name) || make == nil {
+		panic("services: invalid window service registration")
+	}
+	if displayName == "" || len(displayName) > 256 {
+		panic("services: invalid window service display name")
+	}
+	for _, page := range pages {
+		if !namePattern.MatchString(page) {
+			panic("services: invalid owned page identity")
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if registry[name] != nil || windowFactories[name] != nil || chatWindowFactories[name] != nil {
+		panic("services: service registered twice: " + name)
+	}
+	chatWindowFactories[name] = make
+	windowPresentations[name] = WindowPresentation{Name: displayName, Pages: append([]string(nil), pages...)}
+}
 
 func RegisterWindow(name string, make WindowFactory) {
 	RegisterWindowNamed(name, name, nil, make)
@@ -53,7 +91,7 @@ func RegisterWindowNamed(name, displayName string, pages []string, make WindowFa
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if registry[name] != nil || windowFactories[name] != nil {
+	if registry[name] != nil || windowFactories[name] != nil || chatWindowFactories[name] != nil {
 		panic("services: service registered twice: " + name)
 	}
 	windowFactories[name] = make
@@ -72,17 +110,31 @@ type Window struct {
 
 // NewWindow constructs instances without exposing the root task host to a service.
 // Factory errors are returned before any instance is published to page callers.
-func NewWindow(host *taskhost.Window) (*Window, error) {
+func NewWindow(host *taskhost.Window) (*Window, error) { return NewWindowWithChats(host, nil) }
+
+// NewWindowWithChats also constructs the services registered with
+// RegisterChatWindow, each with the chat port of its own name. They are made
+// after the task services. A factory's error closes the admission of both
+// hosts, as a task factory's error closes the task host's.
+func NewWindowWithChats(host *taskhost.Window, chats *servicechats.Window) (*Window, error) {
 	mu.RLock()
 	makers := map[string]WindowFactory{}
+	chatMakers := map[string]ChatWindowFactory{}
 	display := map[string]WindowPresentation{}
 	for name, make := range windowFactories {
 		makers[name] = make
 		display[name] = windowPresentations[name]
 	}
+	for name, make := range chatWindowFactories {
+		chatMakers[name] = make
+		display[name] = windowPresentations[name]
+	}
 	mu.RUnlock()
 	if len(makers) > 0 && host == nil {
 		return nil, errors.New("window task binding is unavailable")
+	}
+	if len(chatMakers) > 0 && chats == nil {
+		return nil, errors.New("window chat port is unavailable")
 	}
 	w := &Window{services: map[string]Service{}, records: map[string]TaskRecords{}, presenters: map[string]TaskPresenter{}, display: display}
 	names := make([]string, 0, len(makers))
@@ -111,6 +163,28 @@ func NewWindow(host *taskhost.Window) (*Window, error) {
 		if presenter, ok := p.(TaskPresenter); ok {
 			w.presenters[name] = presenter
 		}
+	}
+	chatNames := make([]string, 0, len(chatMakers))
+	for name := range chatMakers {
+		chatNames = append(chatNames, name)
+	}
+	sort.Strings(chatNames)
+	for _, name := range chatNames {
+		s, p, err := chatMakers[name](chats.ForService(name))
+		if p != nil {
+			w.participants = append(w.participants, p)
+		}
+		if err != nil || s == nil || p == nil {
+			if err == nil {
+				err = errors.New("window service requires a service and shutdown participant")
+			}
+			if host != nil {
+				host.CloseAdmission()
+			}
+			chats.CloseAdmission()
+			return w, err
+		}
+		w.services[name] = s
 	}
 	return w, nil
 }
