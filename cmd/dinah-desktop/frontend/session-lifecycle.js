@@ -11,6 +11,9 @@
       rememberCatalog, drawAgentState, openingNote, stampReplay, drawAll, resetMessageItems,
       presentHistory, noWorkspaceYet, startLog, catchUpLog } = adapter;
     const sessions = store.records, S = store.get;
+    /* Each opening below is started with a call that returns at once, and its result arrives as an
+       event, so no call to the engine is held open while an agent loads a chat (helpers.js, chatOpen). */
+    const chatOpen = window.dinahHelpers.chatOpen;
     const applySessionInfo = store.applyInfo, sessionProvider = store.provider;
 
     /* Opening a session from the list reopens it in Devin, which replays the
@@ -219,7 +222,7 @@
       s.saved = false;
       resetMessageItems(s); s.log.innerHTML = ''; s.rows = {}; s.current = null; s.trimmed = 0; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       s.settling = true;
-      s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null; s.notFound = null;
+      s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null; s.notFound = null; s.timedOut = false;
       if (s.view) s.view.drawLoadingChip(); // the window's title bar says it is loading
       s.info.resumed = false; // omitted from an opening that replayed, so a stale true would stay
       s.log.hidden = true;
@@ -267,22 +270,22 @@
       return s.loadingPromise = Promise.resolve().then(function () {
         if (sessions[id] !== s) return null;
         var delivery = s.deliveryOpening; s.deliveryOpening = null;
-        if (delivery && app().OpenWaitingSession) return app().OpenWaitingSession(delivery.origin, delivery.attempt);
+        if (delivery && app().OpenWaitingSession) return chatOpen('OpenWaitingSession', [delivery.origin, delivery.attempt]);
         // Open With… reopens the chat with the value the person chose in
         // place of its saved one (option_substitutions.go).
         var openWith = s.openWith; s.openWith = null;
         // The engine holds a message sent to the chat from here until its history is loaded (s.holding).
         s.holding = true;
-        if (openWith) return app().OpenSessionWith(s.info.cwd || workspace(), id, openWith.option, openWith.value, openWith.always);
+        if (openWith) return chatOpen('OpenSessionWith', [s.info.cwd || workspace(), id, openWith.option, openWith.value, openWith.always]);
         // Load Full History: the agent replays the whole conversation, as a chat closed and opened again.
         // A choice the agent takes only when a session is made closes and opens the chat in the same way,
         // with that choice (reopenWith).
         if (s.loadFull) {
           s.loadFull = false;
           var again = s.reopenWith; s.reopenWith = null;
-          return again ? app().ReopenSessionWith(s.info.cwd || workspace(), id, again.option, again.value) : app().LoadFullHistory(s.info.cwd || workspace(), id);
+          return again ? chatOpen('ReopenSessionWith', [s.info.cwd || workspace(), id, again.option, again.value]) : chatOpen('LoadFullHistory', [s.info.cwd || workspace(), id]);
         }
-        return app().OpenSessionAt(s.info.cwd || workspace(), id);
+        return chatOpen('OpenSessionAt', [s.info.cwd || workspace(), id]);
       }).then(async function (info) {
         s.holding = false;
         await drainAgentEvents();
@@ -320,6 +323,8 @@
         // (docs/plans/recurring-chat-faults.md). The engine records either
         // and never resumes it, so the note offers no Try Again (sessionNote).
         s.notFound = detail && (detail.kind === 'session-not-found' || detail.kind === 'session-unverified') ? detail : null;
+        // The agent did not answer the load within the engine's limit, so nothing was reported by it (sessionNote).
+        s.timedOut = !!(detail && detail.kind === 'open-timeout');
         /* A chat moved here from another computer is never opened by its
            provider (moved_chats.go). It shows its saved history, which ends
            with the line saying it moved, and its next message continues it

@@ -32,6 +32,8 @@ const (
 // the call that asked for it, or a chat whose history is still being read look
 // like unfinished work. ExtensionCall is a query because the extension manager counts
 // the calls that change something itself (Executing) and leaves out reads.
+// BeginChatOpen is a query because it returns at once, and the open it starts
+// counts itself as unfinished work until it ends (chat_opens.go).
 var pageMethods = func() map[string]pageMethodClass {
 	result := map[string]pageMethodClass{}
 	list := func(class pageMethodClass, names string) {
@@ -64,7 +66,7 @@ var pageMethods = func() map[string]pageMethodClass {
  WorkspaceLocalPath WorkspaceSkills Log SaveUIState SaveUIStateChanges ExtensionCall ProductServices ShortcodeCatalog RenderShortcode ShortcodeForm BuildShortcode
  SuggestDocumentName SuggestReply AskAssistant AssistantTasks SetupOffer SetupShown SetupAsking ReadSetupWords JudgementCalibration JudgementState JudgementSummary JudgementRecords JudgementKinds JudgementSettings JudgementModels JudgementModelPrices JudgementProviders NewestClaudeAdapter Team ChatLead SetTeamLead ClearTeamLead MakeGroupATeam SetTeamBudget
  PendingPermissions PendingTaskPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
- ChatEvents ChatStates OpenShow PostShow CloseShow StandaloneApplications OpenStandalone
+ ChatEvents ChatStates BeginChatOpen OpenShow PostShow CloseShow StandaloneApplications OpenStandalone
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceExport PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `

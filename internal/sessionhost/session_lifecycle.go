@@ -127,6 +127,14 @@ type SessionLifecycle struct {
 	// take turns instead of each calling the agent.
 	openMu  sync.Mutex
 	opening map[string]*openCall
+
+	// LoadLimit replaces ReopenLoadLimit when it is positive, which a test
+	// uses to meet the limit quickly. It is set before the first open.
+	LoadLimit time.Duration
+	// outstanding has, by chat, the connection that still owes an answer to
+	// a load given up at the limit (boundedLoad).
+	loadMu      sync.Mutex
+	outstanding map[string]Connection
 }
 
 // openCall is one open in flight, whose result a second open of the chat
@@ -654,6 +662,12 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 	if !init.AgentCapabilities.LoadSession {
 		return Info{}, errors.New("this agent cannot reopen a past session")
 	}
+	// A load given up at the limit is still the agent's to answer. Until it
+	// answers, or its process ends, the chat is not asked for again, since
+	// two loads of one session at once would mix their replays.
+	if l.loadOutstanding(conn, id) {
+		return Info{}, ErrLoadOutstanding
+	}
 	saved, savedTitle := l.host.SavedOptions(id)
 	for option, value := range override {
 		saved[option] = append(json.RawMessage(nil), value...)
@@ -741,12 +755,15 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 		} else {
 			l.host.Log("info", "chat %s is reopened with session/load: %s", id, why)
 		}
+		closable := init.AgentCapabilities.SessionCapabilities.Close != nil
 		stop := l.host.WatchReopen(id, method)
-		err = l.host.Call(conn, method, l.host.SessionParams(provider, id, cwd, servers), &res)
+		err = l.boundedLoad(conn, id, method, l.host.SessionParams(provider, id, cwd, servers), &res, closable)
 		stop()
 		// A resume the agent refuses falls back to a load once, unless the
 		// refusal is that it has no such session, which a load would meet too.
-		if resumed && err != nil && !notFound(err) {
+		// A resume given up at the limit is no refusal, and its request is
+		// still the agent's to answer, so no load follows it.
+		if resumed && err != nil && !notFound(err) && !IsLoadTimeout(err) {
 			l.host.Log("warning", "session/resume of chat %s was refused (%v), so it is loaded instead", id, err)
 			why = "session/resume was refused: " + err.Error()
 			resumed = false
@@ -754,7 +771,7 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 			s.SetReplayToPage(full)
 			l.host.InitTranscript(s, true)
 			stop = l.host.WatchReopen(id, "session/load")
-			err = l.host.Call(conn, "session/load", l.host.SessionParams(provider, id, cwd, servers), &res)
+			err = l.boundedLoad(conn, id, "session/load", l.host.SessionParams(provider, id, cwd, servers), &res, closable)
 			stop()
 		}
 		if err == nil {
@@ -826,6 +843,150 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 		info.Notes = append(info.Notes, sub.Note())
 	}
 	return info, nil
+}
+
+// ReopenLoadLimit is how long the agent is given to answer the request that
+// reopens a chat (session/load or session/resume) before the open fails and
+// the chat stays closed. On 21 November 2026 one chat's load was never
+// answered, and every caller of the open waited with it, without end.
+//
+// The limit has two sides. It is longer than any healthy load seen: the
+// longest in that day's logs, a history of 56 MiB, answered in well under a
+// minute, and the reopen watch (WatchReopen) writes its line and saves the
+// stacks at one minute, before the limit ends the wait. It is shorter than
+// bushost.ConnectPatience (two minutes) less the grace the page is given to
+// open a chat first (five seconds), because the wake scheduler forgets a
+// connect it asked for after that patience, and a failure that arrived later
+// would not be reported to the chat's team or to the person.
+// TestTheReopenLimitFitsTheWakePatience keeps that relation. The limit is a
+// constant in code, since a wrong value can only be found by reading logs. A
+// chat whose healthy load takes longer than this needs the limit and
+// ConnectPatience raised together.
+const ReopenLoadLimit = 90 * time.Second
+
+// LoadTimeoutError is what an open fails with when the agent did not answer
+// the load within the limit.
+type LoadTimeoutError struct {
+	Method string
+	Limit  time.Duration
+}
+
+func (e *LoadTimeoutError) Error() string {
+	within := e.Limit.String()
+	if e.Limit >= time.Second {
+		within = fmt.Sprintf("%d seconds", int(e.Limit/time.Second))
+	}
+	return fmt.Sprintf("The agent did not answer the request to load this chat (%s) within %s, so the chat stays closed. Its saved history and any messages waiting for it are kept.", e.Method, within)
+}
+
+// ErrorDetail gives the page the kind of failure, so that its note does not
+// say the agent reported it.
+func (e *LoadTimeoutError) ErrorDetail() any {
+	return map[string]any{"kind": "open-timeout", "method": e.Method, "seconds": int(e.Limit / time.Second)}
+}
+
+// IsLoadTimeout reports whether an open failed at the load limit.
+func IsLoadTimeout(err error) bool {
+	var e *LoadTimeoutError
+	return errors.As(err, &e)
+}
+
+// ErrLoadOutstanding is what an open fails with while the agent still owes
+// an answer to an earlier load of the same chat that was given up.
+var ErrLoadOutstanding = errors.New("The agent has not yet answered the earlier request to load this chat, so it is not asked again while that request is open. Try again later, or restart the agent to end the request.")
+
+func (l *SessionLifecycle) loadLimit() time.Duration {
+	if l.LoadLimit > 0 {
+		return l.LoadLimit
+	}
+	return ReopenLoadLimit
+}
+
+// loadOutstanding reports whether conn still owes an answer to a load of the
+// chat that was given up. A connection that has ended owes nothing.
+func (l *SessionLifecycle) loadOutstanding(conn Connection, id string) bool {
+	l.loadMu.Lock()
+	owing, ok := l.outstanding[id]
+	l.loadMu.Unlock()
+	if !ok || owing != conn {
+		return false
+	}
+	select {
+	case <-conn.Done():
+		return false
+	default:
+		return true
+	}
+}
+
+// LoadOutstanding reports whether a connection still owes an answer to a
+// load of the chat that was given up. The handler drops the session updates
+// of such a chat, which are the replay of the load nobody waits for.
+func (l *SessionLifecycle) LoadOutstanding(id string) bool {
+	l.loadMu.Lock()
+	conn, ok := l.outstanding[id]
+	l.loadMu.Unlock()
+	return ok && l.loadOutstanding(conn, id)
+}
+
+// boundedLoad makes the request that reopens a chat and waits for its answer
+// for the load limit at most. At the limit it returns a LoadTimeoutError and
+// the caller closes the chat as for any failed open.
+//
+// The request itself is not withdrawn, because the protocol has no request
+// that cancels a load, and the agent's process is left running, because it
+// serves the other chats of its provider. The request stays open on the
+// connection, so its answer is matched to it and to nothing else when it
+// arrives, however late. The chat is marked as owed an answer until then,
+// which keeps a second load from being sent beside the first (openAt) and
+// drops the replay the first still sends (Handler.Notify). A late answer is
+// logged and its result is discarded. Where the agent advertises
+// session/close, the session a late answer left loaded is closed, as a chat
+// is closed before it is loaded again (reopen). The mark also ends when the
+// connection does, which fails the request.
+func (l *SessionLifecycle) boundedLoad(conn Connection, id, method string, params any, res *acp.LoadSessionResult, closable bool) error {
+	var out acp.LoadSessionResult
+	done := make(chan error, 1)
+	began := time.Now()
+	go func() { done <- l.host.Call(conn, method, params, &out) }()
+	limit := l.loadLimit()
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		if err == nil {
+			*res = out
+		}
+		return err
+	case <-timer.C:
+	}
+	l.loadMu.Lock()
+	if l.outstanding == nil {
+		l.outstanding = map[string]Connection{}
+	}
+	l.outstanding[id] = conn
+	l.loadMu.Unlock()
+	l.host.Log("error", "chat %s: %s was not answered within %s, so the open fails and the chat stays closed; the agent is left running", id, method, limit)
+	go func() {
+		err := <-done
+		waited := time.Since(began).Round(time.Second)
+		if err != nil {
+			l.host.Log("info", "chat %s: the %s given up earlier ended after %s: %v", id, method, waited, err)
+		} else {
+			l.host.Log("warning", "chat %s: the %s given up earlier was answered after %s, and the answer is discarded", id, method, waited)
+			if closable {
+				if err := l.host.CallWithin(conn, CloseSessionPatience, "session/close", acp.CloseSessionParams{SessionID: id}, nil); err != nil {
+					l.host.Log("warning", "chat %s: the session its late answer left loaded could not be closed: %v", id, err)
+				}
+			}
+		}
+		l.loadMu.Lock()
+		if l.outstanding[id] == conn {
+			delete(l.outstanding, id)
+		}
+		l.loadMu.Unlock()
+	}()
+	return &LoadTimeoutError{Method: method, Limit: limit}
 }
 
 // notFound says the agent answered that the session does not exist.

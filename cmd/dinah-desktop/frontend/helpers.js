@@ -89,6 +89,44 @@
       if (at >= 0) resyncHandlers.splice(at, 1);
     };
   }
+  /* Opening a saved chat waits for its agent, which can take a minute, and a call that waited with it
+     kept one of the browser's few connections to the engine for as long. Enough such calls left the
+     page unable to call anything (21 November 2026). chatOpen therefore starts the open with a call
+     that returns at once (BeginChatOpen, chat_opens.go) and settles when the chat:open-result event
+     with its token arrives. It resolves with what the opening method returns and rejects with what a
+     failed call of it rejects with, so the code after an open is what it was. The page chooses the
+     token, since the event can arrive before the starting call's answer does. After a resync the
+     page may have missed the event, so each open it still waits for is asked for again with its
+     token, and the answer says whether the open still runs or how it ended. */
+  const chatOpens = new Map();
+  let chatOpenCount = 0, chatOpenListening = false;
+  function settleChatOpen(outcome) {
+    const waiting = outcome && chatOpens.get(outcome.open);
+    if (!waiting) return;
+    chatOpens.delete(outcome.open);
+    if (!outcome.error) waiting.resolve(outcome.info);
+    else if (outcome.detail) { const error = new Error(outcome.error); error.detail = outcome.detail; waiting.reject(error); }
+    else waiting.reject(outcome.error);
+  }
+  function askChatOpen(token) {
+    const waiting = chatOpens.get(token);
+    return Promise.resolve().then(() => app().BeginChatOpen(token, waiting.method, waiting.args)).then(state => {
+      if (state && state.state === 'done') settleChatOpen(state.outcome);
+    }).catch(error => { if (chatOpens.delete(token)) waiting.reject(error); });
+  }
+  function chatOpen(method, args) {
+    if (!chatOpenListening) {
+      chatOpenListening = true;
+      on('chat:open-result', settleChatOpen);
+      onResync(() => Promise.all(Array.from(chatOpens.keys(), askChatOpen)));
+    }
+    return new Promise((resolve, reject) => {
+      // getRandomValues needs no secure context, which randomUUID does.
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join('') + '-' + (++chatOpenCount);
+      chatOpens.set(token, { method, args, resolve, reject });
+      askChatOpen(token);
+    });
+  }
   const events = { dispatch, route: function (fn) { route = fn; }, drainer: function (fn) { drainer = fn; } };
   /* A toolbar button's content as PUDL folds it: its glyph, then its words,
      which a folded toolbar hides and keeps as the button's name and tooltip
@@ -261,5 +299,5 @@
     if (!windowLayer || !windowLayer.isConnected) windowLayer = document.querySelector('[data-win-layer]');
     return windowLayer ? Array.prototype.filter.call(windowLayer.children, function (el) { return el.hasAttribute('data-win'); }) : [];
   }
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing, windowOf, windows, windowState, setAttr, setText };
+  window.dinahHelpers = { app, chatOpen, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing, windowOf, windows, windowState, setAttr, setText };
 }());

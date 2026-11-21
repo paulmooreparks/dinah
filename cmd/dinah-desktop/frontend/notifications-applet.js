@@ -301,7 +301,7 @@
       if (item.lead && app().RemoveChat) entry.actions.push({ label: 'Delete Chat…', run: function () { return openRemove(item.lead, origin); } });
         entry.actions.push({ label: 'Refresh Recovery Status', run: function () { return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); }); } });
       if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Message', run: function () {
-          return app().RetryWaitingSession(item.lead).then(function () { return restoreNotifications(); });
+          return window.dinahHelpers.chatOpen('RetryWaitingSession', [item.lead]).then(function () { return restoreNotifications(); });
         } });
       return entry;
     }

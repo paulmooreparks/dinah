@@ -16,6 +16,7 @@ func (a *App) newAgentHandler() *sessionhost.Handler {
 	return sessionhost.NewHandler(sessionhost.HandlerHost{
 		ClaudeAccountReport: a.claudeAccountReport, RedactContexts: redactAppletContexts,
 		VisibleConversationText: visibleConversationText, LookupConversation: a.session,
+		LoadAbandoned: func(id string) bool { return a.sessionsLifecycle().LoadOutstanding(id) },
 		SubagentUpdate: func(sessionID string, update json.RawMessage) bool {
 			return a.subagentService().Update(sessionID, update)
 		}, ReplayBoundary: func(s *Session, kind string) { a.transcriptCapture().ReplayBoundary(s, kind) },

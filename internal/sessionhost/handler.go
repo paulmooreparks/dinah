@@ -49,8 +49,13 @@ type HandlerHost struct {
 	RedactContexts          func(string) string
 	VisibleConversationText func(string) string
 	LookupConversation      func(string) *Conversation
-	SubagentUpdate          func(string, json.RawMessage) bool
-	ReplayBoundary          func(*Conversation, string)
+	// LoadAbandoned reports whether the chat's load was given up at the
+	// limit and its answer has not arrived (SessionLifecycle.LoadOutstanding).
+	// The session updates of such a chat are the replay nobody waits for, and
+	// they are dropped. Nil is never.
+	LoadAbandoned  func(string) bool
+	SubagentUpdate func(string, json.RawMessage) bool
+	ReplayBoundary func(*Conversation, string)
 	// RecordConversationUpdate records an update in the saved history and, when
 	// the update is to be logged, appends it to the chat's log in the same
 	// critical section; the event it returns is emitted afterwards.
@@ -119,6 +124,12 @@ func (h *Handler) Notify(method string, params json.RawMessage) {
 		return
 	}
 	if a.Judges.over(n.SessionID) {
+		return
+	}
+	// A load given up at the limit may still replay. No open of the chat is
+	// admitted until its answer arrives, so these updates belong to no chat
+	// that is open, and none reaches the saved copy or the page.
+	if a.LoadAbandoned != nil && a.LoadAbandoned(n.SessionID) {
 		return
 	}
 	n.Update = json.RawMessage(a.RedactContexts(string(n.Update)))

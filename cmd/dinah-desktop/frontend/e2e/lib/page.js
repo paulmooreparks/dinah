@@ -151,6 +151,24 @@ function stub({ state, app, init, args }) {
       return window.go.main.App.SaveUIState({ version: 1, values: JSON.parse(JSON.stringify(store)) });
     };
   }
+  /* The page opens a chat with BeginChatOpen, which returns at once, and takes the outcome from the
+     chat:open-result event (chat_opens.go; helpers.js, chatOpen). A suite describes an open by the
+     opening method itself, such as OpenSessionAt, so this host runs that method, whichever stub
+     answers it at the time, and sends what it returned or threw as the event. A token it already
+     knows starts nothing and is told the state, as the engine tells it. A suite that checks the
+     starting call or the event itself gives BeginChatOpen. */
+  if (!own.BeginChatOpen) {
+    const opens = new Map();
+    App.BeginChatOpen = async (token, method, args) => {
+      if (opens.has(token)) return opens.get(token) ? { state: 'done', outcome: opens.get(token) } : { state: 'opening' };
+      opens.set(token, null);
+      Promise.resolve().then(() => window.go.main.App[method](...args)).then(
+        info => ({ open: token, method, info }),
+        error => (error && error.detail ? { open: token, method, error: String(error.message), detail: error.detail } : { open: token, method, error: String(error) })
+      ).then(outcome => { opens.set(token, outcome); window.__emit('chat:open-result', outcome); });
+      return { state: 'opening' };
+    };
+  }
   // Every call is recorded with its arguments, whichever stub answers it.
   for (const name of Object.keys(App)) {
     const fn = App[name];

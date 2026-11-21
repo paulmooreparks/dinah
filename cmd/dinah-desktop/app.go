@@ -68,6 +68,9 @@ type App struct {
 	// waiting messages, which may include continuing them from saved history.
 	// A failure recorded during that call is not shown until the call ends.
 	waitingOpens sync.Map
+	// pageOpens are the opens of chats the page started, whose results it is
+	// sent as events (chat_opens.go).
+	pageOpens chatOpens
 	// leadCopies are the copies of the person's messages to members whose
 	// answers are still to be copied to their leads (lead_copies.go).
 	leadCopies                 sync.Map
