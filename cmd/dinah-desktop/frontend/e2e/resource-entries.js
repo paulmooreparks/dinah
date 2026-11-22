@@ -5,8 +5,10 @@
 // window and the Pinned list draw the status as PUDL's badge at the end of
 // the row, with the changed mark beside it. An entry without them is drawn
 // as it always was, the name starts where it does in a row without marks,
-// the name is cut short before the badge is, and a status that changes on a
-// live entry moves nothing.
+// and a status that changes on a live entry moves nothing. A narrow list
+// shows the badge compactly, as its glyph and colour with the label as its
+// accessible name and tooltip, and a wide one shows the label whole; the
+// badge's words are never cut short.
 //
 // An opener a product registers for a kind of entry or for the end of a
 // file's name: every way of opening an entry asks it first. With none
@@ -171,28 +173,107 @@ const OUT = process.argv[3] || require('path').join(require('os').tmpdir(), 'din
     await page.waitForFunction(() => { const b = document.querySelector('#workspace-pins .resource-marks > .badge'); return b && b.textContent === 'Reopened' && b.classList.contains('warn'); });
     ok('the pinned entry\'s status follows a change at the source', true);
 
-    // A narrow panel: the name is cut short and the badge is whole. In a
-    // panel too narrow for both, the name keeps a few letters and the badge
-    // is cut short too, and still nothing leaves the row.
-    const narrow = width => page.evaluate(width => { const host = document.getElementById('workspace-sources'); host.style.inlineSize = width ? width + 'px' : ''; host.style.overflow = width ? 'hidden' : ''; }, width);
-    await narrow(330);
+    // The two forms of the badge. A list too narrow for a name and a badge
+    // with its words shows the badge compactly, as its glyph and colour in
+    // a box of one size, and the label is its accessible name and its
+    // tooltip. A wider list shows the label whole. The words are never cut
+    // short, and the name's start, the actions button and the changed mark
+    // are where they were in both forms. The panel itself is resized, since
+    // the form follows the width of the list. The records are set to have
+    // each state and each length of label, and are put back afterwards.
+    const panel = width => page.evaluate(width => {
+      const win = document.getElementById('workspace-sources').closest('.win');
+      for (const name of ['width', 'min-width', 'max-width']) { if (width) win.style.setProperty(name, width + 'px', 'important'); else win.style.removeProperty(name); }
+      if (width) win.style.setProperty('flex', 'none', 'important'); else win.style.removeProperty('flex');
+    }, width);
+    const forms = () => page.evaluate(() => {
+      const round = n => Math.round(n * 10) / 10;
+      const read = (row, label, more, end) => {
+        const badge = row.querySelector('.resource-marks > .badge'), slot = row.querySelector('.resource-changed-slot'), edge = end.getBoundingClientRect().right;
+        const b = badge && badge.getBoundingClientRect(), before = badge && getComputedStyle(badge, '::before');
+        return { name: label.textContent, labelX: round(label.getBoundingClientRect().x), labelWidth: round(label.getBoundingClientRect().width), cut: label.scrollWidth > label.clientWidth, room: row.querySelector('.resource-marks') ? round(row.querySelector('.resource-marks').getBoundingClientRect().x - label.getBoundingClientRect().x) : null, height: round(row.getBoundingClientRect().height),
+          more: more ? round(edge - more.getBoundingClientRect().x) : null, slot: slot ? round(edge - slot.getBoundingClientRect().x) : null,
+          badge: badge ? { words: badge.textContent, shown: badge.querySelector('.resource-status-words').getClientRects().length > 0, name: badge.getAttribute('aria-label'), title: badge.title, role: badge.getAttribute('role'),
+            width: round(b.width), height: round(b.height), end: round(edge - b.right), whole: badge.scrollWidth <= badge.clientWidth, glyph: before.content !== 'none' && parseFloat(before.width) > 0, colour: getComputedStyle(badge).backgroundColor } : null };
+      };
+      return { tree: Array.from(document.querySelectorAll('#workspace-sources a[data-resource]')).map(a => read(a, a.querySelector('.fm-ti-label'), a.parentElement.querySelector(':scope > [data-row-actions]'), a.parentElement)),
+        pins: Array.from(document.querySelectorAll('#workspace-pins .browser-row')).map(r => read(r, r.querySelector('.browser-row-title'), r.querySelector('[data-row-actions]'), r)) };
+    });
+    const LONG = 'Blocked until the supplier answers', LONGEST = 'A status with a great many words that no row has the room to show';
+    await page.evaluate(([long, longest]) => {
+      window.__kept = JSON.stringify(__records);
+      __records[0].status = { label: 'To Do', state: '' }; delete __records[0].changed;
+      __records[1].status = { label: 'In Review', state: 'accent' }; __records[1].changed = true;
+      __records[4].status = { label: long, state: 'danger' };
+      __records[6].status = { label: longest, state: 'warn' };
+      window.__emit('workspace:changed', { kind: 'source-changed' });
+    }, [LONG, LONGEST]);
+    await page.waitForFunction(() => { const b = document.querySelectorAll('#workspace-sources .resource-marks > .badge'); return b.length === 6 && b[0].textContent === 'To Do' && document.querySelector('#workspace-pins .resource-marks > .badge').textContent === 'In Review'; });
+    const badged = list => list.filter(d => d.badge), named = (list, name) => list.find(d => d.name.indexOf(name) === 0);
+    const one = values => new Set(values).size === 1;
+
+    await panel(300);
     await frame();
-    g = await geometry();
-    ok('in a narrow panel the long name is cut short and its badge is whole', at(g, 'A record whose').cut && !at(g, 'A record whose').badgeCut && at(g, 'A record whose').badge.right <= at(g, 'A record whose').more.x, JSON.stringify(at(g, 'A record whose')));
-    ok('in a narrow panel the names still start on one line', at(g, 'A record whose').label.x === at(g, 'Plain record').label.x);
-    await narrow(250);
-    await frame();
-    g = await geometry();
-    ok('in a panel too narrow for both, the name keeps a few letters, the badge is cut short and stays before the actions button', at(g, 'A record whose').label.width >= 30 && at(g, 'A record whose').badgeCut && at(g, 'A record whose').badge.right <= at(g, 'A record whose').more.x && at(g, 'A record whose').row.height === at(g, 'Plain record').row.height, JSON.stringify(at(g, 'A record whose')));
-    await narrow(300);
-    await frame();
+    const slim = await forms(), compact = badged(slim.tree)[0].badge.width;
+    ok('in a narrow panel every badge is compact: it shows no words', badged(slim.tree).length === 6 && badged(slim.tree).concat(badged(slim.pins)).every(d => !d.badge.shown), JSON.stringify(badged(slim.tree).map(d => [d.badge.words, d.badge.shown])));
+    ok('a compact badge keeps its accessible name and its tooltip, which are the whole label', badged(slim.tree).concat(badged(slim.pins)).every(d => d.badge.role === 'img' && d.badge.name === 'Status: ' + d.badge.words && d.badge.title === 'Status: ' + d.badge.words) && named(slim.tree, 'Plain record').badge.name === 'Status: ' + LONGEST, JSON.stringify(badged(slim.tree).map(d => [d.badge.name, d.badge.title])));
+    ok('a compact badge of every state has a box of the same size', one(badged(slim.tree).concat(badged(slim.pins)).map(d => d.badge.width + 'x' + d.badge.height)) && badged(slim.tree)[0].badge.width > 0, JSON.stringify(badged(slim.tree).map(d => [d.badge.width, d.badge.height])));
+    ok('a compact badge is still a glyph and a colour together, and nothing in it is cut short', badged(slim.tree).every(d => d.badge.glyph && d.badge.whole) && new Set(badged(slim.tree).slice(0, 5).map(d => d.badge.colour)).size === 5, JSON.stringify(badged(slim.tree).map(d => [d.badge.glyph, d.badge.whole, d.badge.colour])));
+    ok('in a narrow panel the name has the room: a long name is cut short only at the badge, and a row is as tall as one without marks', named(slim.tree, 'A record whose').cut && named(slim.tree, 'A record whose').labelWidth >= 100 && slim.tree.filter(d => d.name !== 'Records' && d.name !== 'Working Files').every(d => d.height === named(slim.tree, 'guide.md').height), JSON.stringify(named(slim.tree, 'A record whose')));
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => pudlSetTheme(theme), theme);
       await frame();
       await sources.screenshot({ path: require('path').join(OUT, 'resource-entries-tree-narrow-' + theme + '.png') });
     }
     await page.evaluate(() => pudlSetTheme('light'));
-    await narrow(0);
+    // A status that changes within the compact form changes the glyph and
+    // the colour, and the badge's box is the one it was.
+    await page.evaluate(() => { __records[2].status = { label: 'Rejected by the reviewer', state: 'danger' }; window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelectorAll('#workspace-sources .resource-marks > .badge'); return b[2] && b[2].textContent === 'Rejected by the reviewer'; });
+    await frame();
+    const slimAfter = await forms();
+    const moved = (a, b) => a.labelX !== b.labelX || a.labelWidth !== b.labelWidth || a.more !== b.more || a.slot !== b.slot || a.height !== b.height || !!a.badge !== !!b.badge || a.badge && (a.badge.width !== b.badge.width || a.badge.height !== b.badge.height || a.badge.end !== b.badge.end);
+    ok('a status that changes in the compact form moves nothing and changes no box', slim.tree.every((d, i) => !moved(d, slimAfter.tree[i])) && named(slimAfter.tree, 'Publish the notes').badge.colour !== named(slim.tree, 'Publish the notes').badge.colour, JSON.stringify([slim.tree.map(d => d.badge && d.badge.width), slimAfter.tree.map(d => d.badge && d.badge.width)]));
+    await page.evaluate(() => { __records[2].status = { label: 'Done', state: 'positive' }; window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelectorAll('#workspace-sources .resource-marks > .badge'); return b[2] && b[2].textContent === 'Done'; });
+    await panel(250);
+    await frame();
+    const slimmest = await forms();
+    ok('in a very narrow panel the name keeps a few letters and the badge is whole, before the actions button', named(slimmest.tree, 'A record whose').labelWidth >= 30 && badged(slimmest.tree).every(d => d.badge.whole && !d.badge.shown && d.badge.end >= d.more && d.badge.width === compact), JSON.stringify(named(slimmest.tree, 'A record whose')));
+
+    // A wider panel shows a short label whole, and a longer label only
+    // where the list is wide enough for it.
+    await panel(440);
+    await frame();
+    const mid = await forms();
+    const short = d => d.badge.words.length <= 12;
+    ok('in a wider panel a short label is shown whole, in the tree and in the Pinned list', badged(mid.tree).filter(short).length === 3 && badged(mid.tree).concat(badged(mid.pins)).filter(short).every(d => d.badge.shown && d.badge.whole && d.badge.width > compact), JSON.stringify(badged(mid.tree).map(d => [d.badge.words, d.badge.shown, d.badge.whole, d.badge.width])));
+    ok('a label too long for that width stays compact, in the same box, and is not cut short', badged(mid.tree).filter(d => !short(d)).length === 3 && badged(mid.tree).filter(d => !short(d)).every(d => !d.badge.shown && d.badge.whole && d.badge.width === compact && d.badge.name === 'Status: ' + d.badge.words), JSON.stringify(badged(mid.tree).map(d => [d.badge.words, d.badge.shown, d.badge.width])));
+    ok('with the full badge the name still has room for about 24 letters', badged(mid.tree).concat(badged(mid.pins)).every(d => d.room >= 150), JSON.stringify(mid.tree.concat(mid.pins).map(d => d.room)));
+    const sameEnds = (a, b) => a.every((d, i) => d.labelX === b[i].labelX && d.more === b[i].more && d.slot === b[i].slot && (!d.badge || d.badge.end === b[i].badge.end) && d.height === b[i].height);
+    ok('the name\'s start, the actions button, the changed mark and the badge\'s end are where they were in the compact form', sameEnds(slim.tree, mid.tree) && sameEnds(slim.pins, mid.pins) && named(mid.tree, 'Check the totals').slot !== null && named(mid.pins, 'Check the totals').slot !== null, JSON.stringify([slim.tree.map(d => [d.labelX, d.more, d.slot]), mid.tree.map(d => [d.labelX, d.more, d.slot])]));
+    await panel(600);
+    await frame();
+    const wide = await forms();
+    ok('in a wide panel a label of up to 40 characters is shown whole, and a longer one never is', badged(wide.tree).filter(d => d.badge.words.length <= 40).length === 5 && badged(wide.tree).every(d => d.badge.whole && d.badge.shown === (d.badge.words.length <= 40)) && named(wide.tree, 'Plain record').badge.width === compact, JSON.stringify(badged(wide.tree).map(d => [d.badge.words, d.badge.shown, d.badge.whole])));
+    ok('in a wide panel everything at a row\'s ends is still where it was', sameEnds(slim.tree, wide.tree) && sameEnds(slim.pins, wide.pins), JSON.stringify([slim.tree.map(d => [d.labelX, d.more, d.slot]), wide.tree.map(d => [d.labelX, d.more, d.slot])]));
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => pudlSetTheme(theme), theme);
+      await frame();
+      await sources.screenshot({ path: require('path').join(OUT, 'resource-entries-tree-wide-' + theme + '.png') });
+    }
+    await page.evaluate(() => pudlSetTheme('light'));
+    // A status that changes within the full form: a longer label takes its
+    // room from the end of the name, and nothing else moves.
+    await page.evaluate(() => { __records[0].status = { label: 'In Progress', state: 'accent' }; __records[0].changed = true; delete __records[1].changed; window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelectorAll('#workspace-sources .resource-marks > .badge'); return b[0].textContent === 'In Progress' && !document.querySelector('#workspace-pins .resource-changed'); });
+    await frame();
+    const wideAfter = await forms();
+    ok('a status that changes in the full form moves no name\'s start, no actions button, no changed mark and no badge\'s end', wide.tree.every((d, i) => d.labelX === wideAfter.tree[i].labelX && d.more === wideAfter.tree[i].more && d.height === wideAfter.tree[i].height && (!d.badge || d.badge.end === wideAfter.tree[i].badge.end)) && named(wideAfter.tree, 'Write the import guide').slot === named(wide.tree, 'Check the totals').slot && named(wideAfter.tree, 'Write the import guide').badge.shown && named(wideAfter.tree, 'Write the import guide').badge.whole, JSON.stringify([wide.tree.map(d => [d.labelX, d.more, d.badge && d.badge.end]), wideAfter.tree.map(d => [d.labelX, d.more, d.badge && d.badge.end])]));
+    await panel(0);
+    await page.evaluate(() => { const kept = JSON.parse(window.__kept); __records.splice(0, __records.length, ...kept); window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelectorAll('#workspace-sources .resource-marks > .badge'), pin = document.querySelector('#workspace-pins .resource-marks > .badge'); return b.length === 4 && b[0].textContent === 'In Progress' && pin && pin.textContent === 'Reopened'; });
+    await frame();
 
     // The Files window lists the same entries with the same badge.
     await page.evaluate(() => dinahResources.openFiles('/workspaces/w1/records', { workspaceId: 'w1', sourceId: 'records', path: '' }));
@@ -225,6 +306,35 @@ const OUT = process.argv[3] || require('path').join(require('os').tmpdir(), 'din
     await filesWin.locator('.fm-row[data-name="R-3"] .resource-marks > .badge').waitFor();
     await page.waitForFunction(() => !document.querySelector('.dinah-files .fm-row[data-name="R-7"] .resource-marks'));
     await t.shot('resource-entries-files');
+    // The two forms in Files. The marks' place has one width for every row
+    // in each form: the compact badge's until the window is wide, and from
+    // there a place that shows a short label whole. A label too long for
+    // the place stays compact. The name and the changed mark do not move:
+    // their places are measured from the row's start, since the window is
+    // widened here.
+    const filesForms = () => filesWin.evaluate(root => Array.from(root.querySelectorAll('.fm-row[data-name]')).map(r => {
+      const badge = r.querySelector('.fm-cell > .resource-marks > .badge'), slot = r.querySelector('.resource-changed-slot'), place = r.querySelector('.fm-cell > .resource-marks'), left = r.getBoundingClientRect().x;
+      return { name: r.dataset.name, nameX: r.querySelector('.fm-name').getBoundingClientRect().x - left, slotX: slot && slot.getBoundingClientRect().x - left, place: place && place.getBoundingClientRect().width,
+        badge: badge && { words: badge.textContent, shown: badge.querySelector('.resource-status-words').getClientRects().length > 0, name: badge.getAttribute('aria-label'), title: badge.title, x: badge.getBoundingClientRect().x - left, width: badge.getBoundingClientRect().width, whole: badge.scrollWidth <= badge.clientWidth } };
+    }));
+    const filesWidth = width => filesWin.evaluate((root, width) => { root.style.inlineSize = width ? width + 'px' : ''; root.style.flex = width ? 'none' : ''; }, width);
+    const slimFiles = await filesForms(), fileBadges = list => list.filter(r => r.badge);
+    ok('in a Files window of ordinary width every badge is compact, in a box of one size, with its label as its accessible name and tooltip', fileBadges(slimFiles).length === 4 && fileBadges(slimFiles).every(r => !r.badge.shown && r.badge.whole && r.badge.name === 'Status: ' + r.badge.words && r.badge.title === r.badge.name) && one(fileBadges(slimFiles).map(r => r.badge.width)) && one(slimFiles.filter(r => r.place).map(r => r.place)), JSON.stringify(slimFiles));
+    await filesWidth(1000);
+    await frame();
+    const wideFiles = await filesForms();
+    ok('in a wide Files window a short label is shown whole and a longer one stays compact', fileBadges(wideFiles).every(r => r.badge.whole && r.badge.shown === (r.badge.words.length <= 12)) && wideFiles.find(r => r.name === 'R-3').badge.shown && !wideFiles.find(r => r.name === 'R-4').badge.shown && wideFiles.find(r => r.name === 'R-4').badge.width === slimFiles.find(r => r.name === 'R-4').badge.width, JSON.stringify(wideFiles));
+    ok('in Files the marks\' place still has one width for every row, and the name, the changed mark and the badge\'s start are where they were', one(wideFiles.filter(r => r.place).map(r => r.place)) && wideFiles.every((r, i) => r.nameX === slimFiles[i].nameX && r.slotX === slimFiles[i].slotX && (!r.badge || r.badge.x === slimFiles[i].badge.x)) && wideFiles.find(r => r.name === 'R-4').slotX !== null, JSON.stringify([slimFiles.map(r => [r.nameX, r.slotX]), wideFiles.map(r => [r.nameX, r.slotX])]));
+    const wideBefore = await rowBoxes();
+    await page.evaluate(() => { __records[2].status = { label: 'In Progress', state: 'accent' }; __records[2].changed = true; window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelector('.dinah-files .fm-row[data-name="R-3"] .resource-marks > .badge'); return b && b.textContent === 'In Progress'; });
+    await frame();
+    ok('a status that changes in the full form in Files moves no row and no name, and changes no column\'s width', JSON.stringify(wideBefore) === JSON.stringify(await rowBoxes()));
+    await t.shot('resource-entries-files-wide');
+    await page.evaluate(() => { __records[2].status = { label: 'Done', state: 'positive' }; delete __records[2].changed; window.__emit('workspace:changed', { kind: 'source-changed' }); });
+    await page.waitForFunction(() => { const b = document.querySelector('.dinah-files .fm-row[data-name="R-3"] .resource-marks > .badge'); return b && b.textContent === 'Done' && !document.querySelector('.dinah-files .fm-row[data-name="R-3"] .resource-changed'); });
+    await filesWidth(0);
+    await frame();
 
     /* ---- The window that opens an entry --------------------------------- */
     // The windows a document or an entry would open in are recorded.

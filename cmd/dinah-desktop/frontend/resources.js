@@ -182,11 +182,24 @@
      on the entry (resource.Entry.Status and Changed,
      docs/design/source-kinds.md). Every surface that lists entries draws
      them through marks, so they agree: the changed mark in a place of its
-     own, then the status as PUDL's badge, whose state gives its glyph and
-     colour together. An entry with neither has no marks and is drawn as it
+     own, and the status as PUDL's badge, whose state gives its glyph and
+     colour together. The style sheet puts the mark's place after the badge
+     at the end of a row, and before it in Files, where the marks follow
+     the name. An entry with neither has no marks and is drawn as it
      was before. The changed mark's place is kept whenever there is a
      status, so the badge and the name do not move when the mark comes or
-     goes. */
+     goes.
+
+     A list too narrow for a name and a badge with its words shows the
+     badge compactly, as its glyph and colour alone, and the label is then
+     the badge's accessible name and its tooltip, which it has in both
+     forms. The style sheet chooses the form from the width of the list
+     with a container query (app.css, "An entry's status"), and no script
+     measures a row. A badge's words are never cut short, so the width at
+     which they are shown depends on how long the label is: the badge says
+     which of four lengths its label has, by the number of its characters,
+     and the longest are never shown in a row. */
+  function wordsSize(label) { return label.length <= 12 ? 'short' : label.length <= 24 ? 'medium' : label.length <= 40 ? 'long' : 'none'; }
   var BADGE_STATES = { accent: true, positive: true, warn: true, danger: true };
   function statusOf(item) {
     var status = item && item.status;
@@ -215,6 +228,7 @@
       badge.setAttribute('role', 'img');
       badge.setAttribute('aria-label', 'Status: ' + status.label);
       badge.title = 'Status: ' + status.label;
+      badge.dataset.words = wordsSize(status.label);
       words.className = 'resource-status-words'; words.textContent = status.label;
       badge.appendChild(words); host.appendChild(badge);
     }

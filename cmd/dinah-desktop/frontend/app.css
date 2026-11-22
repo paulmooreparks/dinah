@@ -781,26 +781,62 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
    before the row's actions button, in the Workspace tree, in Files and in
    the Pinned list. The status is PUDL's badge, and the mark is PUDL's history
    glyph in a place of its own, which is kept whenever there is a status, so
-   a mark that comes or goes moves nothing. The row gives its room to the
-   marks first: the name is cut short before the badge is, down to a few
-   letters, and the badge's words are cut short only then, or past the
-   width given here. The name starts where it does in a row without marks.
-   The marks take no more height than the row's words, so a row with them
-   is as tall as one without. In the Pinned list the row's actions button
-   stands over the end of the row, and the line with marks leaves its
-   room. A row of Files is a row of a table, whose Name column is as wide
-   as its longest name, so there the marks follow the name in a place of
-   one fixed width: a status that changes then changes no column's width,
-   and the marks are in sight where the name is. */
-.resource-marks { display: inline-flex; align-items: center; gap: var(--space-1); flex: 0 1 auto; min-width: 0; margin-inline-start: auto; margin-block: -2px; font-style: normal; }
-.resource-changed-slot { display: inline-grid; place-items: center; flex: none; inline-size: 12px; block-size: 12px; }
+   a mark that comes or goes moves nothing. The name starts where it does
+   in a row without marks. The marks take no more height than the row's
+   words, so a row with them is as tall as one without. In the Pinned list
+   the row's actions button stands over the end of the row, and the line
+   with marks leaves its room. The mark's place is the last thing in the
+   row and the badge ends before it, so a badge that changes form grows
+   toward the name and the mark stays where it is. In Files the marks
+   follow the name, so there the mark's place comes first.
+
+   The badge has two forms, and its words are never cut short in either.
+   The compact form is the badge's glyph and colour in a box of one size
+   for every state, with the label as the badge's accessible name and its
+   tooltip, so a status that changes moves nothing. The full form adds the
+   label, whole. A container query on the list chooses the form from the
+   list's own width, since a panel can be narrow on a wide screen, and the
+   compact form is what a badge has where no query applies. Each list of a
+   tree is a container, so a deeper level, which has less room, changes
+   form at the same room for its rows. The widths are those at which a row
+   one level into the Workspace tree, or a pinned row, still shows about 24
+   letters of its name beside the longest label of each length (resources.js,
+   wordsSize): 12 characters, 24 and 40. A longer label is never shown in a
+   row. A row of the Pinned list has more around its name than a row of a
+   tree, so its widths are 20px greater.
+
+   A row of Files is a row of a table, whose Name column is as wide as its
+   longest name, so there the marks follow the name in a place of one fixed
+   width: a status that changes then changes no column's width, and the
+   marks are in sight where the name is. The place is as wide as the mark
+   and the compact badge until the window is 920px wide, where a list
+   beside its folder tree has room for a name of about 40 letters and the
+   wider place. From there the place is 20ch and a label of up to 12
+   characters is shown whole; a longer one would not fit the place and
+   stays compact. Files and the Open and Save As dialog are containers
+   already (vendor/parks-files), and the last query below reads them. */
+.resource-marks { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; margin-inline-start: auto; margin-block: -2px; font-style: normal; }
+.resource-changed-slot { display: inline-grid; place-items: center; flex: none; order: 1; inline-size: 12px; block-size: 12px; }
+.fm-cell > .resource-marks > .resource-changed-slot { order: 0; }
 .resource-changed { --glyph: var(--glyph-history); --glyph-size: 12px; color: var(--accent); }
-.badge.resource-status { flex: 0 1 auto; min-width: 0; max-inline-size: 26ch; white-space: nowrap; }
-.resource-status-words { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.fm-has-marks > :is(.fm-ti-label, .browser-row-title) { flex-shrink: 1000; min-width: 5ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.resource-status { --status-words: none; flex: none; box-sizing: content-box; inline-size: var(--glyph-size); min-block-size: 1lh; justify-content: center; white-space: nowrap; }
+.resource-status-words { display: var(--status-words); }
+.fm-has-marks > :is(.fm-ti-label, .browser-row-title) { min-width: 5ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-cell.fm-has-marks { flex-wrap: nowrap; }
 .fm-cell.fm-has-marks > .fm-name { flex: none; white-space: nowrap; }
-.fm-cell > .resource-marks { flex: none; inline-size: 20ch; margin-inline-start: var(--space-1); }
+.fm-cell > .resource-marks { inline-size: calc(12px + var(--space-1) + 9px + 2 * var(--space-2)); margin-inline-start: var(--space-1); }
+.workspace-resource-tree, .workspace-resource-tree ul, .dinah-files .fm-tree, .dinah-files .fm-tree ul { container: resource-rows / inline-size; }
+#workspace-pins { container: resource-pins / inline-size; }
+@container resource-rows (min-width: 360px) { .badge.resource-status[data-words="short"] { --status-words: inline; inline-size: auto; } }
+@container resource-rows (min-width: 440px) { .badge.resource-status[data-words="medium"] { --status-words: inline; inline-size: auto; } }
+@container resource-rows (min-width: 540px) { .badge.resource-status[data-words="long"] { --status-words: inline; inline-size: auto; } }
+@container resource-pins (min-width: 380px) { .badge.resource-status[data-words="short"] { --status-words: inline; inline-size: auto; } }
+@container resource-pins (min-width: 460px) { .badge.resource-status[data-words="medium"] { --status-words: inline; inline-size: auto; } }
+@container resource-pins (min-width: 560px) { .badge.resource-status[data-words="long"] { --status-words: inline; inline-size: auto; } }
+@container (min-width: 920px) {
+  .fm-cell > .resource-marks { inline-size: 20ch; }
+  .fm-cell > .resource-marks > .badge.resource-status[data-words="short"] { --status-words: inline; inline-size: auto; }
+}
 .session-list .browser-row.row-with-actions .browser-row-line.fm-has-marks { padding-inline-end: calc(24px + var(--space-2)); }
 @media (forced-colors: active) { .resource-changed { forced-color-adjust: none; background: CanvasText; } }
 
