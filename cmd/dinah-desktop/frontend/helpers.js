@@ -302,5 +302,29 @@
     if (!windowLayer || !windowLayer.isConnected) windowLayer = document.querySelector('[data-win-layer]');
     return windowLayer ? Array.prototype.filter.call(windowLayer.children, function (el) { return el.hasAttribute('data-win'); }) : [];
   }
+  // A link to another site never replaces the program's own page, since the
+  // page that would take its place has no way back. Whatever part of the page
+  // the link is in, and whichever keys are down, a press that would follow
+  // such a link opens it in the person's browser. A part that handles its own
+  // links has prevented the press already and is left alone.
+  function elsewhere(event) {
+    if (event.defaultPrevented || !event.target || !event.target.closest) return '';
+    const link = event.target.closest('a[href], area[href]');
+    if (!link || link.hasAttribute('download')) return '';
+    let url;
+    try { url = new URL(link.href, document.baseURI); } catch (_) { return ''; }
+    if (!/^https?:$/.test(url.protocol) || url.origin === window.location.origin) return '';
+    return url.href;
+  }
+  function openElsewhere(event) {
+    if (event.type === 'auxclick' && event.button !== 1) return;
+    const href = elsewhere(event);
+    if (!href) return;
+    event.preventDefault();
+    if (window.runtime && window.runtime.BrowserOpenURL) window.runtime.BrowserOpenURL(href);
+  }
+  window.addEventListener('click', openElsewhere);
+  window.addEventListener('auxclick', openElsewhere);
+
   window.dinahHelpers = { app, chatOpen, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing, windowOf, windows, windowState, setAttr, setText };
 }());
