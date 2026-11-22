@@ -62,9 +62,81 @@
     var chosen = shell ? Promise.resolve(shell) : a && a.TerminalShells ? Promise.resolve(a.TerminalShells()).then(function (s) { return s.default; }).catch(function () { return 'dinah'; }) : Promise.resolve('dinah');
     return chosen.then(function (name) { return dinahWorkbench.open({ kind: 'terminal', path: JSON.stringify([path || '/workspaces', id, ref || null, name || 'dinah']) }); });
   }
-  function open(item, isCurrent) {
+  /* A product says which of its windows opens an entry
+     (docs/design/product-applets.md, "The Window That Opens an Entry"). Its
+     page file registers an opener for a kind of entry, or for the end of a
+     file's name:
+
+       dinahResources.registerOpener({ itemKind: 'sample-record', title: 'Records', glyph: 'ticket',
+         open: function (item, opts) { return dinahWorkbench.open({ kind: 'sample-records', path: item.ref.path }); } });
+       dinahResources.registerOpener({ suffix: '.sample.md', open: function (item, opts) { ... } });
+
+     Every way of opening an entry asks openerFor before its own rules, at
+     the time of the open, so an opener registered after the layout was
+     restored serves every later open. An opener for the entry's kind is
+     chosen before one for its name, and of two suffixes that both end the
+     name the longer is chosen. A key that is already registered is refused
+     with a message on the console, and the first registration stays. With
+     no opener registered, every open goes as it did before. */
+  var kindOpeners = new Map(), suffixOpeners = new Map();
+  function registerOpener(o) {
+    o = o || {};
+    var kind = typeof o.itemKind === 'string' ? o.itemKind.trim() : '', suffix = typeof o.suffix === 'string' ? o.suffix.trim().toLowerCase() : '';
+    if (typeof o.open !== 'function' || !kind === !suffix) {
+      console.error('dinahResources.registerOpener needs an open function and either an itemKind or a suffix. Nothing was registered.');
+      return false;
+    }
+    if (suffix && (suffix[0] !== '.' || suffix.length < 2 || suffix.indexOf('/') >= 0 || suffix.indexOf('\\') >= 0)) {
+      console.error('dinahResources.registerOpener was given the suffix "' + suffix + '". A suffix is the end of a file name and starts with a dot, as ".sample.md" does. Nothing was registered.');
+      return false;
+    }
+    var table = kind ? kindOpeners : suffixOpeners, key = kind || suffix;
+    if (table.has(key)) {
+      console.error('dinahResources.registerOpener: an opener is already registered for the ' + (kind ? 'item kind "' : 'suffix "') + key + '". The first registration stays and this one is refused.');
+      return false;
+    }
+    table.set(key, { itemKind: kind, suffix: suffix, open: o.open, title: typeof o.title === 'string' ? o.title : '', glyph: typeof o.glyph === 'string' ? o.glyph : '' });
+    return true;
+  }
+  /* The opener of an entry, or null. The entry is a resource item, or as
+     much of one as the caller has: its kind where that is known, and its
+     name, which is read from ref.path or else from path. A folder is
+     matched by its kind only. */
+  function openerFor(item) {
+    if (!item) return null;
+    if (item.kind && kindOpeners.has(item.kind)) return kindOpeners.get(item.kind);
+    if (item.directory || !suffixOpeners.size) return null;
+    var name = String(item.ref && item.ref.path || item.path || '').replace(/\\/g, '/').split('/').pop().toLowerCase(), best = null;
+    if (!name) return null;
+    suffixOpeners.forEach(function (opener, suffix) {
+      if (name.endsWith(suffix) && (!best || suffix.length > best.suffix.length)) best = opener;
+    });
+    return best;
+  }
+  function runOpener(opener, item, opts) { return Promise.resolve().then(function () { return opener.open(item, opts || {}); }); }
+  /* Opens what a reference points to in its opener's window, for a caller
+     that has the reference and not the item: a link, a Recent document, a
+     command. The promise gives { result } when an opener took it, and null
+     when none did, so the caller goes on with its own rules. An entry's
+     kind is known only from its item, so the item is read when an opener
+     for a kind is registered, and when one matched by name, so that the
+     opener is given the whole item. */
+  function openRef(ref, opts) {
+    if (!ref || !kindOpeners.size && !suffixOpeners.size) return Promise.resolve(null);
+    var bare = { ref: ref };
+    if (!kindOpeners.size && !openerFor(bare)) return Promise.resolve(null);
+    return verify(bare).then(function (current) { return Object.assign({}, current, { ref: current.ref || ref }); }, function () { return bare; }).then(function (item) {
+      var opener = openerFor(item) || openerFor(bare);
+      return opener ? runOpener(opener, item, opts).then(function (result) { return { result: result }; }) : null;
+    });
+  }
+  /* plain opens the entry by the built-in rules alone, for a command that
+     says where it opens, such as Open in Files. */
+  function open(item, isCurrent, plain) {
     return verify(item).then(function (current) {
       if (isCurrent && !isCurrent()) return;
+      var opener = plain ? null : openerFor(current);
+      if (opener) return runOpener(opener, current, { intent: 'read' });
       if (current.ref && has(current, 'preview')) return dinahWorkbench.open(dinahWorkbench.resourceItem(current.ref, current.title));
       if (current.directory && has(current, 'list')) return openFiles(current.path, current.ref);
       if (['open-external', 'reveal'].some(function (action) { return has(current, action); })) return current.ref ? app().OpenWorkspaceResource(current.ref) : app().OpenWorkspaceMount(current.path);
@@ -76,7 +148,7 @@
     if (!item) return [];
     function run(fn) { return function () { return Promise.resolve().then(fn).catch(fail); }; }
     return [
-      { id: 'open', label: item.directory ? 'Open in Files' : 'Open', run: run(function () { return open(item); }) },
+      { id: 'open', label: item.directory ? 'Open in Files' : 'Open', run: run(function () { return open(item, null, !!item.directory); }) },
       { id: 'edit', label: 'Edit', hidden: !item.ref || !has(item, 'edit'), run: run(function () { return dinahEditor.openResource(item.ref); }) },
       { id: 'edit-text', label: 'Edit as Text', hidden: !item.ref || !has(item, 'edit-text'), run: run(function () { return dinahEditor.openResource(item.ref, 'text'); }) },
       { id: 'open-external', label: has(item, 'reveal') ? 'Show in Folder' : 'Open Externally', hidden: !has(item, 'reveal') && !has(item, 'open-external'), run: run(function () { return item.ref ? app().OpenWorkspaceResource(item.ref) : app().OpenWorkspaceMount(item.path); }) },
@@ -106,6 +178,89 @@
      page on a site, an issue), else a folder or a document. Every surface
      that lists resources chooses through this, so they agree. */
   function glyphName(item) { return item.glyph || (item.directory ? 'folder' : 'document'); }
+  /* An entry's status and its changed mark, which a source's provider sets
+     on the entry (resource.Entry.Status and Changed,
+     docs/design/source-kinds.md). Every surface that lists entries draws
+     them through marks, so they agree: the changed mark in a place of its
+     own, then the status as PUDL's badge, whose state gives its glyph and
+     colour together. An entry with neither has no marks and is drawn as it
+     was before. The changed mark's place is kept whenever there is a
+     status, so the badge and the name do not move when the mark comes or
+     goes. */
+  var BADGE_STATES = { accent: true, positive: true, warn: true, danger: true };
+  function statusOf(item) {
+    var status = item && item.status;
+    if (!status || typeof status.label !== 'string' || !status.label.trim()) return null;
+    return { label: status.label.trim(), state: BADGE_STATES[status.state] ? status.state : '' };
+  }
+  function marksKey(item) { var status = statusOf(item); return JSON.stringify([status && status.label, status && status.state, !!(item && item.changed)]); }
+  function marks(item) {
+    var status = statusOf(item), changed = !!(item && item.changed);
+    if (!status && !changed) return null;
+    var host = document.createElement('span'), slot = document.createElement('span');
+    host.className = 'resource-marks'; host.dataset.marks = marksKey(item);
+    slot.className = 'resource-changed-slot';
+    if (changed) {
+      var mark = document.createElement('span');
+      mark.className = 'glyph resource-changed';
+      mark.setAttribute('role', 'img');
+      mark.setAttribute('aria-label', 'Changed since you last looked');
+      mark.title = 'Changed since you last looked';
+      slot.appendChild(mark);
+    }
+    host.appendChild(slot);
+    if (status) {
+      var badge = document.createElement('span'), words = document.createElement('span');
+      badge.className = 'badge resource-status' + (status.state ? ' ' + status.state : '');
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', 'Status: ' + status.label);
+      badge.title = 'Status: ' + status.label;
+      words.className = 'resource-status-words'; words.textContent = status.label;
+      badge.appendChild(words); host.appendChild(badge);
+    }
+    return host;
+  }
+  /* The statuses the trees have listed, by reference, for a list that has
+     an entry's reference and not its item, as the Pinned list has. An entry
+     no tree has listed is asked for once, when it is in a source that is
+     not a folder of files, since those have no statuses. A change is
+     announced with the dinah:resource-status event, and a change at a
+     source has every asked entry asked for again. */
+  var known = new Map(), asked = new Set(), announcing = false;
+  function refKey(ref) { return JSON.stringify([ref.workspaceId || '', ref.sourceId || '', ref.path || '']); }
+  function announce() {
+    if (announcing) return;
+    announcing = true;
+    setTimeout(function () { announcing = false; document.dispatchEvent(new CustomEvent('dinah:resource-status')); }, 0);
+  }
+  function learn(item) {
+    if (!item || !item.ref || !item.ref.sourceId) return;
+    var key = refKey(item.ref), was = known.get(key), marked = !!statusOf(item) || !!item.changed;
+    if (!marked && !was) return;
+    var now = marked ? { status: statusOf(item), changed: !!item.changed } : null;
+    if (was && now && marksKey(was) === marksKey(now)) return;
+    if (now) known.set(key, now); else known.delete(key);
+    announce();
+  }
+  function sourceKind(ref) {
+    var records = window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.records() : [];
+    var record = records.find(function (r) { return r.id === ref.workspaceId; });
+    var source = record && (record.sources || []).find(function (s) { return s.id === ref.sourceId; });
+    return source ? source.kind : '';
+  }
+  function marksOf(ref) {
+    if (!ref || !ref.sourceId) return null;
+    var key = refKey(ref), kind = sourceKind(ref);
+    if (!asked.has(key) && kind && kind !== 'local-folder' && ref.path) {
+      asked.add(key);
+      verify({ ref: ref }).then(function (current) { learn(Object.assign({}, current, { ref: ref })); }).catch(function () {});
+    }
+    return marks(known.get(key));
+  }
+  subscribe(function (event) {
+    if (!asked.size || !event || event.kind !== 'source-changed' && event.kind !== 'resync') return;
+    asked.clear(); announce();
+  });
   /* Whether a folder of the file system takes a new document: a folder on
      the computer that can be written. The rest is read-only: the top of the
      file system and the listing of a workspace's mounts. */
@@ -452,6 +607,12 @@
       var old = host.querySelector(':scope > .fm-readonly-mark');
       if (readOnly(node) && !old) host.appendChild(readOnlyMark());
       else if (!readOnly(node) && old) old.remove();
+      /* The entry's status and changed mark stand last, at the end of the
+         row, after the read-only mark. */
+      var had = host.querySelector(':scope > .resource-marks'), now = node && (statusOf(node) || node.changed) ? marksKey(node) : '';
+      if (had && had.dataset.marks === now) { if (host.lastChild !== had) host.appendChild(had); }
+      else { if (had) had.remove(); if (now) host.appendChild(marks(node)); }
+      host.classList.toggle('fm-has-marks', !!now);
     }
     root.querySelectorAll('[data-fb="tree"] a[data-path]').forEach(function (link) { var node = F.resolve(null, link.dataset.path); mark(link, node); marked(link, node); });
     root.querySelectorAll('.fm-row[data-name]').forEach(function (row) {
@@ -500,6 +661,10 @@
       // and so is a source that has become available.
       if (!item.missing) delete node.missing;
       if (!item.unavailable) delete node.unavailable;
+      // An entry that has lost its status, or its changes, is listed without them.
+      if (!item.status) delete node.status;
+      if (!item.changed) delete node.changed;
+      learn(node);
       node.name = item.path.slice(item.path.lastIndexOf('/') + 1);
       if (key) identities.set(key, node);
       if (item.directory && !node.children) node.children = [];
@@ -672,5 +837,5 @@
     };
   }
 
-  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, marks: marks, marksOf: marksOf, registerOpener: registerOpener, openerFor: openerFor, runOpener: runOpener, openRef: openRef, kindOpeners: function () { return kindOpeners.size > 0; }, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

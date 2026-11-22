@@ -331,6 +331,14 @@
       a.insertBefore(glyph, a.firstChild);
     }
     glyph.style.setProperty('--glyph', 'var(--glyph-' + (/^[a-z0-9-]+$/.test(l.glyph || '') ? l.glyph : 'file') + ')');
+    /* A file a product's opener takes by its name says so, with the
+       opener's own title and glyph (dinahResources.registerOpener). An
+       opener for a kind of entry is known only once the entry is read, so
+       such a link keeps these words and still opens in the opener's
+       window. */
+    var opener = l.resource && window.dinahResources && window.dinahResources.openerFor ? window.dinahResources.openerFor({ ref: l.resource, directory: !!l.directory }) : null;
+    if (opener && opener.title) a.title = 'Open in ' + opener.title;
+    if (opener && /^[a-z0-9-]+$/.test(opener.glyph)) glyph.style.setProperty('--glyph', 'var(--glyph-' + opener.glyph + ')');
   }
   function pathLink(ref, l) {
     var a = document.createElement('a');
@@ -443,9 +451,19 @@
   function openDocument(cwd, ref, trigger) {
     return Promise.resolve().then(function () { return app().ResolveDocumentLink(cwd || '', ref); }).then(function (l) {
       if (!l || !l.found) throw new Error('There is no file or folder at ' + ((l && l.path) || ref) + '.');
+      /* A file or folder of a workspace that a product registered an
+         opener for opens in the product's window, wherever Go would have
+         sent it (dinahResources.registerOpener). */
+      var R = window.dinahResources;
+      var taken = l.resource && R && R.openRef ? R.openRef(l.resource, { intent: 'read', line: l.line || 0 }) : Promise.resolve(null);
+      return taken.then(function (done) { return done ? done.result : openWhereGoSays(cwd, ref, trigger, l); });
+    });
+  }
+  function openWhereGoSays(cwd, ref, trigger, l) {
+    return Promise.resolve().then(function () {
       if (l.opens === 'editor') {
         var ed = window.dinahEditor, host = window.dinahHost;
-        var opened = l.resource ? ed.openResource(l.resource) :
+        var opened = l.resource ? ed.openResource(l.resource, undefined, true) :
           Promise.resolve(app().OpenComputerFile(host ? host.workspaceId() || '' : '', l.path)).then(function (v) {
             if (v.origin && v.origin.kind === 'new') toast('"' + v.title + '" is not in a workspace\'s folder, so it opened as a new document. Save As puts it where you choose.', 'warn');
             return ed.open(v);

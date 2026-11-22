@@ -95,6 +95,7 @@
       var glyph = node('span', 'glyph pin-glyph'); glyph.setAttribute('aria-hidden', 'true');
       glyph.style.setProperty('--glyph', 'var(--glyph-' + glyphOf(p) + ')');
       row.querySelector('.browser-row-line').prepend(glyph);
+      mark(row, p);
       rowActions(row, function () { return p; }, function () {
         return [{ label: 'Move Up', disabled: i === 0, run: function () { move(p, place(list[i - 1])); } },
           { label: 'Move Down', disabled: i === list.length - 1, run: function () { move(p, place(list[i + 1])); } }];
@@ -114,6 +115,27 @@
     window.dinahBrowserList.setCount(group, list.length);
     document.getElementById('workspace-pins-empty').hidden = list.length > 0;
   }
+  /* A pinned entry of a source shows the entry's status and its changed
+     mark at the end of its first line, as the tree does
+     (dinahResources.marksOf). They are replaced in place when they change,
+     so the rows are not drawn again. */
+  function mark(row, p) {
+    var line = row.querySelector('.browser-row-line'), had = line.querySelector(':scope > .resource-marks');
+    var now = p.kind === 'resource' && window.dinahResources && window.dinahResources.marksOf ? window.dinahResources.marksOf(p.ref) : null;
+    if (had && now && had.dataset.marks === now.dataset.marks) return;
+    if (had) had.remove();
+    if (now) line.appendChild(now);
+    line.classList.toggle('fm-has-marks', !!now);
+  }
+  document.addEventListener('dinah:resource-status', function () {
+    var host = document.getElementById('workspace-pins');
+    if (!host) return;
+    var list = pins();
+    host.querySelectorAll('[data-pin-key]').forEach(function (a) {
+      var p = list.find(function (x) { return key(x) === a.dataset.pinKey; });
+      if (p) mark(a.closest('.browser-row'), p);
+    });
+  });
   document.addEventListener('dinah:workspace-resource-labels', draw);
   /* Deleting a chat takes its pins off and restoring it puts them back
      (chat_cleanup_settings.go). The host sends the changed workspace's

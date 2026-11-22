@@ -47,6 +47,8 @@
          it. */
       function isDocument(item) { return /\.(md|markdown)$/i.test(item.path || item.title || ''); }
       function open(item) {
+        // An entry a product registered an opener for opens in the product's window, whatever its actions.
+        if (window.dinahResources.openerFor(item)) return window.dinahResources.open(item, function () { return !disposed; }).catch(options.fail);
         if (permitted(item, 'edit') && isDocument(item) && window.dinahEditor) return window.dinahEditor.openResource(item.ref, 'read').catch(options.fail);
         if (permitted(item, 'preview') || permitted(item, 'open-external') || permitted(item, 'reveal')) return window.dinahResources.open(item, function () { return !disposed; }).catch(options.fail);
         if (permitted(item, 'list')) { expanded.add(keyFor(item)); persist(); drawTree(); }
@@ -155,6 +157,11 @@
             title.appendChild(mark);
           }
         }
+        /* The entry's status and its changed mark stand at the end of the
+           row, before the row's actions button (dinahResources.marks). The
+           tree has no other mark for a changed or unsaved entry. */
+        var marks = window.dinahResources.marks(item);
+        if (marks) { title.appendChild(marks); title.classList.add('fm-has-marks'); }
         title.href = '#'; title.addEventListener('click', function (event) { event.preventDefault(); select(item); });
         // A folder on the computer takes files dropped onto its row.
         if (window.dinahResources.takesFolder(item) && window.dinahResources.uploadTarget) window.dinahResources.uploadTarget(title, function () { return item; });
@@ -201,7 +208,7 @@
           if (!entryIdentities.has(entry)) entryIdentities.set(entry, ++nextEntryIdentity);
           var key = keyFor(entry), opened = expanded.has(key) && permitted(entry, 'list');
           return [entryIdentities.get(entry), entry.ref, entry.path, entry.title, entry.kind,
-            entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable,
+            entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable, entry.status, entry.changed,
             selected === key, opened, opened && !!entry.loading, opened && entry.error,
             opened && entry.loaded, opened && entry.nextStart,
             opened ? (entry.children || []).map(presentation) : null];

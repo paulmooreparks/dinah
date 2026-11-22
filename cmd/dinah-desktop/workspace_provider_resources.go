@@ -58,11 +58,22 @@ func creates(p any) bool {
 	return ok
 }
 
+// statusOf is an entry's status as the page draws it, or nil when the entry
+// has none. A status without words is no status, and a state the badge does
+// not have is drawn as the plain badge.
+func statusOf(s resource.Status) *ResourceStatus {
+	label := strings.Join(strings.Fields(s.Label), " ")
+	if label == "" {
+		return nil
+	}
+	return &ResourceStatus{Label: label, State: s.ShownState()}
+}
+
 // providerItem is a provider's entry as the Files applet shows it.
 func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, makes bool) ResourceItem {
 	ref := parent
 	ref.Path = path.Join(parent.Path, e.Name)
-	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Glyph: e.Glyph, Actions: []string{}}
+	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Glyph: e.Glyph, Status: statusOf(e.Status), Changed: e.Changed, Actions: []string{}}
 	if item.Title == "" {
 		item.Title = e.Name
 	}

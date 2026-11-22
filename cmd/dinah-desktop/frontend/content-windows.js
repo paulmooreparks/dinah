@@ -1045,7 +1045,25 @@
     if (o.kind && o.kind !== 'local-folder' && !/\.[A-Za-z0-9]{1,8}$/.test(path.split(/[\\/]/).pop())) return true;
     return /\.(md|markdown)$/i.test(path);
   }
+  /* The reference of the entry a draft was made from, or null for a new
+     document, and the entry as an opener is given it when only the draft
+     is at hand. */
+  function refOf(v) {
+    var o = v.origin || {};
+    return o.kind && o.kind !== 'new' && o.sourceId ? { workspaceId: o.workspaceId || '', sourceId: o.sourceId, path: o.path || '' } : null;
+  }
+  function entryOf(v) { return { ref: refOf(v), path: pathOf(v), title: v.title || '' }; }
+  /* A product's opener for the document's name is asked first
+     (dinahResources.registerOpener, docs/design/product-applets.md): its
+     place has the opener, and no application. Edit as Text asks for the
+     source by name, so it keeps the Editor. The built-in rules follow, and
+     are all there is when no opener is registered. */
   function placeFor(v, intent) {
+    var R = window.dinahResources;
+    var opener = intent !== 'text' && R && R.openerFor ? R.openerFor(entryOf(v)) : null;
+    return opener ? { opener: opener } : builtInPlace(v, intent);
+  }
+  function builtInPlace(v, intent) {
     var path = pathOf(v);
     if (intent === 'text') return { app: 'editor', view: 'text' };
     if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
@@ -1061,7 +1079,7 @@
      opens in. It is the application that asked, except that the Editor
      does not take a Markdown document: one chosen there opens in Docs. */
   function appChosenIn(app, v) {
-    return app === 'editor' && placeFor(v).app === 'docs' ? 'docs' : app;
+    return app === 'editor' && builtInPlace(v).app === 'docs' ? 'docs' : app;
   }
 
   /* A document is open in one window at a time, so opening it in another
@@ -1075,8 +1093,21 @@
       setTimeout(function () { document.removeEventListener('pudl:window-close', done); resolve(); }, 10000);
     });
   }
-  function open(v, app, intent) {
-    var place = app ? { app: app } : placeFor(v, intent);
+  /* Opening a document without saying which application asks the openers
+     first. One for the document's name is found by placeFor. One for a
+     kind of entry needs the entry's item, which is read when such an opener
+     is registered; looked says the caller has already asked. An opener is
+     given the entry and { intent, draft }, and what it returns is what the
+     open returns. Saying the application, as its own Open dialog and an
+     agent's action do, opens the document there. */
+  function open(v, app, intent, looked) {
+    if (app) return openIn(v, { app: app });
+    var place = placeFor(v, intent), R = window.dinahResources, opts = { intent: intent || 'edit', draft: v };
+    if (place.opener) return R.runOpener(place.opener, entryOf(v), opts);
+    if (looked || intent === 'text' || !refOf(v) || !R || !R.kindOpeners || !R.kindOpeners()) return openIn(v, place);
+    return R.openRef(refOf(v), opts).then(function (done) { return done ? done.result : openIn(v, place); });
+  }
+  function openIn(v, place) {
     var item = itemFor(place.app, v);
     var already = window.pudlWindows.state().open.indexOf(window.dinahWorkbench.key(item)) >= 0;
     var elsewhere = window.pudlWindows.state().open.filter(function (key) {
@@ -1097,7 +1128,16 @@
       }).then(function () { return key; }, function () { return key; });
     });
   }
-  function openResource(ref, intent) { return Promise.resolve(api().OpenDraft(ref)).then(function (v) { return open(v, null, intent); }); }
+  /* An entry with an opener opens in the opener's window, and no draft is
+     made for it here. looked says the caller has already asked the
+     openers. */
+  function openResource(ref, intent, looked) {
+    var R = window.dinahResources;
+    var taken = looked || intent === 'text' || !R || !R.openRef ? Promise.resolve(null) : R.openRef(ref, { intent: intent || 'edit' });
+    return taken.then(function (done) {
+      return done ? done.result : Promise.resolve(api().OpenDraft(ref)).then(function (v) { return open(v, null, intent, true); });
+    });
+  }
   /* Open shows Dinah's file picker in the current workspace, as Dinah's
      Editor does; the field also takes a path on the computer, and a file
      outside every workspace's folders opens as a new document. */
@@ -1319,7 +1359,7 @@
      Terminal's edit, In Progress) open documents here. */
   window.dinahEditor = {
     open: function (v, intent) { return open(v, null, intent); },
-    openResource: function (ref, intent) { return openResource(ref, intent); },
+    openResource: function (ref, intent, looked) { return openResource(ref, intent, looked); },
     newDocument: function () { return newDocument().catch(function (err) { host().toast(message(err), 'danger'); }); },
     openDocument: function () { return openDocument(); },
     goToLine: goToLine

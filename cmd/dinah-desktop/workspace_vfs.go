@@ -25,15 +25,17 @@ type MountItem struct {
 	URL       string       `json:"url"`
 	Actions   []string     `json:"actions"`
 	Ref       *ResourceRef `json:"ref,omitempty"`
-	// Size, Modified, Writable, Missing, Unavailable, Creates and Glyph are
-	// as ResourceItem has them.
-	Size        int64  `json:"size,omitempty"`
-	Modified    string `json:"modified,omitempty"`
-	Writable    bool   `json:"writable,omitempty"`
-	Missing     bool   `json:"missing,omitempty"`
-	Unavailable bool   `json:"unavailable,omitempty"`
-	Creates     bool   `json:"creates,omitempty"`
-	Glyph       string `json:"glyph,omitempty"`
+	// Size, Modified, Writable, Missing, Unavailable, Creates, Glyph, Status
+	// and Changed are as ResourceItem has them.
+	Size        int64           `json:"size,omitempty"`
+	Modified    string          `json:"modified,omitempty"`
+	Writable    bool            `json:"writable,omitempty"`
+	Missing     bool            `json:"missing,omitempty"`
+	Unavailable bool            `json:"unavailable,omitempty"`
+	Creates     bool            `json:"creates,omitempty"`
+	Glyph       string          `json:"glyph,omitempty"`
+	Status      *ResourceStatus `json:"status,omitempty"`
+	Changed     bool            `json:"changed,omitempty"`
 }
 type MountPage struct {
 	Entries   []MountItem `json:"entries"`
@@ -298,7 +300,7 @@ func mountResourceItem(target mountTarget, item ResourceItem) MountItem {
 		item.Title = target.source.Name
 	}
 	ref := item.Ref
-	return MountItem{Path: path, Title: item.Title, Kind: item.Kind, Directory: item.Directory, Revision: item.Revision, URL: item.URL, Actions: item.Actions, Ref: &ref, Size: item.Size, Modified: item.Modified, Writable: item.Writable, Missing: item.Missing, Unavailable: item.Unavailable, Creates: item.Creates, Glyph: item.Glyph}
+	return MountItem{Path: path, Title: item.Title, Kind: item.Kind, Directory: item.Directory, Revision: item.Revision, URL: item.URL, Actions: item.Actions, Ref: &ref, Size: item.Size, Modified: item.Modified, Writable: item.Writable, Missing: item.Missing, Unavailable: item.Unavailable, Creates: item.Creates, Glyph: item.Glyph, Status: item.Status, Changed: item.Changed}
 }
 func (v workspaceVFS) list(path string, start, limit int) (MountPage, error) {
 	out := MountPage{Entries: []MountItem{}, NextStart: -1}

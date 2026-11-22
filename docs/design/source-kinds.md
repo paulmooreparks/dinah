@@ -47,12 +47,37 @@ A provider that keeps what it has read implements `resource.Refresher`, whose `R
 
 The document viewer reads a document once and does not read it again on an event, so a kind should give a document's text only as current as it would without keeping it, or check it against the site before giving it.
 
+## An Entry's Status
+
+A source may know a state for each of its entries, as a tracking system knows whether a record is to do, in review or done. Since 22 November 2026 a provider says so on the entry it lists, and every list of entries shows it. Before then an entry of such a source showed a name and a glyph and nothing else.
+
+`resource.Entry` has two more fields, and a provider that sets neither has entries that are listed as they were before.
+
+- `Status` is a `resource.Status`, which has a `Label` and a `State`. The label is the state in the source's own words, such as "In Review". The state is one of `resource.StatusNeutral`, `StatusAccent`, `StatusPositive`, `StatusWarn` and `StatusDanger`, which are the plain badge of the visual layer and its four variants. A source maps its own states onto these five, because the badge gives each a glyph and a colour together and a list never tells a state by colour alone. A state outside the five is shown as the plain badge, and a status with no label is no status.
+- `Changed` is true when the entry has changes the person has not seen. The source decides what counts as seen and clears the mark itself.
+
+The window program copies both to the item the page receives (`ResourceItem.Status`, which is a label and a state, and `ResourceItem.Changed`, in `workspace_provider_resources.go`), and the mount listing has the same two fields. An item without a status has no `status` field at all. A local folder's items have neither field.
+
+The page draws both through one function, `dinahResources.marks(item)` in `resources.js`, so the lists agree. The status is PUDL's badge with the label as its words, and its accessible name is "Status:" followed by the label. The changed mark is PUDL's history glyph with the accessible name "Changed since you last looked". The mark stands before the badge, in a place that is kept whenever the entry has a status, so a mark that comes or goes does not move the badge. These are the lists that draw them.
+
+- The Workspace pane's tree puts the marks at the end of the entry's row, before the row's actions button.
+- The Files window, and the Open and Save As dialogs that share its list, put them after the entry's name in the list and at the end of the row in the folder tree.
+- The Pinned list puts them at the end of the pinned entry's first line. A pin records an entry's reference and not its item, so the page keeps the statuses the trees have listed and asks once for a pinned entry no tree has listed, when the entry's source is not a folder of files.
+
+The name of a row with marks starts where the name of a row without them does, and both rows are the same height. In the tree and the Pinned list the name is cut short before the badge is. The name keeps room for a few letters, and past that point the badge's words are cut short too, with the whole label in the badge's tooltip. A row of Files is a row of a table whose Name column is as wide as its longest name, so there the marks have a place of one fixed width after the name, and a status that changes cannot change a column's width.
+
+A status changes on a listed entry when the source reports a change (`workspaces.SourceChanged`, above) and the trees list their opened folders again. The badge's words, its state and the mark change in place. No row moves and no name's start moves. In the tree and the Pinned list a longer label takes its extra room from the end of the name.
+
+The tree had no mark for a changed or unsaved entry before this one, so the changed mark shares its place with nothing. A document with changes that are not saved is still listed under In Progress, which is a different fact about a different thing: the person's own unsaved work, where the changed mark is about changes made at the source.
+
+Search has no list of a source's entries. Find and Open lists commands, chats and recent documents by their titles, and it shows no status.
+
 ## Connections
 
 A kind whose sources are on a site needs the site's address and the person's token. `internal/connections` is the registry for them: a build registers each connection with its label, help, default address, and its own `Load`, `Save`, `Remove` and `Test`, so the registry holds no address and no secret and the product decides where they are kept (the system keychain, through `internal/credentials`, in the usual case). Settings shows a Connections section drawn from the registry (`settings-connections.js`): the address, whether a token is saved, and Save, Test Connection and Forget. The token is a password field and is never read back. The section's tab is hidden while the build has no connection, as Dinah's own build has none.
 
 ## Tests
 
-`internal/workspaces/kinds_provider_test.go` registers a kind with a form and a provider and resolves a source through it. `cmd/dinah-desktop/workspace_provider_resources_test.go` registers a small wiki and lists, pages, reads, previews and stats it through the Files applet's service and the mount paths, and adds a source of it through the Add Source form, including the kind's own refusal and the registry keeping the source's fields. `cmd/dinah-desktop/workspace_source_changes_test.go` checks that a burst of changes to a source is sent to the page once and that Refresh has the wiki forget the place shown. `cmd/dinah-desktop/frontend/e2e/workspace-source-kinds.js` drives the dialog and the Connections section against a stub backend, and checks that neither appears in a build that registers nothing.
+`internal/workspaces/kinds_provider_test.go` registers a kind with a form and a provider and resolves a source through it. `cmd/dinah-desktop/workspace_provider_resources_test.go` registers a small wiki and lists, pages, reads, previews and stats it through the Files applet's service and the mount paths, and adds a source of it through the Add Source form, including the kind's own refusal and the registry keeping the source's fields. `cmd/dinah-desktop/workspace_source_changes_test.go` checks that a burst of changes to a source is sent to the page once and that Refresh has the wiki forget the place shown. `cmd/dinah-desktop/frontend/e2e/workspace-source-kinds.js` drives the dialog and the Connections section against a stub backend, and checks that neither appears in a build that registers nothing. `cmd/dinah-desktop/workspace_resource_status_test.go` checks that an entry's status and changed mark reach its item and that an entry without them has an item with neither field. `cmd/dinah-desktop/frontend/e2e/resource-entries.js` lists a stub source whose entries have statuses and changed marks, in the tree, in Files and in the Pinned list, and checks that a status changing on a listed entry moves nothing.
 
 A picture that is itself an entry of a source, such as a wiki page's attachment opened from Files, is drawn by asking for the picture by the entry's own path. The desktop reads it through the provider's `BlobReader` (11 November 2026). Until then it asked the provider's `FileSource` for a file beside the entry, with the picture's path given as the document's, which a provider that keeps files beside pages alone refused, so the window said the image could not be loaded.

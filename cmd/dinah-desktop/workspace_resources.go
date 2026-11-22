@@ -60,7 +60,24 @@ type ResourceItem struct {
 	// of its own (resource.Entry.Glyph, workspaces.SourceKind.Glyph); empty,
 	// it is drawn as a folder or a document.
 	Glyph string `json:"glyph,omitempty"`
+	// Status is the state the item is in at its source (resource.Entry.Status),
+	// which every list of items shows as a badge at the end of the item's
+	// row. It is absent for an item without one, and a local folder's items
+	// have none.
+	Status *ResourceStatus `json:"status,omitempty"`
+	// Changed marks an item with changes the person has not seen
+	// (resource.Entry.Changed).
+	Changed bool `json:"changed,omitempty"`
 }
+
+// ResourceStatus is an item's status as the page draws it: the words, and
+// the badge state, which is "" for a plain badge or one of "accent",
+// "positive", "warn" and "danger".
+type ResourceStatus struct {
+	Label string `json:"label"`
+	State string `json:"state"`
+}
+
 type ResourcePage struct {
 	Entries   []ResourceItem `json:"entries"`
 	NextStart int            `json:"nextStart"`

@@ -107,6 +107,8 @@ The underlying contracts are documented by Microsoft in [FileShare](https://lear
 
 `resource-attachments` checks attachment URLs and the lightbox for resources from two local sources, missing images joining Problems, refresh, direct image, SVG, D2 and Mermaid resources, and closed windows ignoring late image events. `resources-live` checks the resource tree's live labels, disk watching, source identity, Home lookup, the launcher registry and the generic applet commands with their workspace scope.
 
+`resource-entries` checks the two seams a product uses for the entries of its own sources, against a stub source of records. It checks the status badge and the changed mark in the Workspace tree, in Files and in the Pinned list, in a narrow panel too, and that a status changing on a listed entry moves no row and no name. It then registers openers for a kind of entry and for the end of a file's name and opens entries from the tree, Files, the Pinned list, Recent, a link and a draft, with the precedence between openers and the refusal of a second registration. It writes pictures of the tree at two widths in both themes.
+
 ### Terminal
 
 `terminal-shells` checks a Terminal running a real shell: the shell chosen in Settings sized to its window, output drawn even before the start call returns, typed text sent whole and in order, size changes, Ctrl+C copying a selection and otherwise interrupting, Ctrl+Shift+V pasting, Enter starting an ended shell again, closing the window closing its shell, Tools › New Terminal With, and choosing the default shell in Settings. The Go tests in `internal/pty` and `terminal_shells_windows_test.go` run real programs in a pseudoconsole.

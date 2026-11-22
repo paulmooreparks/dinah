@@ -73,6 +73,47 @@ type Entry struct {
 	// takes the file's path in Snapshot and WriteDocument as it takes a
 	// document's. A file without it is read and shown, and not edited.
 	Editable bool
+	// Status is a short state the entry is in at its source, such as a
+	// record's state in a tracking system. A list of entries shows it as a
+	// badge at the end of the entry's row. The zero value means the entry
+	// has no status, and a folder of files has none.
+	Status Status
+	// Changed marks an entry that has changes the person has not seen, as
+	// its source counts them. A list of entries shows a mark beside the
+	// entry's status. The source decides when the person has seen them.
+	Changed bool
+}
+
+// Status is the state an entry is in, in the source's own words, with one
+// of the fixed states a badge can show. The label is what the person reads,
+// such as "In Review". The state chooses the badge's glyph and colour
+// together, so that the state is never told by colour alone.
+type Status struct {
+	Label string
+	// State is one of the Status constants. Any other value is shown as
+	// StatusNeutral.
+	State string
+}
+
+// The states a Status can have. They are the states of the badge in the
+// visual layer: a plain badge, and its accent, positive, warning and danger
+// variants.
+const (
+	StatusNeutral  = ""
+	StatusAccent   = "accent"
+	StatusPositive = "positive"
+	StatusWarn     = "warn"
+	StatusDanger   = "danger"
+)
+
+// ShownState is the state a Status is shown in: its own State when that is
+// one of the Status constants, and StatusNeutral otherwise.
+func (s Status) ShownState() string {
+	switch s.State {
+	case StatusAccent, StatusPositive, StatusWarn, StatusDanger:
+		return s.State
+	}
+	return StatusNeutral
 }
 
 // Lister lists the entries of a folder in a source; the path "." is the

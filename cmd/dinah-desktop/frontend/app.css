@@ -776,6 +776,33 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
    not use, are dimmed (docs/design/workspace-export.md). */
 .workspace-resource-missing > .workspace-resource-name { color: var(--text-muted); font-style: italic; }
 .workspace-resource-missing > .workspace-resource-name > .glyph { opacity: 0.6; }
+/* An entry's status and its changed mark (resources.js, marks;
+   docs/design/source-kinds.md). They stand at the end of the entry's row,
+   before the row's actions button, in the Workspace tree, in Files and in
+   the Pinned list. The status is PUDL's badge, and the mark is PUDL's history
+   glyph in a place of its own, which is kept whenever there is a status, so
+   a mark that comes or goes moves nothing. The row gives its room to the
+   marks first: the name is cut short before the badge is, down to a few
+   letters, and the badge's words are cut short only then, or past the
+   width given here. The name starts where it does in a row without marks.
+   The marks take no more height than the row's words, so a row with them
+   is as tall as one without. In the Pinned list the row's actions button
+   stands over the end of the row, and the line with marks leaves its
+   room. A row of Files is a row of a table, whose Name column is as wide
+   as its longest name, so there the marks follow the name in a place of
+   one fixed width: a status that changes then changes no column's width,
+   and the marks are in sight where the name is. */
+.resource-marks { display: inline-flex; align-items: center; gap: var(--space-1); flex: 0 1 auto; min-width: 0; margin-inline-start: auto; margin-block: -2px; font-style: normal; }
+.resource-changed-slot { display: inline-grid; place-items: center; flex: none; inline-size: 12px; block-size: 12px; }
+.resource-changed { --glyph: var(--glyph-history); --glyph-size: 12px; color: var(--accent); }
+.badge.resource-status { flex: 0 1 auto; min-width: 0; max-inline-size: 26ch; white-space: nowrap; }
+.resource-status-words { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fm-has-marks > :is(.fm-ti-label, .browser-row-title) { flex-shrink: 1000; min-width: 5ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-cell.fm-has-marks { flex-wrap: nowrap; }
+.fm-cell.fm-has-marks > .fm-name { flex: none; white-space: nowrap; }
+.fm-cell > .resource-marks { flex: none; inline-size: 20ch; margin-inline-start: var(--space-1); }
+.session-list .browser-row.row-with-actions .browser-row-line.fm-has-marks { padding-inline-end: calc(24px + var(--space-2)); }
+@media (forced-colors: active) { .resource-changed { forced-color-adjust: none; background: CanvasText; } }
 
 /* Export Workspace… and Import Workspace… (docs/design/workspace-export.md,
    "The Windows"). Each window opens wide, fits inside the program's window
