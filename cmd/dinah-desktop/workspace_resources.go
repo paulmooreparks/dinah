@@ -475,17 +475,56 @@ func sortedWorkspaceDirectory(ctx context.Context, f *os.File, maximum int) ([]o
 }
 
 // folderOrder is the order of a folder's entries: folders before files, each
-// by name regardless of case, and names that differ only in case by their
-// exact spelling, so the order is the same on every listing.
+// by name regardless of case, with a run of digits read as a number, so
+// that "part 2" comes before "part 10". Names that are the same by that
+// rule are ordered by their exact spelling, so the order is the same on
+// every listing.
 func folderOrder(aDir bool, a string, bDir bool, b string) bool {
 	if aDir != bDir {
 		return aDir
 	}
-	if la, lb := strings.ToLower(a), strings.ToLower(b); la != lb {
-		return la < lb
+	if c := naturalCompare(strings.ToLower(a), strings.ToLower(b)); c != 0 {
+		return c < 0
 	}
 	return a < b
 }
+
+// naturalCompare compares two names piece by piece. A run of digits is
+// compared as a number of any length, and everything else byte by byte. It
+// returns a negative number, zero or a positive number as a sorts before,
+// with or after b. Two runs of digits with the same value, such as "2" and
+// "02", compare as equal here, and folderOrder then orders them by spelling.
+func naturalCompare(a, b string) int {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if isDigit(a[i]) && isDigit(b[j]) {
+			si := i
+			for i < len(a) && isDigit(a[i]) {
+				i++
+			}
+			sj := j
+			for j < len(b) && isDigit(b[j]) {
+				j++
+			}
+			da, db := strings.TrimLeft(a[si:i], "0"), strings.TrimLeft(b[sj:j], "0")
+			if len(da) != len(db) {
+				return len(da) - len(db)
+			}
+			if da != db {
+				return strings.Compare(da, db)
+			}
+			continue
+		}
+		if a[i] != b[j] {
+			return int(a[i]) - int(b[j])
+		}
+		i++
+		j++
+	}
+	return (len(a) - i) - (len(b) - j)
+}
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
 
 func (s workspaceResourceService) read(ref ResourceRef) (ResourceRead, error) {
 	if s.ctx != nil && s.ctx.Err() != nil {
