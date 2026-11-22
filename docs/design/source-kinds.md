@@ -98,6 +98,10 @@ The tree had no mark for a changed or unsaved entry before this one, so the chan
 
 Search has no list of a source's entries. Find and Open lists commands, chats and recent documents by their titles, and it shows no status.
 
+## A Folder's Order
+
+A folder's entries are shown with the folders first and each by name, with a run of digits in a name read as a number. A source can keep an order of its own for a folder, as a list of results has the latest first. Its provider then implements `resource.OrderedLister`, and `ListsInOrder(path)` reports true for each folder whose entries are shown in the order `List` gives them. The other folders of that source, and every folder of a source that does not implement it, are ordered by name as before. `orderEntries` in `cmd/dinah-desktop/workspace_provider_resources.go` applies the rule, and `ordered_lister_test.go` covers both cases.
+
 ## Connections
 
 A kind whose sources are on a site needs the site's address and the person's token. `internal/connections` is the registry for them: a build registers each connection with its label, help, default address, and its own `Load`, `Save`, `Remove` and `Test`, so the registry holds no address and no secret and the product decides where they are kept (the system keychain, through `internal/credentials`, in the usual case). Settings shows a Connections section drawn from the registry (`settings-connections.js`): the address, whether a token is saved, and Save, Test Connection and Forget. The token is a password field and is never read back. The section's tab is hidden while the build has no connection, as Dinah's own build has none.

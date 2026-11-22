@@ -110,6 +110,19 @@ func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, 
 	return item
 }
 
+// orderEntries puts a folder's entries in the order they are shown in. A
+// folder that has an order of its source's own keeps it
+// (resource.OrderedLister). Every other folder has its folders first and
+// each by name.
+func orderEntries(provider any, folder string, entries []resource.Entry) {
+	if ordered, ok := provider.(resource.OrderedLister); ok && ordered.ListsInOrder(folder) {
+		return
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return folderOrder(entries[i].Folder, providerSortName(entries[i]), entries[j].Folder, providerSortName(entries[j]))
+	})
+}
+
 // listProvider lists a folder of a source through its provider's Lister.
 func (s workspaceResourceService) listProvider(ref ResourceRef, source WorkspaceSource, start, limit int) (ResourcePage, error) {
 	out := ResourcePage{Entries: []ResourceItem{}, NextStart: -1}
@@ -129,9 +142,7 @@ func (s workspaceResourceService) listProvider(ref ResourceRef, source Workspace
 	if err != nil {
 		return out, err
 	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		return folderOrder(entries[i].Folder, providerSortName(entries[i]), entries[j].Folder, providerSortName(entries[j]))
-	})
+	orderEntries(p, folder, entries)
 	if start >= len(entries) {
 		return out, nil
 	}

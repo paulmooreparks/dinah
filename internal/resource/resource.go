@@ -123,6 +123,17 @@ type Lister interface {
 	List(ctx context.Context, path string) ([]Entry, error)
 }
 
+// OrderedLister is a Lister whose folders may have an order of the source's
+// own, as a list of results has the latest first. ListsInOrder reports
+// whether the entries of the folder at path are shown in the order List gives
+// them. A folder for which it reports false, and every folder of a source
+// that does not implement OrderedLister, is shown with its folders first and
+// each by name.
+type OrderedLister interface {
+	Lister
+	ListsInOrder(path string) bool
+}
+
 // TextWriter replaces a resource's text, provided the resource is still at
 // expected, the revision the caller last read. An empty expected means the
 // resource must not exist yet, so a write can never replace something the
