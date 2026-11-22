@@ -84,6 +84,64 @@ A document open in a window of Docs or the Editor stays open there when an opene
 
 `cmd/dinah-desktop/frontend/e2e/resource-entries.js` registers an opener for a kind and two for suffixes and opens entries each of these ways, with and without the openers.
 
+## A Product's Rows in an Entry's Menu
+
+Every entry in the Workspace tree, the Files window and the Pinned list has a menu, which its actions button, a right-click and the keyboard open. Until 22 November 2026 the base decided every row of it, so a product could offer nothing of its own on a folder that stands for one of its saved queries, or on its source.
+
+A product's page file now registers a function that returns rows, for a kind of entry or for a kind of source.
+
+```js
+dinahResources.registerEntryCommands({
+  itemKind: 'sample-query',                 // the entry's Kind, as its provider gives it
+  commands: function (item) {
+    return [
+      { id: 'sample-open-board', label: 'Open in Sample Board', glyph: 'board',
+        run: function (item) { return dinahWorkbench.open({ kind: 'sample-board', path: item.ref.path }); } },
+      { id: 'sample-mark-seen', label: 'Mark as Seen', disabled: !item.changedCount,
+        reason: 'Nothing has changed since you last looked.', run: function (item) { /* … */ } },
+      { id: 'sample-remove-query', label: 'Remove…', danger: true, run: function (item) { /* … */ } }
+    ];
+  }
+});
+dinahResources.registerEntryCommands({
+  sourceKind: 'sample-tracker',             // the source's Kind, for the source's own row
+  commands: function (item) { return [{ id: 'sample-choose-queries', label: 'Choose Queries…', run: function (item) { /* … */ } }]; }
+});
+```
+
+`registerEntryCommands` takes exactly one of `itemKind` and `sourceKind`, and a `commands` function, and returns true when it was registered. An `itemKind` is matched against the kind of an entry inside a source. A `sourceKind` is matched against the kind of the source whose own row the menu is for, and its rows are on that row only. A second registration of a key that is already registered is refused, the first stays, and the console has a message that says which key. A registration with both keys, with neither or without a function is refused in the same way.
+
+A row has these fields.
+
+- `id` is the row's id, which is its command id in the Files window. It is a word of the product's own, such as `sample-open-board`.
+- `label` is the row's words, in the product's own words and in title case. The base adds nothing to them.
+- `glyph` is the name of a PUDL glyph, and is optional.
+- `run(item)` does the work. It may return a promise.
+- `disabled` and `reason` make a row that is drawn disabled, with the reason under its words. A product disables a row and says why. A row that is left out tells the person nothing.
+- `danger` marks a row that destroys something. It is drawn as the base's destructive rows are.
+
+`commands(item)` is called each time a menu for such an entry opens, so the rows are for the entry as it is then. In the Files window it is also called whenever the window reads its commands for the selected entry, which is often, so the function should be quick and change nothing. `item` is the item an opener receives, with its `ref`, `title`, `kind`, `glyph`, `actions`, `status`, `changed`, `count` and `changedCount`, and `run` is given the same item. The Pinned list has an entry's reference and not its item. There `commands` is given the reference, the kind, the title, whether the entry is a folder, and the status, changed mark and counts the trees have listed for it, and `run` is given the whole item, which is read when the row is chosen.
+
+The product's rows stand in a group of their own after the base's rows, behind a separator. Its danger rows stand in the destructive group at the end of the menu. Where the base has a destructive row of its own, as a source has Remove from Workspace…, the product's danger rows come first in that group and the base's row stays last. Where the base has none, the product's danger rows are a last group of their own.
+
+These are the menus that have the rows.
+
+- The Workspace tree has them on an entry and on a source, from the row's actions button, a right-click, and Shift+F10 or the menu key.
+- The Files window has them on a row of its list and on a row of its folder tree, from a right-click and from the keyboard. For the selected entry they are also in the window's Actions menu and in the window's own menu in the menu bar.
+- The Pinned list has them on a pinned entry and on a pinned source, from the row's actions button, a right-click and the keyboard.
+
+Two menus do not have them. A folder that is not on this computer yet and a source of a kind the build does not use keep the few rows they have, because a product's row would act on what is not there. A Files window that only displays a folder inside another window has no menu for an entry at all.
+
+How the rows relate to commands follows what the base's rows do, and the base's rows differ between the lists. In the Workspace tree and the Pinned list a row of an entry's menu is a plain row given to PUDL's context menu. It has no id and is no command, so it is not in the commands an agent lists for a window, and it has no key of its own. The product's rows are the same kind of row there. PUDL's menu gives all of them the same keys: the arrows, Home and End, a letter, Enter and Escape. In the Files window the base's rows for the selected entry are commands of the window, registered with `pudlCommands`, and the product's rows are added to the same table. An agent therefore lists and runs them as it does the base's, and the window program refuses an agent a danger command, which is left to the person. The host's own registry, `dinahCommands`, which feeds the menu bar's menus, the list of keys and command search, has no row for an entry, and the product's rows are not added to it.
+
+A `run` that throws, or whose promise is rejected, is reported as a failure of one of the base's rows is reported in that list: as an error toast from the Workspace pane and the Pinned list, and in the status line of the Files window.
+
+Some rows are left out, each with one message on the console that says which: a row without an `id`, a `label` or a `run` function, a second row with an `id` the same entry already has, and a row whose `id` is one of the base's. The base's ids are `open`, `edit`, `edit-text`, `open-external`, `copy-link`, `copy-path`, `rename`, `up`, `home`, `retry`, `browse-children`, `new-folder`, `upload`, `refresh`, `preview-pane`, `new-terminal`, `files-actions`, `open-in-files`, `pin`, `unpin`, `refresh-source`, `refresh-children`, `remove-source`, `create-folders`, `choose-folder`, `move-up` and `move-down`. A product that starts its ids with a word of its own never meets one.
+
+A build that registers nothing asks nothing, and each of its menus has the rows it had before.
+
+`cmd/dinah-desktop/frontend/e2e/resource-entry-commands.js` reads every one of these menus before and after a registration, runs rows from each list, and checks a disabled row, a danger row, a failing `run` and each refusal.
+
 ## What this does not do
 
 A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.

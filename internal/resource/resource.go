@@ -82,7 +82,21 @@ type Entry struct {
 	// its source counts them. A list of entries shows a mark beside the
 	// entry's status. The source decides when the person has seen them.
 	Changed bool
+	// Count is how many entries a folder stands for, as its source counts
+	// them, and ChangedCount is how many of those have changes the person
+	// has not seen. Each is nil while the source does not know it, which is
+	// different from a count of zero: a folder that has not been read has
+	// no counts. A list of entries shows a known count at the end of the
+	// folder's row. A source sets them with Counted. An entry that is not a
+	// folder has none, and a folder of files has none, since counting its
+	// files would cost a read that listing its parent does not make.
+	Count        *int
+	ChangedCount *int
 }
+
+// Counted is a count that is known, for Entry.Count and Entry.ChangedCount,
+// whose nil value says that the count is not known yet.
+func Counted(n int) *int { return &n }
 
 // Status is the state an entry is in, in the source's own words, with one
 // of the fixed states a badge can show. The label is what the person reads,

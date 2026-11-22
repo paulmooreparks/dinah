@@ -77,11 +77,23 @@
     // View, Refresh for every list (docs/design/menus.md).
     var MENU = ACTIONS.filter(function (id) { return id !== 'refresh'; });
     function fail(error) { say(String(error), true); }
+    /* The rows a product registered for the kind of the entry selected, or
+       of the source selected (dinahResources.registerEntryCommands). They
+       are commands of this window like the base's, so the Actions menu and
+       the window's menu have them after the base's commands, in a group of
+       their own with the danger rows in a second group, and an agent lists
+       and runs them. A window that only displays a folder has none. */
+    function productCommands() { var node = current(); return node && !displayOnly ? dinahResources.entryCommands(node, fail) : []; }
+    function withProduct(ids, own) {
+      var plain = own.filter(function (c) { return !c.danger; }), danger = own.filter(function (c) { return c.danger; });
+      function id(c) { return c.id; }
+      return ids.concat(plain.length ? ['-'].concat(plain.map(id)) : [], danger.length ? ['-'].concat(danger.map(id)) : []);
+    }
     function commandTable() {
       var node = current(), cwd = browser && browser.cwd(), takes = !!cwd && !displayOnly && dinahResources.takesFolder(cwd);
       var external = !node ? '' : dinahResources.has(node, 'open-external') ? 'Open in Default Application' : dinahResources.has(node, 'reveal') ? 'Show in Folder' : '';
       var opens = !!node && (node.ref && dinahResources.has(node, 'preview') || node.directory && dinahResources.has(node, 'list'));
-      var notHere = 'This folder does not take new files.';
+      var notHere = 'This folder does not take new files.', own = productCommands();
       return [
         { id: 'up', label: 'Up One Folder', glyph: 'arrow-up', disabled: !browser || !browser.canUp() || loading, run: function () { browser.up(); } },
         { id: 'home', label: rooted ? 'Starting Folder' : 'Home', glyph: 'home', disabled: !browser, run: function () { browser.goPath(navigationRoot || F.home().path); } },
@@ -107,8 +119,8 @@
           select(browser.selected()); persist();
         } },
         { id: 'new-terminal', label: 'New Terminal Here', hidden: !node, run: function () { var folder = node.directory ? node : browser.cwd(); dinahResources.openTerminal(folder.path, folder.ref).catch(fail); } },
-        { id: 'files-actions', label: 'Actions', items: ACTIONS, disabled: !node }
-      ];
+        { id: 'files-actions', label: 'Actions', items: withProduct(ACTIONS, own), disabled: !node }
+      ].concat(own);
     }
     var unregisterCommands = window.pudlCommands ? window.pudlCommands.register(root, commandTable) : function () {};
     function redraw() {
@@ -198,7 +210,7 @@
       if (row) { browser.select(row.dataset.name); item = browser.selected(); }
       else item = F.resolve(null, tree.dataset.path);
       if (!item) return;
-      event.detail.add(dinahResources.itemCommands(item, fail));
+      event.detail.add(dinahResources.withEntryCommands(dinahResources.itemCommands(item, fail), item, fail));
       event.detail.mark(row || tree); event.preventDefault();
     });
     root.addEventListener('click', function (event) {
@@ -225,7 +237,7 @@
       if (event && event.kind === 'uploaded') shownAgain({ ref: event.ref });
       if (event && event.kind === 'renamed') renamedHere(event);
     });
-    return { ready: ready, state: state, setState: setState, commands: function () { return MENU; }, canReload: function () { return !!browser; }, reload: function () { return window.pudlCommands.run('refresh', undefined, root); }, destroy: function () { persist(); destroyed = true; unsubscribe(); unregisterCommands(); previewRequest++; clearTimeout(timer); if (previewApplet) previewApplet.destroy(); if (browser) browser.destroy(); F.destroy(); } };
+    return { ready: ready, state: state, setState: setState, commands: function () { return withProduct(MENU, productCommands()); }, canReload: function () { return !!browser; }, reload: function () { return window.pudlCommands.run('refresh', undefined, root); }, destroy: function () { persist(); destroyed = true; unsubscribe(); unregisterCommands(); previewRequest++; clearTimeout(timer); if (previewApplet) previewApplet.destroy(); if (browser) browser.destroy(); F.destroy(); } };
   }
   window.dinahFiles = { init: init };
 })();

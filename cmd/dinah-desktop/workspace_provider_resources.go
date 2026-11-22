@@ -69,11 +69,22 @@ func statusOf(s resource.Status) *ResourceStatus {
 	return &ResourceStatus{Label: label, State: s.ShownState()}
 }
 
+// countOf is a folder's count as the page reads it, or nil when the count is
+// not known. A count below zero is no count. The item gets a number of its
+// own, so that a provider that changes its entry later changes no item.
+func countOf(folder bool, n *int) *int {
+	if !folder || n == nil || *n < 0 {
+		return nil
+	}
+	count := *n
+	return &count
+}
+
 // providerItem is a provider's entry as the Files applet shows it.
 func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, makes bool) ResourceItem {
 	ref := parent
 	ref.Path = path.Join(parent.Path, e.Name)
-	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Glyph: e.Glyph, Status: statusOf(e.Status), Changed: e.Changed, Actions: []string{}}
+	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Glyph: e.Glyph, Status: statusOf(e.Status), Changed: e.Changed, Count: countOf(e.Folder, e.Count), ChangedCount: countOf(e.Folder, e.ChangedCount), Actions: []string{}}
 	if item.Title == "" {
 		item.Title = e.Name
 	}

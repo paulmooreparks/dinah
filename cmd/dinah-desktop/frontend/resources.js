@@ -158,6 +158,119 @@
       { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: !renames(item), run: run(function () { return renameFile(item); }) }
     ].filter(function (command) { return !command.hidden; });
   }
+  /* A product adds rows of its own to the menu of an entry or of a source
+     (docs/design/product-applets.md, "A Product's Rows in an Entry's
+     Menu"). Its page file registers a function for a kind of entry, or for
+     a kind of source:
+
+       dinahResources.registerEntryCommands({ itemKind: 'sample-query', commands: function (item) {
+         return [{ id: 'sample-open-board', label: 'Open in Sample Board', glyph: 'board', run: function (item) { ... } },
+           { id: 'sample-remove-query', label: 'Remove…', danger: true, disabled: item.changed, reason: 'It has changes that are not saved.', run: function (item) { ... } }];
+       } });
+       dinahResources.registerEntryCommands({ sourceKind: 'sample-tracker', commands: function (item) { ... } });
+
+     An itemKind is matched against the kind of an entry inside a source,
+     and a sourceKind against the kind of the source whose own row the menu
+     is for. The function is called each time a menu for such an entry
+     opens, and each time the Files window reads its commands, with the
+     entry's item, and returns the rows for the entry as it is then. A row
+     is { id, label, glyph, run(item), disabled, reason, danger }. The rows
+     stand in a group of their own after the base's rows, and a danger row
+     stands with the destructive rows at the end of the menu. A disabled
+     row is drawn disabled with its reason. A run that throws, or whose
+     promise is rejected, is reported as a failure of one of the base's
+     rows is. A key that is already registered is refused with a message on
+     the console and the first registration stays. A row without an id, a
+     label or a run function, a row whose id one of the base's rows has,
+     and a second row with the same id are left out with a message on the
+     console. With nothing registered every menu is as it was. */
+  var kindCommands = new Map(), sourceCommands = new Map(), refusedRows = new Set();
+  /* The ids of the base's own rows for an entry, in an entry's menu and in
+     the Files window's commands, where a product's rows are commands of
+     the same window. */
+  var BASE_COMMAND_IDS = ['open', 'edit', 'edit-text', 'open-external', 'copy-link', 'copy-path', 'rename', 'up', 'home', 'retry', 'browse-children', 'new-folder', 'upload', 'refresh', 'preview-pane', 'new-terminal', 'files-actions',
+    'open-in-files', 'pin', 'unpin', 'refresh-source', 'refresh-children', 'remove-source', 'create-folders', 'choose-folder', 'move-up', 'move-down'];
+  function registerEntryCommands(o) {
+    o = o || {};
+    var kind = typeof o.itemKind === 'string' ? o.itemKind.trim() : '', source = typeof o.sourceKind === 'string' ? o.sourceKind.trim() : '';
+    if (typeof o.commands !== 'function' || !kind === !source) {
+      console.error('dinahResources.registerEntryCommands needs a commands function and either an itemKind or a sourceKind. Nothing was registered.');
+      return false;
+    }
+    var table = kind ? kindCommands : sourceCommands, key = kind || source;
+    if (table.has(key)) {
+      console.error('dinahResources.registerEntryCommands: commands are already registered for the ' + (kind ? 'item kind "' : 'source kind "') + key + '". The first registration stays and this one is refused.');
+      return false;
+    }
+    table.set(key, o.commands);
+    if (window.pudlCommands) window.pudlCommands.changed();
+    return true;
+  }
+  /* Whether an item is a source's own row. In a tree it is known by its
+     place, since a source's root may have a path of its own, and a pin of a
+     source has no path. */
+  function isSourceRoot(item) {
+    if (!item || !item.ref || !item.ref.sourceId) return false;
+    if (item.path) { var parts = item.path.split('/'); return parts[1] === 'workspaces' && parts.length === 4; }
+    return !item.ref.path;
+  }
+  function refuseRow(key, id, why) {
+    var once = key + '\n' + id + '\n' + why;
+    if (refusedRows.has(once)) return;
+    refusedRows.add(once);
+    console.error('dinahResources.registerEntryCommands: a row for "' + key + '"' + (id ? ' with the id "' + id + '"' : '') + ' ' + why + ' The row is left out.');
+  }
+  /* A product's rows for an entry, as rows a menu and PUDL's commands both
+     take. fail is given what a run throws or rejects with. current, when
+     given, returns a promise of the item to run with, for a list that has
+     less than the whole item when its menu opens. */
+  function entryCommands(item, fail, current) {
+    if (!item || !kindCommands.size && !sourceCommands.size) return [];
+    var root = isSourceRoot(item), key = root ? sourceKind(item.ref) || item.kind || '' : item.kind || '';
+    var make = key && (root ? sourceCommands : kindCommands).get(key);
+    if (!make) return [];
+    var list;
+    try { list = make(item); } catch (err) { console.error('dinahResources.registerEntryCommands: the commands function for "' + key + '" failed.', err); return []; }
+    if (!Array.isArray(list)) return [];
+    var seen = new Set(), report = fail || function (err) { if (host() && host().fail) host().fail(err); };
+    return list.map(function (c) {
+      var id = c && typeof c.id === 'string' ? c.id.trim() : '';
+      if (!c || !id || typeof c.label !== 'string' || !c.label.trim() || typeof c.run !== 'function') { refuseRow(key, id, 'needs an id, a label and a run function.'); return null; }
+      if (BASE_COMMAND_IDS.indexOf(id) >= 0) { refuseRow(key, id, 'has the id of one of the base\'s own rows.'); return null; }
+      if (seen.has(id)) { refuseRow(key, id, 'has the id of another row of the same entry.'); return null; }
+      seen.add(id);
+      return { id: id, label: c.label.trim(), glyph: typeof c.glyph === 'string' && c.glyph ? c.glyph : undefined, disabled: !!c.disabled, reason: typeof c.reason === 'string' && c.reason ? c.reason : undefined, danger: !!c.danger,
+        run: function () { return Promise.resolve().then(function () { return current ? current() : item; }).then(function (now) { return c.run(now || item); }).catch(report); } };
+    }).filter(Boolean);
+  }
+  /* The rows of an entry's menu with the product's rows in their places.
+     base is the rows the base gives, which may end with its destructive
+     group: a separator followed by rows of which one is a danger row. The
+     product's rows follow the base's other rows in a group of their own,
+     and its danger rows stand first in the destructive group, so that the
+     base's own destructive row stays last. With no rows from a product,
+     base is returned as it was given. */
+  function withEntryCommands(base, item, fail, current) {
+    var own = entryCommands(item, fail, current);
+    if (!own.length) return base;
+    var cut = base.lastIndexOf('-'), tail = cut >= 0 && base.slice(cut + 1).some(function (r) { return r && r.danger; }) ? base.slice(cut + 1) : [];
+    var head = tail.length ? base.slice(0, cut) : base.slice();
+    var plain = own.filter(function (r) { return !r.danger; }), danger = own.filter(function (r) { return r.danger; }).concat(tail);
+    var rows = head;
+    if (plain.length) rows = rows.concat(rows.length ? ['-'] : [], plain);
+    if (danger.length) rows = rows.concat(rows.length ? ['-'] : [], danger);
+    return rows;
+  }
+  /* The item of an entry a list has only a reference to, as the Pinned
+     list has: what the list knows (its kind, its title, whether it is a
+     folder) with the status, the changed mark and the counts the trees have
+     listed for it. current reads the whole item, for a row's run. */
+  function itemOfRef(ref, basics) {
+    var marked = known.get(refKey(ref)) || {};
+    var item = Object.assign({}, basics, { ref: ref });
+    ['status', 'changed', 'count', 'changedCount'].forEach(function (name) { if (marked[name] != null && marked[name] !== false) item[name] = marked[name]; });
+    return { item: item, current: function () { return verify({ ref: ref }).then(function (now) { return Object.assign({}, now, { ref: now.ref || ref }); }, function () { return item; }); } };
+  }
   function currentPath() {
     return app().State().then(function (state) {
       var record = (state.workspaceRecords || []).find(function (entry) { return entry.id === state.workspaceId; });
@@ -206,12 +319,48 @@
     if (!status || typeof status.label !== 'string' || !status.label.trim()) return null;
     return { label: status.label.trim(), state: BADGE_STATES[status.state] ? status.state : '' };
   }
-  function marksKey(item) { var status = statusOf(item); return JSON.stringify([status && status.label, status && status.state, !!(item && item.changed)]); }
+  /* A folder's counts, which a source's provider sets on the folder's entry
+     (resource.Entry.Count and ChangedCount, docs/design/source-kinds.md, "A
+     Folder's Counts"): how many entries the folder stands for, and how many
+     of them have changes the person has not seen. A count that is not
+     known is absent from the item, which is different from a count of
+     zero. The total is drawn as the count badge the section heads have,
+     and the changed count beside it as PUDL's accent badge with the
+     changed mark's glyph. A count that is not known draws nothing and
+     keeps no place, and a changed count of zero draws nothing. An entry
+     that is not a folder has no counts. The counts are the last of the
+     marks, so the total ends where the marks end. */
+  function wholeCount(value) { return typeof value === 'number' && isFinite(value) && value >= 0 ? Math.floor(value) : null; }
+  function countsOf(item) {
+    if (!item || !item.directory) return null;
+    var total = wholeCount(item.count), changed = wholeCount(item.changedCount) || null;
+    return total === null && changed === null ? null : { total: total, changed: changed };
+  }
+  function hasMarks(item) { return !!item && (!!statusOf(item) || !!item.changed || !!countsOf(item)); }
+  function countMark(className, number, name, tip) {
+    var mark = document.createElement('span');
+    mark.className = className; mark.textContent = String(number);
+    mark.setAttribute('role', 'img');
+    mark.setAttribute('aria-label', name);
+    mark.title = tip || name;
+    return mark;
+  }
+  function countMarks(counts) {
+    var host = document.createElement('span');
+    var total = counts.total === null ? '' : counts.total === 1 ? '1 entry' : counts.total + ' entries';
+    var changed = counts.changed === null ? '' : counts.changed + ' changed since you last looked';
+    host.className = 'resource-counts' + (total && changed ? ' resource-counts-both' : '');
+    // The changed count's tooltip has the total too, for a list too narrow to draw both.
+    if (changed) host.appendChild(countMark('badge accent resource-count-changed', counts.changed, changed, total ? changed + ', of ' + total : changed));
+    if (total) host.appendChild(countMark('badge browser-group-count resource-count-total', counts.total, total));
+    return host;
+  }
+  function marksKey(item) { var status = statusOf(item), counts = countsOf(item); return JSON.stringify([status && status.label, status && status.state, !!(item && item.changed), counts && counts.total, counts && counts.changed]); }
   function marks(item) {
-    var status = statusOf(item), changed = !!(item && item.changed);
-    if (!status && !changed) return null;
+    var status = statusOf(item), changed = !!(item && item.changed), counts = countsOf(item);
+    if (!status && !changed && !counts) return null;
     var host = document.createElement('span'), slot = document.createElement('span');
-    host.className = 'resource-marks'; host.dataset.marks = marksKey(item);
+    host.className = 'resource-marks' + (counts ? status || changed ? ' resource-marks-counted' : ' resource-marks-counts-only' : ''); host.dataset.marks = marksKey(item);
     slot.className = 'resource-changed-slot';
     if (changed) {
       var mark = document.createElement('span');
@@ -221,7 +370,8 @@
       mark.title = 'Changed since you last looked';
       slot.appendChild(mark);
     }
-    host.appendChild(slot);
+    // A folder with counts alone has no place for the changed mark, since nothing is kept for what may never come.
+    if (status || changed) host.appendChild(slot);
     if (status) {
       var badge = document.createElement('span'), words = document.createElement('span');
       badge.className = 'badge resource-status' + (status.state ? ' ' + status.state : '');
@@ -232,6 +382,7 @@
       words.className = 'resource-status-words'; words.textContent = status.label;
       badge.appendChild(words); host.appendChild(badge);
     }
+    if (counts) host.appendChild(countMarks(counts));
     return host;
   }
   /* The statuses the trees have listed, by reference, for a list that has
@@ -249,9 +400,9 @@
   }
   function learn(item) {
     if (!item || !item.ref || !item.ref.sourceId) return;
-    var key = refKey(item.ref), was = known.get(key), marked = !!statusOf(item) || !!item.changed;
+    var key = refKey(item.ref), was = known.get(key), marked = hasMarks(item), counts = countsOf(item);
     if (!marked && !was) return;
-    var now = marked ? { status: statusOf(item), changed: !!item.changed } : null;
+    var now = marked ? { status: statusOf(item), changed: !!item.changed, directory: !!item.directory, count: counts ? counts.total : null, changedCount: counts ? counts.changed : null } : null;
     if (was && now && marksKey(was) === marksKey(now)) return;
     if (now) known.set(key, now); else known.delete(key);
     announce();
@@ -623,7 +774,7 @@
       else if (!readOnly(node) && old) old.remove();
       /* The entry's status and changed mark stand last, at the end of the
          row, after the read-only mark. */
-      var had = host.querySelector(':scope > .resource-marks'), now = node && (statusOf(node) || node.changed) ? marksKey(node) : '';
+      var had = host.querySelector(':scope > .resource-marks'), now = hasMarks(node) ? marksKey(node) : '';
       if (had && had.dataset.marks === now) { if (host.lastChild !== had) host.appendChild(had); }
       else { if (had) had.remove(); if (now) host.appendChild(marks(node)); }
       host.classList.toggle('fm-has-marks', !!now);
@@ -678,6 +829,9 @@
       // An entry that has lost its status, or its changes, is listed without them.
       if (!item.status) delete node.status;
       if (!item.changed) delete node.changed;
+      // A folder whose count is no longer known is listed without it.
+      if (item.count == null) delete node.count;
+      if (item.changedCount == null) delete node.changedCount;
       learn(node);
       node.name = item.path.slice(item.path.lastIndexOf('/') + 1);
       if (key) identities.set(key, node);
@@ -851,5 +1005,5 @@
     };
   }
 
-  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, marks: marks, marksOf: marksOf, registerOpener: registerOpener, openerFor: openerFor, runOpener: runOpener, openRef: openRef, kindOpeners: function () { return kindOpeners.size > 0; }, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, marks: marks, marksOf: marksOf, registerOpener: registerOpener, registerEntryCommands: registerEntryCommands, entryCommands: entryCommands, withEntryCommands: withEntryCommands, itemOfRef: itemOfRef, openerFor: openerFor, runOpener: runOpener, openRef: openRef, kindOpeners: function () { return kindOpeners.size > 0; }, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

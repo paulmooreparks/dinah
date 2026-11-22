@@ -839,6 +839,49 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 }
 .session-list .browser-row.row-with-actions .browser-row-line.fm-has-marks { padding-inline-end: calc(24px + var(--space-2)); }
 @media (forced-colors: active) { .resource-changed { forced-color-adjust: none; background: CanvasText; } }
+/* A folder's counts (resources.js, countMarks; docs/design/source-kinds.md,
+   "A Folder's Counts"). The total is the count badge the section heads
+   have, and the changed count is PUDL's accent badge with the changed
+   mark's glyph in place of the accent's own. They are the last of the
+   marks, after the status and the changed mark, so the total ends where
+   the marks end, before the row's actions button. A count that is not
+   known has no element, so nothing is kept for it, and a count that
+   arrives or grows takes its room from the end of the name. The numbers
+   have figures of one width, and the total's box is at least two figures
+   wide, so a count that changes within two figures changes no width.
+
+   The counts are never cut short. In a list that narrows, the status
+   badge's words give way first, as above, and then the name, which is cut
+   short at the marks. A folder that has a status as well as counts is the
+   next to give way: in a list less than 290px wide its status badge is
+   not drawn, and its counts and its changed mark stay. Last, in a list too
+   narrow to leave a name about ten of its letters beside both counts,
+   which is 244px for a list one level into the Workspace tree and 256px
+   for the Pinned list, the total is not drawn and the changed count
+   stays, since that is the one a person acts on. What is not drawn is
+   still read by a screen reader, and the changed count's tooltip has the
+   total. A folder with a total alone always shows it. The widths were
+   measured with a total of three figures and a changed count of two.
+
+   In Files the counts follow the marks' place in a place of their own,
+   which has one width for every row that has counts, so that a count that
+   changes there changes no column's width. The total comes first in it and
+   the changed count after, so a changed count that comes or goes moves
+   nothing. */
+.resource-counts { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; order: 2; }
+.resource-counts > .badge { flex: none; justify-content: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.resource-counts > .resource-count-total { box-sizing: content-box; min-inline-size: 2ch; }
+.badge.accent.resource-count-changed::before { --glyph: var(--glyph-history); }
+@container resource-rows (max-width: 289px) { .resource-marks-counted > .badge.resource-status { box-sizing: border-box; inline-size: 1px; min-inline-size: 0; padding: 0; margin-inline-end: calc(-1px - var(--space-1)); overflow: hidden; clip-path: inset(50%); } }
+@container resource-rows (max-width: 243px) { .resource-counts-both > .resource-count-total { box-sizing: border-box; inline-size: 1px; min-inline-size: 0; padding: 0; margin-inline-start: calc(-1px - var(--space-1)); overflow: hidden; clip-path: inset(50%); } }
+@container resource-pins (max-width: 289px) { .resource-marks-counted > .badge.resource-status { box-sizing: border-box; inline-size: 1px; min-inline-size: 0; padding: 0; margin-inline-end: calc(-1px - var(--space-1)); overflow: hidden; clip-path: inset(50%); } }
+@container resource-pins (max-width: 255px) { .resource-counts-both > .resource-count-total { box-sizing: border-box; inline-size: 1px; min-inline-size: 0; padding: 0; margin-inline-start: calc(-1px - var(--space-1)); overflow: hidden; clip-path: inset(50%); } }
+.fm-cell > .resource-marks { --counts-place: calc(7ch + 49px); }
+.fm-cell > .resource-marks > .resource-counts { min-inline-size: var(--counts-place); margin-inline-start: auto; }
+.fm-cell > .resource-marks > .resource-counts > .resource-count-total { order: -1; }
+.fm-cell > .resource-marks.resource-marks-counts-only { inline-size: auto; }
+.fm-cell > .resource-marks.resource-marks-counted { inline-size: calc(12px + var(--space-1) + 9px + 2 * var(--space-2) + var(--space-1) + var(--counts-place)); }
+@container (min-width: 920px) { .fm-cell > .resource-marks.resource-marks-counted { inline-size: calc(20ch + var(--space-1) + var(--counts-place)); } }
 
 /* Export Workspace… and Import Workspace… (docs/design/workspace-export.md,
    "The Windows"). Each window opens wide, fits inside the program's window

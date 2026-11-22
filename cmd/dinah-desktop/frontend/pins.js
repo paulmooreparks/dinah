@@ -58,7 +58,17 @@
     row.appendChild(b); row.classList.add('row-with-actions');
     row.addEventListener('pudl:contextmenu', function (e) {
       if (e.detail.count()) return;
-      e.detail.add([command(pinOf())].concat(more ? more() : []).filter(Boolean));
+      var p = pinOf(), rows = [command(p)].concat(more ? more() : []).filter(Boolean);
+      /* An entry of a source has the rows a product registered for its
+         kind (dinahResources.registerEntryCommands). The list has the
+         entry's reference and not its item, so the rows are made from what
+         is known of the entry, and a row runs with the item read then. */
+      var resources = window.dinahResources;
+      if (p && p.kind === 'resource' && p.ref && resources && resources.withEntryCommands) {
+        var entry = resources.itemOfRef(p.ref, { kind: p.itemKind || '', title: p.title, directory: !!p.directory });
+        rows = resources.withEntryCommands(rows, entry.item, fail, entry.current);
+      }
+      e.detail.add(rows);
       e.detail.mark(row);
     });
   }

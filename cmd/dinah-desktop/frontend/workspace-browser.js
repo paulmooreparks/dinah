@@ -109,8 +109,18 @@
           return api().DetachWorkspaceSource(id, source.id).then(function (updated) { if (!disposed) options.changed(updated); });
         }).catch(options.fail);
       }
-      // The rows of an entry's context menu.
+      /* The rows of an entry's context menu. A product's rows for the
+         entry's kind, or for the source's kind on a source's own row,
+         follow the base's rows in a group of their own, and its danger rows
+         stand with Remove from Workspace… (dinahResources.withEntryCommands).
+         A folder still to come and a source this build does not use keep
+         the few rows they have, since a product's row would act on what is
+         not there. */
       function sourceMenu(entry) {
+        var rows = baseMenu(entry);
+        return entry.missing || entry.unavailable ? rows : window.dinahResources.withEntryCommands(rows, entry, options.fail);
+      }
+      function baseMenu(entry) {
         var rows = [], item = entry, source = sourceFor(entry);
         function add(label, run) { rows.push({ label: label, run: run }); }
         // A folder still to come offers only what can be done without it, and
@@ -157,9 +167,10 @@
             title.appendChild(mark);
           }
         }
-        /* The entry's status and its changed mark stand at the end of the
-           row, before the row's actions button (dinahResources.marks). The
-           tree has no other mark for a changed or unsaved entry. */
+        /* The entry's status, its changed mark and a folder's counts stand
+           at the end of the row, before the row's actions button
+           (dinahResources.marks). The tree has no other mark for a changed
+           or unsaved entry. */
         var marks = window.dinahResources.marks(item);
         if (marks) { title.appendChild(marks); title.classList.add('fm-has-marks'); }
         title.href = '#'; title.addEventListener('click', function (event) { event.preventDefault(); select(item); });
@@ -208,7 +219,7 @@
           if (!entryIdentities.has(entry)) entryIdentities.set(entry, ++nextEntryIdentity);
           var key = keyFor(entry), opened = expanded.has(key) && permitted(entry, 'list');
           return [entryIdentities.get(entry), entry.ref, entry.path, entry.title, entry.kind,
-            entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable, entry.status, entry.changed,
+            entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable, entry.status, entry.changed, entry.count, entry.changedCount,
             selected === key, opened, opened && !!entry.loading, opened && entry.error,
             opened && entry.loaded, opened && entry.nextStart,
             opened ? (entry.children || []).map(presentation) : null];

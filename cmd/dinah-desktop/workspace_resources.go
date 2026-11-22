@@ -68,6 +68,12 @@ type ResourceItem struct {
 	// Changed marks an item with changes the person has not seen
 	// (resource.Entry.Changed).
 	Changed bool `json:"changed,omitempty"`
+	// Count and ChangedCount are a folder's counts (resource.Entry.Count and
+	// ChangedCount). A count that is not known is absent, and a count of
+	// zero is present as 0, so the page can tell the two apart. Only a
+	// folder has them, and a local folder's items have none.
+	Count        *int `json:"count,omitempty"`
+	ChangedCount *int `json:"changedCount,omitempty"`
 }
 
 // ResourceStatus is an item's status as the page draws it: the words, and

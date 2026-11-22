@@ -98,6 +98,57 @@ The tree had no mark for a changed or unsaved entry before this one, so the chan
 
 Search has no list of a source's entries. Find and Open lists commands, chats and recent documents by their titles, and it shows no status.
 
+## A Folder's Counts
+
+A source may know how many entries a folder stands for before the folder is opened, as a tracking system knows how many records a saved query finds, and how many of those have changes the person has not seen. Since 22 November 2026 a provider says so on the folder's entry, and every list of entries shows it. Before then an entry had no place for these numbers.
+
+`resource.Entry` has two more fields.
+
+```go
+Count        *int // how many entries the folder stands for
+ChangedCount *int // how many of them have changes the person has not seen
+```
+
+Each is nil while the source does not know it. A folder that has not been read has no counts, and that is a different fact from a folder with nothing in it, whose count is zero. A provider sets a known count with `resource.Counted(n)`. Two pointers were chosen over a struct with a flag for three reasons. The two counts become known separately. A nil pointer is how Go usually writes "no value", and a source that set a number in a struct and forgot its flag would show nothing. A pointer with `omitempty` is written to JSON as a number when it is known, zero included, and is left out when it is nil, so the page reads the same distinction with no field of its own for it.
+
+```go
+resource.Entry{Name: "open", Title: "Open Records", Kind: "sample-query", Folder: true,
+	Count: resource.Counted(12), ChangedCount: resource.Counted(3)}
+```
+
+The window program copies both to the item the page receives, as `count` and `changedCount` (`ResourceItem.Count` and `ChangedCount` in `workspace_resources.go`, set by `providerItem`), and the mount listing has the same two fields. A count that is not known is absent from the item. A count below zero is treated as not known, and the counts of an entry that is not a folder are left out. The base's own sources set no counts. Counting the files of a folder on the computer would cost a read of every folder listed, which the tree does not make today.
+
+The page draws the counts through `dinahResources.marks(item)`, with the status and the changed mark, so every list that draws those draws the counts too.
+
+- The total is the count badge that the section heads of the Workspace pane have ("PINNED 4"), with the accessible name "12 entries", or "1 entry".
+- The changed count is PUDL's accent badge with the changed mark's glyph, and its accessible name is "3 changed since you last looked".
+- A count that is not known has no element, so no room is kept for it.
+- A changed count of zero draws nothing, and a total of zero is drawn as 0.
+- An entry that is not a folder draws no counts, whatever its item says.
+
+The marks of a row stand in this order: the status badge, the changed mark, the changed count, the total. The total is therefore the last thing before the row's actions button in the Workspace tree and the Pinned list. A folder with counts and no status has no place for a changed mark, since the place is kept only beside a status.
+
+A count that arrives, changes or goes takes its room from the end of the name. The toggle, the folder's glyph, the name's start, the row's height and the row's actions button stay where they are, and the last count ends where the marks ended before. The numbers have figures of one width and the total's box is at least two figures wide, so a count that changes within two figures changes no width at all. A status badge and a changed mark on the same row stand before the counts, so they move toward the name when a count on that row grows. That is the one movement this seam adds, and it happens only on a folder that has both a status and counts.
+
+### What Gives Way in a Narrow List
+
+The counts are never cut short. The style sheet decides what a narrow list shows with container queries on the list's own width, as it does for the badge's two forms (`app.css`, under "A folder's counts"). These things give way, in this order, as a list narrows.
+
+1. The words of a status badge give way first, at the widths in the table above, and the badge is then compact.
+2. The name gives way next. It is cut short with an ellipsis where the marks begin.
+3. In a list less than 290 px wide, a folder that has a status as well as counts shows its counts and its changed mark without its status badge.
+4. In a list of the Workspace tree less than 244 px wide, and in a Pinned list less than 256 px wide, a folder with both counts shows its changed count without its total. The changed count stays because it is the number a person acts on.
+
+A folder with a total alone always shows it, and a changed count is shown at every width. A badge or a total that is not drawn is still read by a screen reader, and the changed count's tooltip then has the total as well ("3 changed since you last looked, of 12 entries").
+
+The widths were measured with a total of three figures and a changed count of two, in a pane 250, 300 and 520 px wide and in both themes. In a pane 300 px wide the list of a source's entries is 265 px wide. A folder with two counts shows both there and keeps about 13 letters of its name, and a folder with a status as well shows its counts without the status badge. In a pane 250 px wide a folder with two counts shows its changed count and keeps about 11 letters.
+
+In the Files list, where the marks follow the name, the counts follow the marks in a place of their own. The place has one width for every row that has counts, the total comes first in it and the changed count after, so a changed count that comes or goes and a total that grows move nothing and change no column's width. A row whose counts are not known has no such place. When a count becomes known on the row with the longest name, the Name column can grow by the width of the place, as it can when a status arrives there.
+
+The Pinned list has an entry's reference and not its item, so it shows the counts the trees have listed for the entry, and asks once for an entry no tree has listed, as it does for a status.
+
+A product sets the counts when it lists the folder's parent, from what it already knows. A count the product learns later is shown once the product calls `workspaces.SourceChanged` and the trees list their opened folders again.
+
 ## A Folder's Order
 
 A folder's entries are shown with the folders first and each by name, with a run of digits in a name read as a number. A source can keep an order of its own for a folder, as a list of results has the latest first. Its provider then implements `resource.OrderedLister`, and `ListsInOrder(path)` reports true for each folder whose entries are shown in the order `List` gives them. The other folders of that source, and every folder of a source that does not implement it, are ordered by name as before. `orderEntries` in `cmd/dinah-desktop/workspace_provider_resources.go` applies the rule, and `ordered_lister_test.go` covers both cases.
@@ -108,6 +159,6 @@ A kind whose sources are on a site needs the site's address and the person's tok
 
 ## Tests
 
-`internal/workspaces/kinds_provider_test.go` registers a kind with a form and a provider and resolves a source through it. `cmd/dinah-desktop/workspace_provider_resources_test.go` registers a small wiki and lists, pages, reads, previews and stats it through the Files applet's service and the mount paths, and adds a source of it through the Add Source form, including the kind's own refusal and the registry keeping the source's fields. `cmd/dinah-desktop/workspace_source_changes_test.go` checks that a burst of changes to a source is sent to the page once and that Refresh has the wiki forget the place shown. `cmd/dinah-desktop/frontend/e2e/workspace-source-kinds.js` drives the dialog and the Connections section against a stub backend, and checks that neither appears in a build that registers nothing. `cmd/dinah-desktop/workspace_resource_status_test.go` checks that an entry's status and changed mark reach its item and that an entry without them has an item with neither field. `cmd/dinah-desktop/frontend/e2e/resource-entries.js` lists a stub source whose entries have statuses and changed marks, in the tree, in Files and in the Pinned list, and checks that a status changing on a listed entry moves nothing.
+`internal/workspaces/kinds_provider_test.go` registers a kind with a form and a provider and resolves a source through it. `cmd/dinah-desktop/workspace_provider_resources_test.go` registers a small wiki and lists, pages, reads, previews and stats it through the Files applet's service and the mount paths, and adds a source of it through the Add Source form, including the kind's own refusal and the registry keeping the source's fields. `cmd/dinah-desktop/workspace_source_changes_test.go` checks that a burst of changes to a source is sent to the page once and that Refresh has the wiki forget the place shown. `cmd/dinah-desktop/frontend/e2e/workspace-source-kinds.js` drives the dialog and the Connections section against a stub backend, and checks that neither appears in a build that registers nothing. `cmd/dinah-desktop/workspace_resource_status_test.go` checks that an entry's status and changed mark reach its item and that an entry without them has an item with neither field. `cmd/dinah-desktop/frontend/e2e/resource-entries.js` lists a stub source whose entries have statuses and changed marks, in the tree, in Files and in the Pinned list, and checks that a status changing on a listed entry moves nothing. The same Go test file checks that a folder's counts are on its item when they are known, when they are zero and when they are not known, and `cmd/dinah-desktop/frontend/e2e/resource-folder-counts.js` lists a stub source whose folders have counts in the tree, in Files and in the Pinned list, at three widths of the pane, and checks that a count that arrives or changes moves no toggle, no name's start and no actions button.
 
 A picture that is itself an entry of a source, such as a wiki page's attachment opened from Files, is drawn by asking for the picture by the entry's own path. The desktop reads it through the provider's `BlobReader` (11 November 2026). Until then it asked the provider's `FileSource` for a file beside the entry, with the picture's path given as the document's, which a provider that keeps files beside pages alone refused, so the window said the image could not be loaded.
