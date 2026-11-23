@@ -55,9 +55,9 @@
         var entry = find(engine, name);
         if (!entry) { return undefined; }
         var d = entry.definition, first = existing ? existing.split('\n')[0] : null;
-        var identity = host.identity ? host.identity() : null, text = host.text ? host.text() : null;
+        var current = K.formCurrent(host);
         var form = { title: name, inline: d.inline, signal: host.signal,
-            current: function () { return !(host.signal && host.signal.aborted) && (!host.identity || host.identity() === identity) && (!host.text || host.text() === text); },
+            current: current,
             fields: (d.parameters || []).map(function (p) { return { key: p.name, label: p.name.replace(/(^|-)([a-z])/g, function (_, space, c) { return (space ? ' ' : '') + c.toUpperCase(); }), help: p.help }; }),
             read: function (sc) {
                 var values = {}; (d.parameters || []).forEach(function (p, i) { values[p.name] = Object.prototype.hasOwnProperty.call(sc.named, p.name) ? sc.named[p.name] : sc.positional[i] == null ? p.default : sc.positional[i]; }); return values;

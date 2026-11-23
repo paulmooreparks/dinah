@@ -2095,6 +2095,7 @@
                 read: function (path, options) { if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, Object.assign({}, options, { document: resource || null })); },
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: current, text: function () { return view ? view.state.doc.toString() : ''; },
+                flush: function () { return !pageActive() || visual.api.flush(); },
                 dir: styleDirectory,
                 resolve: function (reference, kind) { return resolveReference(reference, kind); }
             };

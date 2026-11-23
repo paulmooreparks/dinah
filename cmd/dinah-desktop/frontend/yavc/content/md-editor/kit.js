@@ -905,9 +905,18 @@
     /* The picture dialog: a promise of the {{figure}} to write, '' to take
        the picture out, or null for no change. existing is the block being
        changed, or null for a new picture. */
+    // Forms compare source snapshots, so include pending rich edits both when
+    // opening and when checking a form, before its host's delayed copy arrives.
+    function formCurrent(host) {
+        if (host && host.flush && host.flush() === false) { throw new Error('Finish the current edit before opening this form.'); }
+        var owner = host && host.identity && host.identity(), source = host && host.text && host.text();
+        return function () {
+            return !host || !(host.signal && host.signal.aborted) && (!host.current || host.current()) &&
+                (!host.identity || host.identity() === owner) && (!host.flush || host.flush() !== false) && (!host.text || host.text() === source);
+        };
+    }
     function askFigure(existing, pictures) {
-        var owner = pictures && pictures.identity && pictures.identity(), source = pictures && pictures.text && pictures.text();
-        function current() { return !(pictures && pictures.signal && pictures.signal.aborted) && (!pictures || (!pictures.identity || pictures.identity() === owner) && (!pictures.text || pictures.text() === source)); }
+        var current = formCurrent(pictures);
         var f = existing ? parseFigure(existing) : null, id = 'md-fig-' + (dlgCount + 1) + '-', width = splitWidth(f ? f.width : '');
         var body = '<div class="md-figure-fields">' +
             '<div class="form-group"><label class="form-label" for="' + id + 'src">Picture</label>' +
@@ -1011,9 +1020,9 @@
                 return '{{applet:' + name + ' fit=' + (v.fit === 'fill' ? 'fill' : 'flow') + (plain(v.state) ? ' state=' + quoteArg(plain(v.state)) : '') + '}}';
             } },
         diagram: { title: 'A Diagram from a File', fields: [
-            {key:'src',label:'Diagram File',browse:true,maxBytes:2*1024*1024,accept:'.d2,.mmd,.mermaid,.canvas',placeholder:'~/diagrams/plan.canvas',help:'Choose a saved D2, Mermaid or Canvas file from this host, or upload one.'},
-            {key:'alt',label:'Description',help:'What the diagram shows, for readers who cannot see the image.'},
-            {key:'width',label:'Width (%)',kind:'number',min:1,max:100,help:'Leave empty to use the available space, up to the image size.'},
+            {key:'src',label:'Diagram File',browse:true,maxBytes:2*1024*1024,accept:'.d2,.mmd,.mermaid,.canvas',placeholder:'~/diagrams/plan.canvas'},
+            {key:'alt',label:'Description'},
+            {key:'width',label:'Width (%)',kind:'number',min:1,max:100},
             {key:'caption',label:'Caption'}],
             read:function(sc){return {src:sc.named.src||sc.positional[0]||'',alt:sc.named.alt||'',width:(sc.named.width||'').replace(/%$/,''),caption:sc.named.caption||''};},
             write:function(v){var src=plain(v.src);if(src.length>4096||!/\.(d2|mmd|mermaid|canvas)$/i.test(src)||/[:\\?#\u0000-\u001f\u007f]/.test(src)||src.startsWith('//')||src.startsWith('~')&&!src.startsWith('~/'))return {problem:'Choose a local D2, Mermaid or Canvas file.',field:'src'};
@@ -1086,8 +1095,8 @@
     function askShortcode(name, existing, host, customForm) {
         var form = customForm || FORMS[name];
         if (!form) { return Promise.resolve(null); }
-        var owner = host && host.identity && host.identity(), openingSource = host && host.text && host.text();
-        function unchanged() { return (!form.current || form.current()) && !(host && host.signal && host.signal.aborted) && (!host || (!host.identity || host.identity() === owner) && (!host.text || host.text() === openingSource)); }
+        var current = formCurrent(host);
+        function unchanged() { return (!form.current || form.current()) && current(); }
         var sc = existing ? parseShortcode(existing) : null;
         var values = form.read(sc || { name: name, args: '', positional: [], named: {} });
         var id = 'md-sc-' + (dlgCount + 1) + '-';
@@ -1453,9 +1462,9 @@
     function editHostSpan(name, open, pictures) {
         var service=hostService(pictures),entry=(pictures.hostCatalog||[]).find(function(h){return h.name===name;});
         if(!service||!entry||entry.managed||typeof service.form!=='function'||typeof service.build!=='function')return Promise.resolve(null);
-        var source=pictures.text&&pictures.text();
+        var current=formCurrent(pictures);
         return hostCall(new Map(),function(signal){return service.form(open,hostContext(pictures,signal));},pictures).then(function(form){
-            if(!hostLive(pictures)||pictures.text&&pictures.text()!==source||!form)return null;
+            if(!hostLive(pictures)||!current()||!form)return null;
             return askHostShortcode(form,pictures,{existing:true}).then(function(next){
                 if(next==='')return '';
                 var parsed=typeof next==='string'&&parseShortcode(next.trim());
@@ -1501,9 +1510,9 @@
             return Promise.resolve(null);
         }
         var service = hostService(pictures);
-        var opening = pictures.text && pictures.text();
+        var current = formCurrent(pictures);
         return hostCall(new Map(), function (signal) { return typeof service.form === 'function' && typeof service.build === 'function' ? service.form(found.source, hostContext(pictures, signal)) : null; }, pictures).then(function (form) {
-            if (!hostLive(pictures) || pictures.text && pictures.text() !== opening) return null;
+            if (!hostLive(pictures) || !current()) return null;
             if (form) { return askHostShortcode(form, pictures, { existing: true, markdown: found.kind !== 'inline' }).then(function(next){var parsed=typeof next==='string'&&parseShortcode(next.trim());if(found.kind==='container'&&parsed&&parsed.name===found.name&&next.trim().indexOf('\n')<0){var first=found.source.split(/\r?\n/,1)[0];return next.trim()+found.source.slice(first.length);}return next;}); }
             if (found.kind !== 'inline') { return undefined; }
             /* An inline shortcode with no form is changed as it is written. */
@@ -1526,8 +1535,8 @@
         opts = opts || {};
         var service = hostService(pictures);
         if (!service || typeof service.build !== 'function' || !form || typeof form.kind !== 'string' || !Array.isArray(form.fields) || !hostLive(pictures)) { return Promise.resolve(null); }
-        var owner = pictures.identity && pictures.identity(), opening = pictures.text && pictures.text();
-        function unchanged() { return hostLive(pictures) && (!pictures.identity || pictures.identity() === owner) && (!pictures.text || pictures.text() === opening); }
+        var current = formCurrent(pictures);
+        function unchanged() { return hostLive(pictures) && current(); }
         if (form.kind.length > 64 || form.fields.length > 32 || typeof form.title === 'string' && form.title.length > 256 || typeof form.description === 'string' && form.description.length > 4096) return Promise.resolve(null);
         if (JSON.stringify(form).length > 262144) return Promise.resolve(null);
         var fieldNames = new Set(), invalid = false;
@@ -1622,9 +1631,9 @@
     function askHostInsert(example, pictures) {
         var service = hostService(pictures);
         if (!service || typeof service.form !== 'function' || typeof service.build !== 'function' || !example) { return Promise.resolve(example || null); }
-        var opening = pictures.text && pictures.text();
+        var current = formCurrent(pictures);
         return hostCall(new Map(), function (signal) { return service.form(example, hostContext(pictures, signal)); }, pictures).then(function (form) {
-            if (!hostLive(pictures) || pictures.text && pictures.text() !== opening) return null;
+            if (!hostLive(pictures) || !current()) return null;
             if (!form) { return example; }
             return askHostShortcode(form, pictures, {}).then(function (src) {
                 if(!src)return null;
@@ -2160,7 +2169,7 @@
 
     window.yavcMdEditor = {
         here: HERE, stamp: STAMP, placeholder: PLACEHOLDER, pages: pages, pageSetup: pageSetup, styles: styles, macros: macros, exports: documentExports,
-        colourRows: pickerRows, wireColours: wirePickers,
+        colourRows: pickerRows, wireColours: wirePickers, formCurrent: formCurrent,
         libs: libs, languageServices: languageServices, codeTheme: codeTheme, codeSearch: codeSearch, findBar: findBar, pageView: pageView, mermaid: mermaid, drawMermaid: drawDiagram, loadScript: loadScript,
         FORMATS: FORMATS, STYLES: STYLES, INSERTS: INSERTS, SHORTCODES: SHORTCODES, MENU: MENU, STOCK_CLASSES: STOCK_CLASSES,
         tableCommand: tableCommand, quoteState: quoteState, wordCount: wordCount, readingMinutes: readingMinutes,

@@ -408,6 +408,7 @@
                 read: function (path, options) {if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, Object.assign({}, options, { document: resource || null }));},
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: function () { return deck; }, text: fullText,
+                flush: function () { return !pageActive() || page.flush(); },
                 dir: styleDirectory,
                 resolve: function (reference, kind) { return resolveReference(reference, kind); }
             };

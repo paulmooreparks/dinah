@@ -132,13 +132,16 @@
             button.addEventListener('click', async function () {
                 var input = api.body.querySelector('#' + CSS.escape(button.getAttribute('data-browse-for')));
                 function current() { return api.dialog.open && !controller.signal.aborted && (!opts.current || opts.current()); }
-                if (!input || !current()) return;
+                function stale() { if (api.dialog.open && !controller.signal.aborted) window.yavcUtil.notice(api.body, 'The document changed. Close and reopen this form.', true); }
+                if (!input) return;
+                if (!current()) { stale(); return; }
                 button.disabled = true;
                 try {
                     var limit=input.getAttribute('data-max-bytes');
                     var path = await capability({signal:controller.signal,current:current,kind:opts.browse === 'folder' ? 'folder' : 'file',accept:input.getAttribute('data-accept'),maxBytes:limit?Number(limit):undefined,start:opts.start || '~',host:opts.host});
-                    if (path != null && current()) { input.value = opts.base ? referenceFrom(path, typeof opts.base === 'function' ? opts.base() : opts.base) : path; input.dispatchEvent(new Event('input',{bubbles:true})); input.focus(); }
-                } catch (err) { if (current()) window.yavcUtil.notice(input.closest('.form-group'),err.message || String(err),true); }
+                    if (!current()) { stale(); return; }
+                    if (path != null) { input.value = opts.base ? referenceFrom(path, typeof opts.base === 'function' ? opts.base() : opts.base) : path; input.dispatchEvent(new Event('input',{bubbles:true})); input.focus(); }
+                } catch (err) { if (current()) window.yavcUtil.notice(input.closest('.form-group'),err.message || String(err),true); else stale(); }
                 finally { if (button.isConnected) button.disabled = false; }
             });
         });

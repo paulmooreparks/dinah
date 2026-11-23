@@ -1,5 +1,5 @@
 {
-  "digest": "b47b7814b569f8096fdae702c48ca51f398232d8fce647bab963599e9a64a05d",
+  "digest": "b743bde27a64886fdf6981f6d0974b904a81124b3d56acb549b8ae11c89d61a8",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "59abd106dcb578a138f05ff074e919cdf20439871912744f5db479309ffde9a0"
+      "sha256": "592299394a739619fa09489623ac2c415e0079b5968dcfd236908bc67beb6da2"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "385278178493c20813b09cd564b71ecd491059ebc5ad92556452d64a25624864"
+      "sha256": "c0d03fba2c57a315a123a562bc4f381baac62e42cf41f97d691452a2da882f78"
     },
     {
       "path": "content/editor/editor.css",
@@ -275,8 +275,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 169161,
-      "sha256": "f9330e8fc42864e9a59454ad9bfb467de63c0224c68f9fa4222cb2ac7cd6d8ff"
+      "bytes": 168897,
+      "sha256": "94246f2979df2ed025c802be5a158b97d1c78d38756115b25ccb9d506e5f3950"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -345,8 +345,8 @@
     },
     {
       "path": "content/md-editor/macros.js",
-      "bytes": 15203,
-      "sha256": "ac7775ab50ec90b0a33df625572bef738523f3ded4a4cb1a1fa9bd0afcd226ec"
+      "bytes": 14998,
+      "sha256": "65b9f6d656ac1876cfa3152450d585e54edf88d6939be5e23dc75b687e5cbb51"
     },
     {
       "path": "content/md-editor/office-input.js",
@@ -1321,7 +1321,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "27ab2b7db440c97249589f00a3a1b36659acc0386cea01b60acdec5305891237"
+      "sha256": "e23f585e1c933c3deb9b00a72e11a3b63e25ab533138753f9576cd138d13adad"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1370,8 +1370,8 @@
     },
     {
       "path": "content/slides/slides.js",
-      "bytes": 167123,
-      "sha256": "802873d4c06b11f0ce58db2abe7050ec6024f4603f124c53bb7b86803f0d3782"
+      "bytes": 167201,
+      "sha256": "7438e2bc43c30e1f848b571c2dd7a2e1320bc239896545e07538262f077825e5"
     },
     {
       "path": "content/slides/vendor/jszip-3.10.1/LICENSE.markdown",
@@ -1415,8 +1415,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 290595,
-      "sha256": "601ec74c57a7242cdf3dc777311089c472eadb3054bdfac12d4be8587f8cff9d"
+      "bytes": 290679,
+      "sha256": "80dfab811c17c11e46fccff871c99e6cea0284ab339c4c6ec0194aeec9fffed3"
     },
     {
       "path": "go.mod",
@@ -2440,8 +2440,8 @@
     },
     {
       "path": "support/dialogs.js",
-      "bytes": 15381,
-      "sha256": "e3bc659c0947ddbf8cea319982dcf6fe08269a18560926afce41db35e69169db"
+      "bytes": 15659,
+      "sha256": "9fa7e05936115440d1816b6442f39b243c14f0d6deedbec296631584aa5e3d37"
     },
     {
       "path": "support/doc-tabs.js",
