@@ -214,7 +214,7 @@
         var search = node('input', 'form-input md-filter'); search.type = 'search'; search.placeholder = 'Filter Requests'; search.setAttribute('aria-label', 'Filter Requests');
     var count = node('span', 'badge', '0'), label = node('p', 'md-section-label', 'Open Requests '); label.appendChild(count);
     var refresh = button('Refresh', function () { if (view === 'record') { rendered = ''; draw(); } return load(false); }); refresh.hidden = true;
-    var more = button('Show More Requests', function () { return load(true); }); more.disabled = true;
+    var more = button('Show More Requests', function () { return load(true); }); more.disabled = true; more.classList.add('decisions-more');
     toolbar.append(search, label);
     var status = node('p', 'decisions-status text-muted', 'Loading requests.'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
     var listNotice = node('div', 'notice danger decisions-list-notice'); listNotice.hidden = true; listNotice.setAttribute('role', 'alert');

@@ -77,6 +77,8 @@
 
 #judgements-card .judgement-budget-edit input { max-width: 140px; }
 #judgements-card .judgement-calibration table { margin-block: var(--space-2); }
+/* What a disclosure button opens keeps the report's own space from the button. */
+#judgement-calibration-report, :is(.judgement-may-see, .judgement-calibration-cases) > .disclosure + * { margin-top: var(--space-2); }
 
 /* PUDL owns the split, resizing and the narrow one-pane layout. */
 .judgements-md { flex: 1; min-height: 360px; --md-sidebar-w: 340px; }

@@ -684,6 +684,12 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 #model-prefs .settings-line { margin-bottom: var(--space-3); }
 .settings-body .check { align-items: flex-start; }
 .settings-body .check input { margin-top: 3px; flex: none; }
+/* Settings › Terminal is one form group, whose small gap belongs between a
+   label, its field and its help. The heading and the button that follow a
+   field stand apart from it by the space a row of settings buttons keeps. */
+#settings-terminal .form-group > :is(h4, #terminal-profile-add) { margin-top: var(--space-3); }
+/* The timings table keeps the same space from the buttons above it. */
+#responsiveness-results > .responsiveness-table { margin-top: var(--space-3); }
 
 /* The model list: a filter over a sunken, scrolling list of the models
    Devin offers, the pinned ones first. A row is pressed to choose its model;

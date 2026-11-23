@@ -1222,7 +1222,7 @@
           <div class="form-group">
             <label class="form-label" for="set-terminal-shell">Shell</label>
             <span class="form-select-wrap"><select class="form-select" id="set-terminal-shell"></select></span>
-            <div class="hstack gap-2"><button type="button" class="btn" id="terminal-refresh">Refresh Shells</button><button type="button" class="btn" id="terminal-open-selected">Open Selected Shell</button></div>
+            <div class="settings-actions"><button type="button" class="btn" id="terminal-refresh">Refresh Shells</button><button type="button" class="btn" id="terminal-open-selected">Open Selected Shell</button></div>
             <h4>Custom shells</h4>
             <div id="terminal-profiles"></div>
             <label class="form-label" for="terminal-profile-name">Name</label><input class="form-input" id="terminal-profile-name" maxlength="100">
@@ -1316,9 +1316,11 @@
             <button type="button" class="btn btn-sm" id="agent-diagnostics-stop" disabled>Stop Agent Capture</button>
             <div id="responsiveness-results" hidden>
               <p data-input-delay></p><p data-stalls></p><p data-render></p><p data-long-frames></p>
-              <button type="button" class="btn btn-sm" id="copy-responsiveness" disabled>Copy Timing Snapshot</button>
-              <button type="button" class="btn btn-sm" id="clear-responsiveness">Clear Measurements</button>
-              <div style="overflow:auto;max-height:16rem"><table><thead><tr><th>When</th><th>Work</th><th>Duration</th><th>Queue wait</th></tr></thead><tbody></tbody></table></div>
+              <div class="settings-actions">
+                <button type="button" class="btn btn-sm" id="copy-responsiveness" disabled>Copy Timing Snapshot</button>
+                <button type="button" class="btn btn-sm" id="clear-responsiveness">Clear Measurements</button>
+              </div>
+              <div class="responsiveness-table" style="overflow:auto;max-height:16rem"><table><thead><tr><th>When</th><th>Work</th><th>Duration</th><th>Queue wait</th></tr></thead><tbody></tbody></table></div>
             </div>
             <p class="form-help" id="responsiveness-copy-status" role="status" hidden></p>
           </section>

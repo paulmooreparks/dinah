@@ -3,6 +3,8 @@
 .extension-manager > .toolbar > input { flex: 1 1 20rem; }
 .extension-library { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
 .extension-library .hstack { flex-wrap: wrap; }
+/* The card's buttons keep the space of the card's other parts from the box above them. */
+.extension-library .card > .check + .hstack { margin-top: var(--space-3); }
 .extension-error { color: var(--danger); }
 .extension-conflict { color: var(--warn); }
 .extension-window { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0; height: 100%; }
