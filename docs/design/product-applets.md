@@ -142,6 +142,38 @@ A build that registers nothing asks nothing, and each of its menus has the rows 
 
 `cmd/dinah-desktop/frontend/e2e/resource-entry-commands.js` reads every one of these menus before and after a registration, runs rows from each list, and checks a disabled row, a danger row, a failing `run` and each refusal.
 
+## A Product's Opener for a Web Address
+
+Since 22 November 2026 a press on a link to another site opens the link in the person's browser, wherever the link is on the page. A product may know some of those addresses better than the browser does, such as an issue of a tracking system it shows in a window of its own. Until 23 November 2026 such a product had to add a listener of its own ahead of the page's, and a link in a chat's message still said "Open in the Browser" in its tooltip and its menu.
+
+A product's page file now registers an opener for the addresses it opens.
+
+```js
+const unregister = dinahLinks.registerOpener({
+  id: 'sample-issues',
+  match: function (url) { return url.hostname === 'tracker.example' && url.pathname.startsWith('/issues/'); },
+  open: function (href, event) { return dinahWorkbench.open({ kind: 'sample-issue', path: href }); },
+  title: 'Open in Issue Window', glyph: 'ticket'
+});
+```
+
+`match` is given a `URL` and must return `true` at once, because a press can be prevented only while the page is handling it. Any other value, a promise among them, is no match. `open` is given the address and the press, and the press is undefined when a menu row opened the link. A failure of `open`, thrown or as a rejected promise, is reported on the console and as an error toast. `title` and `glyph` are the words and the PUDL glyph a link's tooltip and menu show for the opener. A second registration with an id that is already registered replaces the first, in its place in the order. The function `registerOpener` returns unregisters the opener, and it does nothing once a later registration has replaced it. A registration without an id, a `match` function or an `open` function is refused with a message on the console.
+
+`dinahLinks.open(href, event)` is the one place that decides where a press on a link goes, and it returns true when the link was opened. A press of the primary button with no modifier goes to the first opener whose `match` returns true. A press with Shift, Control or Command, or with the middle button, opens the browser, so the person can always reach the site itself. An address that no opener matches opens in the browser. `dinahLinks.openerFor(href)` returns the opener a plain press would use, or null, and `dinahLinks.browse(href)` opens a web address in the browser whatever opener there is.
+
+These are the parts that ask the openers.
+
+- The page's own listener for links to other sites (`helpers.js`), which serves every link that no part handles itself. A middle-button press reaches it as well.
+- A web link in a document shown in the resource viewer (`document-applet.js`).
+- A link in a chat's message, a group's message, a subagent's log and the release notes (`chat-text.js`). The tooltip of such a link is the opener's title, and is read again when the pointer or the focus reaches the link, since an opener may be registered after the message was drawn. Its menu has the opener's row first, with the opener's glyph, and Open in Browser after it.
+- The link to a provider's own page beside a file limit in Settings.
+
+The Docs editor and the other applications of the yavc.app release take no option from their host for links, so the page's listener serves whatever press on a link they leave to the page. In a document being edited a plain press on a link places the caret and goes no further, and a press with Control is left to the page. Under the rule above that press opens the browser and never an opener. The text editor's Files pane and its Preview command open addresses with `window.open`, which the host passes on to the browser's own `window.open` (`content-host.js`) without asking the openers.
+
+A build that registers no opener asks nothing more than before, and every link opens where it did.
+
+`cmd/dinah-desktop/frontend/e2e/outside-links.js` registers an opener and checks a plain press, the presses that go to the browser, a replacement, an unregistered opener, and the tooltip and menu of a link in a message.
+
 ## What this does not do
 
 A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.

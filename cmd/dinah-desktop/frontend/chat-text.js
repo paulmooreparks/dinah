@@ -58,8 +58,16 @@
   // The attributes that make a link a chip: the address goes in a data
   // attribute that openChip reads. Real hrefs also support browser link actions. A link
   // to a file says where it opens once Dinah has said (linkPaths, below).
+  // A web link's tooltip says where a plain press opens it: in a product's
+  // opener for its address (dinahLinks, helpers.js), or in the browser.
+  // openLinks says it again when the pointer or the focus reaches the
+  // link, since an opener may be registered after the message was drawn.
+  function webTitle(href) {
+    var opener = window.dinahLinks.openerFor(href);
+    return opener ? opener.title : 'Open in the Browser';
+  }
   function chip(href) {
-    if (/^https?:/i.test(href)) return ' class="smart-chip" href="' + esc(href) + '" data-chip-url="' + esc(href) + '" title="Open in the Browser"';
+    if (/^https?:/i.test(href)) return ' class="smart-chip" href="' + esc(href) + '" data-chip-url="' + esc(href) + '" title="' + esc(webTitle(href)) + '"';
     if (/^file:/i.test(href)) return ' class="smart-chip" tabindex="0" role="link" data-chip-file="' + esc(href) + '" title="Open the File"';
     return ' class="smart-chip" tabindex="0" role="link" data-chip-local="' + esc(md.normalizeLinkText(href)) + '" title="Open the File"';
   }
@@ -486,11 +494,12 @@
       });
     });
   }
-  /* Opens a link a message shows: a web address in the browser, and a
-     document where Dinah opens its kind (openDocument). cwd is the folder
-     of the workspace that wrote the message. */
+  /* Opens a link a message shows: a web address in a product's opener for
+     it or else in the browser (dinahLinks, helpers.js), and a document where
+     Dinah opens its kind (openDocument). cwd is the folder of the workspace
+     that wrote the message. */
   function openChip(a, cwd) {
-    if (a.dataset.chipUrl) { if (window.runtime && window.runtime.BrowserOpenURL) window.runtime.BrowserOpenURL(a.dataset.chipUrl); return; }
+    if (a.dataset.chipUrl) { window.dinahLinks.open(a.dataset.chipUrl); return; }
     var ref = a.dataset.chipPath || a.dataset.chipLocal || a.dataset.chipFile;
     if (ref) openDocument(cwd, ref, a).catch(fail);
   }
@@ -505,10 +514,20 @@
         linkLook(a, l); return l;
       });
     }
+    // A press with Shift, Control or the middle button opens a web link in
+    // the browser even when a product has an opener for it.
     function external(a) {
-      if (a.dataset.chipUrl) return openChip(a, cwd(a));
+      if (a.dataset.chipUrl) { window.dinahLinks.browse(a.dataset.chipUrl); return; }
       return resolved(a).then(function (l) { return app().OpenPath(l.path); }).catch(fail);
     }
+    function retitle(e) {
+      var a = link(e); if (!a || !a.dataset.chipUrl) return;
+      var title = webTitle(a.dataset.chipUrl);
+      if (a.hasAttribute('data-tooltip')) { if (a.getAttribute('data-tooltip') !== title) a.setAttribute('data-tooltip', title); }
+      else if (a.title !== title) a.title = title;
+    }
+    list.addEventListener('mouseover', retitle);
+    list.addEventListener('focusin', retitle);
     list.addEventListener('click', function (e) {
       var a = link(e); if (!a) return;
       e.preventDefault();
@@ -521,8 +540,12 @@
     });
     list.addEventListener('pudl:contextmenu', function (e) {
       var a = link(e); if (!a) return;
-      var web = !!a.dataset.chipUrl;
-      var rows = [{ label: web ? 'Open in Browser' : a.title || 'Open in ' + (window.dinahProduct ? window.dinahProduct.name : ''), run: function () { openChip(a, cwd(a)); } }];
+      var web = !!a.dataset.chipUrl, opener = web ? window.dinahLinks.openerFor(a.dataset.chipUrl) : null;
+      // A web link a product opens has the product's row first and Open in
+      // Browser after it, so the site itself is still a row away.
+      var rows = opener
+        ? [{ label: opener.title, glyph: opener.glyph || undefined, run: function () { openChip(a, cwd(a)); } }, { label: 'Open in Browser', run: function () { external(a); } }]
+        : [{ label: web ? 'Open in Browser' : a.title || 'Open in ' + (window.dinahProduct ? window.dinahProduct.name : ''), run: function () { openChip(a, cwd(a)); } }];
       if (!web) rows.push({ label: 'Open with Default App', detail: 'HTML files open with your default HTML application.', run: function () { return external(a); } });
       rows.push({ label: 'Copy Link Address', run: function () {
         if (web) copy(a.dataset.chipUrl);

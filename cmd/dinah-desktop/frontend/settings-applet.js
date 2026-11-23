@@ -484,9 +484,7 @@
       if (v.sourceUrl) {
         var link = document.createElement('a'); link.href = v.sourceUrl; link.textContent = v.sourceUrl; link.className = 'file-limit-link';
         link.addEventListener('click', function (e) {
-          if (!(window.runtime && window.runtime.BrowserOpenURL)) return;
-          e.preventDefault();
-          window.runtime.BrowserOpenURL(v.sourceUrl);
+          if (window.dinahLinks.open(v.sourceUrl, e)) e.preventDefault();
         });
         source.append(' Source: ', link, '.');
       }

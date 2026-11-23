@@ -302,11 +302,97 @@
     if (!windowLayer || !windowLayer.isConnected) windowLayer = document.querySelector('[data-win-layer]');
     return windowLayer ? Array.prototype.filter.call(windowLayer.children, function (el) { return el.hasAttribute('data-win'); }) : [];
   }
+  /* ---- Link openers ----------------------------------------------------
+     A product built on Dinah may open some addresses on other sites itself,
+     such as an issue of a tracking system it knows, which it shows in a
+     window of its own. Its page file registers an opener for them:
+
+       const unregister = dinahLinks.registerOpener({ id: 'sample-issues',
+         match: function (url) { return url.hostname === 'tracker.example' && url.pathname.startsWith('/issues/'); },
+         open: function (href, event) { ... },
+         title: 'Open in Issue Window', glyph: 'ticket' });
+
+     match is given a URL object and returns true at once, because a press
+     can be prevented only while it is being handled. Anything other than
+     true, a promise among them, is no match. open is given the address and
+     the press, which is undefined when a menu row opened the link. title and
+     glyph are what a link's tooltip and menu show for the opener. A second
+     registration with an id that is already registered replaces the first
+     in its place in the order. The function returned unregisters the opener,
+     and does nothing once another registration has replaced it.
+
+     open(href, event) is where every part of the page decides what a press
+     on a link does. A press of the primary button with no modifier goes to
+     the first opener that matches the address. A press with Shift, Control
+     or Command, or with the middle button, opens the person's browser, so
+     the person can always reach the site itself; a part that treats such a
+     press another way says so where it does. An address that no opener
+     matches opens in the browser. open returns true when the link was
+     opened. browse(href) opens a web address in the browser, whatever opener
+     there is, and returns true when it did. */
+  const openers = [];
+  function linkURL(href) {
+    if (href instanceof URL) return href;
+    try { return new URL(String(href), document.baseURI); } catch (_) { return null; }
+  }
+  function registerOpener(o) {
+    o = o || {};
+    const id = typeof o.id === 'string' ? o.id.trim() : '';
+    if (!id || typeof o.match !== 'function' || typeof o.open !== 'function') {
+      console.error('dinahLinks.registerOpener needs an id, a match function and an open function. Nothing was registered.');
+      return function () {};
+    }
+    const opener = Object.freeze({ id: id, match: o.match, open: o.open,
+      title: typeof o.title === 'string' && o.title.trim() ? o.title.trim() : 'Open Link',
+      glyph: typeof o.glyph === 'string' ? o.glyph.trim() : '' });
+    const at = openers.findIndex(function (x) { return x.id === id; });
+    if (at >= 0) openers[at] = opener; else openers.push(opener);
+    return function () { const i = openers.indexOf(opener); if (i >= 0) openers.splice(i, 1); };
+  }
+  function openerFor(href) {
+    const url = linkURL(href);
+    if (!url) return null;
+    for (const opener of openers) {
+      let hit = false;
+      // Each opener is given a copy, so that none can change the address the next one sees.
+      try { hit = opener.match(new URL(url.href)) === true; } catch (err) { console.error('dinahLinks: the opener "' + opener.id + '" failed to match ' + url.href + ':', err); }
+      if (hit) return opener;
+    }
+    return null;
+  }
+  // A press with a modifier key, or with a button other than the primary one.
+  function modified(event) {
+    return !!event && (!!(event.shiftKey || event.ctrlKey || event.metaKey) || (typeof event.button === 'number' && event.button !== 0));
+  }
+  function browse(href) {
+    const url = linkURL(href);
+    if (!url || !/^https?:$/.test(url.protocol) || !(window.runtime && window.runtime.BrowserOpenURL)) return false;
+    window.runtime.BrowserOpenURL(url.href);
+    return true;
+  }
+  function openFailed(opener, href, err) {
+    console.error('dinahLinks: the opener "' + opener.id + '" failed to open ' + href + ':', err);
+    if (window.dinahHost && window.dinahHost.toast) window.dinahHost.toast('The link could not be opened: ' + message(err, 'raw'), 'danger');
+  }
+  function open(href, event) {
+    const url = linkURL(href);
+    if (!url) return false;
+    const opener = modified(event) ? null : openerFor(url);
+    if (!opener) return browse(url.href);
+    try {
+      const result = opener.open(url.href, event);
+      if (result && typeof result.then === 'function') result.then(null, function (err) { openFailed(opener, url.href, err); });
+    } catch (err) { openFailed(opener, url.href, err); }
+    return true;
+  }
+  window.dinahLinks = { registerOpener: registerOpener, openerFor: openerFor, open: open, browse: browse };
+
   // A link to another site never replaces the program's own page, since the
   // page that would take its place has no way back. Whatever part of the page
   // the link is in, and whichever keys are down, a press that would follow
-  // such a link opens it in the person's browser. A part that handles its own
-  // links has prevented the press already and is left alone.
+  // such a link opens it where dinahLinks.open decides: in a product's opener,
+  // or in the person's browser. A part that handles its own links has
+  // prevented the press already and is left alone.
   function elsewhere(event) {
     if (event.defaultPrevented || !event.target || !event.target.closest) return '';
     const link = event.target.closest('a[href], area[href]');
@@ -321,7 +407,7 @@
     const href = elsewhere(event);
     if (!href) return;
     event.preventDefault();
-    if (window.runtime && window.runtime.BrowserOpenURL) window.runtime.BrowserOpenURL(href);
+    open(href, event);
   }
   window.addEventListener('click', openElsewhere);
   window.addEventListener('auxclick', openElsewhere);

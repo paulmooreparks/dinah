@@ -97,10 +97,11 @@
           return;
         }
         // A link that is not to the web never navigates the app's own page.
+        // A web link opens where dinahLinks decides (helpers.js): in a
+        // product's opener for its address, or in the browser.
         e.preventDefault();
         if (!/^https?:\/\//i.test(href)) return;
-        if (window.runtime && window.runtime.BrowserOpenURL) window.runtime.BrowserOpenURL(href);
-        else window.open(href, '_blank', 'noopener,noreferrer');
+        if (!window.dinahLinks.open(href, e)) window.open(href, '_blank', 'noopener,noreferrer');
       });
 
       const api = window.dinahHelpers.app;
