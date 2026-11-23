@@ -101,13 +101,18 @@ func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, 
 	item.Creates = makes && e.Folder && e.Document
 	switch {
 	case e.Folder && e.Document:
-		item.Actions = append(item.Actions, "list", "read", "preview", "edit")
+		item.Actions = append(item.Actions, "list", "read", "preview")
+		// A source declines Edit on an entry its product opens elsewhere
+		// (resource.Entry.NoEdit).
+		if !e.NoEdit {
+			item.Actions = append(item.Actions, "edit")
+		}
 	case e.Folder:
 		item.Actions = append(item.Actions, "list")
 	default:
 		if editorOpens(e.Name, e.Size) {
 			item.Actions = append(item.Actions, "read", "preview")
-			if e.Editable {
+			if e.Editable && !e.NoEdit {
 				item.Actions = append(item.Actions, "edit")
 			}
 		}

@@ -10,7 +10,9 @@
 // window as the base's are. A page with nothing registered has the menus it
 // always had, which is checked first, and the same menus are read again
 // after the registration. The stub is a workspace with a folder of files and
-// a source of an invented kind whose entries are saved queries and records.
+// a source of an invented kind whose entries are saved queries, records and
+// two folders that are also documents, one of which its source declines to
+// open for editing, so its menus have no Edit.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -27,11 +29,15 @@ const { launch } = require('./lib/page');
       window.__entries = [
         { name: 'Q-1', title: 'Open Records', kind: 'sample-query', directory: true, count: 12, changedCount: 3, status: { label: 'Shared', state: 'accent' } },
         { name: 'Q-2', title: 'Closed Records', kind: 'sample-query', directory: true },
-        { name: 'R-1', title: 'Write the import guide', kind: 'sample-record' }
+        { name: 'R-1', title: 'Write the import guide', kind: 'sample-record' },
+        // Two folders that are also documents. The source declines Edit on
+        // the second (resource.Entry.NoEdit), so its item has no edit action.
+        { name: 'D-1', title: 'Design notes', kind: 'sample-page', directory: true, actions: ['list', 'read', 'preview', 'edit'] },
+        { name: 'D-2', title: 'Issue with files', kind: 'sample-page', directory: true, actions: ['list', 'read', 'preview'] }
       ];
       const files = [{ name: 'guide.md', actions: ['read', 'preview', 'edit', 'edit-text', 'reveal'] }];
       const entriesOf = source => source.id === 'records'
-        ? window.__entries.map(e => ({ ref: { workspaceId: 'w1', sourceId: 'records', path: e.name }, title: e.title, kind: e.kind, glyph: e.directory ? 'search' : 'ticket', directory: !!e.directory, revision: '1', actions: e.directory ? ['list'] : [], status: e.status, changed: e.changed, count: e.count, changedCount: e.changedCount }))
+        ? window.__entries.map(e => ({ ref: { workspaceId: 'w1', sourceId: 'records', path: e.name }, title: e.title, kind: e.kind, glyph: e.directory ? 'search' : 'ticket', directory: !!e.directory, revision: '1', actions: e.actions || (e.directory ? ['list'] : []), status: e.status, changed: e.changed, count: e.count, changedCount: e.changedCount }))
         : files.map(f => ({ ref: { workspaceId: 'w1', sourceId: 'files', path: f.name }, title: f.name, kind: 'file', directory: false, revision: '1', writable: true, actions: f.actions }));
       const resolve = virtual => {
         const parts = virtual.split('/').filter(Boolean), record = records.find(r => r.mountAlias === parts[1]);
@@ -131,6 +137,17 @@ const { launch } = require('./lib/page');
     ok('with nothing registered, an entry\'s menu in Files has the base\'s rows', same(labels(before['Files, a query, by a right-click']), ['Open in Files']), JSON.stringify(labels(before['Files, a query, by a right-click'])));
     ok('with nothing registered, nothing is asked for', await page.evaluate(() => dinahResources.entryCommands({ kind: 'sample-query', ref: { workspaceId: 'w1', sourceId: 'records', path: 'Q-1' } }).length === 0));
     const commandsBefore = await filesCommands('Q-1');
+
+    /* ---- A source that declines Edit on a folder that is also a document -- */
+    const docTree = await rowsOf(() => more('Design notes').click());
+    const declinedTree = await rowsOf(() => more('Issue with files').click());
+    ok('a folder that is also a document has Edit, Open in Files and Refresh Children in the tree', ['Edit', 'Open in Files', 'Refresh Children'].every(l => labels(docTree).includes(l)), JSON.stringify(labels(docTree)));
+    ok('one whose source declines Edit has the same rows in the tree without Edit', same(labels(declinedTree), labels(docTree).filter(l => l !== 'Edit')), JSON.stringify(labels(declinedTree)));
+    const docFiles = await rowsOf(() => filesWin.locator('.fm-row[data-name="D-1"]').click({ button: 'right' }));
+    const declinedFiles = await rowsOf(() => filesWin.locator('.fm-row[data-name="D-2"]').click({ button: 'right' }));
+    ok('in Files a folder that is also a document has Edit, and one whose source declines it has the same rows without Edit', labels(docFiles).includes('Edit') && same(labels(declinedFiles), labels(docFiles).filter(l => l !== 'Edit')), JSON.stringify([labels(docFiles), labels(declinedFiles)]));
+    const declinedCommands = await filesCommands('D-2'), docCommands = await filesCommands('D-1');
+    ok('in Files the declined entry has no edit command and keeps the others', docCommands.ids.includes('edit') && !declinedCommands.ids.includes('edit') && same(declinedCommands.ids, docCommands.ids.filter(id => id !== 'edit')), JSON.stringify([docCommands.ids, declinedCommands.ids]));
 
     /* ---- A product registers its rows ----------------------------------- */
     const registered = await page.evaluate(() => {

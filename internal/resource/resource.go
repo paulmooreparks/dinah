@@ -52,7 +52,8 @@ type Entry struct {
 	// folder of files leaves it empty.
 	Title string
 	// Document marks a folder that is also a document, as a wiki page with
-	// child pages is: it lists, and it reads and opens for editing too.
+	// child pages is: it lists, and it reads and opens for editing too,
+	// unless NoEdit is set.
 	Document bool
 	// Kind is the entry's kind for the person's view, when the source has
 	// kinds of its own, such as a wiki page; empty, it is a folder or a file.
@@ -73,6 +74,15 @@ type Entry struct {
 	// takes the file's path in Snapshot and WriteDocument as it takes a
 	// document's. A file without it is read and shown, and not edited.
 	Editable bool
+	// NoEdit marks an entry that the source does not open for editing in
+	// the Editor. A folder that is also a document is offered for editing
+	// otherwise, and a source sets NoEdit on one when editing it there
+	// would be redundant, as when a product opens such an entry in a
+	// window of its own. The entry still lists, reads and previews, and its
+	// menu keeps Open in Files and Refresh Children without Edit. A file
+	// marked both Editable and NoEdit is not edited. The zero value leaves
+	// the entry as Document and Editable say.
+	NoEdit bool
 	// Status is a short state the entry is in at its source, such as a
 	// record's state in a tracking system. A list of entries shows it as a
 	// badge at the end of the entry's row. The zero value means the entry
