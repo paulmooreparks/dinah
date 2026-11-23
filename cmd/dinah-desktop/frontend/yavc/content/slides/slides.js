@@ -1857,6 +1857,7 @@
            gets the Slide menu, the canvas and the Markdown pane get Format
            with the slide's own settings after it. */
         root.addEventListener('pudl:contextmenu', function (e) {
+            if (e.detail.target.closest('input,textarea,select')) return;
             var t = e.detail.target, thumb = t.closest && t.closest('.deck-thumb');
             var own = function (ids) { return window.pudlCommands ? window.pudlCommands.menuRows(ids, root) : ids; };
             if (thumb) {
@@ -1868,7 +1869,10 @@
                 return;
             }
             if (t.closest && (t.closest('.deck-stagebox') || t.closest('.deck-text'))) {
-                var rows = window.yavcMdEditor ? window.yavcMdEditor.MENU.format.slice() : [];
+                var editorSurface = t.closest('.cm-editor,.ProseMirror');
+                if (editorSurface && typeof e.detail.handlesEdit === 'function') e.detail.handlesEdit();
+                historyPane = t.closest('.cm-editor') ? 'text' : 'visual';
+                var rows = (editorSurface ? ['undo', 'redo', '-', 'cut', 'copy', 'paste', 'select-all', '-'] : []).concat(window.yavcMdEditor ? window.yavcMdEditor.MENU.format : []);
                 e.detail.add(own(rows.concat(['-', 'layout', 'slide-colours', '-', 'view-visual', 'view-text', 'view-split'])));
             }
         });

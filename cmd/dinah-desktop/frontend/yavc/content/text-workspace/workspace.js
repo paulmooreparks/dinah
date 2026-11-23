@@ -536,7 +536,7 @@
            Edit and Format, a file in the pane gets Open. */
         root.addEventListener('pudl:contextmenu', function (e) {
             var t = e.detail.target;
-            if (!t.closest) { return; }
+            if (!t.closest || t.closest('input,textarea,select')) { return; }
             var node = t.closest('.ed-explorer a[data-path]');
             if (node) {
                 var target = F && F.resolve(null, node.getAttribute('data-path'));
@@ -547,7 +547,10 @@
                 return;
             }
             if (t.closest('.ed-surface, .ed-page, .cm-editor, .ProseMirror, [data-role="surface"], [data-role="page"]')) {
-                var rows = ['undo', 'redo', '-', 'find', '-'];
+                var editorSurface = t.closest('.cm-editor,.ProseMirror');
+                if (editorSurface && typeof e.detail.handlesEdit === 'function') e.detail.handlesEdit();
+                editingPane = t.closest('.cm-editor') ? 'text' : t.closest('.ProseMirror') ? 'visual' : 'preview';
+                var rows = ['undo', 'redo', '-'].concat(editorSurface ? ['cut', 'copy', 'paste', 'select-all', '-'] : [], ['find', '-']);
                 /* A diagram drawn from a file opens in the application that edits it. */
                 var drawn = t.closest('[data-diagram-src]');
                 if (drawn && root.contains(drawn) && canOpenDiagram()) { var drawnFile = drawn.getAttribute('data-diagram-src'); e.detail.mark(drawn); rows = [{ label: 'Edit Diagram', glyph: 'new-window', run: function () { openDiagram(drawnFile); } }, '-'].concat(rows); }

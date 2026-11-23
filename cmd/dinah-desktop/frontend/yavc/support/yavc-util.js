@@ -234,6 +234,44 @@
         return typeof answer === 'string' && answer.length <= 4096 && /^(~\/|\/(?!\/))/.test(answer) && !/[\u0000-\u001f\u007f\\]/.test(answer) ? answer : null;
     }
 
+    /* PUDL's host bridge carries text only. Browser HTML is used only when
+       there is no bridge, preserving rich paste in ordinary web hosts. */
+    function clipboardAPI() {
+        var bridge = window.pudlClipboard;
+        var api = bridge && typeof bridge.readText === 'function' && typeof bridge.writeText === 'function' ? bridge : navigator.clipboard;
+        if (!api) throw new Error('Clipboard access is unavailable. Use the keyboard shortcut.');
+        return { api: api, bridge: api === bridge };
+    }
+    var clipboard = Object.freeze({
+        readText: async function () { return clipboardAPI().api.readText(); },
+        writeText: async function (text) { return clipboardAPI().api.writeText(text); },
+        read: async function (rich) {
+            var chosen = clipboardAPI(), api = chosen.api, data = { text: '' };
+            if (rich && !chosen.bridge && typeof api.read === 'function') {
+                var items = await api.read();
+                for (var i = 0; i < items.length; i++) {
+                    for (var type of ['text/plain', 'text/html']) {
+                        if (items[i].types.indexOf(type) < 0) continue;
+                        var blob = await items[i].getType(type);
+                        if (blob.size > (type === 'text/html' ? 4194304 : 1048576)) throw new Error('The clipboard content is too large to paste.');
+                        data[type === 'text/html' ? 'html' : 'text'] = await blob.text();
+                    }
+                    if (data.text || data.html) break;
+                }
+            } else data.text = await api.readText();
+            if (typeof data.text !== 'string' || data.text.length > 262144 || (data.html || '').length > 1048576) throw new Error('The clipboard content is too large to paste.');
+            return data;
+        },
+        write: async function (data) {
+            var chosen = clipboardAPI(), api = chosen.api;
+            if (data.text.length > 262144 || (data.html || '').length > 1048576) throw new Error('The selected content is too large to copy.');
+            if (!chosen.bridge && data.html && api.write && window.ClipboardItem) {
+                return api.write([new ClipboardItem({ 'text/plain': new Blob([data.text], { type: 'text/plain' }), 'text/html': new Blob([data.html], { type: 'text/html' }) })]);
+            }
+            return api.writeText(data.text);
+        }
+    });
+
     /* The font families a font field suggests. A person may type any other family, or a list of them. */
     var fontChoices = Object.freeze(['Arial', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Courier New', 'Garamond', 'Georgia', 'Helvetica', 'Inter', 'Liberation Sans', 'Liberation Serif', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'monospace', 'sans-serif', 'serif', 'system-ui']);
     /* The nonce a host that sends style-src 'self' 'nonce-...' gives Docs (docs/editing-settings-contract.md, "A nonce"): a string of the characters a nonce has, from
@@ -254,5 +292,5 @@
     paintGlyphs(document.documentElement);
     if (typeof MutationObserver === 'function') { new MutationObserver(function (records) { records.forEach(function (r) { Array.prototype.forEach.call(r.addedNodes, paintGlyphs); }); }).observe(document, { childList: true, subtree: true }); }
 
-    window.yavcUtil = Object.freeze({ nonce: nonce, glyph: glyph, hostPath: hostPath, fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
+    window.yavcUtil = Object.freeze({ clipboard: clipboard, nonce: nonce, glyph: glyph, hostPath: hostPath, fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

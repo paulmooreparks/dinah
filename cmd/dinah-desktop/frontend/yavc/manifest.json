@@ -1,5 +1,5 @@
 {
-  "digest": "58cc6b5ac4cda66ac8a02d53d7838cf781b49a89b56dd7a873d7f90d0fb5133b",
+  "digest": "5f3962636da350243250313cb49138f553f9d4cfb865db4447c7d93cec9c713e",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 743,
-      "sha256": "da85059a49d0a2a05f8129b572cd8285dc296412521c4234b3ae1041319d3803"
+      "sha256": "0bff12bbb61dcd43a12d1305ffeba090aa052bfc56d61482ae26ef1425417df9"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -135,8 +135,8 @@
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 243147,
-      "sha256": "c9d460747c8df41304a83c71cb9d9946c9ce7a9fd0f767681b826af737e221de"
+      "bytes": 243998,
+      "sha256": "eb95925b1cc588bba8a55011700c79051b776bc2368bc44825f501dd0a2fbe65"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 654,
-      "sha256": "34f3c43ea3dceb04adf60fa772c646acf34d2dc2d1e9fde34cee42a85cd10ff9"
+      "sha256": "029702b3e9e6ad32e65b2b786180349bebbb9a39ecb92fa6fb64365a649915d7"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 687,
-      "sha256": "600b65f22f796c38957c29b88460e80c365a65110b8aced97c6e508a31a4e01f"
+      "sha256": "1fbe41d949046c3a4b987b4479b01a2fce203cbde6c984767f66315304785951"
     },
     {
       "path": "content/editor/editor.css",
@@ -280,8 +280,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 168897,
-      "sha256": "94246f2979df2ed025c802be5a158b97d1c78d38756115b25ccb9d506e5f3950"
+      "bytes": 167471,
+      "sha256": "f269ff99e65f6df5671f1eb191062cde227c0947087c274e5a7add5da454dfbe"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -1326,7 +1326,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "19ebf972a34f803f430c09f16f67620df3d7ca452afce3e99d2741a167de31e0"
+      "sha256": "302f38d6acd84bd8e459e9316a31242150a97ef81472604eeef8f2115f58d441"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1375,8 +1375,8 @@
     },
     {
       "path": "content/slides/slides.js",
-      "bytes": 167201,
-      "sha256": "7438e2bc43c30e1f848b571c2dd7a2e1320bc239896545e07538262f077825e5"
+      "bytes": 167617,
+      "sha256": "e3d92188432c7342cf9115b49ba88396b891e0e3f377b315297c79bd18f4eca3"
     },
     {
       "path": "content/slides/vendor/jszip-3.10.1/LICENSE.markdown",
@@ -1420,8 +1420,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 290679,
-      "sha256": "80dfab811c17c11e46fccff871c99e6cea0284ab339c4c6ec0194aeec9fffed3"
+      "bytes": 291086,
+      "sha256": "278877cca3371f3932862e4d92ddd77beb2e98b489f162816cf1148f8eb0ac1a"
     },
     {
       "path": "go.mod",
@@ -2460,8 +2460,8 @@
     },
     {
       "path": "support/pudl-host-kit.js",
-      "bytes": 9364,
-      "sha256": "c2c3c1239910b453b9f516416fcfe2379e31a01168dde2de01d3581ab81027dd"
+      "bytes": 9395,
+      "sha256": "faeb15150c36eed1a52fde7d879f212877d3a7fafa5111ee6e9237e09a5b4ff7"
     },
     {
       "path": "support/snapshot.js",
@@ -2470,8 +2470,8 @@
     },
     {
       "path": "support/yavc-util.js",
-      "bytes": 16983,
-      "sha256": "3b0cb76d503dc04af855ff530cfb2c3c985d52d2608728a3989f69e24b5bd3da"
+      "bytes": 19417,
+      "sha256": "29a07dcae5f16961701136c7cceeacd5ee8502b9302714ab3441a0df91528979"
     },
     {
       "path": "workspace-lab/host.css",

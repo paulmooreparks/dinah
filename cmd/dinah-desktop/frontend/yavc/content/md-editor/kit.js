@@ -575,33 +575,15 @@
             if (!t || ((name === 'cut' || name === 'paste') && ctx.readOnly())) return;
             try {
                 if (name === 'select-all') { t.select(); ctx.changed(); return; }
-                var api = navigator.clipboard;
-                if (!api) throw new Error('Clipboard access is unavailable. Use the keyboard shortcut.');
                 if (name === 'paste') {
-                    var data = { text: '' };
-                    async function clipboardText(item, type) {
-                        var blob = await item.getType(type);
-                        if (blob.size > (type === 'text/html' ? 4194304 : 1048576)) throw new Error('The clipboard content is too large to paste.');
-                        return blob.text();
-                    }
-                    if (ctx.rich() && api.read) {
-                        var items = await api.read();
-                        for (var i = 0; i < items.length; i++) {
-                            if (items[i].types.indexOf('text/html') >= 0) data.html = await clipboardText(items[i], 'text/html');
-                            if (items[i].types.indexOf('text/plain') >= 0) data.text = await clipboardText(items[i], 'text/plain');
-                            if (data.html || data.text) break;
-                        }
-                    } else { data.text = await api.readText(); }
-                    if (data.text.length > 262144 || (data.html || '').length > 1048576) throw new Error('The clipboard content is too large to paste.');
-                    if (!t.current()) throw new Error('The document or selection changed. Paste again.');
+                    var data = await window.yavcUtil.clipboard.read(ctx.rich());
+                    if (!t.current() || ctx.readOnly()) throw new Error('The document or selection changed. Paste again.');
                     if (!data.text && !data.html) return;
                     await t.paste(data);
                 } else {
                     if (t.empty) return;
                     if (t.text.length > 262144 || (t.html || '').length > 1048576) throw new Error('The selected content is too large to copy.');
-                    if (t.html && api.write && window.ClipboardItem) {
-                        await api.write([new ClipboardItem({ 'text/plain': new Blob([t.text], { type: 'text/plain' }), 'text/html': new Blob([t.html], { type: 'text/html' }) })]);
-                    } else { await api.writeText(t.text); }
+                    await window.yavcUtil.clipboard.write(t);
                     if (name === 'cut') { if (!t.current() || ctx.readOnly()) throw new Error('The document or selection changed. The text was copied but was not removed.'); t.remove(); }
                 }
                 ctx.changed();

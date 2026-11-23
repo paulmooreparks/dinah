@@ -94,10 +94,10 @@
                     label: id === 'page' ? 'Open as a Page' : id === 'copy-link' ? 'Copy Link to This Applet' : 'Close Window'
                 }, id === 'close' ? { danger: false } : {}));
             });
-        } else if (navigator.clipboard) {
+        } else if (window.yavcUtil && window.yavcUtil.clipboard) {
             if (result.length) { result.push('-'); }
             result.push({ label: 'Copy Link to This Applet', run: function () {
-                return navigator.clipboard.writeText(location.href).catch(function () {
+                return window.yavcUtil.clipboard.writeText(location.href).catch(function () {
                     var old=root.querySelector('[data-host-copy-notice]');if(old)old.remove();
                     var notice=document.createElement('div');notice.className='notice danger';notice.setAttribute('role','alert');notice.setAttribute('data-host-copy-notice','');
                     var content=document.createElement('div');content.className='notice-content';

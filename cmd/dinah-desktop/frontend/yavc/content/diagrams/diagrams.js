@@ -932,13 +932,13 @@
         function canvasCopy() {
             if (canvasWhy('shape')) { return; }
             var t = current(), s = canvasSelection(), fragment = window.yavcCanvasModel.fragment(t.cvDoc, s.id, s.kind);
-            return navigator.clipboard.writeText(window.yavcCanvas.write(fragment)).then(function () { say('Copied the node and its contained nodes.'); }, function (err) { say('The selection could not be copied. ' + err.message, 'problem'); });
+            return window.yavcUtil.clipboard.writeText(window.yavcCanvas.write(fragment)).then(function () { say('Copied the node and its contained nodes.'); }, function (err) { say('The selection could not be copied. ' + err.message, 'problem'); });
         }
         async function canvasPaste() {
             if (canvasWhy(false)) { return; }
             var t = current(), text = t.text;
             try {
-                var clip = await navigator.clipboard.readText();
+                var clip = await window.yavcUtil.clipboard.readText();
                 if (t !== current()) { return; }
                 await canvasEdit({ op: 'paste', text: clip }, text);
             } catch (err) { say('The selection could not be pasted. ' + err.message, 'problem'); }
@@ -2395,8 +2395,7 @@
             var longest = (t.text.match(/`+/g) || []).reduce(function (length, run) { return Math.max(length, run.length); }, 2);
             var fence = '`'.repeat(longest + 1);
             var block = fence + (t.kind === 'canvas' ? 'canvas' : t.kind === 'd2' ? 'd2' : 'mermaid') + '\n' + t.text.replace(/\s+$/, '') + '\n' + fence + '\n';
-            if (!navigator.clipboard || !navigator.clipboard.writeText) { say('This browser does not let the page write to the clipboard.', true); return; }
-            navigator.clipboard.writeText(block).then(function () { say('Copied as a fenced block. Paste it into a document in the Editor or a slide.'); },
+            window.yavcUtil.clipboard.writeText(block).then(function () { say('Copied as a fenced block. Paste it into a document in the Editor or a slide.'); },
                 function () { say('The clipboard could not be written to.', true); });
         }
         /* D2's own formatting of the text (decision 5), as one change. */
@@ -2493,6 +2492,15 @@
             if (needs === 'shape' && (!k || isConnection(k))) { return 'Select a shape first.'; }
             return null;
         }
+        var textEditing = null;
+        function editingText() {
+            if (!textEditing && window.yavcMdEditor) textEditing = window.yavcMdEditor.editing({
+                source: function () { return cm; }, page: function () { return null; }, rich: function () { return false; },
+                identity: current, alive: function () { return !destroyed && !!cm && !!current(); },
+                readOnly: function () { return readOnly(current()); }, say: say, changed: commandsChanged
+            });
+            return textEditing;
+        }
         function commandTable() {
             var table = [
                 cmd('new', 'New Diagram', 'file', null, { items: D2_STYLES.map(function (s) { return { id: 'new-' + s.id, label: s.label, run: function () { newDiagram(s, 'd2'); } }; }) }),
@@ -2506,6 +2514,7 @@
                 cmd('close-diagram', 'Close Diagram', null, function () { closeTab(active); }, { disabled: function () { return !current(); } }),
                 cmd('undo', 'Undo', 'yavc-undo', function () { if (cm && !readOnly(current())) { CM.undo(cm); } }, { builtIn: 'Mod-z', glyphOnly: true, disabled: function () { return readOnly(current()); }, reason: function () { return mutationWhy(); } }),
                 cmd('redo', 'Redo', 'yavc-redo', function () { if (cm && !readOnly(current())) { CM.redo(cm); } }, { builtIn: 'Mod-y', glyphOnly: true, disabled: function () { return readOnly(current()); }, reason: function () { return mutationWhy(); } }),
+                ...(editingText() ? editingText().commands() : []),
                 cmd('find', 'Find and Replace…', 'search', openFind, { builtIn: 'Mod-f' }),
                 cmd('language-restart', 'Restart Language Assistance', 'reload', function () { if (lsp && cm) { lsp.restart(); cm.dispatch({ effects: lspComp.reconfigure(lsp.extension('canvas', readOnly(current()))) }); } }, { hidden: function () { return !isCanvas(); }, disabled: function () { return !lsp || !cm; } }),
                 cmd('go-to-line', 'Go to Line…', null, goToLine, { builtIn: 'Mod-Alt-g' }),
@@ -2582,6 +2591,7 @@
         }
         root.addEventListener('pudl:contextmenu', function (e) {
             var t = e.detail.target;
+            if (t.closest('input,textarea,select')) return;
             var own = function (ids) { return window.pudlCommands ? window.pudlCommands.menuRows(ids, root) : ids; };
             /* The host's commands that asked to be offered on a right-click, over the drawing and over the text. */
             var offered = hostCommands.declared.filter(function (d) { return d.context; }).map(function (d) { return 'host-' + d.id; });
@@ -2589,7 +2599,12 @@
                 var rows = isCanvas() ? ['cv-edit-text', 'cv-new', 'cv-add-picture', 'cv-group', 'cv-connect', 'cv-reconnect-start', 'cv-reconnect-end', 'cv-resize', '-', 'cv-copy', 'cv-paste', 'cv-duplicate', 'cv-forward', 'cv-back', 'cv-delete', '-'] : isD2() && selection() ? ['shape-label', 'shape-rename', 'shape-type', 'connect', 'shape-add-inside', '-', 'shape-delete', '-'] : isD2() ? ['shape-add', '-'] : [];
                 e.detail.add(own(rows.concat(['copy-embed', 'export-svg', 'export-png', '-', 'fit', 'redraw'], offered.length ? ['-'].concat(offered) : [])));
             }
-            else if (t.closest && t.closest('.dg-text')) { e.detail.add(own(['undo', 'redo', '-', 'find', '-', 'format-text', 'copy-embed', '-', 'view-text', 'view-preview', 'view-split'].concat(offered.length ? ['-'].concat(offered) : []))); }
+            else if (t.closest && t.closest('.dg-text')) {
+                var editorSurface = t.closest('.cm-editor');
+                if (editorSurface && typeof e.detail.handlesEdit === 'function') e.detail.handlesEdit();
+                var textRows = ['undo', 'redo', '-'].concat(editorSurface ? ['cut', 'copy', 'paste', 'select-all', '-'] : [], ['find', '-', 'format-text', 'copy-embed', '-', 'view-text', 'view-preview', 'view-split']);
+                e.detail.add(own(textRows.concat(offered.length ? ['-'].concat(offered) : [])));
+            }
         });
 
         /* === Start ======================================================== */
