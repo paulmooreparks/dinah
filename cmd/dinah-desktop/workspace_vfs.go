@@ -25,11 +25,12 @@ type MountItem struct {
 	URL       string       `json:"url"`
 	Actions   []string     `json:"actions"`
 	Ref       *ResourceRef `json:"ref,omitempty"`
-	// Size, Modified, Writable, Missing, Unavailable, Creates, Glyph, Status,
-	// Changed, Count and ChangedCount are as ResourceItem has them.
+	// Size, Modified, Writable, Local, Missing, Unavailable, Creates, Glyph,
+	// Status, Changed, Count and ChangedCount are as ResourceItem has them.
 	Size         int64           `json:"size,omitempty"`
 	Modified     string          `json:"modified,omitempty"`
 	Writable     bool            `json:"writable,omitempty"`
+	Local        bool            `json:"local,omitempty"`
 	Missing      bool            `json:"missing,omitempty"`
 	Unavailable  bool            `json:"unavailable,omitempty"`
 	Creates      bool            `json:"creates,omitempty"`
@@ -302,7 +303,7 @@ func mountResourceItem(target mountTarget, item ResourceItem) MountItem {
 		item.Title = target.source.Name
 	}
 	ref := item.Ref
-	return MountItem{Path: path, Title: item.Title, Kind: item.Kind, Directory: item.Directory, Revision: item.Revision, URL: item.URL, Actions: item.Actions, Ref: &ref, Size: item.Size, Modified: item.Modified, Writable: item.Writable, Missing: item.Missing, Unavailable: item.Unavailable, Creates: item.Creates, Glyph: item.Glyph, Status: item.Status, Changed: item.Changed, Count: item.Count, ChangedCount: item.ChangedCount}
+	return MountItem{Path: path, Title: item.Title, Kind: item.Kind, Directory: item.Directory, Revision: item.Revision, URL: item.URL, Actions: item.Actions, Ref: &ref, Size: item.Size, Modified: item.Modified, Writable: item.Writable, Local: item.Local, Missing: item.Missing, Unavailable: item.Unavailable, Creates: item.Creates, Glyph: item.Glyph, Status: item.Status, Changed: item.Changed, Count: item.Count, ChangedCount: item.ChangedCount}
 }
 func (v workspaceVFS) list(path string, start, limit int) (MountPage, error) {
 	out := MountPage{Entries: []MountItem{}, NextStart: -1}
@@ -339,7 +340,7 @@ func (v workspaceVFS) list(path string, start, limit int) (MountPage, error) {
 			for _, name := range reservedRoots {
 				if id, ok := servedRoots[name]; ok {
 					item := mountCatalogItem("/"+name, name, "directory")
-					item.Ref, item.Writable = &ResourceRef{SourceID: id}, true
+					item.Ref, item.Writable, item.Local = &ResourceRef{SourceID: id}, true, true
 					items = append(items, item)
 				}
 			}
@@ -348,7 +349,7 @@ func (v workspaceVFS) list(path string, start, limit int) (MountPage, error) {
 		if target.segments[0] == "home" {
 			homePath := v.service.app.homeMountPath()
 			home := mountCatalogItem(homePath, strings.TrimPrefix(homePath, "/home/"), "directory")
-			home.Ref = &ResourceRef{SourceID: workspaces.HomeSourceID}
+			home.Ref, home.Local = &ResourceRef{SourceID: workspaces.HomeSourceID}, true
 			items = append(items, home)
 			break
 		}

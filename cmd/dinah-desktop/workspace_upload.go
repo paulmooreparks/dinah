@@ -241,11 +241,31 @@ func (a *App) uploadDropped(w http.ResponseWriter, r *http.Request) {
 }
 
 // WorkspaceLocalPath is where a workspace file or folder is on this
-// computer, for Copy Path.
+// computer, for Copy Path. The path is the one the operating system writes,
+// made with package filepath, so it has the separators and the volume of the
+// system Dinah runs on. A file or folder of another kind of source has no
+// place on the computer and is refused.
 func (a *App) WorkspaceLocalPath(ref ResourceRef) (string, error) {
 	p, _, err := workspaceVFS{service: a.resourceService()}.localPath(ref)
 	return p, err
 }
+
+// ShowWorkspaceResource shows a file or folder that is on the computer in
+// the system's file manager, selected in the folder that contains it, for
+// Show in Folder in Files and in the Open and Save As dialog. A file or
+// folder of another kind of source is refused, as WorkspaceLocalPath
+// refuses it.
+func (a *App) ShowWorkspaceResource(ref ResourceRef) error {
+	p, _, err := workspaceVFS{service: a.resourceService()}.localPath(ref)
+	if err != nil {
+		return err
+	}
+	return showPathInFolder(p)
+}
+
+// showPathInFolder is showInFolder. A test replaces it so that no window of
+// the system's file manager opens.
+var showPathInFolder = showInFolder
 
 // samePath says whether two paths are the same file.
 func samePath(a, b string) bool {

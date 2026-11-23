@@ -134,7 +134,9 @@ const { launch } = require('./lib/page');
     ok('with nothing registered, the source\'s menu ends with its destructive group', same(labels(before['tree, the source, by its button']), ['Open in Files', 'Unpin from Workspace', 'Refresh Source', '-', 'Remove from Workspace…']) && before['tree, the source, by its button'][4].danger, JSON.stringify(labels(before['tree, the source, by its button'])));
     ok('with nothing registered, the button, a right-click and the keyboard open the same menu', same(before['tree, a query, by its button'], before['tree, a query, by a right-click']) && same(before['tree, a query, by its button'], before['tree, a query, by the keyboard']) && same(before['tree, the source, by its button'], before['tree, the source, by a right-click']));
     ok('with nothing registered, a pinned entry\'s menu has the base\'s rows', same(labels(before['Pinned, a query, by its button']), ['Unpin from Workspace', 'Move Up', 'Move Down']), JSON.stringify(labels(before['Pinned, a query, by its button'])));
-    ok('with nothing registered, an entry\'s menu in Files has the base\'s rows', same(labels(before['Files, a query, by a right-click']), ['Open in Files']), JSON.stringify(labels(before['Files, a query, by a right-click'])));
+    // Since 23 November 2026 Files keeps Copy Path in the menu of an entry
+    // with no place on the computer, disabled with the reason.
+    ok('with nothing registered, an entry\'s menu in Files has the base\'s rows', same(labels(before['Files, a query, by a right-click']), ['Open in Files', 'Copy Path']) && before['Files, a query, by a right-click'][1].disabled, JSON.stringify(before['Files, a query, by a right-click']));
     ok('with nothing registered, nothing is asked for', await page.evaluate(() => dinahResources.entryCommands({ kind: 'sample-query', ref: { workspaceId: 'w1', sourceId: 'records', path: 'Q-1' } }).length === 0));
     const commandsBefore = await filesCommands('Q-1');
 

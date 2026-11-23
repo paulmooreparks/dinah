@@ -27,6 +27,14 @@
 .dinah-files .fm-detail code { overflow-wrap: anywhere; }
 .dinah-files .fm-page:has(button[hidden]) { display: none; }
 .dinah-files .fm-path { flex: 1 1 12rem; overflow-x: auto; }
+/* The path bar's Copy Path button stands at the path's end and keeps its
+   size; in the toolbar it is kept apart from the Folder group after it. */
+.dinah-files .fm-copy-path { flex: none; }
+.pc-files .fm-toolbar > .fm-copy-path { margin-inline-end: var(--space-2); }
+.pc-files .fm-toolbar > .fm-copy-path .glyph { --glyph-size: 15px; }
+/* The list takes focus from a press on its empty part, for the folder's
+   menu from the keyboard, without a ring a pointer did not ask for. */
+.dinah-files [data-fb="main"]:focus:not(:focus-visible) { outline: none; }
 .dinah-files .fm-name { overflow-wrap: anywhere; }
 .dinah-files .fm-status { overflow-wrap: anywhere; }
 .dinah-files.fm-no-date .fm-c-date, .dinah-files.fm-no-size .fm-c-size { display: none; }

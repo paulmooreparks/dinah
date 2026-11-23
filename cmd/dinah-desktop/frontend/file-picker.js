@@ -69,7 +69,7 @@
             '<button type="button" class="icon-btn" data-pick="up" aria-label="Up One Folder" title="Up One Folder"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3.5"/><path d="M4 7.5l4-4 4 4"/></svg></button>' +
             '<button type="button" class="icon-btn" data-pick="home" aria-label="Your Home Folder" title="Your Home Folder"><span class="glyph" style="--glyph:var(--glyph-home)" aria-hidden="true"></span></button>' +
             '<button type="button" class="icon-btn" data-pick="workspace" aria-label="The Workspace" title="The Workspace"><span class="glyph" style="--glyph:var(--glyph-folder)" aria-hidden="true"></span></button>' +
-            FB.markup.pathBar() +
+            FB.markup.pathBar() + dinahResources.pathCopyButton() +
             '<button type="button" class="btn btn-sm" data-pick="folder">New Folder…</button>' +
           '</div>' +
           '<div class="fb-pick-browse">' + FB.markup.body({}) + '</div>' +
@@ -105,6 +105,53 @@
       working = on;
       [ok, computer, q('up'), q('home'), q('workspace'), q('folder')].forEach(function (button) { button.disabled = on; });
       if (!on) { drawKind(); drawFolder(); if (b) q('up').disabled = !b.canUp(); }
+    }
+    function fail(err) { say(sentence(err)); }
+    /* New Folder…, from the button or from a menu, makes a folder in the
+       folder given, and the dialog goes into the new folder. */
+    function makeFolder(dir) {
+      return dinahResources.newFolder(F, dir).then(function (node) { if (node && done) { b.refresh(); b.go(node); } }).catch(fail);
+    }
+    /* Refresh reads the folder shown again from where it is kept. */
+    function refreshFolder() {
+      var dir = b.cwd();
+      return dinahResources.forget(dir.ref).then(function () { return F.load(dir, false, true); }).then(function () { if (done) b.refresh(); }).catch(fail);
+    }
+    /* entryRows and folderRows make the dialog's menus, which PUDL's context
+       menu shows. The menu of an entry starts with what the dialog
+       itself does with it: its own button's action for a file it takes, and
+       Open for a folder, which goes into it. Then come Copy Path, Copy Link
+       for an entry with an address, Rename… where the file can be renamed,
+       Show in Folder for an entry on the computer, and New Folder… for a
+       folder that takes one. The dialog opens no window of the product from
+       its menus; Show in Folder opens the system's file manager, and Rename…
+       and New Folder… ask in a dialog over this one. A product's rows for an
+       entry (dinahResources.registerEntryCommands) are left out here, since
+       they may open the product's windows behind the dialog. */
+    function entryRows(n) {
+      var placed = dinahResources.onComputer(n), rows = [];
+      if (n.directory) rows.push({ label: 'Open', run: function () { b.go(n); b.focusList(); } });
+      else if (!save && accept(n)) rows.push({ label: o.okLabel || 'Open', run: function () { chosen = n; input.value = shown(n); commit({ node: n }); } });
+      if (rows.length) rows.push('-');
+      rows.push({ label: 'Copy Path', disabled: !placed, reason: placed ? null : dinahResources.notOnComputer(n), run: function () { return dinahResources.copyPath(n).catch(fail); } });
+      if (n.url) rows.push({ label: 'Copy Link', run: function () { window.dinahHost.copy(n.url); } });
+      if (dinahResources.renames(n)) rows.push({ label: 'Rename…', run: function () { return dinahResources.renameFile(n).catch(fail); } });
+      if (placed) rows.push({ label: 'Show in Folder', run: function () { return dinahResources.showInFolder(n).catch(fail); } });
+      if (n.directory && dinahResources.takesFolder(n)) rows.push({ label: 'New Folder…', run: function () { return makeFolder(n); } });
+      return rows;
+    }
+    /* The folder shown has its menu on the part of the list that is not a
+       row, and from the keyboard while no row has focus. */
+    function folderRows() {
+      var dir = b.cwd(), placed = dinahResources.onComputer(dir), takes = dinahResources.takesFolder(dir);
+      return [
+        { label: 'New Folder…', disabled: working || !takes, reason: takes ? null : 'This folder does not take new files.', run: function () { return makeFolder(dir); } },
+        '-',
+        { label: 'Copy Path', disabled: !placed, reason: placed ? null : dinahResources.notOnComputer(dir), run: function () { return dinahResources.copyPath(dir).catch(fail); } },
+        placed ? { label: 'Show in Folder', run: function () { return dinahResources.showInFolder(dir).catch(fail); } } : null,
+        '-',
+        { label: 'Refresh', glyph: 'reload', disabled: working, run: refreshFolder }
+      ].filter(Boolean);
     }
     /* New Folder… makes a folder in the folder shown, when it is a folder on
        the computer, and goes into it. */
@@ -229,7 +276,24 @@
       dlg.addEventListener('close', function () { finish(false); });
       dlg.addEventListener('cancel', function (e) { if (working) e.preventDefault(); });
       input.addEventListener('input', function () { if (!save || kind) say(''); });
+      // A press on the part of the list that is not a row puts focus there,
+      // so the menu key and Shift+F10 then open the folder's menu.
+      dlg.querySelector('[data-fb="main"]').tabIndex = -1;
+      dlg.addEventListener('pudl:contextmenu', function (e) {
+        if (!b || e.detail.count()) return;
+        var at = dinahResources.browserMenuTarget(dlg, e);
+        if (!at) return;
+        if (at.folder) { e.detail.add(folderRows()); e.preventDefault(); return; }
+        var n;
+        if (at.row) { b.select(at.row.dataset.name); n = b.selected(); }
+        else n = F.resolve(null, at.tree.dataset.path);
+        if (!n) return;
+        e.detail.add(entryRows(n));
+        e.detail.mark(at.row || at.tree); e.preventDefault();
+      });
       dlg.addEventListener('click', function (e) {
+        var copy = e.target.closest('[data-copy-path]');
+        if (copy && b && !copy.disabled) { dinahResources.copyPath(b.cwd(), copy).catch(fail); return; }
         var t = e.target.closest('[data-pick]');
         if (!t || !b || t.disabled) return;
         switch (t.getAttribute('data-pick')) {
@@ -238,7 +302,7 @@
           case 'home': b.go(F.home()); break;
           case 'workspace': b.goPath(home); break;
           case 'folder':
-            dinahResources.newFolder(F, b.cwd()).then(function (node) { if (node && done) { b.refresh(); b.go(node); } }).catch(function (err) { say(sentence(err)); });
+            makeFolder(b.cwd());
             break;
           case 'computer':
             if (!save) { commit({ computer: true, dir: b.cwd() }); break; }
@@ -280,7 +344,7 @@
           say: function (message) { if (message) say(message); },
           /* The browser draws before it is handed back, so the first redraw
              is marked for the starting folder. */
-          onRender: function () { dinahResources.decorate(dlg, F, b ? b.cwd() : node); },
+          onRender: function () { dinahResources.decorate(dlg, F, b ? b.cwd() : node); dinahResources.drawPathCopy(dlg, b ? b.cwd() : node); },
           onOpen: function (n) {
             if (n.directory) { b.go(n); b.focusList(); return; }
             if (!save) { if (accept(n)) { chosen = n; input.value = shown(n); commit({ node: n }); } return; }

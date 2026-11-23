@@ -127,20 +127,54 @@ The product's rows stand in a group of their own after the base's rows, behind a
 These are the menus that have the rows.
 
 - The Workspace tree has them on an entry and on a source, from the row's actions button, a right-click, and Shift+F10 or the menu key.
-- The Files window has them on a row of its list and on a row of its folder tree, from a right-click and from the keyboard. For the selected entry they are also in the window's Actions menu and in the window's own menu in the menu bar.
+- The Files window has them on a row of its list and on a row of its folder tree, from a right-click and from the keyboard. For the selected entry they are also in the window's Actions menu and in the window's own menu in the menu bar. The menu of the folder shown, on the empty part of the list, does not have them.
 - The Pinned list has them on a pinned entry and on a pinned source, from the row's actions button, a right-click and the keyboard.
 
-Two menus do not have them. A folder that is not on this computer yet and a source of a kind the build does not use keep the few rows they have, because a product's row would act on what is not there. A Files window that only displays a folder inside another window has no menu for an entry at all.
+Three menus do not have them. A folder that is not on this computer yet and a source of a kind the build does not use keep the few rows they have, because a product's row would act on what is not there. The Open and Save As dialog leaves them out too, since a product's row may open one of the product's windows, which would stand behind the dialog while the dialog waits. A Files window that only displays a folder inside another window has no menu for an entry at all.
 
 How the rows relate to commands follows what the base's rows do, and the base's rows differ between the lists. In the Workspace tree and the Pinned list a row of an entry's menu is a plain row given to PUDL's context menu. It has no id and is no command, so it is not in the commands an agent lists for a window, and it has no key of its own. The product's rows are the same kind of row there. PUDL's menu gives all of them the same keys: the arrows, Home and End, a letter, Enter and Escape. In the Files window the base's rows for the selected entry are commands of the window, registered with `pudlCommands`, and the product's rows are added to the same table. An agent therefore lists and runs them as it does the base's, and the window program refuses an agent a danger command, which is left to the person. The host's own registry, `dinahCommands`, which feeds the menu bar's menus, the list of keys and command search, has no row for an entry, and the product's rows are not added to it.
 
 A `run` that throws, or whose promise is rejected, is reported as a failure of one of the base's rows is reported in that list: as an error toast from the Workspace pane and the Pinned list, and in the status line of the Files window.
 
-Some rows are left out, each with one message on the console that says which: a row without an `id`, a `label` or a `run` function, a second row with an `id` the same entry already has, and a row whose `id` is one of the base's. The base's ids are `open`, `edit`, `edit-text`, `open-external`, `copy-link`, `copy-path`, `rename`, `up`, `home`, `retry`, `browse-children`, `new-folder`, `upload`, `refresh`, `preview-pane`, `new-terminal`, `files-actions`, `open-in-files`, `pin`, `unpin`, `refresh-source`, `refresh-children`, `remove-source`, `create-folders`, `choose-folder`, `move-up` and `move-down`. A product that starts its ids with a word of its own never meets one.
+Some rows are left out, each with one message on the console that says which: a row without an `id`, a `label` or a `run` function, a second row with an `id` the same entry already has, and a row whose `id` is one of the base's. The base's ids are `open`, `edit`, `edit-text`, `open-external`, `show-in-folder`, `copy-link`, `copy-path`, `rename`, `up`, `home`, `retry`, `browse-children`, `new-folder`, `upload`, `refresh`, `preview-pane`, `new-terminal`, `files-actions`, `open-in-files`, `pin`, `unpin`, `refresh-source`, `refresh-children`, `remove-source`, `create-folders`, `choose-folder`, `move-up` and `move-down`. A product that starts its ids with a word of its own never meets one.
 
 A build that registers nothing asks nothing, and each of its menus has the rows it had before.
 
 `cmd/dinah-desktop/frontend/e2e/resource-entry-commands.js` reads every one of these menus before and after a registration, runs rows from each list, and checks a disabled row, a danger row, a failing `run` and each refusal.
+
+## Menus of Files and the Open Dialog
+
+Paul asked on 23 November 2026 for the file browser to have a menu on the empty part of its list, a menu on every file and folder in the Open dialog as well as in Files, and a way to copy a path in the form the computer's own system writes it. He met the browser through the Open dialog that a document form's Browse… button shows, so the dialog has the same menus as the Files window, with fewer rows. Both use PUDL's context menu (`pudl:contextmenu`), so a right-click, Shift+F10 and the menu key open the same menu. With focus on a row, the keys open that row's menu. With focus elsewhere in the list, or in the path bar, they open the menu of the folder shown. A press on the empty part of the list puts focus there for that reason. A text field keeps the browser's own menu.
+
+The rows of each menu are listed in Table 1. A row that cannot be used now is disabled and says why, and a row that has nothing to act on is left out. Show in Folder is left out for an entry with no place on the computer, while Copy Path stays and is disabled, so the person learns that the entry has no path rather than wondering where the row went.
+
+**Table 1** *Rows of the File Browser's Menus*
+
+| Where | Rows, in order |
+|---|---|
+| Files, the empty part of the list | New Folder…, Upload Files…; Copy Path, Show in Folder, New Terminal Here; Refresh, Show the Preview Pane |
+| Files, a row or a folder in the tree | Open (Open in Files for a folder), Edit, Edit as Text, Open Externally, Show in Folder, Copy Link, Copy Path, Rename…; then a product's rows |
+| Open dialog, the empty part of the list | New Folder…; Copy Path, Show in Folder; Refresh |
+| Open dialog, a file it takes | the dialog's own button (Open, Choose, Attach); Copy Path, Copy Link, Rename…, Show in Folder |
+| Open dialog, a folder | Open, which goes into it; Copy Path, Copy Link, Show in Folder, New Folder… |
+
+*Note.* A semicolon in the second column marks a separator. Rows the entry does not have are left out, as Edit is for a file the Editor does not open and Rename… is for a file its source does not rename. A file the system would not open in a program, such as a script, has a single Show in Folder in the place of Open Externally. Save As has the same menus, without the action row on a file.
+
+The dialog opens no window of the product from its menus. Show in Folder opens the system's file manager, and Rename… and New Folder… ask in a dialog over the dialog. The dialog's New Folder… on a folder makes the new folder there and goes into it, as its button does for the folder shown.
+
+### Copy Path
+
+Copy Path gives the path of a file or folder as the operating system writes it, for a file, a folder and the folder shown. The page puts on the clipboard the string Go's `WorkspaceLocalPath` returns, unchanged. Go makes it with package `filepath` from the source's folder and the entry's place in it, so it has the separators and the volume of the system Dinah runs on, and nothing in the page knows which system that is.
+
+Whether an entry has such a path is a flag Go sets on the item, `local`. Every file and folder of a folder on the computer has it, and so do the source's own folder, the home folder, /bin and /lib, whether or not they can be written. The folders above the workspaces, a workspace itself, a folder that is missing, and an entry of another kind of source (a page of a wiki, a record of a tracker) do not have it, and their Copy Path is disabled with "This folder is not on the computer." or "This is not on the computer." An entry with a web address keeps Copy Link. Until 23 November 2026 the page took an entry that can be written to be one on the computer, which left Copy Path out for a folder that cannot be written.
+
+The path bar of both windows ends with a raised button with PUDL's copy glyph and the tooltip Copy Path, which copies the path of the folder shown. It is always there. For a folder with no place on the computer it is disabled, and its tooltip says why.
+
+Show in Folder shows a file or folder in the system's file manager, selected in the folder that contains it (`ShowWorkspaceResource`). It uses the same documented calls as the rest of the program: Explorer's `/select` switch on Windows, `open -R` on macOS, and `xdg-open` of the containing folder elsewhere.
+
+The Workspace pane keeps its menus as they were. It still leaves Copy Path out for an entry with no place on the computer, and it now decides that by the same flag.
+
+`cmd/dinah-desktop/frontend/e2e/files-menus.js` opens each menu in both windows by a right-click, by Shift+F10 and by the menu key, checks the rows and their reasons, copies paths from the menus and the path bar, and checks that the clipboard is given the path in the form of the system the suite runs on. `workspace_local_path_test.go` checks the form of the path Go gives and which items have the flag.
 
 ## A Product's Opener for a Web Address
 

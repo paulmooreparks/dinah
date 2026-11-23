@@ -95,7 +95,7 @@ var pageMethods = func() map[string]pageMethodClass {
  MoveWorkspacePin NewEmptyDraft NewSession NewSessionAt NewSessionWithProviderAt 
  OpenComputerDocument OpenComputerFile OpenDraft OpenPath OpenProviderUsage
  OpenSession OpenSessionAt OpenSessionWith OpenWaitingSession RetryWaitingSession ReloadWaitingChatState OpenSkillDraft OpenUsage OpenWorkspaceMount
- OpenWorkspaceResource PickAttachments PickDraftFiles PinWorkspaceItem 
+ OpenWorkspaceResource ShowWorkspaceResource PickAttachments PickDraftFiles PinWorkspaceItem
  PrepareSkill PrepareChatSkill Queue RecoverSession RecoverSessionModel
  RecoverSteering RejectSuggestion RelocateWorkspaceSource RemoveChat RemoveExtension RemoveOldAttachments
  RemoveOptionSubstitution RemovePackages RemoveTerminalProfile RemoveWorkspace

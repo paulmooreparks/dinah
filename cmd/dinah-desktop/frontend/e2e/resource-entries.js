@@ -46,7 +46,7 @@ const OUT = process.argv[3] || require('path').join(require('os').tmpdir(), 'din
       ];
       const entriesOf = source => source.id === 'records'
         ? window.__records.map(r => ({ ref: { workspaceId: 'w1', sourceId: 'records', path: r.name }, title: r.title, kind: 'sample-record', glyph: 'ticket', directory: false, revision: '1', actions: [], status: r.status, changed: r.changed }))
-        : files.map(f => ({ ref: { workspaceId: 'w1', sourceId: 'files', path: f.name }, title: f.name, kind: 'file', directory: false, revision: '1', writable: true, actions: f.actions }));
+        : files.map(f => ({ ref: { workspaceId: 'w1', sourceId: 'files', path: f.name }, title: f.name, kind: 'file', directory: false, revision: '1', writable: true, local: true, actions: f.actions }));
       const resolve = virtual => {
         const parts = virtual.split('/').filter(Boolean), record = records.find(r => r.mountAlias === parts[1]);
         const source = record && record.sources.find(s => s.mountAlias === parts[2]);
@@ -54,7 +54,7 @@ const OUT = process.argv[3] || require('path').join(require('os').tmpdir(), 'din
         return { record, source, rest: parts.slice(3).join('/') };
       };
       const mount = (source, resource) => JSON.parse(JSON.stringify({ ...resource, path: '/workspaces/w1/' + source.mountAlias + (resource.ref.path ? '/' + resource.ref.path : '') }));
-      const root = source => ({ ref: { workspaceId: 'w1', sourceId: source.id, path: '' }, title: source.name, kind: source.kind, directory: true, revision: '1', writable: source.kind === 'local-folder', actions: ['list'] });
+      const root = source => ({ ref: { workspaceId: 'w1', sourceId: source.id, path: '' }, title: source.name, kind: source.kind, directory: true, revision: '1', writable: source.kind === 'local-folder', local: source.kind === 'local-folder', actions: ['list'] });
       const stat = async virtual => {
         const { record, source, rest } = resolve(virtual);
         if (!source) return { path: virtual, title: record ? record.name : 'Workspaces', kind: 'catalog', directory: true, actions: ['list'] };

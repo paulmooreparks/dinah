@@ -143,18 +143,28 @@
       throw new Error('This resource has no supported Open action.');
     });
   }
-  // The same item actions serve Files, Workspace and their context menus.
-  function itemCommands(item, fail) {
+  /* The same item actions serve Files, Workspace and their context menus.
+     With o.unplaced, Copy Path stays in the menu of an entry that has no
+     place on the computer, disabled with the reason, as Files and the Open
+     and Save As dialog show it; without it the row is left out, as the
+     Workspace pane has always done. Show in Folder is offered for a folder
+     on the computer, and for a file whose own Open Externally opens it in a
+     program, since a file the system would not open already has Show in
+     Folder in that row's place. */
+  function itemCommands(item, fail, o) {
     if (!item) return [];
+    o = o || {};
     function run(fn) { return function () { return Promise.resolve().then(fn).catch(fail); }; }
+    var here = onComputer(item);
     return [
       { id: 'open', label: item.directory ? 'Open in Files' : 'Open', run: run(function () { return open(item, null, !!item.directory); }) },
       { id: 'edit', label: 'Edit', hidden: !item.ref || !has(item, 'edit'), run: run(function () { return dinahEditor.openResource(item.ref); }) },
       { id: 'edit-text', label: 'Edit as Text', hidden: !item.ref || !has(item, 'edit-text'), run: run(function () { return dinahEditor.openResource(item.ref, 'text'); }) },
       { id: 'open-external', label: has(item, 'reveal') ? 'Show in Folder' : 'Open Externally', hidden: !has(item, 'reveal') && !has(item, 'open-external'), run: run(function () { return item.ref ? app().OpenWorkspaceResource(item.ref) : app().OpenWorkspaceMount(item.path); }) },
+      { id: 'show-in-folder', label: 'Show in Folder', hidden: !here || has(item, 'reveal'), run: run(function () { return showInFolder(item); }) },
       // An item on a site has an address, which Copy Link puts on the clipboard.
       { id: 'copy-link', label: 'Copy Link', hidden: !item.url, run: run(function () { host().copy(item.url); return item.url; }) },
-      { id: 'copy-path', label: 'Copy Path', hidden: !item.ref || !item.writable, run: run(function () { return copyPath(item); }) },
+      { id: 'copy-path', label: 'Copy Path', hidden: !here && !o.unplaced, disabled: !here, reason: here ? undefined : notOnComputer(item), run: run(function () { return copyPath(item); }) },
       { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: !renames(item), run: run(function () { return renameFile(item); }) }
     ].filter(function (command) { return !command.hidden; });
   }
@@ -188,7 +198,7 @@
   /* The ids of the base's own rows for an entry, in an entry's menu and in
      the Files window's commands, where a product's rows are commands of
      the same window. */
-  var BASE_COMMAND_IDS = ['open', 'edit', 'edit-text', 'open-external', 'copy-link', 'copy-path', 'rename', 'up', 'home', 'retry', 'browse-children', 'new-folder', 'upload', 'refresh', 'preview-pane', 'new-terminal', 'files-actions',
+  var BASE_COMMAND_IDS = ['open', 'edit', 'edit-text', 'open-external', 'show-in-folder', 'copy-link', 'copy-path', 'rename', 'up', 'home', 'retry', 'browse-children', 'new-folder', 'upload', 'refresh', 'preview-pane', 'new-terminal', 'files-actions',
     'open-in-files', 'pin', 'unpin', 'refresh-source', 'refresh-children', 'remove-source', 'create-folders', 'choose-folder', 'move-up', 'move-down'];
   function registerEntryCommands(o) {
     o = o || {};
@@ -582,8 +592,61 @@
   function chooseAndUpload(dir) {
     return Promise.resolve(app().ChooseUploadFiles()).then(function (paths) { return paths && paths.length ? upload(dir, paths) : null; });
   }
-  function copyPath(item) {
-    return Promise.resolve(app().WorkspaceLocalPath(item.ref)).then(function (p) { host().copy(p); return p; });
+  /* Whether an entry has a place on the computer: a file or folder of a
+     folder on the computer, the home folder, /bin or /lib, which Go marks
+     local whether or not it can be written (workspace_resources.go). The
+     folders above them, a workspace, a folder that is missing and an entry
+     of another kind of source, such as a page of a wiki, have none. */
+  function onComputer(item) { return !!item && !!item.ref && !!item.local && !item.missing; }
+  function notOnComputer(item) { return item && item.directory ? 'This folder is not on the computer.' : 'This is not on the computer.'; }
+  /* Copy Path puts the path Go gives on the clipboard as it is. Go makes it
+     with package filepath, so it is the path the operating system writes,
+     whichever system Dinah runs on; nothing here changes its separators.
+     button, when given, shows that the path was copied. */
+  function copyPath(item, button) {
+    if (!onComputer(item)) return Promise.reject(new Error(notOnComputer(item)));
+    return Promise.resolve(app().WorkspaceLocalPath(item.ref)).then(function (p) { host().copy(p, null, button); return p; });
+  }
+  // Show in Folder shows a file or folder on the computer in the system's
+  // file manager, selected in the folder that contains it.
+  function showInFolder(item) {
+    if (!onComputer(item)) return Promise.reject(new Error(notOnComputer(item)));
+    return Promise.resolve(app().ShowWorkspaceResource(item.ref));
+  }
+  /* pathCopyButton is the markup of the path bar's Copy Path button, which
+     stands at the end of the path bar of Files and of the Open and Save As
+     dialog. It is always there. drawPathCopy disables it for a folder with
+     no place on the computer and puts the reason in its tooltip, in the
+     form PUDL's commands use. */
+  function pathCopyButton() {
+    return '<button type="button" class="icon-btn fm-copy-path" data-copy-path aria-label="Copy Path"><span class="glyph" style="--glyph:var(--glyph-copy)" aria-hidden="true"></span></button>';
+  }
+  function drawPathCopy(root, dir) {
+    var button = root.querySelector('[data-copy-path]');
+    if (!button) return;
+    var here = onComputer(dir);
+    button.disabled = !here;
+    if (here) button.removeAttribute('data-tooltip');
+    else button.setAttribute('data-tooltip', 'Copy Path: ' + notOnComputer(dir || { directory: true }));
+  }
+  /* browserMenuTarget says what a context menu in a file browser is for: a
+     row of the list, an entry of the folder tree, or the folder shown, or
+     null when the menu is not the browser's. A right-click is for the
+     folder shown on the part of the list that is not a row; from the keyboard
+     (Shift+F10 or the menu key) the folder shown has the menu while focus is
+     in the list but on no row, or in the path bar. A field keeps the
+     browser's own menu. */
+  function browserMenuTarget(root, event) {
+    var target = event.detail.target || event.target;
+    if (!target || !target.closest || !root.contains(target)) return null;
+    var row = target.closest('tr.fm-row');
+    if (row && root.contains(row) && row.closest('[data-fb="rows"]')) return { row: row };
+    var tree = target.closest('[data-fb="tree"] a[data-path]');
+    if (tree && root.contains(tree)) return { tree: tree };
+    if (target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return null;
+    if (target.closest('[data-fb="main"]')) return { folder: true };
+    if (event.detail.keyboard && (target.closest('[data-fb="crumbs"], [data-copy-path]') || target === root)) return { folder: true };
+    return null;
   }
   /* Files dropped from the system's file manager land on a drop target: an
      element registered here, which says which folder a drop on it means
@@ -826,6 +889,9 @@
       // and so is a source that has become available.
       if (!item.missing) delete node.missing;
       if (!item.unavailable) delete node.unavailable;
+      // An entry that no longer has a place on the computer, as a folder
+      // that has gone missing, loses Copy Path and Show in Folder.
+      if (!item.local) delete node.local;
       // An entry that has lost its status, or its changes, is listed without them.
       if (!item.status) delete node.status;
       if (!item.changed) delete node.changed;
@@ -841,7 +907,7 @@
     var root = put({ path: '/', title: '/', kind: 'directory', directory: true, actions: ['list'] });
     var homeParent = put({path:'/home',title:'home',kind:'catalog',directory:true,actions:['list']}); homeParent.parent = root;
     function homeNode(path) {
-      var node = put({path:path,title:path.slice(path.lastIndexOf('/') + 1),kind:'directory',directory:true,writable:true,actions:['list'],ref:{workspaceId:'',sourceId:'dinah-home',path:''}});
+      var node = put({path:path,title:path.slice(path.lastIndexOf('/') + 1),kind:'directory',directory:true,writable:true,local:true,actions:['list'],ref:{workspaceId:'',sourceId:'dinah-home',path:''}});
       node.parent = homeParent; return node;
     }
     // The home folder is /home/<name>, and the name can change; the folder
@@ -1005,5 +1071,5 @@
     };
   }
 
-  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, marks: marks, marksOf: marksOf, registerOpener: registerOpener, registerEntryCommands: registerEntryCommands, entryCommands: entryCommands, withEntryCommands: withEntryCommands, itemOfRef: itemOfRef, openerFor: openerFor, runOpener: runOpener, openRef: openRef, kindOpeners: function () { return kindOpeners.size > 0; }, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, marks: marks, marksOf: marksOf, registerOpener: registerOpener, registerEntryCommands: registerEntryCommands, entryCommands: entryCommands, withEntryCommands: withEntryCommands, itemOfRef: itemOfRef, openerFor: openerFor, runOpener: runOpener, openRef: openRef, kindOpeners: function () { return kindOpeners.size > 0; }, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, onComputer: onComputer, notOnComputer: notOnComputer, showInFolder: showInFolder, pathCopyButton: pathCopyButton, drawPathCopy: drawPathCopy, browserMenuTarget: browserMenuTarget, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

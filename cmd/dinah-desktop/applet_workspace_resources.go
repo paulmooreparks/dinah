@@ -95,10 +95,10 @@ func (a *App) addWorkspaceResourceActions(manifest *applet.Manifest, handlers ma
 }
 
 // appletResourceItem is a resource item as the version 1 actions return it,
-// without the size, time and writable flag the person's own Terminal is
-// given, which those actions' output schemas do not allow.
+// without the size, time, writable flag and local flag the person's own
+// windows are given, which those actions' output schemas do not allow.
 func appletResourceItem(item ResourceItem) ResourceItem {
-	item.Size, item.Modified, item.Writable = 0, "", false
+	item.Size, item.Modified, item.Writable, item.Local = 0, "", false, false
 	return item
 }
 

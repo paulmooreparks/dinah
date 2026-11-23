@@ -44,6 +44,13 @@ type ResourceItem struct {
 	Size     int64  `json:"size,omitempty"`
 	Modified string `json:"modified,omitempty"`
 	Writable bool   `json:"writable,omitempty"`
+	// Local marks a file or folder that has a place on this computer, in a
+	// folder on the computer, the home folder, /bin or /lib, whether or not
+	// it can be written. WorkspaceLocalPath gives its path as the operating
+	// system writes it, and ShowWorkspaceResource shows it in the system's
+	// file manager. An entry of another kind of source, a workspace and a
+	// folder that is missing are not local.
+	Local bool `json:"local,omitempty"`
 	// Missing marks a local folder that is not on the computer, and the
 	// folders its import recorded inside it, which are shown until it is
 	// (workspace_export.go).
@@ -155,10 +162,10 @@ func workspaceSourceResource(record WorkspaceRecord, source WorkspaceSource) Res
 	if source.Kind != "local-folder" {
 		return providerSourceItem(record, source)
 	}
-	item := ResourceItem{Ref: ResourceRef{WorkspaceID: record.ID, SourceID: source.ID}, Title: source.Name, Kind: source.Kind, Directory: true, Actions: []string{"list"}, Writable: true}
+	item := ResourceItem{Ref: ResourceRef{WorkspaceID: record.ID, SourceID: source.ID}, Title: source.Name, Kind: source.Kind, Directory: true, Actions: []string{"list"}, Writable: true, Local: true}
 	switch {
 	case !folderExists(source.Path):
-		item.Missing, item.Writable = true, false
+		item.Missing, item.Writable, item.Local = true, false, false
 		item.Actions = []string{"list", "create-folders"}
 		// The main folder cannot move, since the workspace's chats find it
 		// by its path.
@@ -264,7 +271,7 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	if err != nil {
 		return ResourceItem{}, errors.New("the source path could not be inspected")
 	}
-	item := ResourceItem{Ref: ref, Title: st.Name(), Kind: "file", Directory: st.IsDir(), Revision: fmt.Sprintf("%d:%d", st.ModTime().UnixNano(), st.Size()), Actions: []string{}, Modified: st.ModTime().UTC().Format(time.RFC3339), Writable: true}
+	item := ResourceItem{Ref: ref, Title: st.Name(), Kind: "file", Directory: st.IsDir(), Revision: fmt.Sprintf("%d:%d", st.ModTime().UnixNano(), st.Size()), Actions: []string{}, Modified: st.ModTime().UTC().Format(time.RFC3339), Writable: true, Local: true}
 	if !st.IsDir() {
 		item.Size = st.Size()
 	}

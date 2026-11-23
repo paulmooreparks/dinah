@@ -16,10 +16,10 @@
     /* The toolbar is PUDL's folding toolbar of the window's commands
        (commandTable, below): Go before the path, and the folder's commands
        and Actions after it, which fold as the window narrows; the path keeps
-       its place. */
+       its place, with its Copy Path button at its end. */
     root.innerHTML = (showToolbar ? '<div class="fm-toolbar toolbar" role="toolbar" aria-label="Files" data-toolbar-fold>' +
       '<div class="toolbar-group" aria-label="Go" data-toolbar-glyph="home" data-toolbar-priority="4"><button type="button" data-command="up"></button><button type="button" data-command="home"></button></div>' +
-      FB.markup.pathBar() +
+      FB.markup.pathBar() + dinahResources.pathCopyButton() +
       '<div class="toolbar-group" data-toolbar-group="Folder" data-toolbar-glyph="folder" data-toolbar-priority="2"><button type="button" data-command="new-folder"></button><button type="button" data-command="upload"></button><button type="button" data-command="refresh"></button></div>' +
       '<div class="toolbar-group" aria-label="Actions" data-toolbar-priority="3" data-toolbar-end><button type="button" data-command="files-actions"></button></div></div>' : '') +
       FB.markup.body({tree: !listOnly}) + '<div class="fm-page"><button type="button" class="btn btn-sm" data-action="more" hidden>Load More</button></div>' +
@@ -29,6 +29,9 @@
     var q = function (selector) { return root.querySelector(selector); };
     if (!listOnly) q('[data-fb="tree-pane"]').dataset.uiScroll = 'files-tree';
     q('[data-fb="main"]').dataset.uiScroll = 'files-list';
+    // A press on the part of the list that is not a row puts focus there, so
+    // the menu key and Shift+F10 then open the folder's menu.
+    q('[data-fb="main"]').tabIndex = -1;
     function say(message, error) { if (destroyed) return; q('.fm-status').textContent = message || ''; q('.fm-status').classList.toggle('fm-status-error', !!error); }
     function current() { return browser && (browser.selected() || browser.cwd()); }
     function state() { return 'path=' + encodeURIComponent(failedPath || (browser ? browser.cwd().path : initialPath || '/workspaces')); }
@@ -72,7 +75,7 @@
        (pudl-commands.js): the toolbar, the Actions menu and the window's
        menu name them by id, and an agent lists and runs them. What applies
        to the selection is shown; the rest is hidden. */
-    var ACTIONS = ['retry', 'open', 'edit', 'edit-text', 'browse-children', 'open-external', 'new-folder', 'upload', 'copy-path', 'rename', 'refresh', 'preview-pane', 'new-terminal'];
+    var ACTIONS = ['retry', 'open', 'edit', 'edit-text', 'browse-children', 'open-external', 'show-in-folder', 'new-folder', 'upload', 'copy-path', 'rename', 'refresh', 'preview-pane', 'new-terminal'];
     // The window's menu in the bar has them all but Refresh, which is
     // View, Refresh for every list (docs/design/menus.md).
     var MENU = ACTIONS.filter(function (id) { return id !== 'refresh'; });
@@ -93,7 +96,7 @@
       var node = current(), cwd = browser && browser.cwd(), takes = !!cwd && !displayOnly && dinahResources.takesFolder(cwd);
       var external = !node ? '' : dinahResources.has(node, 'open-external') ? 'Open in Default Application' : dinahResources.has(node, 'reveal') ? 'Show in Folder' : '';
       var opens = !!node && (node.ref && dinahResources.has(node, 'preview') || node.directory && dinahResources.has(node, 'list'));
-      var notHere = 'This folder does not take new files.', own = productCommands();
+      var notHere = 'This folder does not take new files.', own = productCommands(), placed = dinahResources.onComputer(node);
       return [
         { id: 'up', label: 'Up One Folder', glyph: 'arrow-up', disabled: !browser || !browser.canUp() || loading, run: function () { browser.up(); } },
         { id: 'home', label: rooted ? 'Starting Folder' : 'Home', glyph: 'home', disabled: !browser, run: function () { browser.goPath(navigationRoot || F.home().path); } },
@@ -108,9 +111,10 @@
           var api = window.dinahHelpers.app();
           (node.ref ? api.OpenWorkspaceResource(node.ref) : api.OpenWorkspaceMount(node.path)).catch(fail);
         } },
+        { id: 'show-in-folder', label: 'Show in Folder', hidden: !placed || external === 'Show in Folder', run: function () { dinahResources.showInFolder(node).catch(fail); } },
         { id: 'new-folder', label: 'New Folder…', hidden: displayOnly, disabled: loading || !takes, reason: !takes ? notHere : null, run: newFolder },
         { id: 'upload', label: 'Upload Files…', glyph: 'upload', hidden: displayOnly, disabled: loading || !takes, reason: !takes ? notHere : null, run: uploadFiles },
-        { id: 'copy-path', label: 'Copy Path', hidden: !(node && node.ref && node.writable), run: function () { dinahResources.copyPath(node).catch(fail); } },
+        { id: 'copy-path', label: 'Copy Path', hidden: !node, disabled: !placed, reason: placed ? null : dinahResources.notOnComputer(node), run: function () { dinahResources.copyPath(node).catch(fail); } },
         { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: displayOnly || !dinahResources.renames(node), run: function () { dinahResources.renameFile(node).catch(fail); } },
         { id: 'refresh', label: 'Refresh', glyph: 'reload', disabled: loading || !browser, run: refresh },
         { id: 'preview-pane', label: 'Show the Preview Pane', checked: previewVisible, hidden: listOnly, run: function () {
@@ -126,6 +130,7 @@
     function redraw() {
       if (!browser || destroyed) return;
       dinahResources.decorate(root, F, browser.cwd());
+      dinahResources.drawPathCopy(root, browser.cwd());
       q('[data-action="more"]').hidden = browser.cwd().nextStart < 0;
       q('[data-action="more"]').disabled = loading;
       if (window.pudlCommands) window.pudlCommands.changed();
@@ -202,18 +207,36 @@
       if (opts.changed) opts.changed(state());
       if (window.dinahUIState) dinahUIState.refreshScroll(root);
     });
+    /* The folder shown has its menu on the part of the list that is not a
+       row, and from the keyboard while no row has focus. New Folder…,
+       Upload Files…, Refresh and the preview pane are the window's own
+       commands, which act on the folder shown whatever is selected. Copy
+       Path, Show in Folder and New Terminal Here are for the folder shown
+       here, not for the selection, so they are rows of this menu alone. */
+    function folderRows() {
+      var dir = browser.cwd(), table = commandTable(), placed = dinahResources.onComputer(dir);
+      function command(id) { var c = table.find(function (x) { return x.id === id; }); return c && !c.hidden ? c : null; }
+      return [command('new-folder'), command('upload'), '-',
+        { label: 'Copy Path', disabled: !placed, reason: placed ? null : dinahResources.notOnComputer(dir), run: function () { return dinahResources.copyPath(dir).catch(fail); } },
+        placed ? { label: 'Show in Folder', run: function () { return dinahResources.showInFolder(dir).catch(fail); } } : null,
+        { label: 'New Terminal Here', run: function () { return dinahResources.openTerminal(dir.path, dir.ref).catch(fail); } },
+        '-', command('refresh'), command('preview-pane')].filter(Boolean);
+    }
     root.addEventListener('pudl:contextmenu', function (event) {
       if (!browser || displayOnly || event.detail.count()) return;
-      var row = event.target.closest('tr.fm-row'), tree = event.target.closest('[data-fb=tree] a[data-path]');
-      if (!row && !tree) return;
+      var at = dinahResources.browserMenuTarget(root, event);
+      if (!at) return;
+      if (at.folder) { event.detail.add(folderRows()); event.preventDefault(); return; }
       var item;
-      if (row) { browser.select(row.dataset.name); item = browser.selected(); }
-      else item = F.resolve(null, tree.dataset.path);
+      if (at.row) { browser.select(at.row.dataset.name); item = browser.selected(); }
+      else item = F.resolve(null, at.tree.dataset.path);
       if (!item) return;
-      event.detail.add(dinahResources.withEntryCommands(dinahResources.itemCommands(item, fail), item, fail));
-      event.detail.mark(row || tree); event.preventDefault();
+      event.detail.add(dinahResources.withEntryCommands(dinahResources.itemCommands(item, fail, { unplaced: true }), item, fail));
+      event.detail.mark(at.row || at.tree); event.preventDefault();
     });
     root.addEventListener('click', function (event) {
+      var copy = event.target.closest('[data-copy-path]');
+      if (copy && browser && !copy.disabled) { dinahResources.copyPath(browser.cwd(), copy).catch(fail); return; }
       var button = event.target.closest('[data-action]'); if (!button || !browser) return;
       if (button.dataset.action === 'more') more();
     });
