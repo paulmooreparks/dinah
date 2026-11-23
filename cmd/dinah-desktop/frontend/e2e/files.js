@@ -7,7 +7,7 @@ const { press, openMenu } = require('./lib/commands');
     state: { workspace: 'C:/Fixture', workspaceId: 'w1', workspaceRecords: [{ id: 'w1', name: 'Alpha Delivery', mountAlias: 'alpha', primarySourceId: 'local', sources: [{ id: 'local', name: 'Working Documents', mountAlias: 'documents', kind: 'local-folder', path: 'C:/Fixture' }] }], recent: ['C:/Fixture'] },
     app: () => {
       const item = (p, title, directory, kind = 'folder', source = '') => ({ path: p, title, directory, kind, actions: directory ? ['list'] : ['read', 'preview', 'edit-text', 'open-external'], ...(source ? { ref: { workspaceId: 'w1', sourceId: source, path: p.split('/').slice(4).join('/') }, local: true } : {}) });
-      const entries = [item('/', '/', true), item('/workspaces', 'Workspaces', true), item('/workspaces/alpha', 'Alpha Delivery', true), item('/workspaces/beta', 'Beta Delivery', true), item('/workspaces/alpha/documents', 'Working Documents', true, 'local-folder', 'local'), item('/workspaces/alpha/documents/readme.md', 'Read Me', false, 'file', 'local'), item('/workspaces/alpha/documents/slow.md', 'Slow Preview', false, 'file', 'local'), item('/workspaces/alpha/documents/script.ps1', 'Script', false, 'file', 'local'), item('/workspaces/alpha/documents/later.md', 'Later Page', false, 'file', 'local'), item('/workspaces/alpha/documents/paged', 'Paged Folder', true, 'folder', 'local'), item('/workspaces/alpha/documents/paged/end.md', 'End', false, 'file', 'local')];
+      const entries = [item('/', '/', true), item('/workspaces', 'Workspaces', true), item('/workspaces/alpha', 'Alpha Delivery', true), item('/workspaces/beta', 'Beta Delivery', true), item('/workspaces/beta/many', 'Many', true),item('/workspaces/alpha/documents', 'Working Documents', true, 'local-folder', 'local'), item('/workspaces/alpha/documents/readme.md', 'Read Me', false, 'file', 'local'), item('/workspaces/alpha/documents/slow.md', 'Slow Preview', false, 'file', 'local'), item('/workspaces/alpha/documents/script.ps1', 'Script', false, 'file', 'local'), item('/workspaces/alpha/documents/later.md', 'Later Page', false, 'file', 'local'), item('/workspaces/alpha/documents/paged', 'Paged Folder', true, 'folder', 'local'), item('/workspaces/alpha/documents/paged/end.md', 'End', false, 'file', 'local')];
       entries.find(x => x.path.endsWith('script.ps1')).actions = ['reveal'];
       // A Markdown file can be renamed in its folder.
       entries.find(x => x.path.endsWith('later.md')).actions.push('rename');
@@ -46,6 +46,14 @@ const { press, openMenu } = require('./lib/commands');
         ListWorkspaceMounts: async (p, start, limit) => {
           __calls.push(['list', p, start, limit]);
           if (window.__failList === p) throw Error('The source is offline');
+          if (window.__failPage === p && start > 0) throw Error('The second page is unavailable');
+          // A folder of thousands of entries, given in pages of the size
+          // asked for; a page after the first waits while __holdMany is set.
+          if (p === '/workspaces/beta/many') {
+            if (start > 0 && window.__holdMany) await new Promise(resolve => { window.__releaseMany = resolve; });
+            const all = Array.from({ length: 2500 }, (_, i) => item('/workspaces/beta/many/m' + String(i).padStart(4, '0'), 'm' + String(i).padStart(4, '0'), false));
+            return { entries: all.slice(start, start + limit), nextStart: start + limit < all.length ? start + limit : -1 };
+          }
           let children = entries.filter(x => x.path !== '/' && (x.path.slice(0, x.path.lastIndexOf('/')) || '/') === p).map(x => stat(x.path));
           if (p.endsWith('/paged')) return start === 0 ? { entries: [], nextStart: 1 } : { entries: children, nextStart: -1 };
           const size = p.endsWith('/documents') ? 4 : 100;
@@ -137,7 +145,12 @@ const { press, openMenu } = require('./lib/commands');
     await page.evaluate(() => window.__drop(2, 2, ['Tender.docx']));
     await page.waitForTimeout(300);
     ok('a drop outside a folder uploads nothing', uploads.length === 1);
-    ok('folders show display labels while retaining canonical alias paths', (await win.locator('.fm-path').textContent()).includes('Working Documents') && await win.locator('.fm-path [aria-current="location"]').getAttribute('title') === '/workspaces/alpha/documents' && await win.getByRole('button', { name: 'Load More', exact: true }).last().isVisible());
+    ok('folders show display labels while retaining canonical alias paths', (await win.locator('.fm-path').textContent()).includes('Working Documents') && await win.locator('.fm-path [aria-current="location"]').getAttribute('title') === '/workspaces/alpha/documents');
+    // The stub gives this folder four entries a page; every page is fetched,
+    // and nothing offers more.
+    await win.locator('tr[data-name=paged]').waitFor();
+    ok('a folder given in pages is listed whole, with no Load More', await win.locator('tr[data-name="readme.md"]').count() === 1 && await win.locator('[data-fb="tree"] a[data-path="/workspaces/alpha/documents/paged"]').count() === 1 &&
+      await page.evaluate(() => __calls.some(c => c[0] === 'list' && c[1] === '/workspaces/alpha/documents' && c[2] === 4)) && await page.getByRole('button', { name: 'Load More' }).count() === 0 && await page.locator('[data-action=more], [data-more-path]').count() === 0);
     await win.locator('tr[data-name="readme.md"]').click();
     await win.locator('.fm-preview h1').waitFor();
     ok('single selection previews without opening a document', await win.locator('.fm-preview h1').textContent() === 'Read Me' && await page.locator('.win[data-win-kind=workspace-resource]').count() === 0);
@@ -221,13 +234,9 @@ const { press, openMenu } = require('./lib/commands');
     await win.locator('tr[data-name="later notes.md"][aria-selected=true]').waitFor();
     ok('Rename… renames the file and keeps it selected under its new name', await page.evaluate(() => __calls.some(c => c[0] === 'rename' && c[1] === 'local' && c[2] === 'later.md' && c[3] === 'later notes.md')) && await win.locator('tr[data-name="later.md"]').count() === 0);
     await page.evaluate(() => window.__renameFile({ workspaceId: 'w1', sourceId: 'local', path: 'later notes.md' }, 'later.md'));
-    await win.locator('[data-action=more]').click();
-    await win.locator('tr[data-name=paged]').waitFor();
     await win.locator('tr[data-name=paged]').dblclick();
-    await win.locator('[data-action=more]').waitFor();
-    await win.locator('[data-action=more]').click();
     await win.locator('tr[data-name="end.md"]').waitFor();
-    ok('empty pages with a next cursor can still load more', true);
+    ok('an empty first page with a next start is followed to the entries after it', await page.locator('[data-action=more]').count() === 0);
     await win.getByRole('button', { name: 'Up One Folder', exact: true }).click();
     await win.locator('tr[data-name="readme.md"]').waitFor();
     await win.locator('tr[data-name="readme.md"]').click();
@@ -250,7 +259,6 @@ const { press, openMenu } = require('./lib/commands');
     ok('saved identity refuses an alias reused by a replacement source', (await win.locator('.fm-status').textContent()).includes('different workspace source') && await page.evaluate(() => !__calls.some(c => c[0] === 'list' && c[1] === '/workspaces/alpha/documents')));
     await page.evaluate(() => { pudlWindows.close(dinahWorkbench.key({ kind: 'files', path: '/workspaces' })); localStorage.removeItem('replaced-source'); return dinahResources.openFiles('/workspaces/alpha/documents/paged'); });
     const paged = page.locator('.win[data-win-kind=files]');
-    await paged.locator('[data-action=more]').click();
     await paged.locator('tr[data-name="end.md"]').click();
     await paged.locator('.fm-preview h1').waitFor();
     await openMenu(page, paged, 'files-actions');
@@ -259,6 +267,34 @@ const { press, openMenu } = require('./lib/commands');
     await page.reload();
     await page.locator('.win[data-win-kind=files] tr[data-name="end.md"][aria-selected=true]').waitFor();
     ok('a selection and hidden preview survive restart', await page.locator('.win[data-win-kind=files] .fm-preview').isHidden());
+    await page.evaluate(() => { document.querySelectorAll('.win[data-win-kind=files]').forEach(win => pudlWindows.close(win.dataset.win)); });
+    // A page that fails after others were listed leaves them shown and says
+    // why, as a failed listing does; Refresh then lists the folder whole.
+    await page.evaluate(() => { window.__failPage = '/workspaces/alpha/documents'; return dinahResources.openFiles('/workspaces/alpha/documents'); });
+    const failing = page.locator('.win[data-win-kind=files]');
+    await failing.locator('.fm-status-error').filter({ hasText: 'The second page is unavailable' }).waitFor();
+    ok('a page that fails keeps the entries listed before it and says why', await failing.locator('tr.fm-row').count() === 4 && await failing.locator('tr[data-name="readme.md"]').count() === 1 && await failing.locator('tr[data-name=paged]').count() === 0);
+    await page.evaluate(() => { window.__failPage = ''; });
+    await press(page, failing, 'refresh');
+    await failing.locator('tr[data-name=paged]').waitFor();
+    ok('Refresh after a failed page lists the folder whole', await failing.locator('tr[data-name="readme.md"]').count() === 1 && !(await failing.locator('.fm-status').textContent()).includes('unavailable'));
+    await page.evaluate(() => { document.querySelectorAll('.win[data-win-kind=files]').forEach(win => pudlWindows.close(win.dataset.win)); });
+    // A folder of thousands of entries whose later pages are slow is drawn
+    // with what has arrived; the rest is added below it, the first rows
+    // staying where they are, until every entry is listed.
+    await page.evaluate(() => { window.__holdMany = true; return dinahResources.openFiles('/workspaces/beta/many'); });
+    const many = page.locator('.win[data-win-kind=files]');
+    await many.locator('tr[data-name="m0000"]').waitFor();
+    const drawnAt = () => many.evaluate(win => { const bar = win.querySelector('.fm-toolbar'); return { rows: win.querySelectorAll('tr.fm-row').length, top: Math.round(win.querySelector('tr[data-name="m0000"]').getBoundingClientRect().top), bar: Math.round(bar.getBoundingClientRect().height), barContent: bar.scrollHeight }; });
+    const early = await drawnAt();
+    await page.evaluate(() => { window.__holdMany = false; window.__releaseMany(); });
+    await many.locator('tr[data-name="m2499"]').waitFor({ state: 'attached' });
+    const late = await drawnAt();
+    ok('a long folder is drawn as its pages arrive, its first rows staying put, and is listed whole', early.rows > 0 && early.rows <= 1000 && late.rows === 2500 && late.top === early.top &&
+      await page.evaluate(() => __calls.filter(c => c[0] === 'list' && c[1] === '/workspaces/beta/many').every(c => c[3] === 1000)) && await many.getByRole('button', { name: 'Load More' }).count() === 0, JSON.stringify({ early, late }));
+    // Until 24 November 2026 the folding toolbar, which hides what overflows
+    // it, gave up its height to a folder taller than the window.
+    ok('the toolbar keeps its height over a folder taller than the window', late.bar >= late.barContent && late.bar >= 24, JSON.stringify(late));
     await page.evaluate(() => { document.querySelectorAll('.win[data-win-kind=files]').forEach(win => pudlWindows.close(win.dataset.win)); });
     await page.evaluate(() => dinahResources.openFiles('/workspaces/alpha/documents'));
     await page.locator('.win[data-win-kind=files] tr[data-name="readme.md"]').waitFor();
@@ -278,7 +314,7 @@ const { press, openMenu } = require('./lib/commands');
       const tree = dinahResources.createTree(), parent = await tree.lookup('/workspaces/alpha');
       await tree.load(parent); const old = tree.resolve(null, '/workspaces/alpha/documents');
       await tree.load(old); const child = tree.resolve(null, '/workspaces/alpha/documents/readme.md');
-      localStorage.setItem('replaced-source', 'yes'); await tree.load(parent, false, true);
+      localStorage.setItem('replaced-source', 'yes'); await tree.load(parent, true);
       const replacement = tree.resolve(null, old.path); let rejected = false;
       try { await tree.load(old); } catch (_) { rejected = true; }
       localStorage.removeItem('replaced-source'); tree.destroy();

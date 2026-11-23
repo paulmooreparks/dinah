@@ -1,8 +1,14 @@
-/* Dinah adds bounded previews and paging to the Parks Files layout. */
+/* Dinah adds bounded previews to the Parks Files layout. */
 /* The toolbar is PUDL's folding toolbar (files-applet.js): it keeps to one
    row, which the vendored layout's wrapping would undo. The location takes
    the room left, down to a width at which the groups fold first. */
 .pc-files .fm-toolbar.toolbar[data-toolbar-fold] { flex-wrap: nowrap; gap: 0; }
+/* The window is a column in which only the browser and the preview give
+   up height. The folding toolbar hides its overflow, which lets a flex item
+   shrink to nothing, so in a folder taller than the window it was squashed
+   to a sliver with its buttons cut. The toolbar, the detail line and the
+   status line keep their own height, and so does the picker's bar. */
+.pc-files > :is(.fm-toolbar, .fm-detail, .fm-status), .dinah-picker .fb-pick-bar { flex: none; }
 .pc-files .fm-toolbar > .fm-path { flex: 1 1 8em; min-width: 8em; overflow: hidden; margin-inline: var(--space-2); }
 .dinah-window > .dinah-applet.dinah-files { padding: var(--space-3); overflow: hidden; }
 .dinah-files .fm-preview { flex: 0 1 40%; min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); }
@@ -25,7 +31,6 @@
    vendored row would print in grey after the title; Copy Path gives it. */
 .dinah-files .fm-title { display: none; }
 .dinah-files .fm-detail code { overflow-wrap: anywhere; }
-.dinah-files .fm-page:has(button[hidden]) { display: none; }
 .dinah-files .fm-path { flex: 1 1 12rem; overflow-x: auto; }
 /* The path bar's Copy Path button stands at the path's end and keeps its
    size; in the toolbar it is kept apart from the Folder group after it. */

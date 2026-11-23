@@ -133,10 +133,11 @@ const { launch, PAGE } = require('./lib/page');
     await resource('Working Files').press('ArrowDown');
     ok('PUDL tree keys move focus to the next visible source resource', await resource('Nested').evaluate(link => link === document.activeElement));
     await resource('Report').waitFor();
-    ok('local resources list lazily with the shared bounded page size', await page.evaluate(() => __calls.some(call => call[0] === 'list' && call[1].sourceId === 'primary' && call[2] === 0 && call[3] === 100)));
-    await sources.getByRole('button', { name: 'Load More', exact: true }).click();
+    ok('local resources list lazily with the shared bounded page size', await page.evaluate(() => __calls.some(call => call[0] === 'list' && call[1].sourceId === 'primary' && call[2] === 0 && call[3] === 1000)));
+    // The stub gives the folder in two pages; both are listed, and nothing
+    // offers more.
     await resource('Last Page').waitFor();
-    ok('Load More appends the next page without repeating the first page', await resource('Report').count() === 1 && await page.evaluate(() => __calls.some(call => call[0] === 'list' && call[2] === 4)));
+    ok('a folder given in pages is listed whole without repeating the first page, with no Load More', await resource('Report').count() === 1 && await page.evaluate(() => __calls.some(call => call[0] === 'list' && call[2] === 4)) && await sources.getByRole('button', { name: 'Load More' }).count() === 0);
     // A folder on the computer takes uploads, opens in Files and copies its
     // path, and its row takes dropped files.
     await openActions('Nested');
@@ -192,9 +193,8 @@ const { launch, PAGE } = require('./lib/page');
     await page.evaluate(() => { window.__sharedOnline = true; });
     await sources.getByRole('button', { name: 'Retry', exact: true }).click();
     const sharedBranch = resource('Shared Drive').locator('..');
-    await sharedBranch.getByRole('button', { name: 'Load More', exact: true }).click();
     await resource('Archive').waitFor();
-    ok('unavailable sources recover and empty pages with a next cursor remain pageable', await page.evaluate(() => __calls.filter(call => call[0] === 'list' && call[1].sourceId === 'shared').length === 3 && __calls.some(call => call[0] === 'list' && call[1].sourceId === 'shared' && call[2] === 7)));
+    ok('unavailable sources recover, and an empty first page with a next start is followed to the entries after it', await sharedBranch.getByRole('button', { name: 'Load More' }).count() === 0 && await page.evaluate(() => __calls.filter(call => call[0] === 'list' && call[1].sourceId === 'shared').length === 3 && __calls.some(call => call[0] === 'list' && call[1].sourceId === 'shared' && call[2] === 7)));
     await sources.getByRole('button', { name: 'Expand Archive', exact: true }).click();
     const archiveBranch = resource('Archive').locator('..');
     await archiveBranch.getByText('No items.', { exact: true }).waitFor();
@@ -208,7 +208,6 @@ const { launch, PAGE } = require('./lib/page');
     await page.evaluate(() => { window.__sharedEmpty = false; });
     await openActions('Shared Drive');
     await page.locator('.context-menu').getByRole('menuitem', { name: 'Refresh Source', exact: true }).click();
-    await sharedBranch.getByRole('button', { name: 'Load More', exact: true }).click();
     await resource('Archive').waitFor();
     ok('refresh can restore children to a previously empty root', await sources.getByRole('button', { name: 'Collapse Shared Drive', exact: true }).count() === 1);
     // Add Source… asks for a folder; Cancel in the folder dialog adds nothing.

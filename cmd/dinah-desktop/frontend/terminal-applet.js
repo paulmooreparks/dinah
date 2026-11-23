@@ -18,7 +18,7 @@
   // goes, which is put in as they are shown.
   function named(text) { return String(text).split('{product}').join(productName()); }
   var base = new URL('.', document.currentScript.src), loading;
-  var MAX_INPUT = 4096, MAX_OUTPUT = 65536, MAX_HISTORY = 200, MAX_PIPE = 8 << 20, LIST_TTL = 10000, SCRIPT_DEPTH = 8;
+  var MAX_INPUT = 4096, MAX_OUTPUT = 65536, MAX_HISTORY = 200, MAX_PIPE = 8 << 20, LIST_TTL = 10000, LIST_PAGE = 1000, SCRIPT_DEPTH = 8;
 
   /* ANSI styling. Output that goes into a pipe or a file is stripped of it.
      What reaches the screen passes the filters in terminal-text.js: safe for
@@ -806,13 +806,19 @@
         return null;
       }
     }
-    async function list(path) {
+    /* A folder is listed whole, in pages of LIST_PAGE entries, the most Go
+       gives in one call; each call to a source that is not a folder on the
+       computer lists the folder again on its side, so fewer and larger
+       pages are much the faster. stopped, when given, ends the listing
+       between pages, as Ctrl+C does; what was listed so far is returned
+       and not kept. */
+    async function list(path, stopped) {
       var hit = listings.get(path);
       if (hit && Date.now() - hit.at < LIST_TTL) return hit.entries;
       var e = expected(path), out = [];
-      for (var next = 0, pages = 0; next >= 0; pages++) {
-        if (pages >= 100) throw new Error('the folder has more than 10000 entries; name what you want in it');
-        var page = e ? await api.ListWorkspaceMountsExpected(path, next, 100, e) : await api.ListWorkspaceMounts(path, next, 100);
+      for (var next = 0; next >= 0;) {
+        if (stopped && stopped()) return out;
+        var page = e ? await api.ListWorkspaceMountsExpected(path, next, LIST_PAGE, e) : await api.ListWorkspaceMounts(path, next, LIST_PAGE);
         out = out.concat(page.entries || []);
         if (page.nextStart >= 0 && page.nextStart <= next) throw new Error('the folder listing went wrong');
         next = typeof page.nextStart === 'number' ? page.nextStart : -1;
@@ -1173,12 +1179,12 @@
           path: at,
           cwd: function () { return here || cwd; },
           stat: function (p) { return fs.stat(at(p)); },
-          list: function (p) { return fs.list(at(p)); },
+          list: function (p) { return fs.list(at(p), function () { return token.cancelled; }); },
           chdir: function (e) { if (!token.cancelled) chdir(e); },
           walk: async function (e, visit, maxDepth) {
             var count = 0;
             async function step(dir, level) {
-              var kids = (await fs.list(dir.path)).filter(function (c) { return nameOf(c.path)[0] !== '.'; });
+              var kids = (await fs.list(dir.path, function () { return token.cancelled; })).filter(function (c) { return nameOf(c.path)[0] !== '.'; });
               for (var i = 0; i < kids.length && !token.cancelled; i++) {
                 if (++count > 20000) throw new Error('more than 20000 entries; start lower down');
                 visit(kids[i]);

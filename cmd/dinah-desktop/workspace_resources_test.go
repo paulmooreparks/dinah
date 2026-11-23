@@ -107,6 +107,13 @@ func TestWorkspaceResourcesPaginationAndCancellation(t *testing.T) {
 	if len(seen) != 5 {
 		t.Fatal("missing page entries")
 	}
+	// A page may be as long as maxListPage, and no longer.
+	if page, err := service.list(ref, 0, maxListPage); err != nil || len(page.Entries) != 5 || page.NextStart != -1 {
+		t.Fatalf("a page of the most entries: %+v %v", page, err)
+	}
+	if _, err := service.list(ref, 0, maxListPage+1); err == nil {
+		t.Fatal("a page longer than maxListPage was given")
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	service.ctx = ctx

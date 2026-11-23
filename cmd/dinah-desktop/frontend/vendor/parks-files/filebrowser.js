@@ -166,10 +166,12 @@
 
         /* === Drawing ===================================================== */
 
-        function render() {
+        /* need is how far down the list must be drawn at once, in pixels, as
+           when a saved scroll is put back; by default it is what is in view. */
+        function render(need) {
             if (el.crumbs) { renderCrumbs(); }
             if (el.tree) { renderTree(); }
-            if (el.rows) { renderList(); }
+            if (el.rows) { renderList(need); }
             if (o.onRender) { o.onRender(); }
         }
 
@@ -209,12 +211,13 @@
             var current = !seen[path] && (currentPath != null ? path === currentPath : node === cwd);
             seen[path] = true;
             var label = !node.parent ? '/' : node === F.home() ? 'Home (~)' : (node.title || node.name);
-            var expandable = kids.length || node.loaded === false || node.nextStart >= 0;
+            /* The host lists a folder whole, so the tree has no control for
+               more of one; a folder still arriving grows in place. */
+            var expandable = kids.length || node.loaded === false || node.filling;
             return '<li><a href="' + esc(linkFor(node)) + '" data-path="' + esc(path) + '"' +
                 (expandable ? ' aria-expanded="' + open + '"' : '') + (current ? ' aria-current="location"' : '') + '>' +
                 glyph(node === F.home() ? 'home' : 'dir') + '<span class="fm-ti-label">' + esc(label) + '</span></a>' +
-                (expandable && open ? '<ul>' + kids.map(function (d) { return treeNode(d, seen); }).join('') +
-                    (node.nextStart >= 0 ? '<li><button type="button" class="btn btn-sm" data-more-path="' + esc(path) + '">Load More</button></li>' : '') + '</ul>' : '') + '</li>';
+                (expandable && open ? '<ul>' + kids.map(function (d) { return treeNode(d, seen); }).join('') + '</ul>' : '') + '</li>';
         }
         function branch(kids, seen) { return '<ul>' + kids.map(function (d) { return treeNode(d, seen); }).join('') + '</ul>'; }
 
@@ -273,28 +276,68 @@
            follows focus, and Enter or a double-click opens a row. A row
            whose entry has an address of its own links to it; the rest open
            through pudl:row-open. */
-        function renderList() {
-            var list = entries(), html = '';
+        /* A row's markup. live gives the row as it is drawn now, selected or
+           not; without it the row is given in one fixed state, which is what
+           two drawings of it are compared by. */
+        function rowMarkup(c, list, live) {
+            var r = F.realOf(c), kind = F.kindOf(c);
+            var date = r.home ? r.mtime : r.date;
+            var sel = live && selected === c;
+            var href = o.rowLinks === false ? null : kind === 'dir' ? linkFor(c) : (o.addressOf ? o.addressOf(c) : null);
+            var name = esc(r.title || c.name) + (kind === 'dir' ? '/' : '');
+            return '<tr class="fm-row" data-name="' + esc(c.name) + '" aria-selected="' + sel + '" tabindex="' + (live && (sel || (!selected && c === list[0])) ? '0' : '-1') + '"' +
+                (o.draggable && inHome(c) && !r.special ? ' draggable="true"' : '') + '>' +
+                '<td class="fm-c-name"><span class="fm-cell">' + glyph(kind) +
+                (href ? '<a class="fm-name" href="' + esc(href) + '">' + name + '</a>' : '<span class="fm-name">' + name + '</span>') +
+                (r.title && r.title !== c.name && !r.home && !r.contentFacet ? '<span class="fm-title">' + esc(c.name) + '</span>' : '') + '</span></td>' +
+                '<td class="fm-c-kind">' + KIND_NAMES[kind] + '</td>' +
+                '<td class="fm-c-date">' + esc(date && !isNaN(date) && o.formatDate ? o.formatDate(date) : fmtDate(date)) + '</td>' +
+                '<td class="fm-c-size num">' + esc(fmtSize(F.size(c))) + '</td></tr>';
+        }
+
+        /* A folder of thousands of entries is drawn a part at a time, so the
+           page keeps answering: what is in view (or need) at once, and the
+           rest ROWS_AT_ONCE rows at a time after it, each part added below
+           the last. A redraw whose rows begin with the rows already drawn,
+           as when more of a folder arrives, only adds the new ones, so
+           nothing drawn moves and the list keeps its scroll. */
+        var ROWS_AT_ONCE = 300, drawing = 0, drawn = { cwd: null, keys: [] };
+        function renderList(need) {
+            var list = entries();
             if (o.parentEntry && canUp()) list.unshift(Object.assign({}, cwd.parent, {name:'..',title:'Parent Folder',special:true}));
-            list.forEach(function (c) {
-                var r = F.realOf(c), kind = F.kindOf(c);
-                var date = r.home ? r.mtime : r.date;
-                var sel = selected === c;
-                var href = o.rowLinks === false ? null : kind === 'dir' ? linkFor(c) : (o.addressOf ? o.addressOf(c) : null);
-                var name = esc(r.title || c.name) + (kind === 'dir' ? '/' : '');
-                html += '<tr class="fm-row" data-name="' + esc(c.name) + '" aria-selected="' + sel + '" tabindex="' + (sel || (!selected && c === list[0]) ? '0' : '-1') + '"' +
-                    (o.draggable && inHome(c) && !r.special ? ' draggable="true"' : '') + '>' +
-                    '<td class="fm-c-name"><span class="fm-cell">' + glyph(kind) +
-                    (href ? '<a class="fm-name" href="' + esc(href) + '">' + name + '</a>' : '<span class="fm-name">' + name + '</span>') +
-                    (r.title && r.title !== c.name && !r.home && !r.contentFacet ? '<span class="fm-title">' + esc(c.name) + '</span>' : '') + '</span></td>' +
-                    '<td class="fm-c-kind">' + KIND_NAMES[kind] + '</td>' +
-                    '<td class="fm-c-date">' + esc(date && !isNaN(date) && o.formatDate ? o.formatDate(date) : fmtDate(date)) + '</td>' +
-                    '<td class="fm-c-size num">' + esc(fmtSize(F.size(c))) + '</td></tr>';
-            });
-            el.rows.innerHTML = html;
+            var keys = list.map(function (c) { return rowMarkup(c, list, false); });
+            var token = ++drawing, scroller = el.main || el.list, at = 0;
+            var same = drawn.cwd === cwd && drawn.keys.length <= keys.length && drawn.keys.length === el.rows.children.length &&
+                drawn.keys.every(function (k, i) { return k === keys[i]; });
+            /* A redraw while a folder's entries arrive keeps focus on the
+               row that had it. */
+            var focused = document.activeElement && el.rows.contains(document.activeElement) ? document.activeElement.closest('tr[data-name]') : null;
+            var focusName = focused ? focused.getAttribute('data-name') : null;
+            if (same) { at = drawn.keys.length; }
+            else {
+                if (need == null) { need = scroller ? scroller.scrollTop + scroller.clientHeight : 0; }
+                el.rows.innerHTML = '';
+                drawn = { cwd: cwd, keys: [] };
+            }
+            do { at = addRows(list, keys, at); } while (at < list.length && !same && scroller && scroller.scrollHeight < need);
             if (window.pudlGrid) { window.pudlGrid.enhance(el.list); }
+            if (focusName != null && !same) { var again = rowFor(focusName); if (again) { again.focus({ preventScroll: true }); } }
             el.empty.hidden = list.length > 0;
             el.empty.textContent = o.emptyText ? o.emptyText(cwd) : 'This folder is empty.';
+            if (at < list.length) { setTimeout(function () { addLater(token, list, keys, at); }, 0); }
+        }
+        function addRows(list, keys, at) {
+            var to = Math.min(list.length, at + ROWS_AT_ONCE), html = '';
+            for (var i = at; i < to; i++) { html += rowMarkup(list[i], list, true); drawn.keys.push(keys[i]); }
+            el.rows.insertAdjacentHTML('beforeend', html);
+            return to;
+        }
+        function addLater(token, list, keys, at) {
+            if (destroyed || token !== drawing) { return; }
+            at = addRows(list, keys, at);
+            if (window.pudlGrid) { window.pudlGrid.enhance(el.list); }
+            if (o.onRender) { o.onRender(); }
+            if (at < list.length) { setTimeout(function () { addLater(token, list, keys, at); }, 0); }
         }
 
         /* === Selection =================================================== */
@@ -339,12 +382,6 @@
         /* === Clicks and keys ============================================= */
 
         function onClick(e) {
-            var more = e.target.closest('[data-more-path]');
-            if (more && F.load) {
-                e.preventDefault(); more.disabled = true;
-                Promise.resolve(F.load(F.resolve(null, more.dataset.morePath), true)).then(function () { if (!destroyed) { render(); } }).catch(function (error) { if (!destroyed) { more.disabled = false; say(String(error), true); } });
-                return;
-            }
             /* Links in the tree, the path bar and the rows are addresses of
                their own, which a modified click opens as the browser would;
                a plain one is handled here. The tree's toggles are
@@ -507,9 +544,11 @@
                 }
                 if (destroyed) { return; }
                 (s.expanded || []).forEach(function (p) { var n = F.resolve(null, p); if (n && n.children) { expanded[F.pathOf(n)] = true; } });
-                render();
-                if (s.selected && F.childNamed(cwd, s.selected)) { select(s.selected, false); }
                 var scroll = s.scroll || [];
+                /* The list is drawn at once as far as the scroll put back
+                   reaches, so the scroll is not cut short. */
+                render(el.main ? (scroll[2] || 0) + el.main.clientHeight : undefined);
+                if (s.selected && F.childNamed(cwd, s.selected)) { select(s.selected, false); }
                 ['tree', 'list', 'main'].forEach(function (k, i) { if (el[k] && scroll[i]) { el[k].scrollTop = scroll[i]; } });
             },
             /* Says when something a snapshot holds changes. */

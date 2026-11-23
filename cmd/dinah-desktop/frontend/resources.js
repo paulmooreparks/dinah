@@ -790,9 +790,10 @@
         if (!name) { say('Give the folder a name.'); return; }
         create.disabled = true;
         Promise.resolve().then(function () { return window.dinahHelpers.app().CreateWorkspaceFolder(dir.ref, name); })
-          .then(function () { return F.load(dir, false, true); })
-          // A long folder is listed a page at a time, so the new folder is
-          // looked up by its path when the first page does not have it.
+          .then(function () { return F.load(dir, true); })
+          // A folder whose first listing is still arriving is listed again
+          // once it is whole, so the new folder is looked up by its path
+          // when the listing does not have it yet.
           .then(function () { return F.childNamed(dir, name) || F.lookup(dir.path.replace(/\/$/, '') + '/' + name); })
           .then(function (node) { finish(node || null); })
           .catch(function (err) {
@@ -823,6 +824,15 @@
     /* An entry whose kind has a glyph of its own is drawn with it, in the
        tree and the rows, through the fm-kind-glyph class and the
        --resource-glyph property (files-applet.css). */
+    /* A row or a tree link already drawn for the same state of its entry is
+       left alone, so a redraw for a selection, or for the next part of a
+       long listing, touches only what changed. */
+    function drawn(element, node) {
+      var key = node ? [readOnly(node), node.glyph || '', hasMarks(node) ? marksKey(node) : ''].join('|') : '';
+      if (element.__decorated === node && element.__decoratedKey === key) return true;
+      element.__decorated = node; element.__decoratedKey = key;
+      return false;
+    }
     function mark(element, node) {
       if (!node) return;
       element.classList.toggle('fm-read-only', readOnly(node));
@@ -842,9 +852,10 @@
       else { if (had) had.remove(); if (now) host.appendChild(marks(node)); }
       host.classList.toggle('fm-has-marks', !!now);
     }
-    root.querySelectorAll('[data-fb="tree"] a[data-path]').forEach(function (link) { var node = F.resolve(null, link.dataset.path); mark(link, node); marked(link, node); });
+    root.querySelectorAll('[data-fb="tree"] a[data-path]').forEach(function (link) { var node = F.resolve(null, link.dataset.path); if (drawn(link, node)) return; mark(link, node); marked(link, node); });
     root.querySelectorAll('.fm-row[data-name]').forEach(function (row) {
       var node = F.childNamed(cwd, row.dataset.name);
+      if (drawn(row, node)) return;
       mark(row, node);
       if (node) marked(row.querySelector('.fm-c-name .fm-cell'), node);
     });
@@ -866,6 +877,22 @@
     root.classList.toggle('fm-no-date', !(cwd.children || []).some(function (node) { return node.date; }));
     root.classList.toggle('fm-no-size', !(cwd.children || []).some(function (node) { return typeof node.size === 'number'; }));
   }
+  /* How a tree fetches a folder (createTree's load): pages of LIST_PAGE
+     entries, the most Go gives in one call; FIRST_WAIT, how long a first
+     listing gathers pages before it is drawn; BATCH_WAIT, how often the
+     views are told of the pages that arrive after that. */
+  var LIST_PAGE = 1000, FIRST_WAIT = 250, BATCH_WAIT = 150;
+  /* named finds a folder's entry by name through an index of its entries,
+     made again when the list is replaced or grows, so a folder of thousands
+     of entries is not searched from the start for each of them. */
+  function named(node, name) {
+    var kids = node.children || [], index = node.byName;
+    if (!index || index.of !== kids || index.size !== kids.length) {
+      index = node.byName = { of: kids, size: kids.length, map: new Map() };
+      kids.forEach(function (child) { if (!index.map.has(child.name)) index.map.set(child.name, child); });
+    }
+    return index.map.get(name);
+  }
   function createTree() {
     var nodes = new Map(), identities = new Map(), disposed = false, listeners = new Set(), refreshing = false, pending = false;
     function identity(item) {
@@ -883,7 +910,7 @@
         nodes.forEach(function (_, path) { if (path.startsWith(item.path + '/')) nodes.delete(path); });
         node = null;
       }
-      if (!node) { node = { name: item.path.slice(item.path.lastIndexOf('/') + 1), path: item.path, loaded: false, nextStart: -1 }; nodes.set(item.path, node); }
+      if (!node) { node = { name: item.path.slice(item.path.lastIndexOf('/') + 1), path: item.path, loaded: false }; nodes.set(item.path, node); }
       Object.assign(node, item);
       // A folder that was missing and now exists is listed without the mark,
       // and so is a source that has become available.
@@ -938,28 +965,111 @@
       }
       return node;
     }
-    function load(node, more, force) {
+    /* A folder is always listed whole, as a file system lists one, and no
+       view offers more of it. Go gives a listing in pages of at most
+       LIST_PAGE entries, which bound each call, and the pages are fetched
+       here one after another.
+
+       A folder listed for the first time is shown as its pages arrive.
+       load resolves when the listing is whole or FIRST_WAIT has passed,
+       whichever is first, so most folders draw once and whole; a slow one
+       draws what it has, and the rest is added behind it, the views told at
+       most once every BATCH_WAIT. Entries arrive in the order they are
+       shown in (folders first, in a source's listing), so later pages add
+       to the end. A page that fails leaves what was listed, with the error
+       in node.error and the place it stopped in node.resumeAt; load without
+       force goes on from there.
+
+       A folder listed again keeps what it shows until its new listing is
+       whole, then changes once, so a refresh never empties a list and
+       fills it again. A refresh asked for while a first listing is still
+       arriving is made when that listing is whole (node.again). */
+    function listPage(node, start) {
+      return node.ref ? app().ListWorkspaceMountsExpected(node.path, start, LIST_PAGE, node.ref) : app().ListWorkspaceMounts(node.path, start, LIST_PAGE);
+    }
+    function nextOf(page, start) {
+      var next = typeof page.nextStart === 'number' ? page.nextStart : -1;
+      if (next >= 0 && next <= start) throw new Error('The resource provider returned an invalid next page.');
+      return next;
+    }
+    function load(node, force) {
       if (!node || !node.directory) return Promise.resolve();
-      if (node.loading) return node.loading;
-      var start = more ? node.nextStart : 0;
+      if (node.loading) { if (force) node.again = true; return node.loading; }
       node.loading = verify(node).then(function (current) {
         put(current);
-        if (node.loaded && !more && !force || more && node.nextStart < 0) return null;
-        return node.ref ? app().ListWorkspaceMountsExpected(node.path, start, 100, node.ref) : app().ListWorkspaceMounts(node.path, start, 100);
-      }).then(function (page) {
-        if (!page) return;
         if (disposed) return;
-        var entries = (page.entries || []).map(function (item) { var child = put(item); child.parent = node; return child; });
-        node.children = more ? node.children.concat(entries.filter(function (child) { return !node.children.some(function (old) { return old.path === child.path; }); })) : entries;
-        if (!node.loaded) watchFolders();
-        node.loaded = true;
-        node.error = '';
-        node.loadedThrough = start;
-        node.nextStart = typeof page.nextStart === 'number' ? page.nextStart : -1;
-        if (node.nextStart >= 0 && node.nextStart <= start) throw new Error('The resource provider returned an invalid next page.');
-      }).finally(function () { node.loading = null; });
+        if (node.filling) { if (force) node.again = true; return; }
+        if (!node.loaded) return fill(node, 0);
+        if (!force) return node.resumeAt >= 0 ? fill(node, node.resumeAt) : null;
+        return relist(node);
+      }).finally(function () { node.loading = null; again(node); });
       return node.loading;
     }
+    // A listing asked for while another was under way is made after it.
+    function again(node) {
+      if (!node.again || node.loading || node.filling || disposed) return;
+      node.again = false;
+      load(node, true).then(changedNow, function (error) { node.error = String(error); changedNow(); });
+    }
+    function fill(node, start) {
+      var run = node.run = {}, began = Date.now(), fresh = !node.loaded, shown = false, listed = false, done, failed;
+      var seen = new Set(fresh ? [] : (node.children || []).map(function (child) { return child.path; }));
+      var ready = new Promise(function (resolve, reject) { done = resolve; failed = reject; });
+      function show() { if (!shown) { shown = true; clearTimeout(wait); done(); } }
+      // What has arrived is drawn at FIRST_WAIT even while the next page is
+      // still awaited.
+      var wait = setTimeout(function () { if (listed && !disposed && node.run === run) show(); }, FIRST_WAIT);
+      node.filling = true;
+      (async function () {
+        var at = start;
+        try {
+          while (at >= 0) {
+            var page = await listPage(node, at);
+            if (disposed || node.run !== run) return;
+            var next = nextOf(page, at), added = [];
+            (page.entries || []).forEach(function (item) {
+              if (seen.has(item.path)) return;
+              seen.add(item.path);
+              var child = put(item); child.parent = node; added.push(child);
+            });
+            node.children = fresh && !listed ? added : node.children.concat(added);
+            listed = true;
+            if (!node.loaded) { node.loaded = true; watchFolders(); }
+            node.error = ''; delete node.resumeAt;
+            at = next;
+            if (at < 0) break;
+            if (shown) changedSoon();
+            else if (Date.now() - began >= FIRST_WAIT) show();
+          }
+        } catch (error) {
+          if (disposed || node.run !== run) return;
+          node.filling = false;
+          // Nothing listed is a failed listing, as it always was.
+          if (!listed && !shown) { clearTimeout(wait); if (node.loaded) node.resumeAt = at; failed(error); return; }
+          node.error = String(error); node.resumeAt = at;
+        }
+        node.filling = false;
+        if (shown) { changedNow(); again(node); } else show();
+      })();
+      return ready;
+    }
+    async function relist(node) {
+      var run = node.run = {}, items = [], seen = new Set();
+      for (var at = 0; at >= 0;) {
+        var page = await listPage(node, at);
+        if (disposed || node.run !== run) return;
+        var next = nextOf(page, at);
+        (page.entries || []).forEach(function (item) { if (!seen.has(item.path)) { seen.add(item.path); items.push(item); } });
+        at = next;
+      }
+      node.children = items.map(function (item) { var child = put(item); child.parent = node; return child; });
+      node.error = ''; delete node.resumeAt;
+    }
+    // The views are told of pages that arrive behind a first listing at most
+    // once every BATCH_WAIT, and at once when the listing is whole.
+    var batch = 0;
+    function changedNow() { clearTimeout(batch); batch = 0; if (!disposed) listeners.forEach(function (fn) { fn(); }); }
+    function changedSoon() { if (!batch) batch = setTimeout(changedNow, BATCH_WAIT); }
     async function refresh() {
       if (refreshing) { pending = true; return; }
       refreshing = true;
@@ -973,11 +1083,7 @@
               put(await verify(node));
               if (node.path !== '/') node.parent = await lookup(node.path.slice(0, node.path.lastIndexOf('/')) || '/');
               node.error = '';
-              if (node.loaded && node.directory) {
-                var through = node.loadedThrough || 0;
-                await load(node, false, true);
-                while (node.nextStart >= 0 && node.nextStart <= through) await load(node, true);
-              }
+              if (node.loaded && node.directory) await load(node, true);
             } catch (error) { node.error = String(error); }
           }
           if (!disposed) listeners.forEach(function (fn) { fn(); });
@@ -997,11 +1103,11 @@
       lookup: lookup, load: load, resolve: function (_, path) { return nodes.get(path); },
       pathOf: function (node) { return node.path; }, displayPath: function (node) { return node.path; },
       listEntries: function (node) { var content = contentOf(node); return (content ? [content] : []).concat(node.children || []); },
-      realOf: function (node) { return node; }, childNamed: function (node, name) { return name === '@content' ? contentOf(node) : (node.children || []).find(function (child) { return child.name === name; }); },
+      realOf: function (node) { return node; }, childNamed: function (node, name) { return name === '@content' ? contentOf(node) : named(node, name); },
       sameNode: function (a, b) { return !!a && !!b && a.path === b.path && (!(a.ref || b.ref) || sameRef(a.ref, b.ref)); },
       kindOf: function (node) { return node.directory ? 'dir' : 'file'; },
       size: function (node) { return node.size; }, onChange: function (fn) { listeners.add(fn); return function () { listeners.delete(fn); }; },
-      destroy: function () { disposed = true; unsubscribe(); listeners.clear(); trees.delete(opened); watchFolders(); }
+      destroy: function () { disposed = true; clearTimeout(batch); unsubscribe(); listeners.clear(); trees.delete(opened); watchFolders(); }
     };
   }
   function commands() {

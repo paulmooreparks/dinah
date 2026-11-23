@@ -27,6 +27,18 @@ The Files applet, the Workspace pane and the mount paths agents and the Terminal
 
 Listing is paged in memory from the provider's whole listing of one folder, with folders before documents and files, by title. The local folder keeps its own path, which opens each entry under its root and governs agents' reads.
 
+### Listings Load Whole
+
+Paul ruled on 24 November 2026 that no view offers "Load More". A real file system never shows one, so every window of Dinah lists a folder whole. The pages of `ListWorkspaceMounts` and `ListWorkspaceMountsExpected` stay, since a page bounds each call, but the page fetches every page itself. A page may hold up to 1000 entries (`maxListPage`). Each call to a source other than a folder on the computer lists the whole folder on the source's side and returns a part of it, so the number of calls is what a long listing costs. The applet actions that list for agents keep their limit of 100.
+
+The Files window, the Open and Save As dialog and the Workspace pane's Sources tree share one model, `dinahResources.createTree` in `resources.js`. A folder listed for the first time is drawn once it is whole or after a quarter of a second, whichever comes first, so most folders draw once and whole. A slow folder draws what has arrived, and the pages after it are added below, the views redrawn at most every 150 ms. A folder listed again, by Refresh or after a change on disk, keeps what it shows until its new listing is whole and then changes once, so a list is never emptied and filled again. A refresh asked for while a first listing is still arriving is made when that listing is whole. A page that fails after others were listed leaves them shown, and the error is shown as a failed listing's is: in the status line of Files and as "Unavailable" with Retry in the Sources tree. Retry goes on from the page that failed.
+
+The file browser (`vendor/parks-files/filebrowser.js`) draws a long list a part at a time: what is in view at once, and the rest 300 rows at a time, each part below the last. A redraw whose rows begin with the rows already drawn only adds the new ones, so the rows in view do not move and the list keeps its scroll. A folder of 20,000 entries is drawn with no task longer than about a fifth of a second.
+
+The Terminal lists a folder whole in pages of 1000 for `ls`, `tree`, `find` and completion. It no longer refuses a folder of more than 10,000 entries, and Ctrl+C ends a listing between pages. `ls` still prints once the listing is whole, because it sorts by name and lays names out in columns.
+
+`e2e/files.js`, `e2e/workspace-sources.js`, `e2e/workspace-indent.js` and `e2e/terminal.js` check that folders given in pages are listed whole with no Load More, that a slow folder of 2500 entries is drawn as it arrives with its first rows in place, that a failed page keeps what was listed, and that `ls` lists 12,000 entries.
+
 ## One resource with more than one path
 
 A source may let one resource be given by more than one path. A page of a wiki is the same page by its own ID and by the IDs of the pages down to it, which is the path the Files applet builds from the listing. A person opens the page from the tree by the long path, and an agent that knows only the page's ID gives the short one.

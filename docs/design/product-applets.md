@@ -162,6 +162,8 @@ The rows of each menu are listed in Table 1. A row that cannot be used now is di
 
 The dialog opens no window of the product from its menus. Show in Folder opens the system's file manager, and Rename… and New Folder… ask in a dialog over the dialog. The dialog's New Folder… on a folder makes the new folder there and goes into it, as its button does for the folder shown.
 
+Both windows list a folder whole and have no Load More, as the Workspace pane does. The section "Listings Load Whole" in `docs/design/source-kinds.md` describes how a long or slow folder is fetched and drawn. The Files window's toolbar, detail line and status line keep their height in a folder taller than the window. Until 24 November 2026 the toolbar, which hides what overflows it, gave up its height there and its buttons were cut.
+
 ### Copy Path
 
 Copy Path gives the path of a file or folder as the operating system writes it, for a file, a folder and the folder shown. The page puts on the clipboard the string Go's `WorkspaceLocalPath` returns, unchanged. Go makes it with package `filepath` from the source's folder and the entry's place in it, so it has the separators and the volume of the system Dinah runs on, and nothing in the page knows which system that is.

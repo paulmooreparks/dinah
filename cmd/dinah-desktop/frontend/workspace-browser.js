@@ -76,7 +76,7 @@
         expanded.add(keyFor(entry)); persist();
         window.dinahResources.forget(entry.ref).then(function () {
           if (disposed) return;
-          loadChildren(entry, false, true);
+          loadChildren(entry, true);
           return model.refresh().then(function () { if (!disposed) drawTree(); });
         }).catch(function () {});
       }
@@ -201,13 +201,16 @@
           var children = node('ul', 'workspace-resource-children'); wrap.appendChild(children);
           (entry.children || []).forEach(function (child) { renderEntry(child, children); });
           function message(content) { var row = node('li', 'workspace-resource-message'); row.appendChild(content); children.appendChild(row); }
+          // A folder is listed whole (dinahResources.createTree); one whose
+          // entries are still arriving grows in place with no row of its own.
           if (entry.loading) message(node('p', 'form-help', 'Loading…'));
           else if (entry.error) {
             message(node('p', 'form-help', 'Unavailable: ' + entry.error));
-            message(button('Retry', function () { loadChildren(entry, entry.loaded && entry.nextStart >= 0, true); }));
+            // Retry goes on from a page that failed, and lists again a
+            // folder whose listing failed as a whole.
+            message(button('Retry', function () { loadChildren(entry, !(entry.resumeAt >= 0)); }));
           } else if (!entry.loaded) loadChildren(entry, false);
-          else if (entry.nextStart >= 0) message(button('Load More', function () { loadChildren(entry, true); }));
-          else if (!entry.children.length) message(node('p', 'form-help', 'No items.'));
+          else if (!entry.filling && !entry.children.length) message(node('p', 'form-help', 'No items.'));
         }
         if (more) wrap.appendChild(more);
       }
@@ -221,7 +224,7 @@
           return [entryIdentities.get(entry), entry.ref, entry.path, entry.title, entry.kind,
             entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable, entry.status, entry.changed, entry.count, entry.changedCount,
             selected === key, opened, opened && !!entry.loading, opened && entry.error,
-            opened && entry.loaded, opened && entry.nextStart,
+            opened && entry.loaded, opened && !!entry.filling,
             opened ? (entry.children || []).map(presentation) : null];
         }
         var signature = JSON.stringify([record.id, record.sources, roots.map(presentation)]);
@@ -253,11 +256,11 @@
         if (!record.sources.length) tree.appendChild(node('p', 'form-help', 'Add a folder to this workspace.'));
         renderedSignature = signature; renderedList = list;
       }
-      function loadChildren(entry, more, force) {
+      function loadChildren(entry, force) {
         if (entry.loading) return;
         var epoch = generation;
         entry.error = '';
-        model.load(entry, more, force).catch(function (error) { if (current(epoch)) entry.error = errorText(error); }).finally(function () {
+        model.load(entry, force).catch(function (error) { if (current(epoch)) entry.error = errorText(error); }).finally(function () {
           if (current(epoch)) drawTree();
         });
         // The initial render already contains the loading row on its next redraw.
@@ -280,7 +283,7 @@
         }
         var epoch = generation;
         tree.replaceChildren(node('p', 'form-help', 'Loading…'));
-        model.lookup('/workspaces/' + record.mountAlias).then(function (workspace) { return model.load(workspace, false, true).then(function () { return workspace; }); }).then(function (workspace) {
+        model.lookup('/workspaces/' + record.mountAlias).then(function (workspace) { return model.load(workspace, true).then(function () { return workspace; }); }).then(function (workspace) {
           if (!current(epoch)) return;
           roots = workspace.children || []; drawTree();
         }).catch(function (error) { if (current(epoch)) tree.replaceChildren(node('p', 'form-help', 'Unavailable: ' + errorText(error))); });

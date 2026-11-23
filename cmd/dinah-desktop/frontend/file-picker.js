@@ -115,7 +115,7 @@
     /* Refresh reads the folder shown again from where it is kept. */
     function refreshFolder() {
       var dir = b.cwd();
-      return dinahResources.forget(dir.ref).then(function () { return F.load(dir, false, true); }).then(function () { if (done) b.refresh(); }).catch(fail);
+      return dinahResources.forget(dir.ref).then(function () { return F.load(dir, true); }).then(function () { if (done) b.refresh(); }).catch(fail);
     }
     /* entryRows and folderRows make the dialog's menus, which PUDL's context
        menu shows. The menu of an entry starts with what the dialog

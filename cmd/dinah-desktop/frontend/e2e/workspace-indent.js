@@ -104,6 +104,11 @@ const { launch, PAGE } = require('./lib/page');
     await sources.getByRole('button', { name: 'Expand Nested', exact: true }).waitFor();
     await sources.getByRole('button', { name: 'Expand Nested', exact: true }).click();
     await resource('Nested Readme').waitFor();
+    // The stub gives Working Files in two pages. Its last entry is drawn with
+    // the rest, at their indent, and nothing offers more of the folder.
+    await resource('Last Page').waitFor();
+    const lastPage = await page.evaluate(() => { const at = name => [...document.querySelectorAll('#workspace-source-tree [data-resource]')].find(a => a.querySelector('.fm-ti-label').textContent === name).getBoundingClientRect().left; return { first: Math.round(at('Report')), last: Math.round(at('Last Page')) }; });
+    ok('a folder given in pages is drawn whole at one indent, with no Load More', lastPage.first === lastPage.last && await sources.getByRole('button', { name: 'Load More' }).count() === 0, JSON.stringify(lastPage));
     // Rows of the other sections, drawn as their own modules draw them.
     await page.evaluate(() => {
       const L = window.dinahBrowserList;

@@ -95,6 +95,18 @@ type ResourcePage struct {
 	Entries   []ResourceItem `json:"entries"`
 	NextStart int            `json:"nextStart"`
 }
+
+// maxListPage is the most entries one call lists. A page bounds a call, and
+// the page lists every folder whole by asking for page after page
+// (resources.js, terminal-applet.js). A source other than a folder on the
+// computer lists the whole folder on each call and returns a page of it, so
+// the number of calls is what a long listing costs; 1000 keeps a call's
+// answer small while sparing most folders a second call. The applet actions
+// that list for agents keep their own limit of 100 in their schemas.
+const maxListPage = 1000
+
+// listPageError is the error for a start or limit outside the bounds.
+var listPageError = fmt.Errorf("use a start between 0 and 1000000 and a limit between 1 and %d", maxListPage)
 type ResourceRead struct {
 	Resource ResourceItem `json:"resource"`
 	Text     string       `json:"text"`
@@ -302,8 +314,8 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	return item, nil
 }
 func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (ResourcePage, error) {
-	if start < 0 || start > 1000000 || limit < 1 || limit > 100 {
-		return ResourcePage{Entries: []ResourceItem{}, NextStart: -1}, errors.New("use a start between 0 and 1000000 and a limit between 1 and 100")
+	if start < 0 || start > 1000000 || limit < 1 || limit > maxListPage {
+		return ResourcePage{Entries: []ResourceItem{}, NextStart: -1}, listPageError
 	}
 	// A source that is not a local folder is listed through its provider.
 	if source, err := s.source(ref); err == nil && source.Kind != "local-folder" {
@@ -346,8 +358,8 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return out, s.ctx.Err()
 	}
-	if start < 0 || start > 1000000 || limit < 1 || limit > 100 {
-		return out, errors.New("use a start between 0 and 1000000 and a limit between 1 and 100")
+	if start < 0 || start > 1000000 || limit < 1 || limit > maxListPage {
+		return out, listPageError
 	}
 	source, err := s.source(ref)
 	if err != nil {

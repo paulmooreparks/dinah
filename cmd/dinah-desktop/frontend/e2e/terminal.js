@@ -180,6 +180,15 @@ const { launch } = require('./lib/page');
     await page.evaluate(() => { window.__replacement = false; });
     await command('cd /workspaces/delivery/files'); await command('help');
     await check('help lists the shell commands and the tools', ['nano', 'grep', 'mkdir', 'cp', 'mv', 'rm', 'head', 'tail', 'sort', 'uniq', 'wc', 'find', 'tree', 'less', 'export', 'fixture-applet'].every(name => (output !== null)) && await output().then(text => ['nano', 'grep', 'mkdir', 'tee', 'export', 'fixture-applet'].every(name => text.includes(name))));
+    // A folder of more entries than the 10000 the Terminal once refused is
+    // listed whole, a thousand entries a call.
+    await page.evaluate(() => {
+      __fs['/workspaces/delivery/files/many'] = { dir: true, local: true };
+      for (let i = 0; i < 12000; i++) __fs['/workspaces/delivery/files/many/f' + String(i).padStart(5, '0') + '.txt'] = { text: '', local: true };
+      __calls.length = 0;
+    });
+    await fresh(); await command('ls many | wc -l');
+    await check('ls lists a folder of 12000 entries whole, a thousand at a call', /\b12000\n/.test(await output()) && await page.evaluate(() => __calls.filter(c => c[0] === 'list' && c[1] === '/workspaces/delivery/files/many').length === 12));
     await t.shot('terminal');
     await command('exit');
     await page.waitForFunction(() => !document.getElementById('one'));

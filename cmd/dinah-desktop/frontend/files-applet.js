@@ -3,7 +3,7 @@
   'use strict';
   function init(root, opts, item) {
     var FB = window.pcFileBrowser, F = dinahResources.createTree();
-    var browser, destroyed = false, previewRequest = 0, timer, loading = false, stateReady = false, failedPath = '';
+    var browser, destroyed = false, previewRequest = 0, timer, loading = false, stateReady = false, failedPath = '', shownFailure = '';
     // Embedders can omit the toolbar, or keep a fixed directory with displayOnly.
     var displayOnly = opts.displayOnly === true, listOnly = opts.listOnly === true || displayOnly;
     var showToolbar = opts.toolbar !== false && !displayOnly;
@@ -22,7 +22,7 @@
       FB.markup.pathBar() + dinahResources.pathCopyButton() +
       '<div class="toolbar-group" data-toolbar-group="Folder" data-toolbar-glyph="folder" data-toolbar-priority="2"><button type="button" data-command="new-folder"></button><button type="button" data-command="upload"></button><button type="button" data-command="refresh"></button></div>' +
       '<div class="toolbar-group" aria-label="Actions" data-toolbar-priority="3" data-toolbar-end><button type="button" data-command="files-actions"></button></div></div>' : '') +
-      FB.markup.body({tree: !listOnly}) + '<div class="fm-page"><button type="button" class="btn btn-sm" data-action="more" hidden>Load More</button></div>' +
+      FB.markup.body({tree: !listOnly}) +
       '<section class="fm-detail" aria-label="Selection Details" aria-live="polite"></section>' +
       '<section class="fm-preview" data-ui-scroll="files-preview" aria-label="Resource Preview" hidden></section>' +
       '<p class="fm-status" role="status"></p>';
@@ -45,7 +45,7 @@
     function refresh() {
       if (!browser) return;
       loading = true; redraw(); say('Refreshing…');
-      return dinahResources.forget(browser.cwd().ref).then(function () { return F.refresh(); }).then(function () { return F.load(browser.cwd(), false, true); }).then(function () { if (!destroyed) { browser.refresh(); select(browser.selected()); say(''); } }).catch(function (error) { say(String(error), true); }).finally(function () { loading = false; redraw(); });
+      return dinahResources.forget(browser.cwd().ref).then(function () { return F.refresh(); }).then(function () { return F.load(browser.cwd(), true); }).then(function () { if (!destroyed) { browser.refresh(); select(browser.selected()); say(''); } }).catch(function (error) { say(String(error), true); }).finally(function () { loading = false; redraw(); });
     }
     // New Folder… makes a folder in the folder shown and selects it.
     function newFolder() {
@@ -59,17 +59,12 @@
     // folder shown; files dropped onto the listing go there too.
     function shownAgain(dir) {
       if (destroyed || !browser || !dinahResources.sameRef(dir.ref, browser.cwd().ref)) return;
-      F.load(browser.cwd(), false, true).then(function () { if (!destroyed) { browser.refresh(); redraw(); } }).catch(function (error) { say(String(error), true); });
+      F.load(browser.cwd(), true).then(function () { if (!destroyed) { browser.refresh(); redraw(); } }).catch(function (error) { say(String(error), true); });
     }
     function uploadFiles() {
       if (!browser) return;
       var dir = browser.cwd();
       return dinahResources.chooseAndUpload(dir).then(function (r) { if (r) shownAgain(dir); }).catch(function (error) { say(String(error), true); });
-    }
-    function more() {
-      if (!browser || loading) return;
-      loading = true; redraw();
-      return F.load(browser.cwd(), true).then(function () { if (!destroyed) { browser.refresh(); persist(); } }).catch(function (error) { say(String(error), true); }).finally(function () { loading = false; redraw(); });
     }
     /* The window's commands, declared once for PUDL's commands
        (pudl-commands.js): the toolbar, the Actions menu and the window's
@@ -131,8 +126,10 @@
       if (!browser || destroyed) return;
       dinahResources.decorate(root, F, browser.cwd());
       dinahResources.drawPathCopy(root, browser.cwd());
-      q('[data-action="more"]').hidden = browser.cwd().nextStart < 0;
-      q('[data-action="more"]').disabled = loading;
+      // A page of the folder shown that failed after the rest were listed
+      // is said as a failed listing is.
+      var failure = browser.cwd().error || '';
+      if (failure !== shownFailure) { shownFailure = failure; if (failure) say(failure, true); }
       if (window.pudlCommands) window.pudlCommands.changed();
     }
     function detail(node) {
@@ -236,9 +233,7 @@
     });
     root.addEventListener('click', function (event) {
       var copy = event.target.closest('[data-copy-path]');
-      if (copy && browser && !copy.disabled) { dinahResources.copyPath(browser.cwd(), copy).catch(fail); return; }
-      var button = event.target.closest('[data-action]'); if (!button || !browser) return;
-      if (button.dataset.action === 'more') more();
+      if (copy && browser && !copy.disabled) dinahResources.copyPath(browser.cwd(), copy).catch(fail);
     });
     // Files dropped onto the listing go into the folder shown, when it takes
     // files; the listing is then loaded again.
@@ -249,7 +244,7 @@
       var path = event.ref.path, dir = Object.assign({}, event.ref, { path: path.slice(0, Math.max(0, path.lastIndexOf('/'))) });
       if (destroyed || !browser || !dinahResources.sameRef(dir, browser.cwd().ref)) return;
       var was = browser.selected(), name = path.slice(path.lastIndexOf('/') + 1);
-      F.load(browser.cwd(), false, true).then(function () {
+      F.load(browser.cwd(), true).then(function () {
         if (destroyed) return;
         browser.refresh();
         if (was && dinahResources.sameRef(was.ref, event.from)) browser.select(name, true);

@@ -307,7 +307,7 @@ func mountResourceItem(target mountTarget, item ResourceItem) MountItem {
 }
 func (v workspaceVFS) list(path string, start, limit int) (MountPage, error) {
 	out := MountPage{Entries: []MountItem{}, NextStart: -1}
-	if start < 0 || start > 1000000 || limit < 1 || limit > 100 {
+	if start < 0 || start > 1000000 || limit < 1 || limit > maxListPage {
 		return out, errors.New("invalid virtual directory pagination")
 	}
 	target, err := v.resolve(path)
