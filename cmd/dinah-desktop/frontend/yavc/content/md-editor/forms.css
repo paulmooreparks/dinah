@@ -1,0 +1,6 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+/* Shared form layout travels with each applet, including portable hosts. */
+.yavc-path-field { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.yavc-path-field > .form-input { width: 100%; min-width: 0; }
+.yavc-path-field > .btn { align-self: flex-start; }
+.md-macro-intro { margin-block: 0 var(--space-3); }

@@ -111,7 +111,7 @@
         function abort() { if (api && !closed) { api.close('cancel'); } }
         try {
             return await window.yavcDialog.open({ title: 'Custom Shortcodes', className: 'md-style-dialog',
-                body: '<p class="form-help">' + esc(opts.help || 'Definitions belong to this document.') + ' Each parameter becomes a field when you insert the shortcode. Put {{content}} on its own template line to edit the body as rich text.</p>' +
+                body: '<p class="form-help md-macro-intro">' + esc(opts.help || 'Definitions belong to this document.') + ' Each parameter becomes a field when you insert the shortcode. Put {{content}} on its own template line to edit the body as rich text.</p>' +
                     '<div class="form-group"><label class="form-label" for="' + id + '-select">Definition</label><span class="form-select-wrap"><select class="form-select" id="' + id + '-select" data-macro-select>' + drafts.map(function (draft, i) { return '<option value="' + i + '">' + esc(i === entries.length ? 'New Definition' : draft.name) + '</option>'; }).join('') + '</select></span></div>' +
                     '<div class="form-group"><label class="form-label" for="' + id + '-name">Shortcode Name</label><input class="form-input" id="' + id + '-name" data-macro-name placeholder="callout" aria-describedby="' + id + '-name-error"><p class="form-error" id="' + id + '-name-error" data-macro-name-error role="alert" hidden></p></div>' +
                     '<div class="form-group"><label class="form-label" for="' + id + '-body">Template Markdown</label><textarea class="form-textarea" id="' + id + '-body" data-macro-body rows="12" spellcheck="false"></textarea></div>' +

@@ -49,7 +49,7 @@
 .md-format-preview p { margin: 0; }
 .md-editor-dialog [hidden] { display: none; }
 /* Glyph previews keep their descriptions visible as the dialog narrows. */
-.md-glyph-options { height: 20rem; overflow-y: auto; overscroll-behavior:contain; padding:var(--space-1) 0; background:var(--input-bg);border:1px solid var(--input-border);border-radius:var(--radius-sm);box-shadow:var(--entry-shadow); }
+.md-glyph-options { height: 20rem; margin-block-start:var(--space-2); overflow-y: auto; overscroll-behavior:contain; padding:var(--space-1) 0; background:var(--input-bg);border:1px solid var(--input-border);border-radius:var(--radius-sm);box-shadow:var(--entry-shadow); }
 .md-glyph-options:focus { outline:2px solid var(--accent);outline-offset:1px; }
 .md-glyph-row { display:flex;align-items:center;gap:var(--space-3);min-height:2rem;padding:var(--space-1) var(--space-3);cursor:pointer; }
 .md-glyph-row[aria-selected="true"] { background:color-mix(in srgb,var(--accent) 18%,var(--input-bg));box-shadow:inset 3px 0 var(--accent);font-weight:600; }

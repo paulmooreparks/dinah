@@ -1,4 +1,5 @@
 /* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+@import url("../md-editor/forms.css");
 /* Editor: CodeMirror 6 in PUDL's clothes. The toolbar's controls are
    raised, the editing surface is sunken like any input, and the status
    line is flat, for reading. CodeMirror's colours come from PUDL's syntax

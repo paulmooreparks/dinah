@@ -1,4 +1,6 @@
 /* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+@import url("../md-editor/forms.css");
+.dg-item-dialog [data-selection-count] { margin-block-end: var(--space-2); }
 .dg-item-dialog { width: min(38rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
 .dg-item-list { max-height: 45svh; overflow: auto; }
 .dg-item-list .listbox-title, .dg-item-list .listbox-detail { overflow-wrap: anywhere; }
