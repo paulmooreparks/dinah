@@ -33,6 +33,8 @@ func TestDinahProfile(t *testing.T) {
 		DefaultTheme:      "clear-chime",
 		Updater:           UpdaterInstalled,
 
+		DocumentApplications: true,
+
 		WorkspaceFileExtension: ".dinah-workspace",
 		PackageManifest:        ".dinah/setup-manifest.json",
 		PackageTool:            "dinah",

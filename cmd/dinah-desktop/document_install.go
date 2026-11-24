@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"studio/internal/profile"
 	"studio/internal/programs"
 )
 
@@ -45,6 +46,10 @@ func runDocumentInstall(remove bool) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	if !remove && !profile.Current().DocumentApplications {
+		fmt.Fprintf(os.Stderr, "%s has no stand-alone document applications to install.\n", product.Name)
+		return 2
+	}
 	failed := false
 	for _, app := range documentInstalls(exe) {
 		if remove {
@@ -76,4 +81,32 @@ func runDocumentInstall(remove bool) int {
 		return 1
 	}
 	return 0
+}
+
+// removeEarlierDocumentApplications takes away the stand-alone applications
+// that an earlier installation added beside the program at exe, for a
+// product that no longer offers them, and reports whether it could. Each
+// application's registration is removed whether or not its program is still
+// there, since removing what is absent changes nothing, and only an
+// application whose program was there is reported.
+func removeEarlierDocumentApplications(exe string) bool {
+	ok := true
+	for _, app := range documentInstalls(exe) {
+		_, statErr := os.Stat(app.Program)
+		if err := unregisterDocumentApplication(app); err != nil {
+			fmt.Fprintf(os.Stderr, "%s, which an earlier installation added, could not be removed from the system's lists: %v\n", app.Name, err)
+			ok = false
+			continue
+		}
+		if statErr != nil {
+			continue
+		}
+		if err := os.Remove(app.Program); err != nil {
+			fmt.Fprintf(os.Stderr, "%s could not be removed: %v\n", app.Program, err)
+			ok = false
+			continue
+		}
+		fmt.Printf("Removed %s, which an earlier installation added.\n", app.Name)
+	}
+	return ok
 }

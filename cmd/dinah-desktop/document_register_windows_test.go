@@ -5,7 +5,9 @@ package main
 import (
 	"crypto/rand"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows/registry"
@@ -94,6 +96,68 @@ func TestAStandaloneApplicationIsOfferedInOpenWithAndTakesNoKind(t *testing.T) {
 	// Removing what is not installed is no error.
 	if err := unregisterDocumentApplication(app); err != nil {
 		t.Errorf("removing it twice: %v", err)
+	}
+}
+
+// A product that does not offer the document applications removes the ones
+// an earlier installation added beside its program: the program file and
+// its registration. A second run finds nothing and says nothing.
+func TestAnEarlierInstallationsDocumentApplicationsAreRemoved(t *testing.T) {
+	root := `Software\` + identityWord(product.Name) + `Test-` + rand.Text() + `\Classes`
+	documentClassesRoot = root
+	t.Cleanup(func() {
+		documentClassesRoot = `Software\Classes`
+		deleteTree(registry.CURRENT_USER, filepath.Dir(root))
+	})
+	dir := t.TempDir()
+	exe := filepath.Join(dir, product.WindowProgram+".exe")
+	apps := documentInstalls(exe)
+	if len(apps) == 0 {
+		t.Fatal("no document applications to install")
+	}
+	for _, app := range apps {
+		if err := os.WriteFile(app.Program, []byte("program"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := registerDocumentApplication(app); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !removeEarlierDocumentApplications(exe) {
+		t.Fatal("the removal failed")
+	}
+	for _, app := range apps {
+		if _, err := os.Stat(app.Program); !os.IsNotExist(err) {
+			t.Errorf("%s is still there: %v", app.Program, err)
+		}
+		if k, err := registry.OpenKey(registry.CURRENT_USER, root+`\`+documentProgID(app), registry.QUERY_VALUE); !errors.Is(err, registry.ErrNotExist) {
+			k.Close()
+			t.Errorf("%s is still registered: %v", app.Name, err)
+		}
+	}
+	if !removeEarlierDocumentApplications(exe) {
+		t.Error("removing nothing failed")
+	}
+}
+
+// The target a shortcut file starts is read back as it was written, which is
+// what decides whether an application's shortcut is this product's to remove.
+func TestAShortcutsTargetIsReadBack(t *testing.T) {
+	dir := t.TempDir()
+	program := filepath.Join(dir, "program.exe")
+	if err := os.WriteFile(program, []byte("program"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "Program.lnk")
+	if err := writeShortcut(link, "Program", program); err != nil {
+		t.Fatal(err)
+	}
+	got, err := shortcutTarget(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.EqualFold(filepath.Clean(got), filepath.Clean(program)) {
+		t.Errorf("the shortcut starts %q, want %q", got, program)
 	}
 }
 

@@ -18,7 +18,9 @@ import (
 // document applications, the Start menu shortcut, moves the programs an
 // earlier installation put in the home folder's bin into the program
 // folder, and puts the program folder on the person's PATH. Each part can be
-// run again and changes nothing the second time.
+// run again and changes nothing the second time. A product whose profile does
+// not offer the document applications gets none, and any an earlier
+// installation of it added are removed.
 const installOption = "--install"
 
 func runInstall() int {
@@ -46,7 +48,11 @@ func runInstall() int {
 	if ownFolders {
 		fmt.Printf("The document applications, the Start menu and the PATH were left alone, since %s or %s is set.\n", p.HomeVar(), programs.FolderVar(p))
 	} else {
-		if runDocumentInstall(false) != 0 {
+		if p.DocumentApplications {
+			if runDocumentInstall(false) != 0 {
+				failed = true
+			}
+		} else if !removeEarlierDocumentApplications(exe) {
 			failed = true
 		}
 		earlier := filepath.Join(oldBin, programs.FileName(p.WindowProgram))

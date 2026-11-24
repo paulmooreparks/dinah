@@ -157,8 +157,63 @@ func associationsChanged() {
 // write one without the shell's COM interfaces by hand.
 // https://learn.microsoft.com/windows/win32/shell/knownfolderid
 // https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/windows-scripting/xk6kst2k(v=vs.84)
+//
+// A shortcut is removed only when it starts app.Program. Two products can
+// give an application the same name, and then the shortcut of that name may
+// be the other product's, which this one leaves alone.
 func documentShortcut(app documentInstalled, remove bool) error {
+	if remove {
+		folder, err := windows.KnownFolderPath(windows.FOLDERID_Programs, 0)
+		if err != nil {
+			return err
+		}
+		link := filepath.Join(folder, app.Name+".lnk")
+		if _, err := os.Stat(link); os.IsNotExist(err) {
+			return nil
+		}
+		target, err := shortcutTarget(link)
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(filepath.Clean(target), filepath.Clean(app.Program)) {
+			return nil
+		}
+	}
 	return startMenuShortcut(app.Name, app.Program, remove)
+}
+
+// shortcutTarget is the program the shortcut at link starts, read through
+// the Windows Script Host's shell object, whose CreateShortcut opens a
+// shortcut that already exists.
+func shortcutTarget(link string) (string, error) {
+	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+		var oleErr *ole.OleError
+		if !errors.As(err, &oleErr) || oleErr.Code() != 1 {
+			return "", err
+		}
+	}
+	defer ole.CoUninitialize()
+	unknown, err := oleutil.CreateObject("WScript.Shell")
+	if err != nil {
+		return "", err
+	}
+	defer unknown.Release()
+	shell, err := unknown.QueryInterface(ole.IID_IDispatch)
+	if err != nil {
+		return "", err
+	}
+	defer shell.Release()
+	made, err := oleutil.CallMethod(shell, "CreateShortcut", link)
+	if err != nil {
+		return "", err
+	}
+	shortcut := made.ToIDispatch()
+	defer shortcut.Release()
+	target, err := oleutil.GetProperty(shortcut, "TargetPath")
+	if err != nil {
+		return "", err
+	}
+	return target.ToString(), nil
 }
 
 // startMenuShortcut makes, or removes, the shortcut called name to program
@@ -175,6 +230,11 @@ func startMenuShortcut(name, program string, remove bool) error {
 		}
 		return nil
 	}
+	return writeShortcut(link, name, program)
+}
+
+// writeShortcut writes the shortcut file at link, called name, to program.
+func writeShortcut(link, name, program string) error {
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		// S_FALSE means the thread already has COM, which is fine.
 		var oleErr *ole.OleError

@@ -140,6 +140,13 @@ type Profile struct {
 	// Updater is how the product learns of a newer build: UpdaterInstalled,
 	// or "" for none.
 	Updater string
+	// DocumentApplications says that an installation adds the stand-alone
+	// document applications, such as the Editor, beside the window program:
+	// a copy of the program under each one's name, its place in the system's
+	// Open With, and its Start menu shortcut. A product that leaves it false
+	// installs none of them, and its installation removes any that an
+	// earlier one added (cmd/dinah-desktop/install_step.go).
+	DocumentApplications bool
 	// AgentsProposeDocumentChanges says that an agent may not change a
 	// document through the document applications' actions: the actions
 	// that change, save, make or close a document are left out of what
@@ -264,6 +271,8 @@ var dinah = Profile{
 	Providers:       []string{"devin", "codex", "claude", "antigravity", "ollama"},
 	DefaultTheme:    "clear-chime",
 	Updater:         UpdaterInstalled,
+
+	DocumentApplications: true,
 }
 
 // LegacyProvider is the provider of a chat saved before chats had providers,
