@@ -493,10 +493,32 @@ var schemaCache = null;
       });
     }
 
+    /* A command can keep focus in Find or a host control. Honour its public
+       transaction scroll request using editor coordinates, without changing
+       that control's focus or composition. The host owns this scroll box. */
+    function revealSelection() {
+      if (!view || !on || !o.scroll.clientHeight) return;
+      var caret = view.coordsAtPos(view.state.selection.head), box = o.scroll.getBoundingClientRect();
+      /* offsetHeight rounds fractional CSS pixels. At a distant match that
+         rounding would turn into several pixels of missed scrolling. */
+      var style = getComputedStyle(o.scroll), width = parseFloat(style.width), height = parseFloat(style.height);
+      if (style.boxSizing !== 'border-box') {
+        width += parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+        height += parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      }
+      var sx = box.width / width || 1, sy = box.height / height || 1;
+      var top = box.top + (o.scroll.clientTop + 5) * sy, bottom = top + (o.scroll.clientHeight - 10) * sy;
+      var left = box.left + (o.scroll.clientLeft + 5) * sx, right = left + (o.scroll.clientWidth - 10) * sx;
+      var dy = caret.top < top ? caret.top - top : caret.bottom > bottom ? caret.bottom - bottom : 0;
+      var dx = caret.left < left ? caret.left - left : caret.right > right ? caret.right - right : 0;
+      if (dy) o.scroll.scrollTop += dy / sy;
+      if (dx) o.scroll.scrollLeft += dx / sx;
+    }
     function dispatch(tr) {
       if (!view) return;
       if ((!on || sourceStale || frozen) && tr.docChanged && !tr.getMeta('fromText')) return;
       view.updateState(view.state.apply(tr));
+      if (tr.scrolledIntoView) revealSelection();
       seenSelection = domSelection();
       /* The reader moved the selection (a click, an arrow key): the host maps it to the text. A selection the host itself mirrored is not told back. */
       if (tr.selectionSet && !tr.docChanged && !tr.getMeta('mirror') && o.selected) { o.selected(); }
@@ -2268,8 +2290,8 @@ var schemaCache = null;
           insert(name);
           return true;
       }
-      var acted = cmd(v.state, v.dispatch, v);
       v.focus();
+      var acted = cmd(v.state, v.dispatch, v);
       return acted;
     }
     /* The link for the selection, asked in the site's dialog
@@ -2308,7 +2330,7 @@ var schemaCache = null;
       if(reference&&o.page.contains(reference)){
         e.preventDefault();e.stopPropagation();var label=reference.getAttribute('data-footnote-ref'),found=null;
         view.state.doc.descendants(function(node,pos){if(found==null&&node.type.name==='footnote'&&node.attrs.label===label)found=pos;});
-        if(found!=null){view.dispatch(view.state.tr.setSelection(PM.TextSelection.near(view.state.doc.resolve(found+1))).scrollIntoView());view.focus();}
+        if(found!=null){view.focus();view.dispatch(view.state.tr.setSelection(PM.TextSelection.near(view.state.doc.resolve(found+1))).scrollIntoView());}
         else {var definition=Array.from(o.page.querySelectorAll('.doc-footnote')).find(function(note){return note.getAttribute('data-footnote')===label;});if(definition)definition.scrollIntoView({block:'nearest'});}
         return;
       }
@@ -2318,27 +2340,40 @@ var schemaCache = null;
     o.scroll.addEventListener('click', click, true);
     function staleInput(event) { if (sourceStale) { event.preventDefault(); event.stopPropagation(); } }
     o.page.addEventListener('mousedown', staleInput, true);
+    o.page.addEventListener('mousedown', rememberPointerSelection, true);
     o.page.addEventListener('beforeinput', staleInput, true);
 
     /* ProseMirror takes the browser's selection into its state when the browser's selectionchange event comes, which is a task of its own
        and can be several frames after the selection was made when the page is busy. A command that reads the page's selection in that
        time acts on the one before. So each entry of the API that reads or changes the selection first reads the browser's own selection
        (view.root.getSelection and posAtDOM, both documented) and, when it differs from the state's, makes it the state's. Only a text
-       selection outside a table is replaced (Firefox moves the browser's selection out of a table cell when the table is drawn again, and the state's is then the right one), and only while the page has the focus, which is where ProseMirror would take the browser's selection too. */
-    var seenSelection = null;
+       selection outside a table is replaced without a new pointer gesture. Inside a table the state remains authoritative after a redraw
+       (decision 160); a fresh pointer selection can be read only in the document and cell where that gesture began. */
+    var seenSelection = null, pointerSelection = null;
+    function selectionCell(node) {
+      var element = node && (node.nodeType === 1 ? node : node.parentElement);
+      return element && element.closest('td, th');
+    }
+    function rememberPointerSelection(event) {
+      pointerSelection = !sourceStale && view && event.button === 0 && view.dom.contains(event.target)
+        ? { doc: view.state.doc, cell: selectionCell(event.target) } : null;
+    }
     function domSelection() {
       var dom = view && view.root && view.root.getSelection ? view.root.getSelection() : null;
       return dom && dom.anchorNode ? { anchorNode: dom.anchorNode, anchorOffset: dom.anchorOffset, focusNode: dom.focusNode, focusOffset: dom.focusOffset } : null;
     }
     function sameDomSelection(a, b) {
-      return !!a && !!b && a.anchorNode === b.anchorNode && a.anchorOffset === b.anchorOffset && a.focusNode === b.focusNode && a.focusOffset === b.focusOffset;
+      return a === b || !!a && !!b && a.anchorNode === b.anchorNode && a.anchorOffset === b.anchorOffset && a.focusNode === b.focusNode && a.focusOffset === b.focusOffset;
     }
     function syncSelection() {
       if (!view || !on || view.composing || !view.hasFocus()) return;
       var current = view.state.selection;
-      if (!(current instanceof PM.TextSelection) || PM.isInTable(view.state)) return;
+      // CellSelection and other structural selections stay with the table plugin.
+      if (!(current instanceof PM.TextSelection)) return;
       var dom = domSelection();
       if (!dom || !view.dom.contains(dom.anchorNode) || !view.dom.contains(dom.focusNode)) return;
+      if (PM.isInTable(view.state) && (!pointerSelection || pointerSelection.doc !== view.state.doc ||
+          selectionCell(dom.anchorNode) !== pointerSelection.cell || selectionCell(dom.focusNode) !== pointerSelection.cell)) return;
       /* The state's selection is the page's own unless the browser's has changed since the state last took or set it: a selection the page set
          itself may not be in the browser's yet, and the browser's then says nothing new. */
       if (sameDomSelection(dom, seenSelection)) return;
@@ -2352,7 +2387,7 @@ var schemaCache = null;
     }
     async function mirrorAt(from, to) {
       if (!view || !on || sourceStale || frozen || dirty || syncing || view.composing) return false;
-      var target = view, doc = view.state.doc, text = o.text();
+      var target = view, doc = view.state.doc, selection = view.state.selection, dom = domSelection(), gesture = pointerSelection, text = o.text();
       if (typeof from !== 'number' || typeof to !== 'number' || from < 0 || to < from || to > text.length) return false;
       var bytes = new Uint8Array(8); crypto.getRandomValues(bytes);
       var tag = Array.from(bytes, function (value) { return value.toString(16).padStart(2, '0'); }).join(''), begin = 'YavcMirrorBegin' + tag, end = 'YavcMirrorEnd' + tag;
@@ -2360,7 +2395,7 @@ var schemaCache = null;
       var marked = text.slice(0, from) + begin + text.slice(from, to) + (to > from ? end : '') + text.slice(to);
       try {
         var json = await o.docOf(marked);
-        if (view !== target || !on || sourceStale || frozen || dirty || view.state.doc !== doc || o.text() !== text) return false;
+        if (view !== target || !on || sourceStale || frozen || dirty || view.state.doc !== doc || pointerSelection !== gesture || !view.state.selection.eq(selection) || !sameDomSelection(dom, domSelection()) || o.text() !== text) return false;
         var made = view.state.schema.nodeFromJSON(json), first = -1, last = -1, firstCount = 0, lastCount = 0;
         made.descendants(function (node, pos) {
           if (!node.isText) return;
@@ -2440,12 +2475,16 @@ var schemaCache = null;
       selectAtText: async function (from, to) {
         var text = view && o.text();
         if (typeof from !== 'number' || typeof to !== 'number' || typeof text !== 'string' || from < 0 || to < from || to > text.length) return false;
+        var target = view, doc = view.state.doc, selection = view.state.selection, dom = domSelection(), gesture = pointerSelection;
         /* The place itself first. A caret inside a link's address or an emphasis mark cannot be shown as a place on the page, since a marker there
            changes the page; then the start of the line it is on is the place, which is in the same paragraph, and a selection that cannot be shown
            as it is becomes a caret there. Nothing else stands in for it. */
         var lineStart = text.lastIndexOf(String.fromCharCode(10), Math.max(0, from) - 1) + 1, places = [[from, to]];
         if (lineStart !== from || to > from) places.push([lineStart, lineStart]);
-        for (var i = 0; i < places.length; i++) { if (await mirrorAt(places[i][0], places[i][1])) return true; }
+        for (var i = 0; i < places.length; i++) {
+          if (view !== target || view.state.doc !== doc || pointerSelection !== gesture || !view.state.selection.eq(selection) || !sameDomSelection(dom, domSelection())) return false;
+          if (await mirrorAt(places[i][0], places[i][1])) return true;
+        }
         return false;
       },
       hasSelection: function () { return !!(view && on && !view.state.selection.empty); },
@@ -2591,7 +2630,7 @@ var schemaCache = null;
         view.state.doc.forEach(function (node, offset) { if (node.type.name === 'heading' || node.type.name === 'source_block' && node.attrs.kind === 'heading') { number++; if (number === index) found = { node: node, offset: offset }; } });
         if (!found) return false;
         var selection = found.node.type.name === 'heading' ? PM.TextSelection.create(view.state.doc, found.offset + 1) : PM.NodeSelection.create(view.state.doc, found.offset);
-        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView()); view.focus(); return true;
+        view.focus(); view.dispatch(view.state.tr.setSelection(selection).scrollIntoView()); return true;
       },
       // Whether a table command can act where the cursor is.
       can: can,
@@ -2638,6 +2677,7 @@ var schemaCache = null;
         clearTimeout(reloadTimer);
         o.scroll.removeEventListener('click', click, true);
         o.page.removeEventListener('mousedown', staleInput, true);
+        o.page.removeEventListener('mousedown', rememberPointerSelection, true);
         o.page.removeEventListener('beforeinput', staleInput, true);
         if (view) { view.destroy(); view = null; }
       }

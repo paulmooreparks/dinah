@@ -608,7 +608,22 @@
                 if (page && page.active()) await page.sync();
                 if (!ctx.alive() || (ctx.historyReadOnly ? ctx.historyReadOnly() : ctx.readOnly()) || ctx.identity() !== identity || ctx.source() !== source) return;
                 if (!ctx.unified && rich) { if (ctx.page() === page && page.active()) { page.run(name); await page.sync(); } }
-                else if(ctx.sourceHistory)ctx.sourceHistory.run(name,source);
+                else if(ctx.sourceHistory) {
+                    var before = rich ? source.state.doc.toString() : null;
+                    var moved = ctx.sourceHistory.run(name,source);
+                    /* The hidden source caret may predate the rich edit. Reveal
+                       the changed passage, rather than that unrelated caret. */
+                    if (moved && ctx.unified && rich && page && page.active()) {
+                        var doc = source.state.doc, selection = source.state.selection;
+                        var after = doc.toString(), tail = 0;
+                        while (tail < before.length && tail < after.length && before[before.length - tail - 1] === after[after.length - tail - 1]) tail++;
+                        var at = after.length - tail;
+                        await page.reload();
+                        if (ctx.alive() && ctx.identity() === identity && ctx.source() === source && ctx.page() === page && page.active() && source.state.doc === doc && source.state.selection.eq(selection)) {
+                            await page.selectAtText(at, at);
+                        }
+                    }
+                }
                 else cmLibrary[name](source);
                 ctx.changed();
             } catch (err) { if (ctx.alive()) ctx.say(err.message || String(err), true); }

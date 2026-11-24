@@ -2800,7 +2800,12 @@
             'key-bindings': editKeys
         };
 
-        function goToLine() {
+        async function goToLine() {
+            var tab = current();
+            if (pageActive()) { await visual.api.sync(); }
+            if (destroyed || current() !== tab) { return; }
+            if (viewMode !== 'text' && viewMode !== 'split') { await setView('split'); }
+            if (destroyed || current() !== tab) { return; }
             var binding = CM.searchKeymap.find(function (key) { return key.key === 'Mod-Alt-g'; });
             if (binding) { binding.run(view); }
         }
