@@ -48,3 +48,41 @@ func (b *Bus) NotifyWakeWaiting(ctx context.Context, target, title string, sende
 	_, err := b.EnqueueResult(ctx, key, sender.Session, text)
 	return err
 }
+
+// WokenSessions returns the chats a message asks to answer and has not yet
+// been taken by: the chat it was sent to, or the members of a group that it
+// mentions or that everyone covers. Each comes with the title its sender
+// knows it by. A send receipt uses it to say which of them have a held
+// delivery, which only the window knows.
+func (b *Bus) WokenSessions(ctx context.Context, id int64) ([]ReachMember, error) {
+	rows, err := b.db.QueryContext(ctx, `SELECT DISTINCT s.id FROM deliveries d JOIN messages m ON m.id = d.message_id
+		JOIN sessions s ON d.recipient_kind = 'session' AND d.recipient = s.id
+		WHERE m.id = ? AND s.removed_at IS NULL AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.id <> m.from_session
+		AND (m.room = '' OR m.mentions LIKE '%,' || s.id || ',%' OR m.mentions LIKE '%,*,%')
+		ORDER BY s.id`, id)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var sid string
+		if err := rows.Scan(&sid); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, sid)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]ReachMember, 0, len(ids))
+	for _, sid := range ids {
+		s, err := b.Session(ctx, sid)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ReachMember{ID: sid, Title: s.Display()})
+	}
+	return out, nil
+}

@@ -102,9 +102,34 @@ A page that was reloaded has lost its tokens. Its windows open their chats again
 
 A page call that changes something counts as unfinished work when the window is asked to close. `BeginChatOpen` is listed as a query, and the open it starts counts itself as unfinished work under the opening method's name until it ends, so the exit guard sees what it saw before.
 
+## Rule 3: a held delivery ends when the chat is shown to be running
+
+Before a wake opens a closed chat, `WakeAttempts.Begin` saves a record with the stage `opening` in `waiting-chats.json`. A confirmed open deletes it, and a failed one leaves it as `failed` or `routing-recovery`. While any record exists for a chat's bus identity, the watcher delivers nothing to that chat and no wake opens it again. The record is there because an opening whose result is unknown may already have started a turn with the waiting messages, and a second open could start another.
+
+On 21 November 2026 the program stopped while two chats were being opened, so their records stayed at `opening` with nothing left to complete them. Paul later prompted each chat directly, and its turn took in the messages that were waiting. The records stayed, every later wake was refused, and new messages piled up behind the same hold until 25 November.
+
+A chat's own turn now ends such a hold. When the person's turn starts (`BusChats.Waiting`), and when any turn ends without error (`BusChats.AfterTurn`), `BusChats.ConfirmRunning` checks that the chat is in the runtime as itself, is open, and is on the bus. It then asks `WakeAttempts.ConfirmRunning` to delete the records for that chat. A record is deleted only when all of the following hold.
+
+- Its stage is `opening` or `failed`.
+- It has no observed route, and its own route needs no routing recovery.
+- Its target is the chat that took the turn, and its recipient is the bus identity that chat has now.
+- No opening for its origin is active in this process.
+
+A record that fails any of these stays, and deliveries are never moved to another recipient. The comment on `WakeAttempts.ConfirmRunning` gives the full argument for why a turn still never starts twice. In short, the earlier opening can no longer start a turn here, since it ended with the process that began it, or it finished in this one. Any later open of a live chat returns the conversation that is already open (`openExact`), and turns within one conversation take each message at most once.
+
+### What the sender is told
+
+The receipt for a send or a reply says when a chat the message asks to answer has a held delivery. For a message to one chat it reads, for example:
+
+> Docs Pass has a held delivery: an earlier opening of it was never confirmed, so this message waits until that chat takes a turn of its own or the hold is cleared in Notifications.
+
+For a group post, the receipt lists the members it wakes that are held. The bus helper that writes the receipt runs in its own process, so it reads `waiting-chats.json` when it writes each receipt (`heldRecipientsAt`). If that file cannot be read, the receipt says nothing about holds, and the window's Notifications show the failure.
+
 ## Checks
 
 - `cmd/dinah-desktop/chat_opens_test.go`: a reopen past its limit leaves the chat closed, the message waiting and the attempt retriable; a retry beside the unanswered load is refused and sends nothing; the late replay and the late answer change nothing; an open started from the page returns at once, reports by event and shares one load; over real HTTP with six connections, six opens that never finish leave another call answered.
 - `cmd/dinah-desktop/chat_restore_limit_test.go` and `internal/sessionhost/option_restore_test.go`: a reopened chat and a new chat whose agent never answers a restore are open and usable within the limit, with the agent's values; one line lists the settings that were left; no second request is sent; the late answer changes nothing.
 - `cmd/dinah-desktop/frontend/e2e/chat-open-by-event.js`: six chats that never finish opening hold no call; a chat whose open ends at the limit shows its error in place and can be tried again; a lost outcome is learned after a resync.
+- `internal/sessionhost/wake_attempts_test.go`: an opening begun and never confirmed, read again by a fresh owner as after a restart, is retired when the chat takes a turn of its own; the next wake is admitted and the stale attempt is never opened. A failed opening is retired the same way, while an opening still active, another recipient, another chat, a chat that is not live, routing recovery and an observed route all keep the hold.
+- `internal/mcpserver/receipt_reach_test.go` and `cmd/dinah-desktop/waiting_chats_test.go`: a send to a held chat and a group post that wakes held members say so in the receipt, and the helper reads the held recipients from the window's file.
 - The other browser suites describe an open by the opening method, and the suites' stub (`e2e/lib/page.js`) answers `BeginChatOpen` by running that method and sending the event, so they all pass through the event path.

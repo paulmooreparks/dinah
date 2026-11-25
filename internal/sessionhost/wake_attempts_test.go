@@ -8,6 +8,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"studio/internal/bus"
+	"studio/internal/bushost"
 )
 
 func wakeAttemptFixture() (*WakeAttempts, *map[string]WakeFailure) {
@@ -264,4 +267,182 @@ func TestWakeCachedStateAndExplicitReadErrorRecovery(t *testing.T) {
 	if reads != 2 {
 		t.Fatal("write-through state was reread", reads)
 	}
+}
+
+// stoppedMidOpening reproduces 21 November 2026: an opening is begun and the
+// program stops before it is confirmed, so the next process reads an
+// "opening" record that nothing will complete.
+func stoppedMidOpening(t *testing.T, route WakeRoute) (*WakeAttempts, *map[string]WakeFailure, string) {
+	t.Helper()
+	w, stored := wakeAttemptFixture()
+	old, fresh, err := w.Begin(route, false)
+	if err != nil || !fresh {
+		t.Fatal(old, fresh, err)
+	}
+	restarted := &WakeAttempts{Read: w.Read, Write: w.Write, Now: w.Now}
+	if _, _, err := restarted.Begin(route, false); err == nil {
+		t.Fatal("the unconfirmed opening did not hold the next wake")
+	}
+	if (*stored)[route.Origin].Stage != "opening" || !restarted.DeliveryHeld(route.Target, route.Recipient) {
+		t.Fatal(*stored)
+	}
+	return restarted, stored, old
+}
+
+// runningChat is a chat that is live in the runtime under target, open, and
+// on the bus as busID, with a bus that holds one message waiting for it.
+func runningChat(t *testing.T, w *WakeAttempts, target, busID string) (*BusChats, *Conversation, *Runtime, *int) {
+	t.Helper()
+	var mu sync.Mutex
+	runtime := &Runtime{}
+	service := bushost.New(bushost.Options{State: t.TempDir()})
+	t.Cleanup(service.CloseHandle)
+	b, err := service.Bus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := b.RegisterSession(context.Background(), busID, t.TempDir(), "Held chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(context.Background(), bus.Sender{}, row.Address(), "Are you there?", nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	c := NewConversation(Identity{ID: target}, InitialActivity{Open: true}, false, false)
+	c.JoinBus(busID)
+	runtime.PutConversationLocked(c.ID(), c)
+	notices := 0
+	owner := NewBusChats(&mu, runtime, BusChatsHost{
+		WakeAttempts: w,
+		BusService:   func() *bushost.Service { return service },
+		AgentPerson:  func() string { return "Person" },
+		Log:          func(string, string, ...any) {},
+		Emit: func(name string, _ any) {
+			if name == "notification:delivery" {
+				notices++
+			}
+		},
+	})
+	return owner, c, runtime, &notices
+}
+
+func TestWakeStaleOpeningEndsWhenTheChatTakesATurnOfItsOwn(t *testing.T) {
+	route := safeWakeRoute()
+	w, stored, old := stoppedMidOpening(t, route)
+	owner, c, _, notices := runningChat(t, w, route.Target, route.Recipient)
+	// The person prompts the chat directly, and its turn takes the waiting
+	// message, as it did on 21 November.
+	text, delivered := owner.Waiting(c)
+	if text == "" || len(delivered) != 1 {
+		t.Fatalf("the chat's own turn did not take its waiting message: %q %v", text, delivered)
+	}
+	if len(*stored) != 0 || w.DeliveryHeld(route.Target, route.Recipient) || *notices != 1 {
+		t.Fatalf("the hold outlived the chat's own turn: %v (notices %d)", *stored, *notices)
+	}
+	next, fresh, err := w.Begin(route, false)
+	if err != nil || !fresh || next == old {
+		t.Fatalf("the next wake was not admitted: %q %v %v", next, fresh, err)
+	}
+	if _, err, _ := w.Open(route.Origin, old, unchangedWake, func(WakeRoute) (Info, error) {
+		t.Fatal("the stale attempt was opened a second time")
+		return Info{}, nil
+	}); err == nil {
+		t.Fatal("the stale attempt was admitted")
+	}
+	opens := 0
+	if _, err, _ := w.Open(route.Origin, next, unchangedWake, func(r WakeRoute) (Info, error) { opens++; return Info{ID: r.Target}, nil }); err != nil || opens != 1 {
+		t.Fatal(err, opens)
+	}
+}
+
+func TestWakeStaleHoldEndsAfterAnyCompletedTurn(t *testing.T) {
+	route := safeWakeRoute()
+	w, stored, _ := stoppedMidOpening(t, route)
+	owner, c, _, _ := runningChat(t, w, route.Target, route.Recipient)
+	owner.host.HoldingTurns = func() error { return nil }
+	owner.host.BusPictures = func(*Conversation, []bus.Message) ([]Attachment, string) { return nil, "" }
+	owner.host.PreparePrompt = func(*Conversation, string, []Attachment) (Prompt, error) { return Prompt{}, nil }
+	if next := owner.AfterTurn(c); next == nil {
+		t.Fatal("the waiting message was not taken after the turn")
+	}
+	if len(*stored) != 0 {
+		t.Fatal(*stored)
+	}
+}
+
+func TestWakeFailedOpeningEndsWhenTheChatRunsButAnActiveOneStays(t *testing.T) {
+	w, stored := wakeAttemptFixture()
+	route := safeWakeRoute()
+	id, _, err := w.Begin(route, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if released, err := w.ConfirmRunning(route.Target, route.Recipient); err != nil || len(released) != 0 || (*stored)[route.Origin].Stage != "opening" {
+		t.Fatal("an opening still active was released", released, err)
+	}
+	if _, err, _ := w.Open(route.Origin, id, unchangedWake, func(WakeRoute) (Info, error) { return Info{}, context.Canceled }); err == nil || (*stored)[route.Origin].Stage != "failed" {
+		t.Fatal(err, *stored)
+	}
+	if released, err := w.ConfirmRunning(route.Target, route.Recipient); err != nil || len(released) != 1 || len(*stored) != 0 {
+		t.Fatal("a finished failed opening outlived the running chat", released, err, *stored)
+	}
+}
+
+func TestWakeHoldStaysWhenTheRunningChatDiffers(t *testing.T) {
+	route := safeWakeRoute()
+	t.Run("another recipient", func(t *testing.T) {
+		w, stored, _ := stoppedMidOpening(t, route)
+		owner, c, _, notices := runningChat(t, w, route.Target, "other-bus")
+		owner.Waiting(c)
+		if (*stored)[route.Origin].Stage != "opening" || !w.DeliveryHeld(route.Target, route.Recipient) || *notices != 0 {
+			t.Fatal("a chat with another recipient released the hold", *stored)
+		}
+	})
+	t.Run("another chat", func(t *testing.T) {
+		w, stored, _ := stoppedMidOpening(t, route)
+		owner, c, _, _ := runningChat(t, w, "unrelated", route.Recipient)
+		owner.Waiting(c)
+		if (*stored)[route.Origin].Stage != "opening" {
+			t.Fatal("a turn of another chat released the hold", *stored)
+		}
+	})
+	t.Run("not live", func(t *testing.T) {
+		w, stored, _ := stoppedMidOpening(t, route)
+		owner, c, runtime, _ := runningChat(t, w, route.Target, route.Recipient)
+		runtime.RemoveConversationLocked(c.ID())
+		owner.ConfirmRunning(c)
+		if (*stored)[route.Origin].Stage != "opening" {
+			t.Fatal("a chat that is not live released the hold", *stored)
+		}
+	})
+	t.Run("routing recovery", func(t *testing.T) {
+		w, stored := wakeAttemptFixture()
+		conflict := route
+		conflict.TargetRecipient = "target-own-bus"
+		if _, _, err := w.Begin(conflict, false); err == nil {
+			t.Fatal("conflict admitted")
+		}
+		owner, c, _, _ := runningChat(t, w, route.Target, route.Recipient)
+		owner.Waiting(c)
+		if (*stored)[route.Origin].Stage != "routing-recovery" {
+			t.Fatal("routing recovery was released", *stored)
+		}
+	})
+	t.Run("observed route", func(t *testing.T) {
+		w, stored, _ := stoppedMidOpening(t, route)
+		moved := route
+		moved.Recipient, moved.TargetRecipient = "moved-bus", "moved-bus"
+		if _, _, err := w.Begin(moved, false); err == nil {
+			t.Fatal("changed recipient admitted")
+		}
+		record := (*stored)[route.Origin]
+		if record.Stage != "routing-recovery" || record.Observed == nil {
+			t.Fatal(record)
+		}
+		for _, recipient := range []string{route.Recipient, moved.Recipient} {
+			if released, err := w.ConfirmRunning(route.Target, recipient); err != nil || len(released) != 0 {
+				t.Fatal("an observed route was released", released, err)
+			}
+		}
+	})
 }

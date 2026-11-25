@@ -67,6 +67,36 @@ func writeWaitingChats(items map[string]sessionhost.WakeFailure) error {
 	return writeValidatedStateFile(filepath.Join(configDir(), "waiting-chats.json"), data, func(previous []byte) error { _, err := decodeWaitingChats(previous); return err })
 }
 
+// heldRecipientsAt returns the bus recipients that the waiting-chat records
+// in stateDir hold, the same recipients for which WakeAttempts.DeliveryHeld
+// stops automatic delivery. The bus helper runs in its own process, so it
+// reads the file the window writes each time a receipt asks. A file that is
+// missing holds nobody. A file that cannot be read or decoded gives nil, and
+// the receipt then says nothing about holds, since the helper cannot tell
+// which chats are affected; the window's Notifications show that failure.
+func heldRecipientsAt(stateDir string) func() map[string]bool {
+	return func() map[string]bool {
+		data, err := readStateFile(filepath.Join(stateDir, "waiting-chats.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]bool{}
+		}
+		if err != nil {
+			return nil
+		}
+		store, err := decodeWaitingChats(data)
+		if err != nil {
+			return nil
+		}
+		out := map[string]bool{}
+		for _, item := range store.Items {
+			if item.Route.Recipient != "" {
+				out[item.Route.Recipient] = true
+			}
+		}
+		return out
+	}
+}
+
 func (a *App) waitingRoute(origin, cwd string) (sessionhost.WakeRoute, error) {
 	if a.removedChat(origin) {
 		return sessionhost.WakeRoute{}, errors.New("this chat was removed")

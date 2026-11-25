@@ -135,6 +135,89 @@ func (w *WakeAttempts) RemoveRecipient(origin, recipient string) error {
 	return w.persistLocked(records)
 }
 
+// ConfirmRunning retires the holds on target whose earlier opening was never
+// confirmed, once the caller has shown that target is live in this process,
+// that recipient owns its bus identity, and that it has taken a turn of its
+// own. It returns the origins it released. On 21 November 2026 the program
+// stopped while two chats were being opened, so their "opening" records were
+// never completed. Each chat later took turns because the person prompted it
+// directly, but every wake stayed refused and new messages piled up behind
+// the same hold (docs/design/chat-open-rules.md, Rule 3).
+//
+// A record stays held unless every one of these is true. Its stage is
+// "opening" or "failed". It has no Observed route and its own route needs no
+// routing recovery, so nothing about its ownership is in question. Its target
+// is the chat shown to be running, and its recipient is the same bus identity
+// that chat owns now. No opening for its origin is active in this process.
+// Deliveries are never reassigned: the record is deleted, and the messages
+// stay with the recipient they were sent to.
+//
+// The record exists so that a turn is never started twice. An opening whose
+// result is unknown may already have loaded the agent session and started a
+// turn with the waiting messages, and a second open could load the session
+// again and start another. Proof that the chat is running in this process
+// makes a second open either impossible or harmless, for these reasons:
+//
+//   - No opening for the origin is in flight here, which is checked below
+//     under the same mutex that Begin and Open take. An opening begun by an
+//     earlier process ended with that process. The agent connection it was
+//     opening belonged to that process, and a chat in the window receives bus
+//     messages only as prompts this process sends it, so that opening cannot
+//     complete later and start a turn here. An opening begun by this process
+//     has finished, whatever its result.
+//   - The target conversation is already live. Every later open of it in this
+//     process goes through SessionLifecycle.openExact, which joins an open in
+//     progress and otherwise returns the live conversation as it is instead of
+//     loading a second agent session. A later wake therefore finds one
+//     conversation and rings it as it rings any open chat.
+//   - Within one live conversation, turns are serialized. A delivery claims
+//     the chat's work before it takes messages (Ring, ClaimDelivery), and the
+//     bus marks each delivery delivered in the same step that takes it, so a
+//     message is taken by at most one turn.
+//
+// If the chat is closed again later, the next wake begins a new attempt with
+// a new write-ahead record and a new identifier, and the identifier of the
+// stale attempt is never admitted by Open, because no active attempt holds it.
+func (w *WakeAttempts) ConfirmRunning(target, recipient string) ([]string, error) {
+	if target == "" || recipient == "" {
+		return nil, nil
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	records, err := w.recordsLocked()
+	if err != nil {
+		return nil, err
+	}
+	var released []string
+	for origin, record := range records {
+		if record.Route.Target != target || record.Route.Recipient != recipient {
+			continue
+		}
+		if record.Stage != "opening" && record.Stage != "failed" {
+			continue
+		}
+		if record.Observed != nil || record.Route.needsRecovery() {
+			continue
+		}
+		if a := w.active[origin]; a != nil {
+			select {
+			case <-a.done:
+			default:
+				continue
+			}
+		}
+		delete(records, origin)
+		released = append(released, origin)
+	}
+	if len(released) == 0 {
+		return nil, nil
+	}
+	if err := w.persistLocked(records); err != nil {
+		return nil, err
+	}
+	return released, nil
+}
+
 // Reload is explicit because a corrupt store must not be reread on every ring.
 // An active attempt keeps its original write-ahead authority until completion.
 func (w *WakeAttempts) Reload() error {

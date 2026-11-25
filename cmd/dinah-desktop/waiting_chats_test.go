@@ -199,3 +199,27 @@ func TestWaitingStoreReadErrorKeepsOrdinaryNotificationsAndExplicitReload(t *tes
 		t.Fatal(cards, err)
 	}
 }
+
+// The bus helper learns which recipients are held from the file the window
+// writes, so a send receipt can say that a message waits behind a hold.
+func TestHeldRecipientsComeFromTheWaitingChatFile(t *testing.T) {
+	providerTestApp(t)
+	held := heldRecipientsAt(configDir())
+	if got := held(); got == nil || len(got) != 0 {
+		t.Fatal("a missing file held someone or was reported unreadable", got)
+	}
+	route := sessionhost.WakeRoute{Origin: "codex:old", Target: "codex:old", Recipient: "old-bus", TargetRecipient: "old-bus", Cwd: t.TempDir(), Provider: "codex", Title: "Saved work"}
+	err := writeWaitingChats(map[string]sessionhost.WakeFailure{route.Origin: {Route: route, Attempt: "owned-attempt", Stage: "opening", Error: "The previous opening has no confirmed completion.", Created: time.Unix(1, 0)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := held(); len(got) != 1 || !got["old-bus"] {
+		t.Fatal(got)
+	}
+	if err := os.WriteFile(filepath.Join(configDir(), "waiting-chats.json"), []byte("invalid JSON"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := held(); got != nil {
+		t.Fatal("an unreadable file named held recipients", got)
+	}
+}

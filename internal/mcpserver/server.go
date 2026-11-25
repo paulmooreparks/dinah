@@ -103,6 +103,18 @@ type Server struct {
 	// UserPromptSubmit. Claude Code may fire that hook for a turn the
 	// doorbell started, and such a turn is not Paul speaking.
 	rang bool
+	// held returns the bus recipients whose deliveries the window holds
+	// because an earlier opening of that chat was never confirmed. Where it
+	// is nil, or returns nil because the window's state cannot be read, a
+	// receipt says nothing about holds.
+	held func() map[string]bool
+}
+
+// SetHeld gives the server the window's list of held recipients, for its
+// send receipts (heldNote).
+func (s *Server) SetHeld(held func() map[string]bool) *Server {
+	s.held = held
+	return s
 }
 
 // New returns a server over the bus that learns its session from the first
@@ -436,6 +448,7 @@ func (s *Server) sentReceipt(ctx context.Context, m bus.Message) *mcp.CallToolRe
 		spent = s.groupWoke(m)
 	}
 	spent += s.outsideWindow(ctx, m)
+	spent += s.heldNote(ctx, m)
 	if s.window {
 		return text("Sent as message %d to %s. This is a delivery receipt. Replies arrive automatically when idle or after your active turn. Continue independent work or end your turn; do not poll or sleep.%s", m.ID, m.To, spent)
 	}
@@ -488,6 +501,39 @@ func (s *Server) outsideWindow(ctx context.Context, m bus.Message) string {
 	}
 	name := profile.Current().Name
 	return " " + m.To + " runs outside " + name + "'s window, so " + name + " cannot start a turn for it, and it reads this only when it next takes a turn of its own. It was last active at " + when + ". If its work has moved to another chat, send the message there."
+}
+
+// heldNote tells the sender which chats the message asks to answer have a
+// held delivery. Such a chat is not opened for the message, so without the
+// note the sender saw a plain receipt and waited for an answer that could
+// not come (25 November 2026).
+func (s *Server) heldNote(ctx context.Context, m bus.Message) string {
+	if s.held == nil {
+		return ""
+	}
+	held := s.held()
+	if len(held) == 0 {
+		return ""
+	}
+	woken, err := s.bus.WokenSessions(ctx, m.ID)
+	if err != nil {
+		return ""
+	}
+	var names []string
+	for _, r := range woken {
+		if held[r.ID] {
+			names = append(names, r.Title)
+		}
+	}
+	switch {
+	case len(names) == 0:
+		return ""
+	case len(names) == 1 && m.Room == "":
+		return " " + names[0] + " has a held delivery: an earlier opening of it was never confirmed, so this message waits until that chat takes a turn of its own or the hold is cleared in Notifications."
+	case len(names) == 1:
+		return " Of the members it wakes, " + names[0] + " has a held delivery: an earlier opening of it was never confirmed, so this message waits for it until that chat takes a turn of its own or the hold is cleared in Notifications."
+	}
+	return " Of the members it wakes, these have a held delivery: " + strings.Join(names, ", ") + ". An earlier opening of each was never confirmed, so this message waits for each of them until it takes a turn of its own or its hold is cleared in Notifications."
 }
 
 // register adds the bus's tools to srv, whose descriptions call the person

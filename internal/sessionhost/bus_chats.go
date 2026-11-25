@@ -525,6 +525,42 @@ func (a *BusChats) ReleaseCommittedRecovery(origin, recipient string) error {
 	return a.host.WakeAttempts.ReleaseCommitted(origin, recipient)
 }
 
+// ConfirmRunning is called when s takes a turn of its own. A chat that is in
+// the runtime as itself, open, and on the bus under its own identity is shown
+// to be running in this process, so a hold left by an opening that was never
+// confirmed for that chat and that identity is retired (WakeAttempts.
+// ConfirmRunning gives the conditions and why a turn still never starts
+// twice). A hold whose recipient differs from the chat's identity stays.
+func (a *BusChats) ConfirmRunning(s *Conversation) {
+	if a.host.WakeAttempts == nil || s == nil {
+		return
+	}
+	state := s.State()
+	a.mu.Lock()
+	live := a.runtime.ConversationLocked(s.ID()) == s
+	a.mu.Unlock()
+	if !live || !state.Open || state.BusID == "" {
+		return
+	}
+	released, err := a.host.WakeAttempts.ConfirmRunning(s.ID(), state.BusID)
+	if err != nil {
+		if a.host.Log != nil {
+			a.host.Log("error", "chat %s took a turn, but its held delivery could not be released: %v", s.ID(), err)
+		}
+		return
+	}
+	if len(released) == 0 {
+		return
+	}
+	sort.Strings(released)
+	if a.host.Log != nil {
+		a.host.Log("info", "chat %s took a turn of its own, so the delivery held for it by an unconfirmed opening (%s) is released", s.ID(), strings.Join(released, ", "))
+	}
+	if a.host.Emit != nil {
+		a.host.Emit("notification:delivery", nil)
+	}
+}
+
 func (a *BusChats) RemoveRecoveryRecipient(origin, recipient string) error {
 	return a.host.WakeAttempts.RemoveRecipient(origin, recipient)
 }

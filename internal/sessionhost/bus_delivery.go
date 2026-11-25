@@ -185,12 +185,15 @@ func deliveredNumbers(s *Conversation, msgs []bus.Message) {
 // it, which also starts the count of automatic handoffs again, as the
 // person's prompt does in a Claude Code session. It returns them as the text
 // to add to the person's prompt, or "" when none wait, and the entries the
-// chat's saved copy keeps for them (delivered.go).
+// chat's saved copy keeps for them (delivered.go). The person's turn shows
+// that the chat is running in this window, so a hold that an unconfirmed
+// opening left for it ends here (ConfirmRunning).
 func (a *BusChats) Waiting(s *Conversation) (string, []ConversationMessage) {
 	id := s.BusID()
 	if id == "" {
 		return "", nil
 	}
+	a.ConfirmRunning(s)
 	var msgs []bus.Message
 	err := a.host.BusService().With(func(b *bus.Bus) error {
 		var err error
@@ -211,7 +214,10 @@ func (a *BusChats) Waiting(s *Conversation) (string, []ConversationMessage) {
 // busAfterTurn collects waiting messages without interrupting the active
 // provider call. A result can therefore run before the next queued prompt.
 // Messages arriving after this check are picked up by the normal watcher.
+// A turn that ended without error also shows that the chat is running, so a
+// stale hold for it ends before the watcher looks again (ConfirmRunning).
 func (a *BusChats) AfterTurn(s *Conversation) *Prompt {
+	a.ConfirmRunning(s)
 	if a.host.HoldingTurns() != nil {
 		return nil
 	}

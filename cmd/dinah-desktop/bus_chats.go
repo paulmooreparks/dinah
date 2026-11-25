@@ -327,5 +327,5 @@ func runBusMCP(args []string) error {
 	if _, err := b.Session(context.Background(), *session); err != nil {
 		return err
 	}
-	return mcpserver.NewWindow(b, *session).Run(context.Background())
+	return mcpserver.NewWindow(b, *session).SetHeld(heldRecipientsAt(*stateDir)).Run(context.Background())
 }
