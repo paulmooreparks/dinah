@@ -1,6 +1,6 @@
 # Spending less attention and fewer tokens on the agent organisation
 
-This document proposes changes to how chats in a team report, hand over and are woken, so that the same work costs Paul fewer interruptions and costs every chat fewer tokens. It follows from the review of one working day in `docs/review/agent-organisation-2026-11-25.md`, which has the measurements quoted here. It was written by the Software Director chat at Paul's request on 26 November 2026. Nothing in it is built. Paul accepted its decisions on 26 November 2026, as the last table records. He has said the work comes after the adoption of PUDL 0.109.0 is installed.
+This document proposes changes to how chats in a team report, hand over and are woken, so that the same work costs Paul fewer interruptions and costs every chat fewer tokens. It follows from the review of one working day in `docs/review/agent-organisation-2026-11-25.md`, which has the measurements quoted here. It was written by the Software Director chat at Paul's request on 26 November 2026. Nothing in it is built. Paul accepted its decisions on 26 November 2026, as Table 7 records, and changed two earlier rulings, as Table 8 records. He has said the work comes after the adoption of PUDL 0.109.0 is installed.
 
 The document has four parts: what the design is for, the changes themselves, how the practices that already work are made permanent, and a plan in stages with the decisions Paul has to make.
 
@@ -189,8 +189,8 @@ The work is in five stages (Table 6). Each stage is useful on its own, and each 
 | Stage | Content | Owner | Needs from Paul |
 |---|---|---|---|
 | 0. Rules | The working rules of Table 3 | Director | Nothing; two are in force |
-| 1. Measure | Usage for every provider with a documented source, split by kind of token; one week of figures against Table 1 | Dinah lead | Nothing until a view is proposed |
-| 2. Wake less | Inform recipients; the shorter instruction block; the two small defects; what the window raises for a turn Paul was not addressed in | Dinah lead | The decision on inform recipients; a mockup for any change to what he sees |
+| 1. Measure | Usage for every provider with a documented source, split by kind of token; one week of figures against Table 1; how often a member's question for Paul passed through more than one lead | Dinah lead | Nothing until a view is proposed |
+| 2. Wake less | Inform recipients; an unaddressed post that wakes nobody when nobody is engaged (Table 8); the shorter instruction block; the two small defects; what the window raises for a turn Paul was not addressed in | Dinah lead | The decision on inform recipients; a mockup for any change to what he sees |
 | 3. Cheaper merges | Checks in proportion to the change; the merge script; a trial of a cheaper model for the integrator | Dinah lead writes, integrator runs | Agreement that documents-only merges skip the Go tests |
 | 4. Records and roles | The handover tool and decision record; moving a role to a fresh chat; allowances and a view of use against them | Dinah lead | Mockups; a size at which Dinah suggests a move; the allowances |
 
@@ -215,6 +215,21 @@ Table 7 lists the decisions this design needed from Paul. He accepted every reco
 | Whether he gives simple instructions to a lead directly, with the copy to the director | Left to his preference from case to case |
 
 *Note.* Acceptance of these decisions approves the direction and the order of the plan. It approves no change to what Paul sees: each such change still needs his approved mockup. The decision on documents-only merges takes effect when it is written into the merge guides, and not before.
+
+### Two earlier rulings changed
+
+Paul was then asked whether any of his earlier rulings that this design touches should change. He agreed to two changes the same day, in these words: "I agree with both changes: the first row (wake nobody and tell the sender to say whom it is for) and the stock PUDL component exception." Table 8 records them.
+
+**Table 8** *Rulings Changed on 26 November 2026*
+
+| Ruling as it stood | Ruling now | Takes effect |
+|---|---|---|
+| An agent's group post that addresses nobody reaches the members engaged in the group, and with nobody engaged it reaches the group's lead (10 November 2026, `docs/design/group-attention.md`) | With nobody engaged, the post wakes nobody. Every member gets the usual one-line notice on its next turn, and the sender's receipt says that nobody was woken and that the member it is for should be named. The first half of the rule, reaching the engaged members, is unchanged | When stage 2 builds it. Until then the bus behaves as before |
+| New or reworked interface needs Paul's approved mockup before product code (15 November 2026) | The rule stands, with one exception: a stock PUDL component adopted unchanged needs no separate mockup. Anything added to the component, laid out differently or given new settings is new interface and needs one | Now. The merge guides should say so the next time they are corrected |
+
+*Note.* The reason for the first change is cost. A group's lead is usually the chat with the longest conversation in it, so it is the most expensive member to wake, and the receipt already tells the sender what happened. The second change writes down what Paul did on 25 November 2026, when he approved PUDL 0.109.0's Edit menu without a mockup.
+
+One ruling was looked at and left alone. A member's question for Paul rises one lead at a time (17 November 2026, `docs/design/team-hierarchy.md`), and with three levels each step wakes a lead to pass it on. Paul chose to watch this and decide after the week of measurement in stage 1.
 
 ## Risks and open questions
 
