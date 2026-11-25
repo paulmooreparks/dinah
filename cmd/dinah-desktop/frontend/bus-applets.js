@@ -774,6 +774,11 @@
       // disabled while there is nowhere to go back to.
       stoppedChanged: stopped ? function (shown) { stopped.disabled = !shown; } : null,
       ready: function () { return !painting; }, canTail: function () { return !painting; },
+      // Notifications clears the card of a mention once its message has been on screen.
+      shown: function (keys) {
+        var win = root.closest('[data-win]');
+        if (win) document.dispatchEvent(new CustomEvent('dinah:bus-messages-shown', { detail: { windowKey: win.dataset.win, messages: keys.map(Number) } }));
+      },
       entries: function () { return drawn.map(function (d) { return { key: d.message && d.message.id, element: d.div, eligible: !!d.message && !d.message.fromPerson && d.message.kind !== 'member' }; }); },
       initialSeen: function (entry) { var saved = readLedger(); return Number(entry.key) <= saved.through && saved.unseen.indexOf(Number(entry.key)) < 0; },
       seenChanged: function (snapshot) {

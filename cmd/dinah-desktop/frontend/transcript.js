@@ -121,6 +121,17 @@
         seenSignature = signature;
         if (o.seenChanged) o.seenChanged({ entries: rows, unseen: pending, atEnd: reachedEnd });
       }
+      reportShown(active() ? rows.filter(function (entry) { return wholeVisible(entry.element); }).map(function (entry) { return entry.key; }) : []);
+    }
+    /* The host is told which messages are on screen whole while this window
+       is in front, each time that list changes, and an empty list when the
+       window goes behind another or closes. */
+    var shownSignature = '';
+    function reportShown(keys) {
+      if (!o.shown) return;
+      var signature = keys.join(',');
+      if (signature === shownSignature) return;
+      shownSignature = signature; o.shown(keys);
     }
     function check() {
       if (disposed || covered(log) || !log.clientHeight) return;
@@ -258,6 +269,7 @@
       },
       destroy: function () {
         known.clear(); unseen.clear(); navigationTarget = null;
+        reportShown([]);
         disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); rowChanges.disconnect(); rowSizes.disconnect(); controls.remove(); divider.remove();
         jump.removeEventListener('click', latest); stopped.removeEventListener('click', whereStopped);
         log.removeEventListener('scroll', check); log.removeEventListener('dinah:scroll-restored', restored);

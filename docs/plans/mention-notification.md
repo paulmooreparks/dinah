@@ -70,3 +70,23 @@ Architecture approved this shape on 29 October 2026 (message 631), with the look
 Built on 29 October 2026 (Dinah Engine Cleanup), the engine half. `Bus.Mentions(after)` returns the unread messages agents sent the person, by a mention or directly, `Bus.HighestMessage` gives the baseline and `Bus.MentionsRead` says which have been read. The bus watcher calls the window's pass each time the bus's change counter rises, and the pass makes a card for each new mention, dismisses the card of each read one, emits `notifications:added` with the card and `notifications:dismissed` with its identity so that the page need not read the store again, and tells the host notifier when the window is not the active one. The baseline is `mentionBaseline` in the window's settings, set on the first pass.
 
 Two points the plan did not say. Reading a group's window now marks the mentions in it read in the inbox as well as the group's own unread count, since otherwise a mention the person had read in the group would stay unread in the inbox and its card would never clear. And the card's fields are `group`, `groupTitle` and `message` on the notification, with the sender's chat in `sessionTitle` and, when the chat is open in the window, its identity in `sessionId`; the sender's workspace is in `details`. The page half is Front End's: show a `mention` card in Needs You with Open Group, add and remove cards on the two events, and restore the cards from the store at start.
+
+## Seen counts as read (25 November 2026)
+
+Paul found that a mention he had just read in an open group still left a card in Notifications. Since 16 November a mention card ended only through Open in Chat or Dismiss, because raising a group had been taken out of acknowledgement so that requests waiting on his decision survive it. That change was right for requests, but it caught plain mentions as well.
+
+Paul ruled on 25 November that a plain mention he can see counts as seen. Each conversation window reports the messages that are on screen whole while it is the window in front (`shown` in `transcript.js`, the `dinah:bus-messages-shown` event). When the program's window is the active one and the saved layout is not being put back, Notifications acknowledges each plain mention among the messages that the window in front reports, through the same `AcknowledgeMention` that Open in Chat uses. The rules are summarized in Table 1.
+
+**Table 1** *How a Mention Card Ends*
+
+| Case | Outcome |
+|---|---|
+| A plain mention arrives while its message is on screen in the conversation in front, with the program's window active | No card; the mention is acknowledged |
+| A plain mention arrives while its conversation is in front but the message is not yet drawn | The card is held back for one second for the window to draw it; if it is seen by then, it never appears |
+| A carded plain mention's message comes on screen later (raising the window, scrolling, or the program's window becoming active) | The card ends |
+| The conversation is closed, minimized or behind another window, or the program's window is not active | The card appears, as before |
+| A request (an `ask_person` question, a Decisions entry) | The card stays until the person answers it |
+
+*Note.* Only a request counts as a question here. A question an agent writes in a plain group post is a plain mention, which is why the chats are told to ask the person with `ask_person`. A Chats list badge counts the cards, so it clears with them.
+
+The check is `e2e/mention-seen.js`.

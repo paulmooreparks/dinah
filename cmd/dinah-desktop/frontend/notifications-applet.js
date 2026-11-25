@@ -318,10 +318,13 @@
     function plainMention(item) { return item.kind === 'mention' && !item.requestId; }
     var attentionNavigation = 0;
     var attentionItems = new Map(), attentionGroups = new Map(), attentionDismissals = new Map();
+    // Plain mentions held back while their conversation draws, and what each conversation window shows.
+    var MENTION_HOLD_MS = 1000, heldMentions = new Map(), shownMessages = new Map();
     function attentionSource(item) { return (plainMention(item) ? 'mention:' : '') + (item.sessionId ? 'chat:' + item.sessionId : item.sourceId ? 'bus:' + item.sourceId : 'message:' + item.id); }
     function forgetAttention(id) {
       var item = attentionItems.get(id);
       if (!item) return;
+      clearTimeout(heldMentions.get(id)); heldMentions.delete(id);
       attentionItems.delete(id); drawAttention(attentionSource(item));
     }
     /* The request behind an attention item: the one the host says the notification belongs to, or the one the
@@ -387,7 +390,7 @@
       }));
     }
     function drawAttention(key) {
-      var items = Array.from(attentionItems.values()).filter(function (item) { return attentionSource(item) === key; });
+      var items = Array.from(attentionItems.values()).filter(function (item) { return attentionSource(item) === key && !heldMentions.has(item.id); });
       var group = attentionGroups.get(key);
       if (!items.length) { if (group) notices.remove(group.id); attentionGroups.delete(key); return; }
       if (!group) { group = { id: items[0].id }; attentionGroups.set(key, group); }
@@ -425,6 +428,19 @@
       if (!item || item.dismissed) return;
       attentionItems.set(item.id, item);
       if (item.permissionKey) notices.remove('question-' + item.permissionKey);
+      if (plainMention(item) && item.message) {
+        if (onScreen(item.message)) { acknowledgeMention(item.message); return; }
+        /* A mention that arrives while its conversation is in front is held
+           back a moment, for the window to draw it, so that a card is not
+           shown and then taken away. */
+        if (!heldMentions.has(item.id) && conversationInFront()) {
+          heldMentions.set(item.id, setTimeout(function () {
+            heldMentions.delete(item.id);
+            if (attentionItems.has(item.id)) drawAttention(attentionSource(item));
+          }, MENTION_HOLD_MS));
+          return;
+        }
+      }
       drawAttention(attentionSource(item));
     }
     document.addEventListener('dinah:decision-entries', function () {
@@ -448,16 +464,48 @@
       if (ids.length) dismissAttention(ids).catch(fail);
     }
     var mentionAcknowledgements = new Map();
+    // A plain mention ends when the person has seen its message. A request stays until it is answered.
+    function acknowledgeMention(message, group) {
+      if (!app().AcknowledgeMention) return;
+      var matches = Array.from(attentionItems.values()).filter(function (notice) { return plainMention(notice) && notice.message === message && (group === undefined || (notice.group || '') === group); });
+      if (!matches.length || mentionAcknowledgements.has(message)) return;
+      var pending = Promise.resolve().then(function () { return app().AcknowledgeMention(message); }).then(function () {
+        matches.forEach(function (notice) { forgetAttention(notice.id); });
+      }).catch(fail).finally(function () { mentionAcknowledgements.delete(message); });
+      mentionAcknowledgements.set(message, pending);
+    }
     document.addEventListener('dinah:bus-message-opened', function (event) {
       var target = event.detail;
-      if (!target || !app().AcknowledgeMention) return;
-      var matches = Array.from(attentionItems.values()).filter(function (notice) { return plainMention(notice) && notice.message === target.message && (notice.group || '') === (target.group || ''); });
-      if (!matches.length || mentionAcknowledgements.has(target.message)) return;
-      var pending = Promise.resolve().then(function () { return app().AcknowledgeMention(target.message); }).then(function () {
-        matches.forEach(function (notice) { forgetAttention(notice.id); });
-      }).catch(fail).finally(function () { mentionAcknowledgements.delete(target.message); });
-      mentionAcknowledgements.set(target.message, pending);
+      if (target) acknowledgeMention(target.message, target.group || '');
     });
+    /* A message counts as seen when it is on screen whole in the conversation
+       window in front, while this program's window is the active one and the
+       saved layout is not being put back. Each conversation reports what it
+       shows; only the report of the window in front is read. */
+    function topWindowKey() { return window.pudlWindows && window.pudlWindows.state().top || ''; }
+    function looking() { return document.visibilityState === 'visible' && document.hasFocus() && !(window.dinahUIState && window.dinahUIState.isRestoring()); }
+    function onScreen(message) {
+      var shown = shownMessages.get(topWindowKey());
+      return looking() && !!shown && shown.has(message);
+    }
+    function conversationInFront() {
+      var item = looking() && window.dinahWorkbench.item(topWindowKey());
+      return !!item && (item.kind === 'bus-room' || item.kind === 'bus-thread');
+    }
+    function settleShownMentions() {
+      var shown = looking() && shownMessages.get(topWindowKey());
+      if (!shown) return;
+      Array.from(attentionItems.values()).forEach(function (notice) { if (plainMention(notice) && shown.has(notice.message)) acknowledgeMention(notice.message); });
+    }
+    document.addEventListener('dinah:bus-messages-shown', function (event) {
+      var detail = event.detail;
+      if (!detail || !detail.windowKey) return;
+      if (detail.messages.length) shownMessages.set(detail.windowKey, new Set(detail.messages)); else shownMessages.delete(detail.windowKey);
+      settleShownMentions();
+    });
+    window.addEventListener('focus', settleShownMentions);
+    if (window.dinahUIState) window.dinahUIState.layoutSettled().then(settleShownMentions).catch(function () { /* Reported by the saved state's reader. */ });
+    document.addEventListener('pudl:windows-change', settleShownMentions);
     document.addEventListener('pudl:windows-change', function (event) {
       var key = event.detail && event.detail.top;
       if (key === lastAttentionWindow) return;
