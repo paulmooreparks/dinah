@@ -3025,7 +3025,13 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             if (window.yavcMdEditor) {
                 table.push(window.yavcMdEditor.tableCommand(editCtx(), { hidden: unformatted, disabled: noEdit }));
                 table.push(window.yavcMdEditor.boxCommand(editCtx(), { hidden: unformatted, disabled: noEdit }));
+            } else {
+                /* The host draws menus before the lazy kit has loaded. Keep
+                   their command ids present until their implementations arrive. */
+                table.push(cmd('table', 'Table', 'table', null, { disabled: true }));
+                table.push(cmd('box', 'Box', 'square', null, { disabled: true }));
             }
+            if (!FORMATS.length) table.push(cmd('link', 'Link…', 'link', null, { disabled: true }));
             /* The document's front matter as a form (DESIGN.md, decision 17). */
             table.push(cmd('properties', 'Properties…', 'tag', editProperties, {
                 hidden: function () { var t = current(); return !isDocs || !(t && t.lang === 'markdown'); },
@@ -3063,7 +3069,10 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                     /* A view the reader chooses is the tab's from then on. */
                     run: function () { var t = current(); if (t) { t.view = v[0]; } setView(v[0]); } });
             });
-            var all = table.concat(readMode ? [] : hostCommands.rows(ready), editing() ? editing().commands() : [], readMode ? [] : commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []).filter(function (c) { return !c || typeof c.id !== 'string' || commandExists(c.id); });
+            var edit = editing(), editRows = edit ? edit.commands() : [['cut', 'Cut', 'Mod-x'], ['copy', 'Copy', 'Mod-c'], ['paste', 'Paste', 'Mod-v'], ['select-all', 'Select All', 'Mod-a']].map(function (item) {
+                return cmd(item[0], item[1], item[0] === 'copy' ? 'copy' : null, null, { builtIn: item[2], bind: false, disabled: true });
+            });
+            var all = table.concat(readMode ? [] : hostCommands.rows(ready), editRows, readMode ? [] : commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []).filter(function (c) { return !c || typeof c.id !== 'string' || commandExists(c.id); });
             /* Docs' own menus are commands with items, which PUDL draws as menu buttons and menus (docs/editing-settings-contract.md, "Where the menus are"). */
             if (ownMenus) {
                 var byId = {}; all.forEach(function (c) { if (c && typeof c.id === 'string') { byId[c.id] = c; } });
