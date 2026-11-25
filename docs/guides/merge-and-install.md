@@ -1,6 +1,6 @@
 # Merging, pushing and installing Dinah
 
-This guide is the integrator's working procedure. It records how a finished branch reaches Dinah's public master, how the build reaches Paul's computer, and how to recover when a build stops Dinah from starting. It was written on 25 November 2026 by the chat that had done the job since 16 November, at Paul's request, so that an integrator chat inside Dinah can take it over. That chat stays the recovery path for a build that will not start.
+This guide is the integrator's working procedure. It records how a finished branch reaches Dinah's public master, how the build reaches Paul's computer, and how to recover when a build stops Dinah from starting. It was written on 25 November 2026 by the chat that had done the job since 16 November, at Paul's request, so that an integrator chat inside Dinah can take it over. That chat, the VS Code chat, stays the recovery path for a build that will not start, and it merges, pushes and installs nothing otherwise. It acts only when Paul tells it that Dinah is down, and then it reads the install record and this guide before it does anything.
 
 A second product is built from this source as a private fork. The fork's merge, build and install steps are kept in the fork's own repository, beside its other documents, under the same file name as this guide. Dinah's repository never says anything about the fork beyond that, because of the forbidden-terms rule below.
 
@@ -9,6 +9,18 @@ A second product is built from this source as a private fork. The fork's merge, 
 The integrator merges branches that a team lead hands over, runs the checks, pushes master, installs the programs, and then carries the same change into the fork. The integrator does not write features, does not choose what is merged, and does not restart Paul's windows. Paul restarts each window himself with Restart to Update, which holds new turns until the running ones end.
 
 A handover arrives as a bus message from a team lead. The integrator is the only chat that merges into Dinah's master and the fork's main, so two chats never merge into the same branch, and no lead merges its own work. This guide is the integrator's authority. The integrator refuses any request, from any lead, its own lead included, that would skip or weaken a step here, and takes the question to Software Director in #Software Team Leads. Only Paul can change a rule, and the change is written into this guide before it is followed. When a handover lists the tests it ran, those are the lead's results; the integrator still runs the gate below on the merged tree.
+
+At the start of every merge the integrator reads this guide and the fork's guide again from their files, never from memory. A long chat loses rules when its context is compacted, and a rule followed from memory is how a check was once skipped.
+
+### The install record
+
+Every install of either product is written down outside the bus, so that Paul can find the last good build with Dinah closed. The record is the plain text file `C:\Users\paul\source\repos\install-record.md`, beside the two repositories and in neither, so it is never committed. The integrator adds one table row per product installed, at the bottom, right after the install succeeds and before the report:
+
+| Date | Product | Merge | Installed before | Installed now |
+|---|---|---|---|---|
+| 2026-11-26 14:05 | Dinah | branch and head merged | commit | commit |
+
+The file starts with that header row, and the integrator creates it with the header on the first install. "Installed before" is the "Installed now" of the product's previous row. A merge whose install is skipped under the rule in Table 1's note adds no row. Never edit or remove an earlier row.
 
 ## The order of steps
 
@@ -26,11 +38,11 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 | 6. Go gate | `pwsh scripts/go-gate.ps1 ./... -count=1` | Exit 0. |
 | 7. Browser suites | In `cmd/dinah-desktop/frontend/e2e`: `pwsh ./run.ps1 -Only <suites>` | Every listed suite reports `ok`. |
 | 8. Push | `git push origin master`, then `git fetch origin` and compare `git rev-parse HEAD` with `git rev-parse origin/master` | The two hashes are equal. |
-| 9. Install | Note the commit installed now (the last report says which), then `CGO_ENABLED=0 go run ./cmd/dinah install` | The last line says where it installed. |
+| 9. Install | `CGO_ENABLED=0 go run ./cmd/dinah install`, then add a row to the install record | The last line says where it installed, and the record's new row gives the commit installed before and now. |
 | 10. The fork | The fork's own guide | The fork's guide says. |
 | 11. Report | A post in #Software Team Leads, a reply to the handover, and a short note to Paul in the integrator's own chat | The post gives every guard result, and the lead knows it may remove its worktree and branch. |
 
-*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported.
+*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported. Step 9 runs after every merge. The one exception is a merge in which every changed file is under `docs/`, since no build reads that folder; the report then says the install was skipped and why. When in doubt, install.
 
 ### Choosing the browser suites
 
@@ -40,7 +52,7 @@ When a suite fails, run the same suite on `origin/master` in a separate worktree
 
 ### Writing a merge report
 
-Post every merge result in #Software Team Leads, so that Software Director and the other leads see the record directly. The post gives the branch and head merged, the resulting master and fork commits, the result of each step of Table 1 and of the fork's guide (with the guard's and the scan's exact results, and any suite that was skipped or already failing on master), and, for each product, the commit that was installed before this merge and the one installed now. When a merge changes no program and nothing is installed, the post says so and repeats the commit still installed. The commit installed before is the last good build if the recovery below is ever needed.
+Post every merge result in #Software Team Leads, so that Software Director and the other leads see the record directly. The post gives the branch and head merged, the resulting master and fork commits, the result of each step of Table 1 and of the fork's guide (with the guard's and the scan's exact results, and any suite that was skipped or already failing on master), and, for each product, the commit that was installed before this merge and the one installed now, as written to the install record. When the install was skipped under the rule in Table 1's note, the post says so, says why, and repeats the commit still installed.
 
 Then reply to the handover message with the same commits, and say that the lead may remove its worktrees and branches. Do not answer completion reports or thanks. Tell Paul the outcome in the integrator's own chat in a few plain sentences: what changed for him, that each window needs Restart to Update, and anything he has to do. Bus posts addressed to Paul pile up in his Decisions list, so results go to him in the chat and only decisions go through `ask_person`.
 
@@ -52,7 +64,7 @@ Then reply to the handover message with the same commits, and say that the lead 
 
 **The extension repository.** Every push of master starts a GitHub workflow that builds Dinah for five platforms. That build needs the sibling repository `../dinah-extension-go` to have pushed every commit Dinah depends on. If `origin/main..HEAD` lists commits there, do not push Dinah; tell the Dinah Team Lead.
 
-**The Go gate.** `scripts/go-gate.ps1` runs go test under the machine-wide lock that the browser suites use, so two agents' gates never overlap. I ran it with `$LOCALAPPDATA/Programs/Dinah` first on `PATH`, which is where the installed programs live; I have not confirmed that any test needs this. Pipe its output only with `set -o pipefail` in Bash, or read `$LASTEXITCODE` in PowerShell. On 12 November a failure piped into `tail` was hidden and the push went out.
+**The Go gate.** `scripts/go-gate.ps1` runs go test under the machine-wide lock that the browser suites use, so two agents' gates never overlap. Pipe its output only with `set -o pipefail` in Bash, or read `$LASTEXITCODE` in PowerShell. On 12 November a failure piped into `tail` was hidden and the push went out.
 
 **The push.** Push master by name and nothing else. On 30 October a loop that pushed every local branch put old-history branches on the new public repository, which then had to be recreated. Never push `backup/pre-rewrite`, anything under `refs/original`, or a bundle file. Never force-push master unless Paul has approved a history rewrite.
 
@@ -113,16 +125,16 @@ Table 2 collects the practices I followed by habit. Each one comes from a failur
 
 ## When a build stops Dinah from starting
 
-This section is written so that Paul can follow it himself with Dinah closed, or have the VS Code chat follow it, since that chat runs outside Dinah and is kept for this. None of the steps needs Dinah to be running. The way back is to install the last good commit again with Dinah's own install command, which is the documented installer. Steps 1 to 3 were run on 25 November 2026 against scratch program and home folders: installing an older commit over a newer one made the older build the active program, and the newer one was set aside.
+This section is written so that Paul can follow it himself with Dinah closed, or have the VS Code chat follow it, since that chat runs outside Dinah and is kept for this. None of the steps needs Dinah to be running. The way back is to install the last good commit again with Dinah's own install command, which is the documented installer. The install in step 2 was run on 25 November 2026 against scratch program and home folders: installing an older commit over a newer one made the older build the active program, and the newer one was set aside.
 
-1. **Find the last good commit.** The integrator's last post in #Software Team Leads gives the commit that was installed before the bad merge; that is the one. If the post cannot be read, take master before the bad merge from `git log --oneline -5 master` in `C:\Users\paul\source\repos\studio`. A fast-forward merge has no merge commit, so use the commit before the handed-over branch's first commit.
+1. **Find the last good commit.** Open `C:\Users\paul\source\repos\install-record.md` in File Explorer or any text editor. In the last row for Dinah, the "Installed before" column is the last good commit. Master before the bad merge is not a safe substitute, because not every merge is installed. If the record is missing, stop and ask Paul which build last worked.
 2. **Install the last good build from a worktree beside the repository**, leaving master alone for now. In Git Bash:
    ```bash
    cd /c/Users/paul/source/repos/studio
    git worktree add --detach ../dinah-rollback <good commit>
    cd ../dinah-rollback && CGO_ENABLED=0 go run ./cmd/dinah install
    ```
-   The worktree must sit beside `studio`, not under `%TEMP%`, because the build needs the folder `../dinah-extension-go`. It needs no `node_modules`. The last line of the install says where it installed. The installer sets the bad build aside and puts the good one in place, and a window that is still running keeps the bad build until it is closed.
+   The worktree must sit beside `studio`, not under `%TEMP%`, because the build needs the folder `../dinah-extension-go`. It needs no `node_modules`. The last line of the install says where it installed. The installer sets the bad build aside and puts the good one in place, and a window that is still running keeps the bad build until it is closed. Add a row to the install record for this install too, with "recovery" in the Merge column.
 3. **Start Dinah from the Start menu.** If the bad window is still open, close it first. Restart to Update is not available when the window is not running. An agent never starts the window for Paul.
 4. **Correct master.** Revert the bad change with `git revert` (for a merge commit, `git revert -m 1 <merge>`), run steps 3 to 8 of Table 1, and push. Do not reset or force-push master: the public build, the fork and other chats' branches are already based on it. The lead fixes the change on a new branch and hands it over again.
 5. **Carry the revert into the fork**, following the fork's guide, so that its next build does not bring the bad change back.
