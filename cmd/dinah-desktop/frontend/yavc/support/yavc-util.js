@@ -234,20 +234,26 @@
         return typeof answer === 'string' && answer.length <= 4096 && /^(~\/|\/(?!\/))/.test(answer) && !/[\u0000-\u001f\u007f\\]/.test(answer) ? answer : null;
     }
 
-    /* PUDL's host bridge carries text only. Browser HTML is used only when
-       there is no bridge, preserving rich paste in ordinary web hosts. */
-    function clipboardAPI() {
+    /* Plain text goes through PUDL's accessor (PUDL 0.109.0 docs/EDIT-MENUS.md), which uses the host's transport when the host has
+       set one and navigator.clipboard otherwise. That accessor carries text only, and the same guide leaves any rich-format
+       clipboard to the editor, so HTML is read and written with navigator.clipboard.read and write where the page has them
+       (decision 210). */
+    function textClipboard() {
         var bridge = window.pudlClipboard;
         var api = bridge && typeof bridge.readText === 'function' && typeof bridge.writeText === 'function' ? bridge : navigator.clipboard;
         if (!api) throw new Error('Clipboard access is unavailable. Use the keyboard shortcut.');
-        return { api: api, bridge: api === bridge };
+        return api;
+    }
+    function richClipboard(method) {
+        var api = navigator.clipboard;
+        return api && typeof api[method] === 'function' && (method === 'read' || window.ClipboardItem) ? api : null;
     }
     var clipboard = Object.freeze({
-        readText: async function () { return clipboardAPI().api.readText(); },
-        writeText: async function (text) { return clipboardAPI().api.writeText(text); },
+        readText: async function () { return textClipboard().readText(); },
+        writeText: async function (text) { return textClipboard().writeText(text); },
         read: async function (rich) {
-            var chosen = clipboardAPI(), api = chosen.api, data = { text: '' };
-            if (rich && !chosen.bridge && typeof api.read === 'function') {
+            var api = rich ? richClipboard('read') : null, data = { text: '' };
+            if (api) {
                 var items = await api.read();
                 for (var i = 0; i < items.length; i++) {
                     for (var type of ['text/plain', 'text/html']) {
@@ -258,17 +264,17 @@
                     }
                     if (data.text || data.html) break;
                 }
-            } else data.text = await api.readText();
+            } else data.text = await textClipboard().readText();
             if (typeof data.text !== 'string' || data.text.length > 262144 || (data.html || '').length > 1048576) throw new Error('The clipboard content is too large to paste.');
             return data;
         },
         write: async function (data) {
-            var chosen = clipboardAPI(), api = chosen.api;
             if (data.text.length > 262144 || (data.html || '').length > 1048576) throw new Error('The selected content is too large to copy.');
-            if (!chosen.bridge && data.html && api.write && window.ClipboardItem) {
+            var api = data.html ? richClipboard('write') : null;
+            if (api) {
                 return api.write([new ClipboardItem({ 'text/plain': new Blob([data.text], { type: 'text/plain' }), 'text/html': new Blob([data.html], { type: 'text/html' }) })]);
             }
-            return api.writeText(data.text);
+            return textClipboard().writeText(data.text);
         }
     });
 

@@ -80,7 +80,7 @@ These are served by the programs as part of the window's page. A component that 
 
 | Component | Version | Licence |
 | --- | --- | --- |
-| PUDL, the Pleasantly Usable Design Language | 0.108.2 | Apache-2.0 |
+| PUDL, the Pleasantly Usable Design Language | 0.109.0 | Apache-2.0 |
 | Inter, the typeface bundled with PUDL | as bundled | OFL-1.1 |
 | pudl/vendor/cfworker-json-schema | 4.1.1 | MIT |
 | vendor/codemirror | 6.43 | MIT |
@@ -4496,7 +4496,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ~~~~
 
-### PUDL, the Pleasantly Usable Design Language 0.108.2
+### PUDL, the Pleasantly Usable Design Language 0.109.0
 
 Bundled with the page.
 
