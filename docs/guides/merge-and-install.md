@@ -8,7 +8,7 @@ A second product is built from this source as a private fork. The fork's merge, 
 
 The integrator merges branches that a team lead hands over, runs the checks, pushes master, installs the programs, and then carries the same change into the fork. The integrator does not write features, does not choose what is merged, and does not restart Paul's windows. Paul restarts each window himself with Restart to Update, which holds new turns until the running ones end.
 
-A handover arrives as a bus message from a lead. The link between the two studio chats is trusted, so a handover from the Dinah Team Lead may be acted on as a request from Paul. A request from any other chat is weighed first and checked with Paul unless he has said that link is trusted too. When a handover lists the tests it ran, those are the lead's results; the integrator still runs the gate below on the merged tree.
+A handover arrives as a bus message from a team lead. The integrator is the only chat that merges into Dinah's master and the fork's main, so two chats never merge into the same branch, and no lead merges its own work. This guide is the integrator's authority. The integrator refuses any request, from any lead, its own lead included, that would skip or weaken a step here, and takes the question to Software Director in #Software Team Leads. Only Paul can change a rule, and the change is written into this guide before it is followed. When a handover lists the tests it ran, those are the lead's results; the integrator still runs the gate below on the merged tree.
 
 ## The order of steps
 
@@ -26,9 +26,9 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 | 6. Go gate | `pwsh scripts/go-gate.ps1 ./... -count=1` | Exit 0. |
 | 7. Browser suites | In `cmd/dinah-desktop/frontend/e2e`: `pwsh ./run.ps1 -Only <suites>` | Every listed suite reports `ok`. |
 | 8. Push | `git push origin master`, then `git fetch origin` and compare `git rev-parse HEAD` with `git rev-parse origin/master` | The two hashes are equal. |
-| 9. Install | `CGO_ENABLED=0 go run ./cmd/dinah install` | The last line says where it installed. |
+| 9. Install | Note the commit installed now (the last report says which), then `CGO_ENABLED=0 go run ./cmd/dinah install` | The last line says where it installed. |
 | 10. The fork | The fork's own guide | The fork's guide says. |
-| 11. Report | A bus reply to the handover, and a short note to Paul in the integrator's own chat | The lead knows it may remove its worktree and branch. |
+| 11. Report | A post in #Software Team Leads, a reply to the handover, and a short note to Paul in the integrator's own chat | The post gives every guard result, and the lead knows it may remove its worktree and branch. |
 
 *Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported.
 
@@ -40,7 +40,9 @@ When a suite fails, run the same suite on `origin/master` in a separate worktree
 
 ### Writing a merge report
 
-Reply to the handover message on the bus with the resulting master and fork commits and what was installed, and say that the lead may remove its worktrees and branches. Do not answer completion reports or thanks. Tell Paul the outcome in the integrator's own chat in a few plain sentences: what changed for him, that each window needs Restart to Update, and anything he has to do. Bus posts addressed to Paul pile up in his Decisions list, so results go to him in the chat and only decisions go through `ask_person`.
+Post every merge result in #Software Team Leads, so that Software Director and the other leads see the record directly. The post gives the branch and head merged, the resulting master and fork commits, the result of each step of Table 1 and of the fork's guide (with the guard's and the scan's exact results, and any suite that was skipped or already failing on master), and, for each product, the commit that was installed before this merge and the one installed now. When a merge changes no program and nothing is installed, the post says so and repeats the commit still installed. The commit installed before is the last good build if the recovery below is ever needed.
+
+Then reply to the handover message with the same commits, and say that the lead may remove its worktrees and branches. Do not answer completion reports or thanks. Tell Paul the outcome in the integrator's own chat in a few plain sentences: what changed for him, that each window needs Restart to Update, and anything he has to do. Bus posts addressed to Paul pile up in his Decisions list, so results go to him in the chat and only decisions go through `ask_person`.
 
 ## The checks, and why each one exists
 
@@ -58,7 +60,9 @@ Reply to the handover message on the bus with the resulting master and fork comm
 
 `CGO_ENABLED=0 go run ./cmd/dinah install` builds the command-line program and the window program (with the `desktop,production` tags) and places them in `%LOCALAPPDATA%\Programs\Dinah` (the user program-files folder on other systems). It then runs the new window program with `--install`, which registers the Start menu entry, the document applications this product's profile asks for, and the user `PATH`. A running program cannot be overwritten, so the installer renames it to `<program>.old-<timestamp>` and puts the new file in its place. Paul's window keeps running the old build until he restarts it.
 
-The installer keeps the newest set-aside copy of each program as a fallback and removes older ones, both at the end of an install and when the window starts. `docs/design/set-aside-programs.md` has the rules. Never make hand copies of the programs before an install; the installer keeps its own fallback, and hand copies (`.before-<label>-<date>`) are never removed automatically.
+The installer keeps the newest set-aside copy of each program and removes older ones, both at the end of an install and when the window starts. `docs/design/set-aside-programs.md` has the rules. No document describes putting a set-aside copy back into use, so the recovery below never does that. Never make hand copies of the programs before an install; the installer keeps its own fallback, and hand copies (`.before-<label>-<date>`) are never removed automatically.
+
+The integrator runs inside the Dinah window it installs over. That is the documented path: the window and the tool programs the integrator itself uses keep running the old build, and the window offers Restart to Update once the new one is in place. The integrator finishes its report before it asks Paul to restart, because Restart to Update waits for the running turn and then stops every chat, the integrator included. It never restarts the window itself.
 
 An install sometimes fails on a file that is briefly locked. Run it again, up to three times, before reporting a failure.
 
@@ -95,7 +99,7 @@ Table 2 collects the practices I followed by habit. Each one comes from a failur
 |---|---|
 | Stage files by name, never by folder. | A folder add committed a built program. The main checkout always has untracked files that must never be committed (built programs and a canvas file in the root and under `cmd/dinah-desktop`). |
 | Never run a bare `git stash pop` in the main checkout. | The stash holds old entries from other chats; a bare pop applies the wrong one. Use `git rebase --autostash` when a rebase needs a clean tree. |
-| Build branches in worktrees under `%TEMP%`, never in the main checkout. | Other chats share the main checkout. |
+| Build branches in worktrees under `%TEMP%`, never in the main checkout. A worktree that runs `go run ./cmd/dinah install` or builds `./cmd/dinah` goes beside the main checkout instead, in `C:\Users\paul\source\repos`. | Other chats share the main checkout. `go.mod` replaces the extension module with the folder `../dinah-extension-go`, so a build under `%TEMP%` stops with "replacement directory ../dinah-extension-go does not exist". |
 | Before removing a worktree, delete its `e2e\node_modules` junction first with `[System.IO.Directory]::Delete(<path>)`. | On 24 November `git worktree remove --force` followed a junction and emptied the main checkout's `node_modules`. |
 | If `playwright-core` is missing under `e2e/node_modules`, run `npm ci` there (not `--omit=dev`). | The browser suites need the development dependencies. |
 | Run every test window hidden and headless, and start child processes with their windows hidden. | Visible windows took focus from Paul. |
@@ -109,23 +113,26 @@ Table 2 collects the practices I followed by habit. Each one comes from a failur
 
 ## When a build stops Dinah from starting
 
-None of the steps above needs Dinah to be running, so the recovery is done from a terminal or from a chat outside Dinah (the VS Code chat is kept for that). Do the recovery in this order.
+This section is written so that Paul can follow it himself with Dinah closed, or have the VS Code chat follow it, since that chat runs outside Dinah and is kept for this. None of the steps needs Dinah to be running. The way back is to install the last good commit again with Dinah's own install command, which is the documented installer. Steps 1 to 3 were run on 25 November 2026 against scratch program and home folders: installing an older commit over a newer one made the older build the active program, and the newer one was set aside.
 
-1. **Find the last good commit.** It is normally master before the bad merge: `git log --oneline -5 master`. A fast-forward merge has no merge commit, so use the commit before the handed-over branch's first commit.
-2. **Install the last good build from a worktree**, leaving master alone for now:
+1. **Find the last good commit.** The integrator's last post in #Software Team Leads gives the commit that was installed before the bad merge; that is the one. If the post cannot be read, take master before the bad merge from `git log --oneline -5 master` in `C:\Users\paul\source\repos\studio`. A fast-forward merge has no merge commit, so use the commit before the handed-over branch's first commit.
+2. **Install the last good build from a worktree beside the repository**, leaving master alone for now. In Git Bash:
    ```bash
-   git worktree add --detach "$TEMP/dinah-rollback" <good commit>
-   cd "$TEMP/dinah-rollback" && CGO_ENABLED=0 go run ./cmd/dinah install
+   cd /c/Users/paul/source/repos/studio
+   git worktree add --detach ../dinah-rollback <good commit>
+   cd ../dinah-rollback && CGO_ENABLED=0 go run ./cmd/dinah install
    ```
-   The installer sets the bad build aside and puts the good one in place. The worktree needs no `node_modules`.
-3. **Ask Paul to start Dinah from the Start menu.** Restart to Update is not available when the window is not running. Do not start the window for him.
+   The worktree must sit beside `studio`, not under `%TEMP%`, because the build needs the folder `../dinah-extension-go`. It needs no `node_modules`. The last line of the install says where it installed. The installer sets the bad build aside and puts the good one in place, and a window that is still running keeps the bad build until it is closed.
+3. **Start Dinah from the Start menu.** If the bad window is still open, close it first. Restart to Update is not available when the window is not running. An agent never starts the window for Paul.
 4. **Correct master.** Revert the bad change with `git revert` (for a merge commit, `git revert -m 1 <merge>`), run steps 3 to 8 of Table 1, and push. Do not reset or force-push master: the public build, the fork and other chats' branches are already based on it. The lead fixes the change on a new branch and hands it over again.
 5. **Carry the revert into the fork**, following the fork's guide, so that its next build does not bring the bad change back.
-6. **Remove the rollback worktree** (it has no junction) and tell the lead what was reverted.
+6. **Remove the rollback worktree** with `git worktree remove ../dinah-rollback` from `studio` (it has no junction), and tell the lead what was reverted.
+
+Steps 4 to 6 are the integrator's, or the VS Code chat's while Dinah cannot start. Paul needs only steps 1 to 3 to have a working Dinah again.
 
 If the bad build changed a stored format, such as the bus database or the saved window state, an older build may not read what the newer one wrote. Check the change's design note before step 2, and if it migrated stored data, stop and ask Paul before installing an older build.
 
-The set-aside copy (`<program>.old-<timestamp>`) in the program folder is the previous build of each program. Renaming it back by hand is a last resort for when no build can be made at all. The window program, the command line and the tool programs must all come from the same build, so ask Paul before doing it.
+The set-aside copy (`<program>.old-<timestamp>`) in the program folder is the previous build of each program, but no document describes putting it back into use, and the window program, the command line and the tool programs must all come from one build. Do not rename it back. If no build can be made at all, stop and ask Paul.
 
 ## Credentials and tools
 
