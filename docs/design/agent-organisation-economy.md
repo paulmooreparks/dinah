@@ -1,6 +1,6 @@
 # Spending less attention and fewer tokens on the agent organisation
 
-This document proposes changes to how chats in a team report, hand over and are woken, so that the same work costs Paul fewer interruptions and costs every chat fewer tokens. It follows from the review of one working day in `docs/review/agent-organisation-2026-11-25.md`, which has the measurements quoted here. It was written by the Software Director chat at Paul's request on 26 November 2026. Nothing in it is built, and nothing in it is approved. Paul has said the work comes after the adoption of PUDL 0.109.0 is installed.
+This document proposes changes to how chats in a team report, hand over and are woken, so that the same work costs Paul fewer interruptions and costs every chat fewer tokens. It follows from the review of one working day in `docs/review/agent-organisation-2026-11-25.md`, which has the measurements quoted here. It was written by the Software Director chat at Paul's request on 26 November 2026. Nothing in it is built. Paul accepted its decisions on 26 November 2026, as the last table records. He has said the work comes after the adoption of PUDL 0.109.0 is installed.
 
 The document has four parts: what the design is for, the changes themselves, how the practices that already work are made permanent, and a plan in stages with the decisions Paul has to make.
 
@@ -200,19 +200,21 @@ Stage 2 is placed before stage 3 because it reduces both of the scarce things, a
 
 ## Decisions for Paul
 
-Table 7 lists what Paul has to decide, with a recommendation for each.
+Table 7 lists the decisions this design needed from Paul. He accepted every recommendation on 26 November 2026, in these words: "I accept all of your recommendations for my decisions in table 7." The table records each decision as it now stands.
 
-**Table 7** *Decisions Needed*
+**Table 7** *Decisions Made on 26 November 2026*
 
-| Decision | Recommendation |
+| Question | Decision |
 |---|---|
-| Whether a sender may mark a recipient as informed and not woken, beside the 10 November ruling | Yes; the ruling stays for posts that address nobody |
-| Whether a turn that did not address him should raise nothing in the window | Yes, after a mockup |
-| Whether documents-only merges skip the Go tests and browser suites | Yes; the guard and the commit scan still run |
-| Whether the integrator moves to a cheaper model once the script exists | Try it for a week and compare |
-| Whether Dinah may suggest moving a role to a fresh chat, and at what size | Yes; choose the size after the week of measurement |
+| Whether a sender may mark a recipient as informed and not woken, beside the 10 November ruling | Yes. The ruling stays for posts that address nobody |
+| Whether a turn that did not address him should raise nothing in the window | Yes, after he approves a mockup |
+| Whether documents-only merges skip the Go tests and browser suites | Yes. The guard and the commit scan still run |
+| Whether the integrator moves to a cheaper model once the script exists | It is tried for a week and compared |
+| Whether Dinah may suggest moving a role to a fresh chat, and at what size | Yes. The size is chosen after the week of measurement |
 | Whether each lead gets an allowance | Yes, set after the week of measurement |
-| Whether he will give simple instructions to a lead directly, with the copy to the director | His preference; it saves a turn each time and costs him the choice of whom to address |
+| Whether he gives simple instructions to a lead directly, with the copy to the director | Left to his preference from case to case |
+
+*Note.* Acceptance of these decisions approves the direction and the order of the plan. It approves no change to what Paul sees: each such change still needs his approved mockup. The decision on documents-only merges takes effect when it is written into the merge guides, and not before.
 
 ## Risks and open questions
 
