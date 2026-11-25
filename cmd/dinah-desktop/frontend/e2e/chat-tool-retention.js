@@ -22,7 +22,9 @@ const path = require('path');
         }
         __emit('agent:updates', { sessionId: 'codex:bounded-tools', updates });
       }, batch);
-      await t.page.waitForTimeout(500);
+      // Runtime events are rendered in bounded batches. Sample only after the
+      // last update in this batch has reached the transcript.
+      await t.page.waitForFunction(last => Array.from(document.querySelectorAll('.win[data-chat-current] .tool-row')).some(row => row._tool && row._tool === row._tool.s.rows['tool-' + last]), batch * 250 + 249);
       samples.push(await t.page.evaluate(() => {
         const log = document.querySelector('.win[data-chat-current]');
         return { tools: log.querySelectorAll('.tool-row').length, nodes: log.querySelectorAll('*').length, groups: log.querySelectorAll('.tool-group').length, trimmed: log.querySelector('.trimmed-words')?.textContent || '' };

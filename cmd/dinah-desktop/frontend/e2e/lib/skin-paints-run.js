@@ -1,7 +1,7 @@
 // Compare actual interactive glyph pixels with the same control without its label, for one share of the
 // built-in themes. The suite is split into shares (skin-paints.js and skin-paints-2.js) because it measures
-// every theme, mode, skin, control kind and state; with 14 themes and 8 skins one process ran past the
-// runner's limit. Theme i belongs to share i % count, so the shares together cover every theme exactly once.
+// every theme, mode, skin, control kind and state within the runner's limit. Theme i belongs to share
+// i % count, so the shares together cover every theme exactly once as the built-in catalog grows.
 const {launch,OUT}=require('./page'),png=require('./png'),fs=require('fs'),path=require('path');
 const luminance=c=>c.slice(0,3).reduce((sum,n,i)=>sum+(n/255<=.04045?n/255/12.92:((n/255+.055)/1.055)**2.4)*[.2126,.7152,.0722][i],0);
 const ratio=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
@@ -33,10 +33,21 @@ module.exports=function run(share,count){(async()=>{
     const c=document.createElement(kind==='title'?'header':'button');c.id='skin-render-control';c.className=kind==='title'?'win-head':kind==='primary'?'btn btn-primary':kind==='danger'?'btn btn-danger':'btn';
     const label=document.createElement('span');label.id='skin-render-label';label.className=kind==='title'?'win-title':'';label.textContent=kind==='title'?'Sample active window':'Sample';c.append(label);win.append(c);
    },{theme,mode,skin,kind});
-   const control=p.locator('#skin-render-control');if(state==='hover'||state==='pressed')await control.hover();if(state==='pressed')await p.mouse.down();
+   const control=p.locator('#skin-render-control');
+   if(state==='hover'||state==='pressed'){
+    const target=await control.boundingBox();if(!target)throw Error('Control has no pointer target');
+    await p.mouse.move(target.x+target.width/2,target.y+target.height/2);
+   }
+   if(state==='pressed')await p.mouse.down();
    if(state==='focus'){await control.focus();await p.keyboard.press('Tab');await p.keyboard.press('Shift+Tab');}
    const data=await control.evaluate(el=>{const css=getComputedStyle(el),ctx=document.createElement('canvas').getContext('2d');ctx.fillStyle=css.color;ctx.fillRect(0,0,1,1);return {rgba:[...ctx.getImageData(0,0,1,1).data],image:css.backgroundImage,color:css.color,hover:el.matches(':hover'),pressed:el.matches(':active'),focus:el.matches(':focus-visible')};});
-   const text=await control.screenshot();await p.locator('#skin-render-label').evaluate(el=>el.style.visibility='hidden');const background=await control.screenshot();if(state==='pressed')await p.mouse.up();
+   // This fixed probe has no animation. Capture its viewport rectangle directly
+   // instead of repeating locator scrolling and stability waits for every image.
+   const clip=await control.boundingBox();if(!clip)throw Error('Control has no capture rectangle');
+   const viewport=p.viewportSize();if(clip.x<0||clip.y<0||clip.x+clip.width>viewport.width||clip.y+clip.height>viewport.height)throw Error('Control is outside the capture viewport');
+   const text=await p.screenshot({clip});await p.locator('#skin-render-label').evaluate(el=>el.style.visibility='hidden');
+   const hiddenClip=await control.boundingBox();if(JSON.stringify(clip)!==JSON.stringify(hiddenClip))throw Error('Control geometry changed when hiding its label');
+   const background=await p.screenshot({clip});if(state==='pressed')await p.mouse.up();
    const measured=contrast(text,background,data.rgba),record={name,theme,mode,skin,kind,state,...data,...measured};records.push(record);
    const bad=!measured.samples||measured.minimum<4.5;
    if(bad||theme==='mineral'){fs.writeFileSync(path.join(OUT,name+'-text.png'),text);fs.writeFileSync(path.join(OUT,name+'-background.png'),background);}
