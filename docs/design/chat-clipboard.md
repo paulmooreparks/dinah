@@ -10,7 +10,7 @@ The browser suite exercises these cases with synthetic file and clipboard events
 
 After restarting into the corrected build, Paul still could not paste. A regression fixture reproduced another routing failure: the window key can retain a workspace identity or folder spelling different from the session controller's key. The front chat now resolves its controller through the session's view, falling back to the window key only when no view exists. This follows the existing rule that a session has one controller, independent of its folder spelling. The fixture seeds session metadata with a different folder spelling before opening the window and checks that paste reaches that session.
 
-The production window enables Wails' documented default context menu option so the prompt has the browser's editing commands, including clipboard actions, deletion and selection. Custom PUDL menus retain their own handling. Ctrl+V and Shift+Insert remain native shortcuts; the regression checks that page handlers do not cancel either chord or the prompt's context-menu event. These event checks do not certify native clipboard contents or the operating system menu itself.
+The production window enabled Wails' documented default context menu option so the prompt had the browser's editing commands, including clipboard actions, deletion and selection. Since PUDL 0.109.0 that menu is off, and the prompt's edit menu is PUDL's (below). Ctrl+V and Shift+Insert remain native shortcuts; the regression checks that page handlers do not cancel either chord, and that a right-click on the prompt opens PUDL's edit menu. These event checks do not certify native clipboard contents or the operating system menu itself.
 
 ## Host clipboard for PUDL's edit menu
 
@@ -27,6 +27,39 @@ Dinah's side is `cmd/dinah-desktop/frontend/clipboard-transport.js`. The main pa
 
 *Note.* `ClipboardRead` reads through Win32 on Windows and through Wails elsewhere; the edit menu uses only the plain text.
 
-The script feature-detects the accessor. With a PUDL older than 0.109.0 there is no `window.pudlClipboard`, and the script does nothing; it never defines one. Running it twice sets the transport once, since each `setTransport` call also retires the menu's pending edits. The browser suite `clipboard-transport` checks both cases, the second against a PUDL build given in `DINAH_PUDL_BRANCH_DIST`.
+The script feature-detects the accessor. With a PUDL older than 0.109.0 there is no `window.pudlClipboard`, and the script does nothing; it never defines one. Running it twice sets the transport once, since each `setTransport` call also retires the menu's pending edits. The browser suite `clipboard-transport` checks the transport against the PUDL 0.109.0 that Dinah ships, and checks the first case by serving the menu script with its accessor taken away.
 
-The desktop windows still set Wails' `EnableDefaultContextMenu` to true (`main.go` and `document_window.go`), so a field with no PUDL menu keeps the browser's editing menu. That option is turned off as a later step, once PUDL 0.109.0 is released and taken into Dinah and yavc.app has adopted its edit menu. Turning it off before then would leave plain fields with no clipboard menu at all.
+Dinah took PUDL 0.109.0 and yavc.app v0.2.117, which bundles it, on 25 November 2026. The documents that load `pudl-menu.js`, and what each does for the transport, are listed in Table 2.
+
+**Table 2** *Documents That Load PUDL's Menu and Their Clipboard Transport*
+
+| Document | Transport |
+| --- | --- |
+| The main window's page (`index.html`) | Dinah's, from `clipboard-transport.js` |
+| A document window's page (`document.html`) | Dinah's, from `clipboard-transport.js` |
+| The yavc.app applets | The page's own; Dinah mounts them in the page (`content-windows.js`), not in frames |
+| The bus's web page (`internal/web/templates/layout.html`) | PUDL's default, the browser's own clipboard |
+
+*Note.* The bus's web page is opened by `dinah open` in an ordinary browser, where there is no App to call and the browser's clipboard, with the browser's own permission rules, is the right one. The slide show page (`show.html`) does not load `pudl-menu.js`. An extension's frame is sandboxed, gets no PUDL from Dinah and cannot reach the App, so no transport is given to it.
+
+yavc.app's applets send plain text through the accessor and keep rich HTML on `navigator.clipboard.read` and `write`, as PUDL's guide leaves rich formats to the editor (yavc.app `docs/pudl-upgrade-0.109.0.md`).
+
+### Surfaces with their own editing state
+
+PUDL adds its generic Cut, Copy, Paste and Select All to any right-click on a field, an editable region or selected text, unless the surface claims the edit menu with `event.detail.handlesEdit()` and gives rows of its own. Dinah's frontend was searched for surfaces that keep their own editing state, and Table 3 lists what each does.
+
+**Table 3** *Dinah Surfaces and Their Edit Menus*
+
+| Surface | Edit menu |
+| --- | --- |
+| A Terminal running a real shell (`terminal-shell.js`) | Claims it: Copy (Ctrl+C), Paste (Ctrl+Shift+V) and Select All, on xterm's own selection |
+| Dinah's own Terminal (`terminal-applet.js`) | Claims it: Copy, Paste and Select All, with no shortcuts shown, since Ctrl+C there stops a command |
+| The diff view (`diff-applet.js`) | PUDL's generic rows; the CodeMirror view is read-only and not editable, so its selection is the page's and Cut and Paste are unavailable |
+| The yavc.app editors | yavc.app's own rows (v0.2.114 and later) |
+| Plain fields, the chat and group composers, and selected text | PUDL's generic rows |
+
+*Note.* xterm keeps its selection apart from the page's and takes typing through a hidden field, so the generic rows would copy nothing and paste into that field. Both Terminals read and write the clipboard through `window.pudlClipboard`, for their keys and their window commands too, and leave Shift+F10 and the Menu key to the page through xterm's documented custom key handler, so those keys open the menu instead of reaching the shell.
+
+PUDL's menu Paste carries text only. A picture on the clipboard is still attached to a chat by Ctrl+V, which fires the browser's paste event with its files, but not by the menu's Paste.
+
+The desktop windows set Wails' `EnableDefaultContextMenu` to false (`main.go` and `document_window.go`), by Paul's ruling of 24 November 2026 that no browser control ever appears. The slide show window and the start-up failure window never set it, and Wails leaves it off in a production build. Where nothing adds a row, a right-click now opens no menu. Physical right-click suppression, the native clipboard, Undo after a menu edit, Shift+F10 and the Menu key can only be checked on an installed build.

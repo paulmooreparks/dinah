@@ -149,7 +149,10 @@ func runDocumentWindow(args []string) int {
 	}
 	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application, pickOpen: systemPickOpen, pickSave: systemPickSave, pickFolder: systemPickFolder}
 	err = wails.Run(&options.App{
-		EnableDefaultContextMenu: true,
+		// No browser control ever appears (Paul, 24 November 2026): the edit
+		// menu is PUDL 0.109.0's and yavc.app v0.2.117's, as in the main
+		// window (main.go), so the web view's own menu is turned off.
+		EnableDefaultContextMenu: false,
 		Title:                    opened.Title,
 		Width:                    1100,
 		Height:                   800,

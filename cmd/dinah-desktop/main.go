@@ -204,7 +204,12 @@ func main() {
 		startState = options.Maximised
 	}
 	err = wails.Run(&options.App{
-		EnableDefaultContextMenu: true,
+		// Paul ruled on 24 November 2026 that no browser control ever
+		// appears, the web view's own right-click menu included. PUDL 0.109.0
+		// and yavc.app v0.2.117 now give every field, editor and selection
+		// the edit menu (docs/design/chat-clipboard.md), so the web view's
+		// menu is turned off.
+		EnableDefaultContextMenu: false,
 		Title:                    product.Name,
 		Width:                    max(app.nativeWindow.Width, 720),
 		Height:                   max(app.nativeWindow.Height, 480),

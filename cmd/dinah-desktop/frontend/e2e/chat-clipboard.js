@@ -47,10 +47,14 @@ const { settled, settledCount } = require('./lib/settled');
       }, chord);
       ok(chord.key + ' paste shortcut is left to the browser', !cancelled);
     }
-    ok('the prompt allows its native editing context menu', await a.locator('[data-view-id="prompt"]').evaluate(el => {
-      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
-      el.dispatchEvent(event); return !event.defaultPrevented;
-    }));
+    // Since PUDL 0.109.0 the prompt's right-click menu is PUDL's edit menu,
+    // and the web view's own menu is turned off (docs/design/chat-clipboard.md).
+    await a.locator('[data-view-id="prompt"]').click({ button: 'right' });
+    await page.locator('.context-menu').first().waitFor({ state: 'visible' });
+    const promptRows = await page.evaluate(() => [...document.querySelectorAll('.context-menu .menu-action')].filter(r => r.offsetParent).map(r => (r.querySelector('.menubar-words') || r).textContent.trim()));
+    ok('the prompt\'s right-click opens PUDL\'s edit menu', promptRows.join('|') === 'Cut|Copy|Paste|Select All', JSON.stringify(promptRows));
+    await page.keyboard.press('Escape');
+    await a.locator('[data-view-id="prompt"]').focus();
     await paste(a.locator('[data-view-id="prompt"]'), {});
     await attachments(a).filter({ hasText: 'screenshot.png' }).waitFor();
     ok('a pasted screenshot becomes an image attachment', await a.locator('.attachment img').count() > 0);
