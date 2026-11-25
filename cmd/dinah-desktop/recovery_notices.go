@@ -75,9 +75,14 @@ func (a *App) recoveryNotifications() ([]Notification, error) {
 		item.OriginTitle = titles[origin]
 		item.OriginProvider, _ = a.savedSessionProvider(origin)
 		count := -1
+		var newest int64
 		queueErr := a.busHost().With(func(b *bus.Bus) error {
 			var err error
 			count, err = b.PendingSessionDeliveries(context.Background(), recipient)
+			if err != nil {
+				return err
+			}
+			newest, err = b.NewestSessionDelivery(context.Background(), recipient)
 			if err != nil {
 				return err
 			}
@@ -123,12 +128,43 @@ func (a *App) recoveryNotifications() ([]Notification, error) {
 			item.Body = "Recovery is committed. Refresh Recovery Status to reconcile the remaining notice."
 			item.RetryAllowed = false
 		}
+		if record, ok := records[origin]; ok && heldOpening(record.Stage, hasTransfer, item.RetryAllowed) && queueErr == nil && readErr == nil {
+			item.HeldOpening = true
+			item.Title = "Messages held for " + item.OriginTitle
+			item.Body = heldOpeningBody(count, record.Stage, record.Created)
+		}
+		// The newest message sent to the recipient is part of the version, so
+		// a dismissed card comes back when another message is held for the
+		// chat, and stays hidden while nothing new arrives.
+		versions[key] = append(versions[key], fmt.Sprintf("newest:%d", newest))
 		sort.Strings(versions[key])
 		data, _ := json.Marshal(versions[key])
 		item.IncidentVersion = fmt.Sprintf("%x", sha256.Sum256(data))
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+// heldOpening reports whether a waiting record is a plain held opening: the
+// chat's opening never finished or failed, it needs no routing recovery, no
+// transfer of it is under way, and Retry Opening may open it again. Such a
+// record gets the short card that says what is held and offers Retry Opening.
+func heldOpening(stage string, hasTransfer, retryAllowed bool) bool {
+	return (stage == "opening" || stage == "failed") && !hasTransfer && retryAllowed
+}
+
+// heldOpeningBody says how many messages wait and when the opening began, in
+// local time.
+func heldOpeningBody(count int, stage string, created time.Time) string {
+	waiting := "No messages are waiting."
+	if count > 0 {
+		waiting = pendingWords(count)
+	}
+	opening := " Opening this chat on " + created.Local().Format("2 Jan")
+	if stage == "failed" {
+		return waiting + opening + " failed."
+	}
+	return waiting + opening + " never finished."
 }
 
 func pendingWords(count int) string {

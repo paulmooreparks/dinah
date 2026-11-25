@@ -288,13 +288,25 @@
        new chat the person chooses; Remove removes the chat from this app and
        cancels its waiting messages, with no new chat; Dismiss and Clear All
        hide the card, which stays hidden until the incident changes, and
-       leave the chat and its messages as they are, recoverable from it. */
+       leave the chat and its messages as they are, recoverable from it.
+       Messages held because an opening never finished or failed get a
+       shorter card with Retry Opening and Open Chat. Its Dismiss lasts until
+       another message is held for the chat, since the host makes the newest
+       message part of the incident. */
     function deliveryFailureNotice(item) {
       var entry = turnFailureNotice(item);
       entry.dismissible = true;
       entry.clearable = true;
       if (item.originTitle) entry.source = item.originTitle;
       entry.data.lead = item.lead || '';
+      if (item.heldOpening) {
+        // Open Chat takes the place of the card's own Open button for the chat.
+        entry.target = null;
+        entry.actions = [{ label: 'Retry Opening', primary: true, run: function () {
+            return window.dinahHelpers.chatOpen('RetryWaitingSession', [item.lead]).then(function () { return restoreNotifications(); });
+          } }, { label: 'Open Chat', run: function () { return openSession(item.sessionId); } }];
+        return entry;
+      }
       var origin = { title: item.originTitle, provider: item.originProvider, started: item.originStarted };
       entry.actions = [{ label: 'Review Chat', primary: true, run: function () { return openSession(item.sessionId); } }];
         entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace, origin); } });
@@ -306,6 +318,8 @@
       return entry;
     }
 
+    // The host record each waiting-message card was last drawn from, by card.
+    var deliveryDrawn = new Map();
     function deliveryStoreFailureNotice(item) {
       var entry = reportNotice(item);
       entry.details = item.details || [];
@@ -547,11 +561,17 @@
             notices.add(deliveryStoreFailureNotice(item)); return;
           }
           if (item.kind === 'delivery-failure') {
-            if (notices.get(item.id)) notices.remove(item.id);
             var waitingSession = S(item.sessionId);
             waitingSession.info.cwd = waitingSession.info.cwd || item.workspace;
             waitingSession.info.provider = waitingSession.info.provider || item.provider;
             waitingSession.info.title = waitingSession.info.title || item.sessionTitle;
+            /* The card is updated in place, so a new count redraws it where it
+               is. Removing it first and adding it again gave the new entry the
+               old one's version, and the list kept showing the old count. A
+               card whose host record is unchanged is left as it is drawn. */
+            var heldKey = JSON.stringify(item);
+            if (notices.get(item.id) && deliveryDrawn.get(item.id) === heldKey) return;
+            deliveryDrawn.set(item.id, heldKey);
             notices.add(deliveryFailureNotice(item)); return;
           }
           if (item.dismissed) return;

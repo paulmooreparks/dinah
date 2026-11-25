@@ -33,7 +33,7 @@ A `session/resume` that reaches the limit is followed by no `session/load`. A re
 
 The chat's window shows the note it shows for any failed open, with Try Again. For this failure the note's title is "*Agent* did not finish opening this session." and its text is the engine's sentence, without the words "*Agent* reported", since the agent reported nothing. The saved history stays in the window.
 
-Messages that wait for the chat keep waiting. A wake's delivery attempt (`internal/sessionhost/wake_attempts.go`) ends with the error and is recorded as `failed`, the stage every failed open leaves, so the Notifications card "Messages are waiting for ..." appears with Retry Waiting Message. An attempt no longer stays at `opening` because its agent is silent.
+Messages that wait for the chat keep waiting. A wake's delivery attempt (`internal/sessionhost/wake_attempts.go`) ends with the error and is recorded as `failed`, the stage every failed open leaves, so the Notifications card "Messages held for ..." appears with Retry Opening (rule 3). An attempt no longer stays at `opening` because its agent is silent.
 
 ## Rule 1b: restoring a chat's settings has a limit, and reaching it does not fail the open
 
@@ -125,6 +125,26 @@ The receipt for a send or a reply says when a chat the message asks to answer ha
 
 For a group post, the receipt lists the members it wakes that are held. The bus helper that writes the receipt runs in its own process, so it reads `waiting-chats.json` when it writes each receipt (`heldRecipientsAt`). If that file cannot be read, the receipt says nothing about holds, and the window's Notifications show the failure.
 
+### The card in Notifications
+
+Each record in `waiting-chats.json` becomes a card in Notifications (`waitingChatNotifications` and `recoveryNotifications`). Paul approved the card for a held opening on 25 November 2026 from the mockup in `docs/mockups/held-delivery-card.html`. A record gets that card when its stage is `opening` or `failed`, no transfer of the chat is under way, and Retry Opening is allowed for it, which means its recipient is the one its target has (`heldOpening`). Table 1 shows what the card says. The date is the day the record was created, in local time. The card's details list keeps the full technical record, as before.
+
+**Table 1** *The Card for a Held Opening*
+
+| Part | Stage `opening` | Stage `failed` |
+|---|---|---|
+| Title | Messages held for *chat* | Messages held for *chat* |
+| Body | *N* messages are waiting. Opening this chat on *21 Nov* never finished. | *N* messages are waiting. Opening this chat on *21 Nov* failed. |
+| Buttons | Retry Opening, Open Chat, Dismiss | Retry Opening, Open Chat, Dismiss |
+
+*Note.* One message reads "1 message is waiting." and none reads "No messages are waiting." Retry Opening calls `RetryWaitingSession`, and Open Chat opens the chat as Review Chat does on the other cards.
+
+Holds of other kinds keep the card they had: a record that needs routing recovery, a transfer that has not finished, and a removed chat, which gets no card at all. Their title is "*chat* (*provider*, *started*) needs attention", and they offer Review Chat, Recover Original Chat, Delete Chat, Refresh Recovery Status and, where allowed, Retry Waiting Message.
+
+Dismiss on any of these cards is kept in `notifications.json` against an incident version. The version is built from the record's attempt and stage, any transfer's revision and stage, and the ID of the newest message sent to the chat's recipient (`bus.NewestSessionDelivery`). A dismissed card therefore stays hidden while nothing new arrives, and comes back when another message is held for the chat. The newest message ID is used instead of the count, because a delivery followed by a new arrival can leave the count where it was. The ID counts every message sent to the recipient, delivered or not, so a delivery or a withdrawal never brings a dismissed card back on its own. When this rule shipped, every card dismissed under the older version came back once, which Paul wanted so that he could clear the holds of chats that had ended.
+
+When the count changes, the card is updated where it is, and its buttons keep their places.
+
 ## Checks
 
 - `cmd/dinah-desktop/chat_opens_test.go`: a reopen past its limit leaves the chat closed, the message waiting and the attempt retriable; a retry beside the unanswered load is refused and sends nothing; the late replay and the late answer change nothing; an open started from the page returns at once, reports by event and shares one load; over real HTTP with six connections, six opens that never finish leave another call answered.
@@ -132,4 +152,6 @@ For a group post, the receipt lists the members it wakes that are held. The bus 
 - `cmd/dinah-desktop/frontend/e2e/chat-open-by-event.js`: six chats that never finish opening hold no call; a chat whose open ends at the limit shows its error in place and can be tried again; a lost outcome is learned after a resync.
 - `internal/sessionhost/wake_attempts_test.go`: an opening begun and never confirmed, read again by a fresh owner as after a restart, is retired when the chat takes a turn of its own; the next wake is admitted and the stale attempt is never opened. A failed opening is retired the same way, while an opening still active, another recipient, another chat, a chat that is not live, routing recovery and an observed route all keep the hold.
 - `internal/mcpserver/receipt_reach_test.go` and `cmd/dinah-desktop/waiting_chats_test.go`: a send to a held chat and a group post that wakes held members say so in the receipt, and the helper reads the held recipients from the window's file.
+- `cmd/dinah-desktop/held_card_test.go` and `internal/bus/pending_session_test.go`: the held card's title and body for one, several and no messages and for both stages; which records get it; routing recovery keeps its card; the incident version stays the same while nothing changes and changes when another message is held, also after a delivery.
+- `cmd/dinah-desktop/frontend/e2e/held-delivery-card.js`: the held card's title, body and buttons; a new count redraws it in place with nothing moved; Retry Opening calls `RetryWaitingSession`; Dismiss hides it, and a new incident version brings it back.
 - The other browser suites describe an open by the opening method, and the suites' stub (`e2e/lib/page.js`) answers `BeginChatOpen` by running that method and sending the event, so they all pass through the event path.

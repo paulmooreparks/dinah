@@ -37,6 +37,11 @@ type Notification struct {
 	OriginProvider  string   `json:"originProvider,omitempty"`
 	OriginStarted   string   `json:"originStarted,omitempty"`
 	IncidentVersion string   `json:"incidentVersion,omitempty"`
+	// HeldOpening is set on a "delivery-failure" card whose messages are held
+	// because an opening of the chat never finished or failed, and which has no
+	// recovery or transfer of its own. The card offers Retry Opening and Open
+	// Chat (recovery_notices.go).
+	HeldOpening bool `json:"heldOpening,omitempty"`
 	// RequestOwner is captured by the host when it first keeps the report.
 	RequestOwner string `json:"requestOwner,omitempty"`
 	// DraftID is the draft a report is about, which the card reopens.
