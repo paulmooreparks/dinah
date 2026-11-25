@@ -44,7 +44,9 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 | 10. The fork | The fork's own guide | The fork's guide says. |
 | 11. Report | The full report sent directly to Software Director, a reply to the handover, a post in #Dinah Desktop Team, and a short note to Paul in the integrator's own chat | The report gives every guard result, and the lead knows it may remove its worktree and branch. |
 
-*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported. Step 9 runs after every merge. The one exception is a merge in which every changed file is under `docs/`, since no build reads that folder; the report then says the install was skipped and why. When in doubt, install.
+*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported. Step 9 runs after every merge. The one exception is a merge in which every changed file is under `docs/`, since no build reads that folder; the report then says the install was skipped and why. When in doubt, install. A merge in which every changed file is under `docs/` also skips steps 6 and 7, the Go gate and the browser suites, while steps 3 and 4, the guard and the commit scan, still run (Paul, 26 November 2026, Table 7 of docs/design/agent-organisation-economy.md).
+
+When any step leaves a tracked change that this guide does not cover (a file regenerated, reformatted or rewritten by a tool), the integrator stops before committing anything and reports it to the lead and to Software Director. Check `git status` after every step that runs a tool. An install is recorded only once the tree it was built from is committed, so the commit in the install record is always the commit that was built.
 
 ### Choosing the browser suites
 
@@ -122,7 +124,7 @@ Table 2 collects the practices I followed by habit. Each one comes from a failur
 | Read Paul's state under `~/.dinah` only through the product, or with SQLite opened as `file:<path>?mode=ro`. | His bus, chats and settings are live data. |
 | Never print a secret or put one in a message. | Bus messages and chat transcripts are stored. |
 | A new App method that the page calls needs its row in `pageMethods`. | The full Go gate catches a missing row; a filtered run does not. |
-| A change that adds or reworks UI needs Paul's approval of a clickable mockup before product code. | Paul's standing rule since 15 November. If a handover has new UI with no approved mockup, ask the lead before merging. |
+| A change that adds or reworks UI needs Paul's approval of a clickable mockup before product code. | Paul's standing rule since 15 November. If a handover has new UI with no approved mockup, ask the lead before merging. A stock PUDL component adopted unchanged needs no separate mockup (Paul, 26 November 2026, Table 8 of docs/design/agent-organisation-economy.md). |
 | Never claim a build passed if it was not run. | Report what was skipped. |
 
 ## When a build stops Dinah from starting
