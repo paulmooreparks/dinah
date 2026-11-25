@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Held Messages Card: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <style>
+    /* Only the frame around the example is styled here. The card uses the
+       shipped notice classes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .btn[aria-pressed="true"] { font-weight: 700; }
+    .mock-controls .mock-label { font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-stage { padding: var(--space-5); display: flex; justify-content: center; }
+    .mock-pane { width: min(26rem, 100%); min-height: 15rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); padding: var(--space-3); }
+    .mock-pane h2 { margin: 0 0 var(--space-2); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+    .mock-empty { color: var(--text-muted); font-size: var(--text-sm); }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+    .mock-notes { margin: var(--space-4) auto var(--space-5); padding: 0 var(--space-5); max-width: 44rem; font-size: var(--text-sm); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+    .mock-receipt { max-width: 44rem; margin: 0 auto; padding: var(--space-2) var(--space-3); border: 1px dashed var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); font-family: var(--font-mono, monospace); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Held Messages Card</h1>
+    <button class="btn btn-sm" type="button" id="theme">Dark Theme</button>
+    <span class="mock-tag">Mockup. Invented chats, nothing real.</span>
+  </header>
+
+  <div class="mock-controls" role="group" aria-label="Version">
+    <span class="mock-label">Version</span>
+    <button class="btn btn-sm" type="button" data-version="today" aria-pressed="false">Today</button>
+    <button class="btn btn-sm" type="button" data-version="proposed" aria-pressed="true">Proposed</button>
+  </div>
+  <div class="mock-controls" role="group" aria-label="Simulate">
+    <span class="mock-label">Simulate</span>
+    <button class="btn btn-sm" type="button" id="arrive">A Message Arrives</button>
+    <button class="btn btn-sm" type="button" id="turn">The Chat Takes a Turn</button>
+    <button class="btn btn-sm" type="button" id="reset">Start Again</button>
+  </div>
+
+  <div class="mock-stage">
+    <section class="mock-pane" aria-label="Notifications">
+      <h2>Notifications</h2>
+      <div id="cards"></div>
+    </section>
+  </div>
+  <p class="mock-said" id="said" role="status"></p>
+
+  <div class="mock-notes">
+    <p><strong>What changes.</strong></p>
+    <ul>
+      <li>The title says what is wrong, and the body gives the count and when the opening failed.</li>
+      <li>A held opening gets Retry Opening, Open Chat and Dismiss. Holds of other kinds keep the buttons they have today.</li>
+      <li>Dismiss hides the card until another message is held. Today it stays hidden until the hold itself changes, however many messages pile up.</li>
+      <li>The hold ends by itself when the chat takes a turn. That needs no card and is being built now.</li>
+    </ul>
+    <p><strong>What the sender is told.</strong> When an agent sends to a held chat, its receipt now ends like this:</p>
+    <p class="mock-receipt">Sent as message 4121 to Parser Team Lead. Parser Team Lead has held messages: an earlier opening of it never finished, so this message waits until that chat takes a turn of its own or the hold is cleared in Notifications.</p>
+  </div>
+
+  <script>
+    var state;
+    function reset() { state = { version: state ? state.version : 'proposed', waiting: 8, dismissedAt: null, held: true }; draw(''); }
+    function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+    function button(label, primary, run) { var b = el('button', 'btn btn-sm' + (primary ? ' btn-primary' : ''), label); b.type = 'button'; b.addEventListener('click', run); return b; }
+    function words(n) { return n === 1 ? '1 message is waiting.' : n + ' messages are waiting.'; }
+    function card() {
+      var c = el('div', 'notice danger notices-card'), content = el('div', 'notice-content'), actions = el('div', 'notice-actions hstack gap-2');
+      c.setAttribute('role', 'group');
+      if (state.version === 'today') {
+        content.append(el('p', 'notice-title', 'Parser Team Lead (Codex, 26 Oct 11:14) needs attention'), el('p', 'notice-body', state.waiting ? words(state.waiting) + ' Recover this original chat or remove it.' : 'This earlier chat could not reconnect. No messages are waiting.'));
+        ['Review Chat', 'Recover Original Chat', 'Delete Chat…', 'Refresh Recovery Status', 'Retry Waiting Message'].forEach(function (label, i) {
+          actions.append(button(label, i === 0, function () { draw('"' + label + '" does what it does today.'); }));
+        });
+      } else {
+        content.append(el('p', 'notice-title', 'Messages held for Parser Team Lead'), el('p', 'notice-body', words(state.waiting) + ' Opening this chat on 21 Nov never finished.'));
+        actions.append(button('Retry Opening', true, function () { state.held = false; draw('The chat opens and takes its ' + state.waiting + ' messages. The card goes.'); }),
+          button('Open Chat', false, function () { draw('The chat comes to the front. The card stays until the chat takes a turn.'); }));
+      }
+      actions.append(button('Dismiss', false, function () { state.dismissedAt = state.waiting; draw('Hidden.' + (state.version === 'proposed' ? ' It comes back when another message is held.' : ' It stays hidden while the hold lasts.')); }));
+      var meta = el('p', 'notices-meta', 'At 21 Nov, 16:33 · Parser Team Lead.');
+      content.append(meta, actions); c.append(content);
+      return c;
+    }
+    function draw(said) {
+      var cards = document.getElementById('cards'); cards.replaceChildren();
+      var hidden = state.dismissedAt !== null;
+      if (state.held && !hidden) cards.append(card());
+      else cards.append(el('p', 'mock-empty', 'No notifications right now.'));
+      document.getElementById('said').textContent = said;
+      document.querySelectorAll('[data-version]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.version === state.version)); });
+      document.getElementById('arrive').disabled = !state.held;
+    }
+    document.querySelectorAll('[data-version]').forEach(function (b) { b.addEventListener('click', function () { state.version = b.dataset.version; reset(); }); });
+    document.getElementById('arrive').addEventListener('click', function () {
+      state.waiting++;
+      if (state.version === 'proposed' && state.dismissedAt !== null) { state.dismissedAt = null; draw('Another message is held, so the card is back.'); return; }
+      draw(state.dismissedAt !== null ? 'The count rose to ' + state.waiting + ', but the card stays hidden.' : 'The count rose to ' + state.waiting + '.');
+    });
+    document.getElementById('turn').addEventListener('click', function () {
+      if (!state.held) { draw('Nothing is held.'); return; }
+      var n = state.waiting;
+      if (state.version === 'today') { state.waiting = 0; draw('The chat takes its ' + n + ' messages, but the hold stays and the next message waits again.'); return; }
+      state.held = false; draw('The chat takes its ' + n + ' messages and the hold ends. The card goes.');
+    });
+    document.getElementById('reset').addEventListener('click', reset);
+    document.getElementById('theme').addEventListener('click', function () {
+      var dark = document.documentElement.dataset.theme !== 'dark';
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+    });
+    reset();
+  </script>
+</body>
+</html>
