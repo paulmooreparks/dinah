@@ -41,8 +41,9 @@
   // "chat" is the bar's first menu (docs/design/menus.md). It is kept apart
   // from MENUS because Keyboard Shortcuts takes a group with a menu's name
   // for the bar's own keys, and the keys that work only inside a chat's
-  // window are a group called Chat.
-  var FILED = { chat: 'Chat' };
+  // window are a group called Chat. The launcher's own commands are buttons
+  // in its header (host-menus.js), and command search files them under it.
+  var FILED = { chat: 'Chat', launcher: 'Launcher' };
 
   function value(v) { return typeof v === 'function' ? v() : v; }
   function modalOpen() {
@@ -196,6 +197,8 @@
         reason: on ? '' : value(entry.reason) || '', mnemonic: entry.mnemonic || '', run: function () { run(entry.id); } };
       var checked = value(entry.checked);
       if (typeof checked === 'boolean') row.checked = checked;
+      // A row with a short label of its own keeps the full one as its tooltip.
+      if (entry.menuLabel) row.title = value(entry.label);
       // The glyph a row shows in a menu and as a tool on the ribbon.
       if (entry.glyph) row.glyph = entry.glyph;
       if (entry.glyphOnly) row.glyphOnly = true;

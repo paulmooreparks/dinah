@@ -18,6 +18,7 @@ Paul asked on 19 November 2026 for every menu to be listed and compared with the
 12. The settings menu is called Settings.
 13. The way out of the program is called Exit on every system. With no File in the host it is in the launcher, which opens from the product's name at the start of the bar, and Alt+F4 does it too. Paul confirmed on 19 November 2026 that the launcher is enough.
 14. F1 opens the list of keys, Keyboard Shortcuts, and not a help page (Paul, 19 November 2026).
+15. The launcher's header has buttons before Settings and Exit for the commands a product registers for the launcher (`menu: 'launcher'` in `commands.js`, drawn by `host-menus.js`), in the order they were registered. A product's check for a newer release is one, since it belongs to the program as a whole and the bar has no menu for that (Paul, 25 November 2026). Each button has its short label (`menuLabel`) and its glyph, the full label is its tooltip and its name in command search, and pressing it closes the launcher.
 
 ## Where the work is
 

@@ -70,6 +70,36 @@
       command(list, { label: desired + ' (unavailable)', checked: true, disabled: true, reason: snapshot.skinNotice });
     }
   }
+  /* The commands registered for the launcher are buttons at the start of
+     its header, before Settings, in the order they were registered. A
+     product puts a command there that has no menu of its own, such as its
+     check for a newer release. A button keeps its place while its command
+     is greyed, and the header is drawn again only when the rows change. */
+  var launcherDrawn = '';
+  function drawLauncher() {
+    var head = document.querySelector('#dinah-launcher .start-header');
+    if (!head) return;
+    var rows = window.dinahCommands.rows('launcher').filter(function (row) { return row !== '-'; });
+    var key = JSON.stringify(rows.map(function (row) { return [row.label, row.title || '', row.glyph || '', !!row.disabled]; }));
+    if (key === launcherDrawn) return;
+    launcherDrawn = key;
+    head.querySelectorAll(':scope > [data-generated]').forEach(function (button) { button.remove(); });
+    var at = head.firstElementChild;
+    rows.forEach(function (row) {
+      var button = document.createElement('button');
+      button.type = 'button'; button.className = 'btn btn-sm'; button.dataset.generated = ''; button.setAttribute('data-launcher-activate', '');
+      if (row.glyph) {
+        var glyph = document.createElement('span'); glyph.className = 'glyph'; glyph.setAttribute('aria-hidden', 'true');
+        glyph.style.setProperty('--glyph', 'var(--glyph-' + row.glyph + ')');
+        button.appendChild(glyph);
+      }
+      button.appendChild(document.createTextNode(row.label));
+      if (row.title) button.title = row.title;
+      button.disabled = !!row.disabled;
+      button.addEventListener('click', function () { Promise.resolve().then(row.run).catch(function (error) { document.dispatchEvent(new CustomEvent('dinah:menu-error', { detail: error })); }); });
+      head.insertBefore(button, at);
+    });
+  }
   /* A registry menu's rows go into its host list: all of it, or after the
      list's placeholder (li[data-commands]) where some rows are written in
      the page. A list may have a placeholder for each group of rows
@@ -126,7 +156,7 @@
       }
       return;
     }
-    ['dinah', 'chat', 'workspace', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
+    ['dinah', 'chat', 'workspace', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins(); drawLauncher();
     // The host registry supplies markup rows rather than PUDL commands.
     // Its explicit open-menu updates still use the documented notification.
     if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();
