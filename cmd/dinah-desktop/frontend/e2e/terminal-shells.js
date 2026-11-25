@@ -38,13 +38,15 @@ const { launch } = require('./lib/page');
         ClipboardRead: async () => ({ html: '', text: 'pasted words' })
       };
     },
-    init: () => { window.__calls = []; window.__copied = []; window.dinahHostCopy = null; },
+    init: () => { window.__calls = []; },
     ready: () => document.querySelector('[data-win="workspace"]'),
   });
   const { page: p, ok, errors } = t;
   try {
     await p.waitForFunction(() => window.dinahShellTerminal && window.dinahShellTerminal.shells().length === 3);
-    await p.evaluate(() => { window.dinahHost.copy = text => __copied.push(text); });
+    // A copy goes through PUDL's accessor and Dinah's transport to the
+    // runtime's ClipboardSetText, which the page harness records.
+    const copiedTexts = () => p.evaluate(() => __runtime.filter(c => c[0] === 'ClipboardSetText').map(c => c[1]));
 
     await p.evaluate(() => window.dinahResources.openTerminal('/workspaces'));
     const win = p.locator('.win[data-win-kind="terminal"]').last();
@@ -77,7 +79,7 @@ const { launch } = require('./lib/page');
     await win.locator('.xterm').dblclick({ position: { x: 40, y: 8 } });
     await p.keyboard.press('Control+c');
     await p.waitForTimeout(200);
-    const copied = await p.evaluate(() => __copied.slice());
+    const copied = await copiedTexts();
     const interrupts = await p.evaluate(() => __calls.filter(c => c[0] === 'write' && c[2] === '\x03').length);
     ok('Ctrl+C with text selected copies it rather than interrupting', copied.length === 1 && copied[0].length > 0 && interrupts === 0, JSON.stringify({ copied, interrupts }));
     await p.keyboard.press('Control+c');
@@ -86,6 +88,46 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('Control+Shift+v');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'write' && c[2].includes('pasted words')));
     ok('Ctrl+Shift+V pastes the clipboard', true);
+
+    // The edit menu (PUDL 0.109.0 docs/EDIT-MENUS.md): the Terminal claims
+    // it and gives its own Copy, Paste and Select All, so PUDL's generic rows,
+    // which would act on xterm's hidden field, are not added.
+    const menuRows = () => p.evaluate(() => [...document.querySelectorAll('.context-menu .menu-action')].filter(r => r.offsetParent).map(r => ({ label: (r.querySelector('.menubar-words') || r).textContent.trim(), disabled: r.getAttribute('aria-disabled') === 'true' })));
+    const chooseRow = async label => { await p.locator('.context-menu .menu-action', { hasText: new RegExp('^' + label) }).first().click(); await p.waitForTimeout(150); };
+    await win.locator('.xterm').dblclick({ position: { x: 40, y: 8 } });
+    await win.locator('.xterm').click({ button: 'right', position: { x: 40, y: 8 } });
+    await p.locator('.context-menu').first().waitFor({ state: 'visible' });
+    let rows = await menuRows();
+    ok('a right-click on the Terminal opens its own edit menu, without Cut', rows.map(r => r.label).join('|') === 'Copy|Paste|Select All' && !rows[0].disabled, JSON.stringify(rows));
+    const copiesBefore = (await copiedTexts()).length;
+    await chooseRow('Copy');
+    const menuCopies = await copiedTexts();
+    ok('Copy in the edit menu copies the Terminal\'s selection through the transport', menuCopies.length === copiesBefore + 1 && menuCopies[menuCopies.length - 1].length > 0, JSON.stringify(menuCopies));
+
+    await win.locator('.xterm').click({ button: 'right', position: { x: 40, y: 8 } });
+    await p.locator('.context-menu').first().waitFor({ state: 'visible' });
+    rows = await menuRows();
+    ok('Copy is unavailable with nothing selected', rows.length === 3 && rows[0].disabled && !rows[1].disabled, JSON.stringify(rows));
+    const pastesBefore = await p.evaluate(() => __calls.filter(c => c[0] === 'write' && c[2].includes('pasted words')).length);
+    await chooseRow('Paste');
+    await p.waitForFunction(n => __calls.filter(c => c[0] === 'write' && c[2].includes('pasted words')).length > n, pastesBefore);
+    ok('Paste in the edit menu sends the clipboard to the shell', (await t.calls('ClipboardRead')).length >= 2);
+
+    // Shift+F10 opens the same menu from the keyboard and is not sent to the shell.
+    await win.locator('.xterm').click();
+    const writesBefore = await p.evaluate(() => __calls.filter(c => c[0] === 'write').length);
+    await p.keyboard.press('Shift+F10');
+    await p.locator('.context-menu').first().waitFor({ state: 'visible' });
+    rows = await menuRows();
+    ok('Shift+F10 opens the Terminal\'s edit menu', rows.map(r => r.label).join('|') === 'Copy|Paste|Select All', JSON.stringify(rows));
+    await chooseRow('Select All');
+    await win.locator('.xterm').click({ button: 'right', position: { x: 40, y: 8 } });
+    await p.locator('.context-menu').first().waitFor({ state: 'visible' });
+    rows = await menuRows();
+    ok('Select All selects the Terminal\'s text, so Copy becomes available', rows.length === 3 && !rows[0].disabled, JSON.stringify(rows));
+    await p.keyboard.press('Escape');
+    ok('Shift+F10 sent nothing to the shell', await p.evaluate(n => __calls.filter(c => c[0] === 'write').length === n, writesBefore));
+    await win.locator('.xterm').click();
 
     await p.evaluate(() => { window.go.main.App.SaveAppearance = async state => ({ state, revision: 'terminal-font-test' }); });
     await p.evaluate(() => dinahAppearance.overrides({ terminal: { font: { families: ['Courier New'], fallback: 'monospace' }, size: 17 } }));

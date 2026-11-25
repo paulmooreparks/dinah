@@ -848,6 +848,8 @@
     var env = {}, lastStatus = 0, oldPwd = '';
     root.classList.add('pc-terminal', 'pc-terminal-fill');
     var screen = document.createElement('div'); screen.className = 'pc-terminal-screen'; root.appendChild(screen);
+    // Its edit menu has no shortcuts beside it, since Ctrl+C here stops a command.
+    var offEditMenu = editMenu(screen, function () { return destroyed ? null : term; });
     const app = window.dinahHelpers.app;
     async function exitSensitiveCommand(runCommand) {
       var host=app(), lease=typeof host.BeginExitWork==='function'?await host.BeginExitWork('Built-in terminal command'):null;
@@ -1683,8 +1685,9 @@
       fit = new window.FitAddon.FitAddon(); term.loadAddon(fit); term.open(screen); resize(); term.onData(onData);
       // A key the page has already taken, as the menu bar takes Alt alone,
       // F10 and Alt with a title's letter in the capture phase, is not the
-      // shell's too: xterm's custom key handler skips it.
-      term.attachCustomKeyEventHandler(function (e) { return !e.defaultPrevented; });
+      // shell's too: xterm's custom key handler skips it. Shift+F10 and the
+      // Menu key are left to the page, which opens the edit menu with them.
+      term.attachCustomKeyEventHandler(function (e) { return !e.defaultPrevented && !terminalKeyIsMenu(e); });
       term.textarea.setAttribute('aria-label', 'Terminal Command');
       // The saved transcript is the terminal's own text and what it showed.
       // It was made safe when it was first written, but it comes back from
@@ -1725,13 +1728,54 @@
       // In the order a Terminal running a real shell lists them (terminal-shell.js).
       commands: function () { return [{ label: 'Clear Terminal', run: function () { if (!busy && term) { output = ''; term.clear(); term.write('\x1b[2J\x1b[H'); redraw(); save(); } } }, { label: 'Larger Text', run: function () { if (term) { explicitFontSize = true; fontSize = Math.min(22, fontSize + 1); term.options.fontSize = fontSize; resize(); save(); } } }, { label: 'Smaller Text', run: function () { if (term) { explicitFontSize = true; fontSize = Math.max(6, fontSize - 1); term.options.fontSize = fontSize; resize(); save(); } } }, { label: 'Reset Text Size', run: function () { explicitFontSize = false; if (!window.dinahAppearance && term) { fontSize = 14; term.options.fontSize = fontSize; } applyTheme(); save(); } }]; },
       resize: resize,
-      destroy: function () { destroyed = true; ++generation; run.cancelled = true; if (unsubscribe) unsubscribe(); if (observer) observer.disconnect(); document.removeEventListener('pudl:theme-change', applyTheme); document.removeEventListener('dinah:appearance-change', applyTheme); if (window.dinahRender) window.dinahRender.cancel(applyTheme); if (term) term.dispose(); }
+      destroy: function () { destroyed = true; ++generation; run.cancelled = true; offEditMenu(); if (unsubscribe) unsubscribe(); if (observer) observer.disconnect(); document.removeEventListener('pudl:theme-change', applyTheme); document.removeEventListener('dinah:appearance-change', applyTheme); if (window.dinahRender) window.dinahRender.cancel(applyTheme); if (term) term.dispose(); }
     };
+  }
+  /* A Terminal's edit menu (PUDL 0.109.0 docs/EDIT-MENUS.md). xterm keeps a
+     selection of its own, which the page's selection does not show, and
+     takes what is typed through a hidden field of its own, so PUDL's
+     generic Cut, Copy, Paste and Select All would act on the wrong thing.
+     The Terminal claims the edit menu for its screen and gives its own
+     Copy, Paste and Select All, with PUDL's standard ids and labels. The
+     clipboard is PUDL's accessor, which uses Dinah's transport
+     (clipboard-transport.js). keys gives the shortcuts a Terminal shows
+     beside Copy and Paste, which are only shown, never bound here.
+
+     xterm takes Shift+F10 and the Menu key for the shell unless its key
+     handler gives them back, so terminalKeyIsMenu says which keys those
+     are, for each Terminal's handler to leave to the page. */
+  function terminalFail(error) { var fail = window.dinahHost && window.dinahHost.fail; if (fail) fail(error); else console.error(error); }
+  function terminalCopy(term) {
+    var text = term && term.getSelection();
+    if (!text) return false;
+    Promise.resolve().then(function () { return window.pudlClipboard.writeText(text); }).catch(terminalFail);
+    term.clearSelection();
+    return true;
+  }
+  function terminalPaste(term) {
+    return Promise.resolve().then(function () { return window.pudlClipboard.readText(); })
+      .then(function (text) { if (text && term) term.paste(text); }).catch(terminalFail);
+  }
+  function terminalKeyIsMenu(e) { return e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey); }
+  function editMenu(screen, current, keys) {
+    keys = keys || {};
+    function asked(event) {
+      var term = current();
+      if (!term || !event.detail || typeof event.detail.handlesEdit !== 'function') return;
+      event.detail.handlesEdit();
+      event.detail.add([
+        { id: 'copy', label: 'Copy', glyph: 'copy', shortcut: keys.copy, disabled: !term.hasSelection(), run: function () { terminalCopy(term); } },
+        { id: 'paste', label: 'Paste', shortcut: keys.paste, run: function () { return terminalPaste(term); } },
+        { id: 'select-all', label: 'Select All', run: function () { term.selectAll(); } }
+      ]);
+    }
+    screen.addEventListener('pudl:contextmenu', asked);
+    return function () { screen.removeEventListener('pudl:contextmenu', asked); };
   }
   window.dinahTerminal = { init: init, parse: parse, resolve: resolve, safe: safe, commands: function () { return Object.keys(COMMANDS).sort(); },
     // xterm and its theme, which a Terminal running a real shell shares
-    // (terminal-shell.js).
-    assets: assets, theme: theme,
+    // (terminal-shell.js), and the edit menu both kinds of Terminal have.
+    assets: assets, theme: theme, editMenu: editMenu, copy: terminalCopy, paste: terminalPaste, keyIsMenu: terminalKeyIsMenu,
     registerInterpreter: registerInterpreter, interpreters: function () { return INTERPRETERS.map(function (d) { return { id: d.id, name: d.name, command: d.command }; }); } };
   // Interpreters loaded before the Terminal wait in this list.
   (window.dinahTerminalInterpreters || []).forEach(registerInterpreter);

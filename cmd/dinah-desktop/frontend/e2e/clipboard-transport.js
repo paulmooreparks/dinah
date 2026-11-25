@@ -1,21 +1,14 @@
 // The host clipboard transport for PUDL's edit menu (clipboard-transport.js,
-// docs/design/chat-clipboard.md). With the PUDL that Dinah ships today the
-// script must do nothing. With a PUDL build that has window.pudlClipboard
-// (0.109.0 and later) it must give the menu Dinah's clipboard: ClipboardRead
-// for Paste and ClipboardSetText for Copy and Cut, with every failure a
-// rejection.
-//
-// The second half needs a PUDL build that Dinah does not ship yet, and its
-// files are never committed here. DINAH_PUDL_BRANCH_DIST is the dist folder
-// of such a build, for example one extracted with git archive from the PUDL
-// repository. The suite serves that folder's files as pudl/ and falls back
-// to Dinah's own for a file the folder lacks. Without it the second half
-// prints SKIP and checks nothing.
+// docs/design/chat-clipboard.md). Dinah ships PUDL 0.109.0, which defines
+// window.pudlClipboard, so the script gives the menu Dinah's clipboard:
+// ClipboardRead for Paste and ClipboardSetText for Copy and Cut, with every
+// failure a rejection. The main page and the document page each set their
+// own. With a PUDL that has no accessor the script must do nothing, which
+// the last check shows by withholding the accessor from the page.
 const fs = require('fs');
 const path = require('path');
 const { launch, PAGE } = require('./lib/page');
 
-const BRANCH = process.env.DINAH_PUDL_BRANCH_DIST || '';
 const DOCUMENT = PAGE.replace(/index\.html$/, 'document.html');
 
 const clipboardApp = () => ({
@@ -41,42 +34,16 @@ const clipboardInit = () => {
   };
 };
 
-async function shippedPudl() {
+async function vendoredPudl() {
   const t = await launch({ app: clipboardApp, init: clipboardInit });
   const { page: p, ok } = t;
   try {
-    const state = await p.evaluate(() => {
-      const srcs = Array.from(document.scripts).map(s => s.getAttribute('src'));
-      return { accessor: typeof window.pudlClipboard, transport: typeof window.dinahClipboardTransport,
-        order: srcs.indexOf('clipboard-transport.js') > srcs.indexOf('pudl/pudl-menu.js') && srcs.indexOf('pudl/pudl-menu.js') >= 0 };
-    });
-    ok('shipped PUDL: the page loads the transport after pudl-menu.js', state.order);
-    ok('shipped PUDL: there is no clipboard accessor and none is made', state.accessor === 'undefined', state.accessor);
-    ok('shipped PUDL: the transport is not set', state.transport === 'undefined', state.transport);
-    ok('shipped PUDL: nothing reads or writes the clipboard', (await t.calls('ClipboardRead')).length === 0 && (await p.evaluate(() => window.__writes.length)) === 0);
-    await p.goto(DOCUMENT);
-    await p.waitForFunction(() => document.readyState === 'complete');
-    const docState = await p.evaluate(() => ({ accessor: typeof window.pudlClipboard, transport: typeof window.dinahClipboardTransport,
-      loaded: Array.from(document.scripts).some(s => s.getAttribute('src') === 'clipboard-transport.js') }));
-    ok('shipped PUDL: the document page loads the transport and it does nothing', docState.loaded && docState.accessor === 'undefined' && docState.transport === 'undefined', JSON.stringify(docState));
-  } finally { await t.close(); }
-}
+    const order = await p.evaluate(() => { const srcs = Array.from(document.scripts).map(s => s.getAttribute('src')); return srcs.indexOf('clipboard-transport.js') > srcs.indexOf('pudl/pudl-menu.js') && srcs.indexOf('pudl/pudl-menu.js') >= 0; });
+    ok('the page loads the transport after pudl-menu.js', order);
+    ok('nothing reads or writes the clipboard as the page starts', (await t.calls('ClipboardRead')).length === 0 && (await p.evaluate(() => window.__writes.length)) === 0);
 
-async function branchPudl() {
-  const t = await launch({ app: clipboardApp, init: clipboardInit, goto: false });
-  const { page: p, ok } = t;
-  try {
-    await t.context.route('http://dinah.test/pudl/**', route => {
-      const inside = new URL(route.request().url()).pathname.replace(/^\/pudl\//, '');
-      const file = path.join(BRANCH, inside);
-      if (fs.existsSync(file) && fs.statSync(file).isFile()) return route.fulfill({ path: file });
-      return route.fallback();
-    });
-    await p.goto(PAGE);
-    await t.waitReady();
-
-    ok('branch PUDL: the accessor exists', await p.evaluate(() => !!(window.pudlClipboard && window.pudlClipboard.setTransport)));
-    ok('branch PUDL: the transport is set', await p.evaluate(() => !!window.dinahClipboardTransport));
+    ok('the accessor exists', await p.evaluate(() => !!(window.pudlClipboard && window.pudlClipboard.setTransport)));
+    ok('the transport is set', await p.evaluate(() => !!window.dinahClipboardTransport));
 
     // The accessor's own readText and writeText go through the transport.
     const read = await p.evaluate(() => window.pudlClipboard.readText());
@@ -144,16 +111,28 @@ async function branchPudl() {
     // A document window's page sets its own transport.
     await p.goto(DOCUMENT);
     await p.waitForFunction(() => document.readyState === 'complete');
-    const doc = await p.evaluate(() => window.dinahClipboardTransport && window.pudlClipboard ? pudlClipboard.readText() : 'no transport');
-    ok('the document page sets its own transport', doc === 'pasted words', doc);
+    const doc = await p.evaluate(async () => ({ loaded: Array.from(document.scripts).some(s => s.getAttribute('src') === 'clipboard-transport.js'), read: window.dinahClipboardTransport && window.pudlClipboard ? await pudlClipboard.readText() : 'no transport' }));
+    ok('the document page loads the transport and sets its own', doc.loaded && doc.read === 'pasted words', JSON.stringify(doc));
+  } finally { await t.close(); }
+}
+
+// A PUDL with no accessor: the page's copy of pudl-menu.js is given with
+// window.pudlClipboard taken away before the transport runs, as a release
+// before 0.109.0 would leave it. The script must neither set nor make one.
+async function noAccessor() {
+  const t = await launch({ app: clipboardApp, init: clipboardInit, goto: false });
+  const { page: p, ok } = t;
+  try {
+    const menu = fs.readFileSync(path.join(__dirname, '..', 'pudl', 'pudl-menu.js'), 'utf8');
+    await t.context.route('http://dinah.test/pudl/pudl-menu.js', route => route.fulfill({ contentType: 'text/javascript', body: menu + '\n;delete window.pudlClipboard;\n' }));
+    await p.goto(PAGE);
+    await t.waitReady();
+    const state = await p.evaluate(() => ({ accessor: typeof window.pudlClipboard, transport: typeof window.dinahClipboardTransport }));
+    ok('with no accessor the script makes none and sets nothing', state.accessor === 'undefined' && state.transport === 'undefined', JSON.stringify(state));
   } finally { await t.close(); }
 }
 
 (async () => {
-  await shippedPudl();
-  if (!BRANCH || !fs.existsSync(path.join(BRANCH, 'pudl-menu.js'))) {
-    console.log('SKIP the PUDL edit-menu checks: set DINAH_PUDL_BRANCH_DIST to the dist folder of a PUDL build with window.pudlClipboard (0.109.0 or later).');
-    return;
-  }
-  await branchPudl();
+  await vendoredPudl();
+  await noAccessor();
 })().catch(error => { console.error(error); process.exitCode = 1; });

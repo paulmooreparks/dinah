@@ -96,16 +96,12 @@
         term.write('\r\n\x1b[31mThe shell could not start: ' + window.dinahTerminalText.safe(message(err)) + '\x1b[0m\r\n');
       });
     }
-    function copySelection() {
-      var text = term.getSelection();
-      if (!text) return false;
-      host().copy(text);
-      term.clearSelection();
-      return true;
-    }
-    function paste() {
-      return Promise.resolve(app().ClipboardRead()).then(function (c) { if (c && c.text) term.paste(c.text); }).catch(host().fail);
-    }
+    /* The clipboard is PUDL's accessor with Dinah's transport, through the
+       Terminal's own copy and paste (terminal-applet.js), for the keys, the
+       window's commands and the edit menu alike. */
+    function copySelection() { return window.dinahTerminal.copy(term); }
+    function paste() { return window.dinahTerminal.paste(term); }
+    var offEditMenu = window.dinahTerminal.editMenu(screen, function () { return destroyed ? null : term; }, { copy: 'Ctrl+C', paste: 'Ctrl+Shift+V' });
 
     function sized() {
       return new Promise(function (resolve) {
@@ -123,9 +119,11 @@
       term.textarea.setAttribute('aria-label', 'Terminal');
       /* A key the page has already taken, such as the menu bar's, is not
          the shell's. Ctrl+C copies when text is selected, as in Windows
-         Terminal, and Ctrl+Shift+C and Ctrl+Shift+V always copy and paste. */
+         Terminal, and Ctrl+Shift+C and Ctrl+Shift+V always copy and paste.
+         Shift+F10 and the Menu key are left to the page, which opens the
+         edit menu with them. */
       term.attachCustomKeyEventHandler(function (e) {
-        if (e.defaultPrevented) return false;
+        if (e.defaultPrevented || window.dinahTerminal.keyIsMenu(e)) return false;
         if (e.type !== 'keydown') return true;
         var k = e.key.toLowerCase();
         if (e.ctrlKey && !e.altKey && k === 'c' && (e.shiftKey || term.hasSelection())) { e.preventDefault(); copySelection(); return false; }
@@ -166,6 +164,7 @@
       resize: resize,
       destroy: function () {
         destroyed = true;
+        offEditMenu();
         window.dinahRender.cancel(title);
         if (id && !ended) app().TerminalClose(id);
         if (offOutput) offOutput();

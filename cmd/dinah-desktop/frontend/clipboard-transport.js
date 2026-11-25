@@ -12,7 +12,12 @@
    order in the page is the order they run in. No page loads pudl-menu.js
    later or by script, and the page's own frames (the theme previews and
    the skin contrast check) load no scripts, so setting the transport once
-   here covers every accessor Dinah has.
+   here covers every accessor Dinah has. The yavc.app applets are mounted
+   in the page itself, not in frames, and use this page's accessor; an
+   extension's frame is sandboxed, gets no PUDL from Dinah and cannot
+   reach the App. The bus's web page (internal/web) loads pudl-menu.js in
+   an ordinary browser, which has no App, so it keeps PUDL's default, the
+   browser's own clipboard.
 
    A PUDL release before 0.109.0 has no window.pudlClipboard, and then
    this file does nothing at all. It never defines the accessor itself.

@@ -189,6 +189,30 @@ const { launch } = require('./lib/page');
     });
     await fresh(); await command('ls many | wc -l');
     await check('ls lists a folder of 12000 entries whole, a thousand at a call', /\b12000\n/.test(await output()) && await page.evaluate(() => __calls.filter(c => c[0] === 'list' && c[1] === '/workspaces/delivery/files/many').length === 12));
+    // The edit menu (PUDL 0.109.0 docs/EDIT-MENUS.md). This page has no
+    // PUDL menu, so the request is made here as pudl-menu.js makes it, and
+    // the clipboard is a stand-in for PUDL's accessor. The Terminal claims
+    // the edit menu and gives Copy, Paste and Select All of its own.
+    await fresh();
+    const menu = await page.evaluate(async () => {
+      window.__writes = [];
+      window.pudlClipboard = { readText: async () => 'echo pasted', writeText: async text => { __writes.push(text); } };
+      const ask = () => { const asked = { claimed: false, rows: [] }; document.querySelector('#one .xterm').dispatchEvent(new CustomEvent('pudl:contextmenu', { bubbles: true, cancelable: true, detail: { handlesEdit: () => { asked.claimed = true; }, add: r => { asked.rows = asked.rows.concat(r); } } })); return asked; };
+      const first = ask();
+      const row = (asked, id) => asked.rows.find(r => r.id === id);
+      await row(first, 'paste').run();
+      await new Promise(r => setTimeout(r, 100));
+      row(first, 'select-all').run();
+      const second = ask();
+      row(second, 'copy').run();
+      await new Promise(r => setTimeout(r, 50));
+      return { claimed: first.claimed, ids: first.rows.map(r => r.id + ':' + r.label).join('|'), copyBefore: !row(first, 'copy').disabled, copyAfter: !row(second, 'copy').disabled, writes: __writes.slice() };
+    });
+    await check('the Terminal claims the edit menu with Copy, Paste and Select All of its own', menu.claimed && menu.ids === 'copy:Copy|paste:Paste|select-all:Select All' && !menu.copyBefore, JSON.stringify(menu));
+    await check('Paste types the clipboard\'s text at the prompt', (await screenText()).includes('echo pasted'));
+    await check('Select All makes Copy available, and Copy writes the Terminal\'s text through the accessor', menu.copyAfter && menu.writes.length === 1 && menu.writes[0].includes('echo pasted'));
+    await page.keyboard.press('Control+u');
+
     await t.shot('terminal');
     await command('exit');
     await page.waitForFunction(() => !document.getElementById('one'));
