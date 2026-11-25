@@ -337,9 +337,18 @@ Dinah can already start a chat's turn and post a brief to a member, and an updat
 
 *Note.* Whether the step runs by default is open question 2 below. The contract supports either answer.
 
+## Decided With Paul
+
+Paul answered the two questions this draft raised on 25 November 2026, through Software Director.
+
+1. The product's wizard may make a team lead and its members, each with its remit, directly through a new host function in Dinah, with no calling chat. This is the host function described in Table 10. The existing team actions keep their rule that a chat must call them.
+2. The workspace is the unit of source access for this release. Every chat in a workspace reaches every source attached to it, as the workspace applet's actions do today (`callingWorkspaceRecord` in `applet_workspace_resources.go` and `scopedWorkspaceVFS` in `workspace_vfs.go`), and roles in a template have no source list. Per-agent source rules come out of the product's onboarding design. Per-agent access is later work with its own design.
+
+Neither decision starts building the wizard. Product code waits for Paul's review of the product's mockup.
+
 ## Questions Open With Paul
 
-The contract was written so that most of the open questions do not change the format or the host operations (Table 15). Two further questions come from this draft rather than from the product's design.
+The contract was written so that none of the open questions changes the format, and only two change which host operations the first build needs (Table 15).
 
 **Table 15** *Open Questions and Whether the Contract Depends on Them*
 
@@ -350,8 +359,6 @@ The contract was written so that most of the open questions do not change the fo
 | 3 | Who publishes shared briefs? | No | Dinah publishes nothing and stores no brief as such. |
 | 4 | What is the pilot's scope? | Partly | The format does not change. The pilot decides which source kinds must be registered and tested, and whether the update operation is needed in the first build. |
 | 5 | Is authoring a skill, a flow or a command? | Partly | The host functions are the same for all three. A skill run by an agent also needs applet actions for building and applying a template, guarded by `ask_person` as `duplicate-a-team` is. A command or a product flow can call the host functions directly. |
-| 6 | May the person, through a wizard, make a lead and its members with remits without a calling chat? | Yes | Raised by this draft. Without it, the lead can still be made as a person-owned task host chat, but members could only be started by the lead's own agent with `dinah.team/start@1` or `start@2` once it has a turn. |
-| 7 | Is a workspace the unit of source access? | Yes, for the product's wish to scope sources per agent | Raised by this draft. Dinah gives no chat a source list of its own. The workspace applet's source, resource and mount actions find the calling workspace from the chat's folder (`callingWorkspaceRecord` in `applet_workspace_resources.go`) and limit a read to that workspace's ID and nothing narrower (`scopedWorkspaceVFS` in `workspace_vfs.go`), so every chat in a workspace reaches every source attached to it. File reads through Dinah follow workspace-wide rules, unconfined apart from deny rules, one default of which covers other workspaces' data (docs/design/agent-file-access.md). The draft gives roles no source list. |
 
 ## Where This Draft Differs From the Product's Design
 
@@ -364,8 +371,8 @@ The product's design document asked for a neutral contract from Dinah and sketch
 | 1 | The brief, training and project scope are not template fields; they go in `extensions` under the product's identifier. | Disagrees | The agreed split gives the brief, training and scope to the product. Fields in Dinah's format would make Dinah responsible for their meaning. |
 | 2 | The origin is an opaque record the product supplies, and the digest is one Dinah computes itself. | Disagrees | The sketch listed connector and resource fields in the origin, which tie the format to one kind of store. |
 | 3 | Unknown fields inside a known major version are kept and ignored; an unknown major version is refused. | Goes further | The sketch said only that unknown versions fail. Keeping unknown fields is how workspace exports already stay compatible between builds. |
-| 4 | The existing team actions cannot be used by a wizard, because they need a calling chat. | Disagrees | The design assumed the existing agent and team mechanisms suffice. `teamCaller` refuses every caller that is not an open chat on the bus, and the task host, which needs no calling chat, has no way to make a team member, so a new host function is needed (open question 6). |
-| 5 | Roles carry no source list and no capability requirements. | Disagrees | Dinah has no per-agent source scope (open question 7). A field Dinah cannot enforce would be a promise it does not keep. |
+| 4 | The existing team actions cannot be used by a wizard, because they need a calling chat. | Disagrees | The design assumed the existing agent and team mechanisms suffice. `teamCaller` refuses every caller that is not an open chat on the bus, and the task host, which needs no calling chat, has no way to make a team member, so a new host function is needed. Paul approved it on 25 November 2026 (Decided With Paul, item 1). |
+| 5 | Roles carry no source list and no capability requirements. | Disagrees | Dinah has no per-agent source scope, and Paul decided on 25 November 2026 that the workspace is the unit of source access for this release (Decided With Paul, item 2). A field Dinah cannot enforce would be a promise it does not keep. |
 | 6 | Permission modes are refused in a template. | Goes further | The design said a starter cannot expand authority. Refusing the setting outright makes that true without a comparison of modes, which no program documents. |
 | 7 | `AGENTS.md`, hidden paths and local folder sources are refused. | Goes further | The design excluded executable instructions and machine paths. These three are where Dinah's own write policy and path rules draw the same line. |
 | 8 | Dinah offers no merge of a stock file. The choices are Keep Local, Save Incoming Beside It and Replace when unchanged. | Disagrees | The design allowed an explicitly reviewed merge. A merge needs an editor and judgement; the person can merge the saved copy in Docs. |
