@@ -189,7 +189,9 @@
 .doc-paginated .doc-table-repeated-header { margin:0;pointer-events:none; }
 .doc-paginated .doc-cell-repeated-header { display:block;box-sizing:border-box;font-weight:bold;line-height:normal;background:var(--doc-code);padding-block:.2em;visibility:hidden; }
 .doc-paginated :is(td,th) { position:relative; }
-.doc-paginated .doc-table-constrained :is(td,th) { min-width:0;overflow-wrap:anywhere; }
+/* A table pages.js has fitted to its column, in Document and in Visual alike: its cells may narrow and break a word anywhere, or a row of
+   unbreakable words keeps the table as wide as the words (Visual drew a 12,000px table in a 680px view before this applied outside pages). */
+.doc-table-constrained :is(td,th) { min-width:0;overflow-wrap:anywhere; }
 .doc-paginated > .doc-page-flow > .doc-block { display: flow-root; }
 .doc-paginated > .doc-page-flow > .doc-block > :first-child { margin-top: 0; }
 .doc-furniture { position: absolute; inset: 0; pointer-events: none; font-size: 9pt; line-height: 1.25; color: var(--doc-muted); }
@@ -269,6 +271,9 @@
   .doc-page:not(.doc-paginated) { min-width: 0; }
   .doc-page:not(.page-view):not(.doc-paginated) table { display: block; width: max-content; max-width: 100%; overflow-x: auto; }
   .doc-page:not(.page-view):not(.doc-paginated) :is(td, th) { overflow-wrap: anywhere; }
+  /* Visual's editable tables are not fitted by pages.js (only drawn source blocks are), so their cells may narrow and break a word as
+     well; a row of unbreakable words otherwise kept the table as wide as the words, 12,000px in a 680px view. */
+  .doc-page.page-view:not(.doc-paginated) .ProseMirror :is(td, th) { min-width: 0; overflow-wrap: anywhere; }
 }
 /* GitHub README image alignment, also retained on local attachments. */
 .doc-page img[align="right" i] { float: right; margin: 0 0 1em 1em; }
