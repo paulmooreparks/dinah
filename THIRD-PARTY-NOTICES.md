@@ -11,6 +11,7 @@ These are compiled into the programs.
 | Component | Version | Licence |
 | --- | --- | --- |
 | The Go runtime and standard library | 1.26.11 | BSD-3-Clause |
+| git.sr.ht/~jackmordaunt/go-toast/v2 | v2.0.3 | MIT |
 | github.com/99designs/go-keychain | v0.0.0-20191008050251-8e49817e8af4 | MIT |
 | github.com/99designs/keyring | v1.2.2 | MIT |
 | github.com/alecthomas/chroma/v2 | v2.14.0 | MIT |
@@ -53,7 +54,7 @@ These are compiled into the programs.
 | github.com/tkrajina/go-reflector | v0.5.8 | Apache-2.0 |
 | github.com/wailsapp/go-webview2 | v1.0.22 | MIT |
 | github.com/wailsapp/mimetype | v1.4.1 | MIT |
-| github.com/wailsapp/wails/v2 | v2.11.0 | MIT |
+| github.com/wailsapp/wails/v2 | v2.13.0 | MIT |
 | github.com/yosida95/uritemplate/v3 | v3.0.2 | BSD-3-Clause |
 | github.com/yuin/goldmark | v1.8.6 | MIT |
 | golang.org/x/exp | v0.0.0-20240909161429-701f63a606c0 | BSD-3-Clause |
@@ -143,6 +144,76 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+~~~~
+
+### git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
+
+Go module.
+
+`git.sr.ht/~jackmordaunt/go-toast/v2/LICENSE`
+
+~~~~text
+This project is dual-licensed under the UNLICENSE or
+the MIT license with the SPDX identifier:
+
+SPDX-License-Identifier: Unlicense OR MIT
+
+You may use the project under the terms of either license.
+
+Both licenses are reproduced below.
+
+----
+The MIT License (MIT)
+
+Copyright (c) 2023 Jack Mordaunt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+---
+
+---
+The UNLICENSE
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org/>
+---
 ~~~~
 
 ### github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4
@@ -2662,7 +2733,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ~~~~
 
-### github.com/wailsapp/wails/v2 v2.11.0
+### github.com/wailsapp/wails/v2 v2.13.0
 
 Go module.
 
