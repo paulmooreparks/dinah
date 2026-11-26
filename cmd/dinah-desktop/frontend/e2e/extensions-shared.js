@@ -41,21 +41,30 @@ const path = require('path'), fs = require('fs');
   await page.waitForFunction(()=>window.dinahExtensions?.catalog().length===2);
   const frameOf=title=>page.frameLocator('.extension-frame[title="'+title+'"]');
   const framesTitled=title=>page.locator('.extension-frame[title="'+title+'"]');
+  // Asset loading precedes the host's separate ten-second bridge timer.
+  // Keep a finite readiness budget without imposing the generic locator limit.
+  const waitReady=async title=>{
+   try{await frameOf(title).locator('#status').filter({hasText:'ready'}).waitFor({timeout:30000});}
+   catch(error){
+    const host=await framesTitled(title).evaluateAll(frames=>frames.map(frame=>({src:frame.getAttribute('src'),visible:frame.style.visibility,statusHidden:frame.closest('.extension-window')?.querySelector('.form-help')?.hidden,status:frame.closest('.extension-window')?.querySelector('.form-help')?.textContent})));
+    throw new Error(title+' readiness failed; host='+JSON.stringify(host)+'; '+error.message,{cause:error});
+   }
+  };
   const evalIn=(title,fn,arg)=>frameOf(title).locator('main').evaluate(fn,arg);
   const selectWorkspace=async id=>{await page.evaluate(id=>{__selected=id;},id);await page.evaluate(()=>window.go.main.App.State().then(st=>{document.dispatchEvent(new Event('dinah:workspace-selected'));return st;}));};
 
   // 1. Shared state between two frames of the same extension in one workspace.
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'',path:JSON.stringify(['test.fixture','pane'])}));
-  await frameOf('Fixture Pane').locator('#status').filter({hasText:'ready'}).waitFor();
+  await waitReady('Fixture Pane');
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'fixture',path:JSON.stringify(['test.fixture','window'])}));
-  await frameOf('Fixture Window').locator('#status').filter({hasText:'ready'}).waitFor();
+  await waitReady('Fixture Window');
   await evalIn('Fixture Pane',()=>dinah.shared.set('selection',{file:'README.md',staged:false}));
   await frameOf('Fixture Window').locator('#shared').filter({hasText:'README.md'}).waitFor();
   ok('a shared key set by the pane reaches the window with the setter\'s view ID',await evalIn('Fixture Window',()=>{const change=__events.shared[0];return change.key==='selection'&&change.value.file==='README.md'&&change.from==='pane'&&dinah.shared.get().selection.file==='README.md';}));
   ok('the setter does not receive its own shared event',await evalIn('Fixture Pane',()=>__events.shared.length===0&&dinah.shared.get().selection.file==='README.md'));
   ok('an invalid shared key and an oversized value are refused',await evalIn('Fixture Pane',async()=>{const refused=[];for(const [key,value] of [['Bad Key','x'],['big','x'.repeat(65*1024)]]){try{await dinah.shared.set(key,value);refused.push(false);}catch(error){refused.push(true);}}return refused.every(Boolean);}));
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'',path:JSON.stringify(['test.fixture','follower'])}));
-  await frameOf('Fixture Follower').locator('#status').filter({hasText:'ready'}).waitFor();
+  await waitReady('Fixture Follower');
   ok('a newly opened frame receives the current shared map with its init message',await evalIn('Fixture Follower',()=>dinah.shared.get().selection?.file==='README.md'&&__events.shared.length===0));
   await evalIn('Fixture Window',()=>dinah.shared.set('selection',null));
   await frameOf('Fixture Pane').locator('#shared').filter({hasText:'"value":null'}).waitFor();
@@ -81,7 +90,7 @@ const path = require('path'), fs = require('fs');
   const groupOf=title=>page.locator('.extension-frame[title="'+title+'"]').locator('xpath=ancestor::section[contains(@class,"win")]').getAttribute('data-win-group');
   ok('declared views of one extension share its applet and workspace identity',await groupOf('Fixture Pane')===taskbarGroup('fixture')&&await groupOf('Fixture Window')===taskbarGroup('fixture')&&await groupOf('Fixture Follower')===taskbarGroup('fixture'));
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'fixture',path:JSON.stringify(['test.other','window'])}));
-  await frameOf('Other Extension Window').locator('#status').filter({hasText:'ready'}).waitFor();
+  await waitReady('Other Extension Window');
   ok('distinct declared manifests stay in separate applet groups in one workspace',await groupOf('Other Extension Window')==='applet-'+Buffer.from(JSON.stringify(['test.other','fixture'])).toString('base64url')&&await groupOf('Other Extension Window')!==await groupOf('Fixture Window'));
   // Dinah draws a window's detail after its title, in the title (workbench.js, combinedTitle).
   ok('a following window shows the workspace name as its title detail',(await followerWin().locator('.win-title').textContent()).trim().endsWith('· Fixture'));
@@ -134,7 +143,7 @@ const path = require('path'), fs = require('fs');
   await page.evaluate(()=>{for(const frame of document.querySelectorAll('.extension-frame'))pudlWindows.close(frame.closest('.win').dataset.win);});
   await page.waitForFunction(()=>document.querySelectorAll('.extension-frame').length===0);
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'fixture',path:JSON.stringify(['test.fixture','window'])}));
-  await frameOf('Fixture Window').locator('#status').filter({hasText:'ready'}).waitFor();
+  await waitReady('Fixture Window');
   ok('shared state is dropped when the extension\'s last frame closes',await evalIn('Fixture Window',()=>Object.keys(dinah.shared.get()).length===0));
  }catch(error){ok(error.stack,false);}finally{await t.close();}
 })();
