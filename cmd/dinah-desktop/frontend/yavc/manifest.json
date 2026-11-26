@@ -1,5 +1,5 @@
 {
-  "digest": "c1af96c875f1de3005c47ccd083ade700e9ba1ace0e29e90365e72c235156446",
+  "digest": "d594878c60b19f836fbc7556f9022f6f6ec03adc0a82fce214a0bd3d05bdead5",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -280,8 +280,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 168565,
-      "sha256": "617539cd0d847ca4974840b47ca087f618d6990c4667fcf376958776db133edd"
+      "bytes": 169709,
+      "sha256": "0ba7f182e309de07558bf83008a436a2efb47c698ceef920402572eaff5506a2"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -375,8 +375,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 172303,
-      "sha256": "8dbd09d46264722640d9e19c83c2950f2a1bf6577638ac1d5e2e71e22ac05184"
+      "bytes": 172699,
+      "sha256": "7dcfbcaf7ca5f2ec0ee15b6fc9c968b6004af087755dbfaefcbd9bff0166315d"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -1290,8 +1290,8 @@
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 23286,
-      "sha256": "79abbf4cb4b865fe21fb6052327c9dbc02207b9fb908acfd1ec542b3c5a48388"
+      "bytes": 24603,
+      "sha256": "5110c43f236b79ce6272e7d5c023599c5dc934b6532d295861764f6fdd72790e"
     },
     {
       "path": "content/md-engine/safe-html.js",
@@ -1305,8 +1305,8 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8622920,
-      "sha256": "1a50b34a1a16a8b6458c6f00a0b07c8cecc6eb5762d7502aa6f79f780347eae1"
+      "bytes": 8622407,
+      "sha256": "62296b92ef484de41426feda50f1e56b8bc398a80c87f8fe6b7cadce699ceef0"
     },
     {
       "path": "content/shortcodes.json",
@@ -1420,8 +1420,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 292186,
-      "sha256": "72ad10483f00b7fead39ee5d4eb4b29904632dea024396dc5a2592c7fa1d5346"
+      "bytes": 292318,
+      "sha256": "fb593c6e5a67a03c4501b3819675f825b3aa8c378f96c11e15f5bb643a58b441"
     },
     {
       "path": "go.mod",

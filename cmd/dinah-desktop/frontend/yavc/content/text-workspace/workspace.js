@@ -1684,6 +1684,7 @@
                 fill: function (target, cachedOnly) { window.yavcMdEditor.fillHosts(target, picturesHost(), cachedOnly); },
                 hostSpan: function (name, open) { return window.yavcMdEditor.hostSpan(name, open, picturesHost()); },
                 editHostSpan: function (name, open) { return window.yavcMdEditor.editHostSpan(name, open, picturesHost()); },
+                canEditHostSpan: function (name, open) { return window.yavcMdEditor.canEditHostSpan(name, open, picturesHost()); },
                 hostTitle: function (name) {
                     var s = (hostEntries || []).find(function (x) { return x.name === name; });
                     return s && typeof s.title === 'string' && s.title.trim() && s.title.length <= 256 ? s.title : '';

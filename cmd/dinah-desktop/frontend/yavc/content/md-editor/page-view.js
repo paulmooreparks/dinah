@@ -1775,6 +1775,8 @@ var schemaCache = null;
       if (drawn && drawn.dom && drawn.contentDOM) {
         if(o.editHostSpan){
           var button=document.createElement('button');button.type='button';button.className='btn btn-sm';button.textContent='…';button.contentEditable='false';button.setAttribute('aria-label','Change '+mark.attrs.name+' shortcode');
+          /* The button is there only for a span the host has a form for; a span with nothing to change (the host's form is null) gets none. */
+          if(o.canEditHostSpan){button.hidden=true;button.style.display='none';Promise.resolve(o.canEditHostSpan(mark.attrs.name,mark.attrs.open)).then(function(yes){if(yes){button.hidden=false;button.style.removeProperty('display');}},function(){});}
           drawn.dom.__hostControl=button;drawn.dom.appendChild(button);
           button.addEventListener('mousedown',function(e){e.preventDefault();});
           button.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();button.click();}});
