@@ -23,12 +23,6 @@
     .mock-dock { width: min(30rem, 100%); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
     .mock-dock > .win-dock-tablist { position: static; display: flex; border-bottom: 1px solid var(--border); }
     .mock-panel { min-height: 22rem; }
-    /* The proposal's one addition: the count's slot keeps the width of the
-       widest count, so the badge arriving, changing or going moves no tab. */
-    .mock-count-slot { display: inline-grid; align-items: center; justify-items: center; }
-    .mock-count-slot > .badge { grid-area: 1 / 1; }
-    .mock-count-slot > .mock-reserve { visibility: hidden; }
-    .mock-count-slot > [data-count][data-empty] { visibility: hidden; }
     .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
     .mock-notes { margin: var(--space-4) auto var(--space-5); padding: 0 var(--space-5); max-width: 44rem; font-size: var(--text-sm); }
     .mock-notes li { margin-bottom: var(--space-1); }
@@ -55,7 +49,7 @@
     <section class="mock-dock" aria-label="Right Dock">
       <div class="tablist win-dock-tablist" role="tablist" aria-label="Right Dock">
         <div class="section-tab win-dock-entry" role="presentation" data-selected>
-          <button type="button" role="tab" aria-selected="true" id="tab-chats" data-dock-key="chat-browser"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="win-item-title">Chats</span><span class="mock-count-slot"><span class="badge warn win-item-attention mock-reserve" aria-hidden="true">99+</span><span class="badge warn win-item-attention" data-count aria-hidden="true"></span></span></button>
+          <button type="button" role="tab" aria-selected="true" id="tab-chats" data-dock-key="chat-browser"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="win-item-title">Chats</span><span class="badge win-item-attention" data-count aria-hidden="true" style="display: none"></span></button>
         </div>
         <div class="section-tab win-dock-entry" role="presentation">
           <button type="button" role="tab" aria-selected="false" id="tab-notes" data-dock-key="needs-you" aria-label="Notifications, 2 needing attention" title="Notifications, 2 needing attention"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="win-item-title">Notifications</span><span class="badge warn win-item-attention" aria-hidden="true">2</span></button>
@@ -80,13 +74,13 @@
   <div class="mock-notes">
     <p><strong>What the count says.</strong></p>
     <ul>
-      <li>The Chats tab shows how many chats are busy. A chat is busy while its agent is in a turn, and also while it has a background task or subagent running after its turn has ended.</li>
-      <li>The count covers every chat this window runs, in every open workspace, because the tab belongs to the window and not to one workspace. Changing the list between This Workspace and All Open Workspaces changes the list only; the count stays the same.</li>
-      <li>When every chat is idle the badge is gone, so an empty tab means nothing is running.</li>
-      <li>A chat that waits for you is counted by Notifications and sits under Needs You. It is not counted as busy.</li>
-      <li>The badge is the one the Notifications tab draws today. Its slot keeps the width of "99+" whether a count is shown or not, so the badge appearing, changing or going moves no tab and no title.</li>
-      <li>The Notifications tab itself does not keep such a slot today: when its count appears the tab widens by about 40 pixels and the tabs after it move. The status bar's Notifications button does keep one, with a hidden "99+" copy.</li>
-      <li>With All Open Workspaces chosen, the Working group lists the same chats the count counts, and its own count is the same number.</li>
+      <li>The Chats tab shows how many chats are busy. A chat is busy while its agent is in a turn, and also while it has any background task or subagent still running, whatever else its state says.</li>
+      <li>The count covers every chat this window runs, in every open workspace, because the tab belongs to the window and not to one workspace. Changing the list between This Workspace and All Open Workspaces changes the list only, and the count stays the same.</li>
+      <li>When nothing at all is running the badge is gone, so a tab with no count means no chat is in a turn and no background task or subagent is left.</li>
+      <li>A chat under Needs You that still has a background task running is counted. Release Notes here waits for an approval while its task runs, so it is listed under Needs You and counted as busy. The count therefore need not equal the Working group's count.</li>
+      <li>The badge is a plain neutral badge, without the warning colour of the Notifications count, because a busy chat needs nothing from you.</li>
+      <li>No room is kept for the badge. The Chats tab widens when a count appears and narrows when it goes, as the Notifications tab does today, and the tabs after it move with it. The Notifications tab stays as it is.</li>
+      <li>The list keeps its hold while the pointer is over it, so the count can change a moment before the held rows move to their new groups.</li>
     </ul>
   </div>
 
@@ -100,6 +94,7 @@
         { id: 'docs', title: 'Docs Pass', ws: 'Parser', agent: 'Claude', state: 'waiting', tasks: 0, when: '10:20' },
         { id: 'triage', title: 'Test Triage', ws: 'Parser', agent: 'Codex', state: 'idle', tasks: 0, when: '09:58' },
         { id: 'landing', title: 'Landing Page', ws: 'Website', agent: 'Claude', state: 'working', tasks: 0, when: '10:40' },
+        { id: 'notes', title: 'Release Notes', ws: 'Website', agent: 'Codex', state: 'waiting', tasks: 1, when: '10:36' },
         { id: 'images', title: 'Image Audit', ws: 'Website', agent: 'Codex', state: 'idle', tasks: 0, when: '09:15' }
       ];
       var here = 'Parser', chats = [];
@@ -108,11 +103,12 @@
       function why(c) {
         if (c.state === 'working') return 'Turn in progress';
         if (c.state === 'background') return c.tasks + (c.tasks === 1 ? ' background task' : ' background tasks');
-        if (c.state === 'waiting') return 'Needs your answer or approval';
+        if (c.state === 'waiting') return 'Needs your answer or approval' + (c.tasks ? '; ' + c.tasks + (c.tasks === 1 ? ' background task' : ' background tasks') + ' still running' : '');
         return 'No work in progress';
       }
-      function busy(c) { return c.state === 'working' || c.state === 'background'; }
-      function groupOf(c) { return c.state === 'waiting' ? 'Needs You' : busy(c) ? 'Working' : 'Chats'; }
+      // Busy is a turn in progress or any background task still running, whatever group the chat is listed in.
+      function busy(c) { return c.state === 'working' || c.tasks > 0; }
+      function groupOf(c) { return c.state === 'waiting' ? 'Needs You' : c.state === 'working' || c.state === 'background' ? 'Working' : 'Chats'; }
       function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
       function chip(state, text) {
         var b = el('span', 'badge browser-row-badge chat-state chat-state-' + state, text);
@@ -155,10 +151,11 @@
         shown.forEach(function (c) { groups[groupOf(c)].push(row(c, scope)); });
         var host = document.getElementById('sessions'); host.replaceChildren();
         ['Needs You', 'Working', 'Chats'].forEach(function (name) { if (groups[name].length) host.appendChild(group(name, groups[name])); });
-        // The count is the window's: every busy chat in every open workspace.
+        // The count is the window's, covering every busy chat in every open workspace. No room is kept for it, so the
+        // tab widens when it appears and narrows when it goes.
         var n = chats.filter(busy).length, badge = document.querySelector('#tab-chats [data-count]');
         badge.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
-        if (n) badge.removeAttribute('data-empty'); else badge.setAttribute('data-empty', '');
+        badge.style.display = n ? '' : 'none';
         var label = 'Chats' + (n ? ', ' + n + ' busy' : ', all idle');
         document.getElementById('tab-chats').setAttribute('aria-label', label);
         document.getElementById('tab-chats').title = label;
@@ -188,7 +185,7 @@
         say(c.title + "'s background task finished" + (c.state === 'idle' ? ', so it is idle.' : '.'));
       });
       document.getElementById('all-idle').addEventListener('click', function () {
-        chats.forEach(function (c) { if (busy(c)) { c.state = 'idle'; c.tasks = 0; } }); draw(); say('Every agent is idle, so the badge is gone.');
+        chats.forEach(function (c) { c.tasks = 0; if (c.state === 'working' || c.state === 'background') c.state = 'idle'; }); draw(); say('Nothing is running any more, so the badge is gone. A chat waiting for you stays under Needs You.');
       });
       document.getElementById('reset').addEventListener('click', function () {
         chats = start.map(function (c) { return Object.assign({}, c); }); document.getElementById('chat-scope').value = 'all'; draw(); say('');
