@@ -32,6 +32,7 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 
 | Step | Command (from the repository root unless stated) | A pass looks like |
 |---|---|---|
+| 0. Check the last GitHub build | `gh run list -R paulmooreparks/dinah --workflow build.yml --branch master --limit 1 --json headSha,status,conclusion` | The run for the last pushed master has finished with `success`, or is still running. A failed run is reported to the lead who owns the failing area and to Software Director before the next merge starts, with the failing jobs from `gh run view <id> --log-failed`. The merge itself may go ahead unless the failure is in the area the handover changes. |
 | 1. Look at the branch | `git fetch -q origin`, `git log --oneline master..<branch>`, `git diff --stat master...<branch>` | The commits and files match what the handover described, and the branch is based on a recent master. |
 | 2. Merge | `git merge --ff-only <branch>` when the branch is on master's head; otherwise `git merge --no-edit <branch>` | A fast-forward, or a merge commit with no conflicts. |
 | 3. Forbidden-terms guard | `DINAH_FORBIDDEN_TERMS=~/.dinah/forbidden-terms.txt go test -count=1 -v ./internal/profile/` | `ok` with no `SKIP` line and no `(cached)`. |
