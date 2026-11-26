@@ -205,7 +205,7 @@
     var disposed = false, ready = false, readNumber = 0, refreshing = false, refreshAgain = false, moreBefore = 0, loadedPages = 1, readPromise = null, readValid = false;
     var items = new Map(), order = [], selected = '', selectedCopy = null, filter = '', view = 'requests';
     var pane = 'request', lastFinished = null, quoteWatch = null;
-    var rendered = '', draft = null, draftKey = '', saving = 0, draftError = '', checking = new Set();
+    var rendered = '', draft = null, draftKey = '', draftError = '', checking = new Set();
     root.classList.add('decisions');
     // PUDL temporarily makes automatic docks rails while this window needs room.
     root.closest('[data-win]').setAttribute('data-win-room', '84rem');
@@ -226,7 +226,7 @@
     var detail = node('section', 'decisions-detail md-detail'); detail.setAttribute('aria-label', 'Request Details');
     var empty = node('section', 'decisions-empty');
     sidebar.append(toolbar, listNotice, list, more, listEnd); body.append(sidebar, detail); layout.appendChild(body); root.append(status, layout, empty);
-    var form = null, send = null, receiptLine = null, changedLine = null, review = null, destination = null;
+    var form = null, send = null, receiptLine = null, changedLine = null, review = null;
     function address() { var p = new URLSearchParams(); if (selected) p.set('request', selected); if (filter) p.set('q', filter); if (view !== 'requests') p.set('view', view); if (pane === 'about') p.set('pane', 'about'); return p.toString(); }
     function navigate(nextView, id) { view = nextView; pane = 'request'; selected = id || ''; rendered = ''; opts.changed(address()); draw(); }
     function say(text) { if (disposed) return; status.textContent = text; if (receiptLine && receiptLine.isConnected && text) receiptLine.textContent = text; if (empty && !empty.hidden && empty.querySelector('.empty-state-title')) empty.querySelector('.empty-state-title').textContent = text || 'There are no open requests.'; }
@@ -239,11 +239,11 @@
     function draftFor(id) { return window.dinahDecisionDrafts.read(id); }
     function store(id, value) { return window.dinahDecisionDrafts.write(id, value); }
     function persist() {
-      var key = draftKey, value = draft; saving++; draftError = ''; controls();
+      var key = draftKey, value = draft; draftError = ''; controls();
       return store(key, value).then(function () { if (draftKey === key) draftError = ''; }, function (error) {
         if (draftKey === key) draftError = 'Your draft could not be saved. ' + errorText(error);
         throw error;
-      }).finally(function () { saving--; controls(); });
+      }).finally(function () { controls(); });
     }
     function saveEdited() { say(''); if (draft.operation && !workingOp(draft)) draft.operation = null; persist().catch(function () {}); }
     // Whether the person can dismiss an entry now, and the reason when not. The host allows it: canDismiss on a

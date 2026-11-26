@@ -4,7 +4,7 @@
   'use strict';
 
   function create(adapter) {
-    const { app, ask, toast, fail, productName, drawSessions, drawGoTo, setContext, show, refreshSessions } = adapter;
+    const { app, ask, toast, fail, productName, drawSessions, drawGoTo, setContext, show } = adapter;
     const $ = id => document.getElementById(id);
     let workspaceId = '', workspaceRecords = [], recentWorkspaces = [], openWorkspaces = [];
     let workspaceBrowser = null;

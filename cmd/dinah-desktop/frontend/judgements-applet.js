@@ -719,7 +719,7 @@
   });
 
   /* ---- Settings › Judgements ---- */
-  var settings = null, settingsBusy = false, judgeProviders = null, settingsShown = false;
+  var settings = null, judgeProviders = null, settingsShown = false;
   var modelsKey = null, modelsRequest = 0;
   document.addEventListener('dinah:settings-section', function (event) {
     settingsShown = event.detail.section === 'judgements';
@@ -1007,7 +1007,6 @@
   }
   function saveNow(patch, statusId, said, tries) {
     if (!settings) return;
-    settingsBusy = true;
     var status = $(statusId);
     var next = Object.assign({}, settings, patch);
     var revision = settings.revision;
@@ -1027,7 +1026,7 @@
       /* The other writer's version stands, so read it back rather than keep
          the page's copy. */
       return Promise.resolve().then(function () { return app().JudgementSettings(); }).then(function (r) { settings = unpackSettings(r); drawSettings(); }).catch(function () {});
-    }).finally(function () { settingsBusy = false; });
+    });
   }
   function disclosure(label, body, className, bodyId) {
     var wrap = node('div', className);

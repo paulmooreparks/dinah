@@ -342,11 +342,11 @@
   }
 
   function installHost(adapter) {
-    const { app, chats, chatBrowser, notices, productName, toast, fail,
+    const { app, chats, chatBrowser, notices, productName, fail,
       showChat, showNotifications, openGoTo, openWorkspaceRename, removeWorkspace,
       exportWorkspace, importWorkspace, installPackages, startNewChat, createWorkspace,
-      clearNotifications, drawWorkspaces, refreshSessions, openSettings, startRename,
-      openRemove, signIn, frontProvider, restartAgent, saveThinking, flushNotifications,
+      clearNotifications, drawWorkspaces, refreshSessions, openSettings,
+      signIn, frontProvider, restartAgent, saveThinking, flushNotifications,
       workspaceCommands, chatCommands, thinking } = adapter;
 
     /* The Chat menu (docs/design/menus.md): first what is done with chats as

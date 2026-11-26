@@ -3,7 +3,7 @@
   'use strict';
 
   function create(adapter) {
-    const { app, element: $, hidePop, typed, skillsChanged, toast, fail } = adapter;
+    const { app, element: $, hidePop, typed, skillsChanged, fail } = adapter;
 
     /* ---- Personal templates -----------------------------------------------
        Prompts the person keeps under a name, in the settings file. They come

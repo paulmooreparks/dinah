@@ -211,7 +211,7 @@
     ...chats.settings, setWorkspaceRecords: records => workspaces.setRecords(records)
   });
   const { openSettings, setWindowModeControl, drawWindowKindModes,
-    setFileLimits, setOptionSubstitutions, scanProviders,
+    setFileLimits, setOptionSubstitutions,
     setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, setBackgroundChatLimitControl,
     setPersonName, setDocumentViews, settingsStatus } = settings;
 

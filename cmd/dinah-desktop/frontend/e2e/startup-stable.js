@@ -1,6 +1,6 @@
 // Nothing the person sees moves while the page starts. The page is built
-// with its default windows first, and the saved layout arrives from the
-// engine some time later; until 17 November 2026 both were shown, so the
+// while its saved layout arrives from the engine; until 17 November 2026
+// both the default and saved layouts were shown, so the
 // default docks stood beside an empty launcher pane for about a second and
 // everything then moved to its saved place. The start screen is now in front
 // of the page until the saved layout has been drawn (app.css, .start-screen;
@@ -62,7 +62,7 @@ const record = () => {
       const last = frames[frames.length - 1];
       ok('the page was recorded while it started, with its contents out of sight', before.length > 0 && before.every(frame => frame.hidden), JSON.stringify(before.filter(frame => !frame.hidden).slice(0, 2)));
       ok('the start screen shows the name of the product and says what is happening meanwhile', before.some(frame => frame.starting));
-      ok('the default windows were built out of sight, in other places than the saved layout has', before.some(frame => text(frame) !== text(last) && frame.parts['window needs-you']), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
+      ok('an unfinished layout was recorded behind the start screen', before.some(frame => text(frame) !== text(last)), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
       ok('the saved layout is what is shown', !!last.parts['window chat-session'] && !last.parts['window needs-you'] && last.seen && !last.busy, text(last));
       ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame)).join('\n'));
       ok('the launcher pane never stood empty beside the windows', frames.every(frame => !frame.parts.slot), frames.filter(frame => frame.parts.slot).map(frame => frame.t + ' ' + frame.parts.slot).join(' '));

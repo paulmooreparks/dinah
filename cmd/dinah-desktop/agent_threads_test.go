@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -202,6 +205,21 @@ func TestAChatContinuedInANewThreadNamesThatThread(t *testing.T) {
 // once the continuation is committed, and a refusal to archive it does not
 // fail the continuation.
 func TestTheEarlierStageOfAContinuedChatIsArchived(t *testing.T) {
+	// The stand-in provider never runs the hook, but starting a Devin chat
+	// still requires a command beside the window. Supply that fixture rather
+	// than depending on a local installation on PATH.
+	dir := t.TempDir()
+	command := product.CommandProgram
+	if runtime.GOOS == "windows" {
+		command += ".exe"
+	}
+	if err := os.WriteFile(filepath.Join(dir, command), []byte("fixture, never execute"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	previous := devinSteeringExecutable
+	devinSteeringExecutable = func() (string, error) { return filepath.Join(dir, "window"), nil }
+	t.Cleanup(func() { devinSteeringExecutable = previous })
+	t.Setenv("PATH", t.TempDir())
 	for _, refused := range []bool{false, true} {
 		t.Run(map[bool]string{false: "archived", true: "refused"}[refused], func(t *testing.T) {
 			a, c := threadTestApp(t)
