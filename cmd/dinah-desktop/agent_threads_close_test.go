@@ -191,7 +191,7 @@ func TestClosingAWindowNeverWaitsForTheAgent(t *testing.T) {
 	}
 	select {
 	case <-asked:
-	case <-time.After(5 * time.Second):
+	case <-t.Context().Done():
 		t.Fatal("the agent was not asked to close the session")
 	}
 	close(gate)
