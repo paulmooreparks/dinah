@@ -71,6 +71,14 @@ Then reply to the handover message, which reaches the lead who handed the work o
 
 **The Go gate.** `scripts/go-gate.ps1` runs go test under the machine-wide lock that the browser suites use, so two agents' gates never overlap. Pipe its output only with `set -o pipefail` in Bash, or read `$LASTEXITCODE` in PowerShell. On 12 November a failure piped into `tail` was hidden and the push went out.
 
+**A failure outside the merge.** A test sometimes times out when another chat's work is loading the machine; it happened three times on 26 November, each in a package the merge did not touch. When a Go gate or browser suite failure is in a package or suite the merge does not change, the integrator may rerun once, and only on these terms:
+1. Report the first failure in full in the merge report: the test, its package and its output.
+2. Run the failing test alone (`go test -count=1 -run '^<Test>$' ./<package>`, or the one suite with `run.ps1 -Only`). Rerun the whole gate only if it passes alone.
+3. Stop and ask the lead and Software Director, without merging, if the same test fails a second time, if the test also fails alone, or if any failure is in a package or suite the merge changes.
+4. Name the test to Dinah Quality, which owns tests that fail at random, so it is fixed and does not become a known failure everyone passes over.
+
+A merge changes a package when it changes any file in that package's folder, or a file the package embeds.
+
 **The push.** Push master by name and nothing else. On 30 October a loop that pushed every local branch put old-history branches on the new public repository, which then had to be recreated. Never push `backup/pre-rewrite`, anything under `refs/original`, or a bundle file. Never force-push master unless Paul has approved a history rewrite.
 
 ## How an install works
