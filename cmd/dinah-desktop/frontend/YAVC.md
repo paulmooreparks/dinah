@@ -5,8 +5,9 @@
 | Item | Value |
 | --- | --- |
 | Producer | https://github.com/paulmooreparks/yavc.app |
-| Release | v0.2.119, commit `b4fb3a6f7da6dcb6ed27e934ec3b33205e2c1ed9`, downloaded from the release's assets (`yavc-content-v0.2.119.zip`, SHA-256 `9d6c86a5072fc7149627a466833b564087d770ef7d90c5e1e86b3d950d54cebb`), checked with yavc.app's `scripts/release_record.py` against the release record pinned on the bus (SHA-256 `ce4218902546e58a3ec5e5a0851eb53a306384e25c0fd1f96aad4c5f1d4883f7`) and against GitHub's build attestation |
-| Manifest digest | `a4ae59215d911dfb7fd801779950f1ac6ca619c0ac391182e72f2e50382386dd` |
+| Release | v0.2.120, commit `7be70d9d0a2cd9064b361459c422480a5c48df39`, downloaded from the release's assets (`yavc-content-v0.2.120.zip`, SHA-256 `8370cd73cc056a911881c2b3faa4e3c6267f5d4c98169755821fa846fec5ea50`), checked with yavc.app's `scripts/release_record.py` against the release record pinned on the bus (SHA-256 `7430d84b598265e554fcea2fbaad517f085148c52f3140d4afa68b8cfd28926b`) and against GitHub's build attestation |
+| Known open | A WebKit check on Linux (yavc.app `test-docs-structure.cjs`) fails: text typed at the end of a document that ends in a table does not become a new paragraph. Paul accepted the release with it open; the Yavc.App Team Lead owns it. |
+| Manifest digest | `4819fe84166a2d3daf09a42f7b132e5e0e53a937481074448610ad5ecd78caae` |
 | Applets | Editor 46.37.57, Docs 1.37.57, Diagrams 0.46.15, Slides 0.65.10 |
 | PUDL | 0.109.0, the same release Dinah ships in `pudl/` |
 

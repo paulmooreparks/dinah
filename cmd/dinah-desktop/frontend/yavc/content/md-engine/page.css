@@ -189,9 +189,7 @@
 .doc-paginated .doc-table-repeated-header { margin:0;pointer-events:none; }
 .doc-paginated .doc-cell-repeated-header { display:block;box-sizing:border-box;font-weight:bold;line-height:normal;background:var(--doc-code);padding-block:.2em;visibility:hidden; }
 .doc-paginated :is(td,th) { position:relative; }
-/* A table pages.js has fitted to its column, in Document and in Visual alike: its cells may narrow and break a word anywhere, or a row of
-   unbreakable words keeps the table as wide as the words (Visual drew a 12,000px table in a 680px view before this applied outside pages). */
-.doc-table-constrained :is(td,th) { min-width:0;overflow-wrap:anywhere; }
+.doc-paginated .doc-table-constrained :is(td,th) { min-width:0;overflow-wrap:anywhere; }
 .doc-paginated > .doc-page-flow > .doc-block { display: flow-root; }
 .doc-paginated > .doc-page-flow > .doc-block > :first-child { margin-top: 0; }
 .doc-furniture { position: absolute; inset: 0; pointer-events: none; font-size: 9pt; line-height: 1.25; color: var(--doc-muted); }
@@ -253,27 +251,29 @@
 /* A picture never widens the page: it scales to the column, as a figure's
    does; code and tables scroll within themselves (DESIGN.md, decision 15). */
 .doc-page img { max-width: 100%; height: auto; }
-/* A page that is not laid out in pages (Preview and the reading page) never
-   grows wider than its pane (decision 15). Its min-width: fit-content above
-   let a table cell holding a word longer than the pane, such as a run of
-   joined identifiers, widen the whole page, so every paragraph ran past the
-   window. On screen such a page keeps the pane's width and its table is its
-   own scrolling box. A cell's words may break anywhere, as in a fitted
-   Visual table, so a long run of joined identifiers wraps inside its cell
-   and the table fits the pane; the scroll is left for a table whose
-   columns cannot fit even at their narrowest (Paul, 2026-11-26). Visual and
-   Document fit their tables in pages.js; print keeps ordinary table
-   layout. Visual's page is held to the pane as well: a host that frames a
-   picture at its natural width (a desktop host's picture viewer) widened it
-   to the picture, so a width of 80% was 80% of the grown page. Held to
-   the pane, the frame's own max-width: 100% applies again. */
+/* A page that is not laid out in pages (Visual, Preview and the reading
+   page) never grows wider than its pane (decision 15). Its min-width:
+   fit-content above let a host's picture frame at the picture's natural
+   width, or a table cell holding a word longer than the pane, widen the
+   whole page, so every paragraph ran past the window.
+
+   A table on such a page is laid out as the wiki it often comes from lays
+   it out (decision 212): each column as wide as its content needs, no word
+   broken in the middle unless that one word is longer than the cell can
+   be, and a table too wide for the pane scrolls sideways in its own box.
+   As a block with width: fit-content the table is its content's width
+   when that fits and the pane's width when it does not, and its rows are
+   an anonymous table inside it, so the browser's own column widths apply.
+   Columns are never crushed to fit: v0.2.119 let every cell break a word
+   anywhere, which gave a prose column the whole width and drew a short
+   heading one or two letters to a line. Document lays tables out on its
+   sheets in pages.js; print keeps ordinary table layout. */
 @media screen {
   .doc-page:not(.doc-paginated) { min-width: 0; }
-  .doc-page:not(.page-view):not(.doc-paginated) table { display: block; width: max-content; max-width: 100%; overflow-x: auto; }
-  .doc-page:not(.page-view):not(.doc-paginated) :is(td, th) { overflow-wrap: anywhere; }
-  /* Visual's editable tables are not fitted by pages.js (only drawn source blocks are), so their cells may narrow and break a word as
-     well; a row of unbreakable words otherwise kept the table as wide as the words, 12,000px in a 680px view. */
-  .doc-page.page-view:not(.doc-paginated) .ProseMirror :is(td, th) { min-width: 0; overflow-wrap: anywhere; }
+  .doc-page:not(.doc-paginated) table { display: block; width: fit-content; max-width: 100%; overflow-x: auto; }
+  /* A label drawn as one piece (a status badge, keys, a host's inline
+     shortcode) stays on one line, as the wiki draws it. */
+  .doc-page :is(td, th) :is(.badge, .pm-sc, .sc-host[data-host-kind="inline"]) { white-space: nowrap; }
 }
 /* GitHub README image alignment, also retained on local attachments. */
 .doc-page img[align="right" i] { float: right; margin: 0 0 1em 1em; }
