@@ -10,7 +10,7 @@ These are compiled into the programs.
 
 | Component | Version | Licence |
 | --- | --- | --- |
-| The Go runtime and standard library | 1.26.10 | BSD-3-Clause |
+| The Go runtime and standard library | 1.26.11 | BSD-3-Clause |
 | github.com/99designs/go-keychain | v0.0.0-20191008050251-8e49817e8af4 | MIT |
 | github.com/99designs/keyring | v1.2.2 | MIT |
 | github.com/alecthomas/chroma/v2 | v2.14.0 | MIT |
@@ -109,7 +109,7 @@ These are served by the programs as part of the window's page. A component that 
 
 ## The notices
 
-### The Go runtime and standard library 1.26.10
+### The Go runtime and standard library 1.26.11
 
 Go toolchain.
 
