@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"studio/internal/acp"
 	"studio/internal/diagrampicture"
@@ -103,7 +102,7 @@ func TestCleanupAcceptanceBinningRevokesLiveDrawingAndCancelsWork(t *testing.T) 
 		t.Fatal(err)
 	}
 	finished := make(chan error, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	go func() {
 		picture, err := client.Draw(ctx, diagrampicture.Request{RequestID: "bf1496d2-f919-4710-97eb-40d8a339fd20", WorkspaceID: record.ID, Source: diagrampicture.Snapshot{Path: "flow.mmd", SHA256: diagrampicture.Hash(text)}, Format: "png", Scale: 1})

@@ -10,7 +10,12 @@ const {launch}=require('./lib/page');
     const img=el.querySelector('img'),words=el.querySelector('[data-product-name]');
     return img?.complete&&img.naturalWidth>0&&img.alt===''&&words?.textContent==='Dinah'&&img.getBoundingClientRect().right<=words.getBoundingClientRect().left;
    }));
-   await title.click();ok(mode+' logo title opens the site menu',await title.getAttribute('aria-expanded')==='true');await page.keyboard.press('Escape');
+   await title.click();
+   await page.waitForFunction(() => document.querySelector('.menubar-title[data-menu-id="site"]').getAttribute('aria-expanded') === 'true');
+   ok(mode+' logo title opens the site menu',await title.getAttribute('aria-expanded')==='true');
+   // Close through the invoker so cleanup does not depend on keyboard focus.
+   await title.click();
+   await page.waitForFunction(() => document.querySelector('.menubar-title[data-menu-id="site"]').getAttribute('aria-expanded') === 'false');
    await page.evaluate(()=>pudlMenubar.refresh());
    ok(mode+' logo survives menu refresh',await title.locator('img').count()===1);
    await t.shot('branding-'+mode);

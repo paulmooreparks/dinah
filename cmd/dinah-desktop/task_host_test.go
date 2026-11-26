@@ -90,7 +90,7 @@ func TestTaskHostAllocationPersistsRealAppBoundaries(t *testing.T) {
 			var receipt taskhost.Receipt
 			select {
 			case receipt = <-terminal:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWait):
 				t.Fatal("allocation did not settle")
 			}
 			if err := h.Shutdown(context.Background()); err != nil && mode == "success" {

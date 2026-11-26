@@ -157,7 +157,7 @@ func (f *qualityHostCleanup) OpenWithLeases(id string) map[string]string {
 }
 func (f *qualityHostCleanup) UseLease(token string) error {
 	l := f.linked.leases[token]
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "OPTIONS", l.env["DIAGRAM_PICTURE_ENDPOINT"]+diagrampicture.Route, nil)
 	if err != nil {
@@ -182,7 +182,7 @@ func (f *qualityHostCleanup) StartPendingLeaseWork(token string) {
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	f.t.Cleanup(cancel)
 	go func() {
 		p, err := client.Draw(ctx, diagrampicture.Request{RequestID: "bf1496d2-f919-4710-97eb-40d8a339fd20", WorkspaceID: f.linked.workspaceID, Source: diagrampicture.Snapshot{Path: "flow.mmd", SHA256: diagrampicture.Hash([]byte("graph TD; A-->B"))}, Format: "png", Scale: 1})
@@ -208,7 +208,7 @@ func (f *qualityHostCleanup) PendingLeaseWork(token string) (bool, bool) {
 	select {
 	case err := <-l.finished:
 		return cancelled, err == nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		f.t.Fatal("cancelled request did not return")
 		return false, false
 	}

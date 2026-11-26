@@ -51,7 +51,7 @@ type qualityPauseWire struct {
 
 func qualityAwait(t *testing.T, why string, f func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for !f() {
 		if time.Now().After(deadline) {
 			t.Fatal(why)

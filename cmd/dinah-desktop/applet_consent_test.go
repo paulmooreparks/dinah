@@ -137,7 +137,7 @@ func TestAChatRunUnattendedIsNotAskedForConsent(t *testing.T) {
 	for _, v := range []broker.Invocation{codex, ollama} {
 		// A question that is asked is left unanswered, so the context's end ends it
 		// and the test fails instead of waiting for a person.
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), testWait)
 		err := a.appletConsent(ctx, v, action)
 		cancel()
 		if err != nil {

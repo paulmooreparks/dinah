@@ -206,7 +206,7 @@ func (x *groupMentionsFixture) prompts() []promptCall {
 // pending chat-state publications, as NewSessionWithProviderAt does. It fails
 // if the work has not settled in time.
 func (x *groupMentionsFixture) settle() error {
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for {
 		before := len(x.prompts())
 		ring(x.t, x.a)
@@ -517,7 +517,7 @@ func TestGroupMentionsAcceptanceServer(t *testing.T) {
 	case <-time.After(5 * time.Minute):
 		t.Error("receiving driver did not close")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	_ = server.Shutdown(ctx)
 }

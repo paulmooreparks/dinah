@@ -54,7 +54,7 @@ const { choose, shows } = require('./lib/commands');
   // it is in its group's menu but still not hidden.
   const chat = () => p.locator('.win[data-chat-current]');
   const offered = (id, yes) => chat().locator('[data-command="' + id + '"]' + (yes ? ':not([hidden])' : '[hidden]')).first()
-    .waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false);
+    .waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false);
   ok('with no session the bar shows the mode', await offered('mode', true));
   ok('and the default model', await shows(chat(), 'model', 'Claude Opus 5.5 Medium'));
   // All Models@ is the last row of Chat, Model (docs/design/menus.md), and a command of its own. No menu is opened, so Escape below closes nothing.

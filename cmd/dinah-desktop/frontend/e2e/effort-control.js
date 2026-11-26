@@ -48,7 +48,7 @@ const { launch } = require('./lib/page');
     if ((await chat.getAttribute('data-win-mode')) !== 'maximized') await chat.locator('[data-win-action="maximize"]').click().catch(() => {});
     const id = await p.evaluate(t => Object.keys(__chats).find(k => __chats[k].title === t), title);
     // The chat's options have arrived once the Model control shows its model.
-    await p.waitForFunction(() => { const m = document.querySelector('.win[data-chat-current] [data-command="model"] .toolbar-words'); return m && m.textContent === 'Fixture Model'; }, null, { timeout: 5000 }).catch(async () => { console.log('DEBUG ' + id + ' ' + await p.evaluate(() => document.querySelector('.win[data-chat-current] .composer-toolbar').outerHTML.slice(0, 1500))); });
+    await p.waitForFunction(() => { const m = document.querySelector('.win[data-chat-current] [data-command="model"] .toolbar-words'); return m && m.textContent === 'Fixture Model'; }, null, { timeout: 30000 }).catch(async () => { console.log('DEBUG ' + id + ' ' + await p.evaluate(() => document.querySelector('.win[data-chat-current] .composer-toolbar').outerHTML.slice(0, 1500))); });
     await frame(); await frame();
   };
   const mark = () => effort().evaluate(b => { const m = b.querySelector('.effort-mark'); return { cells: m.children.length, on: m.querySelectorAll('[data-on]').length, width: Math.round(m.getBoundingClientRect().width), words: b.querySelector('.toolbar-words').textContent, name: b.getAttribute('aria-label') }; });

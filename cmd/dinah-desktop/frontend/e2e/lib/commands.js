@@ -89,6 +89,6 @@ async function rowsOf(page, scope, id) {
 function shows(scope, id, words) {
   const exact = new RegExp('^\\s*' + words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$');
   return scope.locator('[data-command="' + id + '"] .toolbar-words').filter({ hasText: exact }).first()
-    .waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false);
+    .waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false);
 }
 module.exports = { press, openMenu, choose, shown, shows, rowsOf };

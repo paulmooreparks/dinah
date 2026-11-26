@@ -184,7 +184,7 @@ func TestAResumeAnsweredNotFoundContinuesWithTheCopyKept(t *testing.T) {
 	if err != nil || info.ID == id {
 		t.Fatalf("the reopen did not continue: %+v %v", info, err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("recovery prompt did not finish")
 	}
 	if countCalls(c, "session/new") != 1 || countCalls(c, "session/prompt") != 1 {

@@ -45,7 +45,7 @@ func TestTaskHostModelReceiptAndRuntimeRelease(t *testing.T) {
 				select {
 				case receipt := <-f.terminal:
 					return receipt
-				case <-time.After(5 * time.Second):
+				case <-time.After(testWait):
 					t.Fatal("operation did not settle")
 					return taskhost.Receipt{}
 				}

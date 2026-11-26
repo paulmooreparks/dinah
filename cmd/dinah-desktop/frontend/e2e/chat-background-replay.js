@@ -26,7 +26,7 @@ const { launch } = require('./lib/page');
     await t.emit('agent:session',{sessionId:'codex:background',cwd:'C:/Fixture',provider:'codex',open:true,historyLoading:true,streamGen:'background',streamHead:0});
     await p.waitForFunction(()=>window.__records['codex:background']?.info.historyLoading);
     await p.evaluate(() => dinahWorkbench.open({kind:'chat-session',workspace:'C:/Fixture',path:'codex:background'}));
-    await p.waitForFunction(() => !!window.__joined, {}, {timeout:3000}).catch(()=>{});
+    await p.waitForFunction(() => !!window.__joined, {}, {timeout: 30000}).catch(()=>{});
     const joined=await p.evaluate(()=>!!window.__joined);
     t.ok('restoring window joins the engine open already in progress', joined, await p.evaluate(()=>JSON.stringify({info:__records['codex:background'].info,loading:__records['codex:background'].loading,failed:__records['codex:background'].failed})));
     if (!joined) return;

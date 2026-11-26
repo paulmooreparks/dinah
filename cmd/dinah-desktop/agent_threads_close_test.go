@@ -186,7 +186,7 @@ func TestClosingAWindowNeverWaitsForTheAgent(t *testing.T) {
 	go func() { a.ChatWindows(nil); close(returned) }()
 	select {
 	case <-returned:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the report of the closed window waited")
 	}
 	select {

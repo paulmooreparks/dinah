@@ -111,7 +111,7 @@ func TestAReopenedChatOpensWhenARestoreIsNeverAnswered(t *testing.T) {
 	release()
 	select {
 	case <-answered:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the held request was not let go")
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -165,7 +165,7 @@ func TestANewChatOpensWhenARestoreIsNeverAnswered(t *testing.T) {
 	release()
 	select {
 	case <-answered:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the held request was not let go")
 	}
 	time.Sleep(100 * time.Millisecond)

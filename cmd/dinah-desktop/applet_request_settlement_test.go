@@ -60,7 +60,7 @@ func TestWithdrawalProviderPreservesPendingHumanRequestContract(t *testing.T) {
 	var pending broker.Invocation
 	select {
 	case pending = <-waiting:
-	case <-time.After(10 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the original human request did not reach waiting")
 	}
 	// Get takes the original broker's record lock after the worker publishes

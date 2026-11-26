@@ -56,7 +56,7 @@ func TestPauseFlowCancelDuringSteeringStillWakesChat(t *testing.T) {
 	if err := <-paused; err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for waiting(t, a, s.BusID()) == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
@@ -123,7 +123,7 @@ func testPauseCancel(t *testing.T, update bool) {
 		t.Fatalf("pause record: %+v", r)
 	}
 	a.CancelRestart()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for waiting(t, a, s.BusID()) == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
@@ -172,7 +172,7 @@ func testPauseResume(t *testing.T, update bool) {
 		t.Fatal(err)
 	}
 	waitTurn(t, turns)
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for {
 		a.updMu.Lock()
 		closing := a.update.restarting

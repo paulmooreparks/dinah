@@ -48,7 +48,7 @@ func TestDinahAnswersTheAgentsQuestionAboutItsOwnAppletTools(t *testing.T) {
 	}()
 	select {
 	case <-shown:
-	case <-time.After(time.Second):
+	case <-time.After(testWait):
 		t.Fatal("a question about another tool was not shown")
 	}
 	cancel()

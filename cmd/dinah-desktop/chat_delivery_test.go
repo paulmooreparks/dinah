@@ -47,7 +47,7 @@ func invokeChatQuestion(t *testing.T, a *App, ws, owner, target, request string)
 		}
 	}
 	input, _ := json.Marshal(map[string]string{"sessionId": target, "question": "Which parser files changed?"})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	data, err := client.call(ctx, appletBridgeRequest{Operation: "invoke", Ref: chatAskAction, RequestID: request, InputJSON: string(input), Digest: digest, TimeoutSeconds: 30})
 	if err != nil {

@@ -123,7 +123,7 @@ func (x *typedQuestionFixture) configure() {
 			case <-b.ready:
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWait):
 				return errors.New("concurrent answers did not overlap at authority check")
 			}
 		}
@@ -197,7 +197,7 @@ func (x *typedQuestionFixture) ask(raw json.RawMessage) any {
 	if _, err = x.client.Start(context.Background(), h, op); err != nil {
 		return typedResponse(err)
 	}
-	deadline := time.NewTimer(5 * time.Second)
+	deadline := time.NewTimer(testWait)
 	defer deadline.Stop()
 	for {
 		x.mu.Lock()
@@ -247,7 +247,7 @@ func (x *typedQuestionFixture) wait(e *typedEntry) error {
 	select {
 	case <-e.done:
 		return nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		return errors.New("durable operation did not settle")
 	}
 }
@@ -556,7 +556,7 @@ func TestTypedQuestionAcceptanceServer(t *testing.T) {
 	case <-time.After(2 * time.Minute):
 		t.Error("receiving driver did not close")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	_ = server.Shutdown(ctx)
 }

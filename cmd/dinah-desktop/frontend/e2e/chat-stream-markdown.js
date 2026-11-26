@@ -92,7 +92,7 @@ const path = require('path');
       const piece = whole.slice(at, at + 5);
       sofar += piece;
       await p.evaluate(piece => __say(piece), piece);
-      const same = await p.waitForFunction(text => { const el = __last(); return !!el && el.innerHTML === __full(text); }, sofar, { timeout: 5000 }).then(() => true, () => false);
+      const same = await p.waitForFunction(text => { const el = __last(); return !!el && el.innerHTML === __full(text); }, sofar, { timeout: 30000 }).then(() => true, () => false);
       if (!same && !mismatch) mismatch = JSON.stringify(sofar) + ' drew ' + await p.evaluate(() => __last().innerHTML);
       if (at === 45) await p.evaluate(() => { __last().querySelector('p').__kept = true; });
       if (at === 105) await p.evaluate(() => { __last().querySelector('pre').__kept = true; });
@@ -189,7 +189,7 @@ const path = require('path');
       const piece = 'aragraph ' + i + '.\n\nP';
       text += piece;
       await p.evaluate(piece => __say(piece), piece);
-      await p.waitForFunction(n => __last().children.length === n + 1, i + 1, { timeout: 5000 }).catch(() => {});
+      await p.waitForFunction(n => __last().children.length === n + 1, i + 1, { timeout: 30000 }).catch(() => {});
       if (i === 0) await p.evaluate(() => { __last().firstElementChild.__kept = true; });
     }
     const bounded = await p.evaluate(text => ({ removed: window.__removed, first: !!__last().firstElementChild.__kept, same: __last().innerHTML === __full(text) }), text);

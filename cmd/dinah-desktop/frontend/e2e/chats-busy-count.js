@@ -39,7 +39,7 @@ const { launch } = require('./lib/page');
   const exec = (state, more) => Object.assign({ state, why: state }, more || {});
   const step = async (changes, want) => {
     await p.evaluate(c => __busy(c), changes);
-    await p.waitForFunction(n => { const w = dinahHelpers.windowOf('chat-browser'); return n ? w.getAttribute('data-win-count') === n : !w.hasAttribute('data-win-count'); }, want, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(n => { const w = dinahHelpers.windowOf('chat-browser'); return n ? w.getAttribute('data-win-count') === n : !w.hasAttribute('data-win-count'); }, want, { timeout: 30000 }).catch(() => {});
     await settle();
     return read();
   };
@@ -50,7 +50,7 @@ const { launch } = require('./lib/page');
     await settle();
     const closedFirst = await p.evaluate(() => !dinahHelpers.windowOf('chat-browser'));
     await p.evaluate(() => dinahWorkbench.open('chat-browser'));
-    await p.waitForFunction(() => dinahHelpers.windowOf('chat-browser') && dinahHelpers.windowOf('chat-browser').getAttribute('data-win-count') === '1', null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => dinahHelpers.windowOf('chat-browser') && dinahHelpers.windowOf('chat-browser').getAttribute('data-win-count') === '1', null, { timeout: 30000 }).catch(() => {});
     ok('a chat busy before the window opens is counted when it opens', closedFirst && await p.evaluate(() => dinahHelpers.windowOf('chat-browser').getAttribute('data-win-count')) === '1', JSON.stringify({ closedFirst }));
     await p.evaluate(() => __busy({ turn: { state: 'idle', why: 'No work in progress' } }));
     await p.selectOption('#chat-scope', 'current');

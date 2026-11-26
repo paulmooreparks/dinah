@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"io/fs"
 	"net"
 	"net/http"
@@ -109,21 +110,24 @@ func TestShellPageHasContentSecurityPolicy(t *testing.T) {
 // reading only; a cookie-guarded route still needs the cookie.
 func TestASelfGuardedRouteIsServedWithoutTheCookie(t *testing.T) {
 	served := 0
-	pageroutes.RegisterSelfGuarded("/test-shell-frames/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served++ }))
-	pageroutes.Register("/test-shell-guarded/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served += 100 }))
+	// The registry lasts for the process, including go test -count repetitions.
+	framePrefix := "/test-shell-frames-" + strings.ToLower(rand.Text()) + "/"
+	guardedPrefix := "/test-shell-guarded-" + strings.ToLower(rand.Text()) + "/"
+	pageroutes.RegisterSelfGuarded(framePrefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served++ }))
+	pageroutes.Register(guardedPrefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served += 100 }))
 	s := &shellServer{addr: "127.0.0.1:47616", token: "token", codes: map[string]shellCode{}}
 	status := func(method, path string) int {
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, httptest.NewRequest(method, "http://127.0.0.1:47616"+path, nil))
 		return w.Code
 	}
-	if code := status("GET", "/test-shell-frames/abc/pudl.css"); code != http.StatusOK || served != 1 {
+	if code := status("GET", framePrefix+"abc/pudl.css"); code != http.StatusOK || served != 1 {
 		t.Fatalf("a frame's file without the cookie: status %d, served %d", code, served)
 	}
-	if code := status("POST", "/test-shell-frames/abc/pudl.css"); code != http.StatusUnauthorized || served != 1 {
+	if code := status("POST", framePrefix+"abc/pudl.css"); code != http.StatusUnauthorized || served != 1 {
 		t.Fatalf("a POST to a frame's route without the cookie: status %d, served %d", code, served)
 	}
-	if code := status("GET", "/test-shell-guarded/a"); code != http.StatusUnauthorized || served != 1 {
+	if code := status("GET", guardedPrefix+"a"); code != http.StatusUnauthorized || served != 1 {
 		t.Fatalf("a cookie-guarded route without the cookie: status %d, served %d", code, served)
 	}
 }

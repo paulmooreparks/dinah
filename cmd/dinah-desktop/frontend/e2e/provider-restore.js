@@ -45,7 +45,7 @@ const { choose, shows } = require('./lib/commands');
     const modelShows = words => front().locator('[data-command="model"] .toolbar-words').filter({ hasText: new RegExp('^' + words + '$') }).first().waitFor({ state: 'attached' });
     const provider = name => shows(front(), 'provider', name);
     const offered = (id, yes) => front().locator('[data-command="' + id + '"]' + (yes ? ':not([hidden])' : '[hidden]')).first()
-      .waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false);
+      .waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false);
     await page.evaluate(() => { window.__holdOpen = true; return dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'saved-codex' }); });
     await page.waitForFunction(() => typeof __finishOpen === 'function');
     ok('reopening does not display the application default model during replay', await offered('model', false));

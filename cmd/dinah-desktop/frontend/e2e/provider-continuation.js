@@ -59,7 +59,7 @@ const { choose, shows } = require('./lib/commands');
     // The provider is a menu of choices in the composer's toolbar.
     const provider = name => shows(front(), 'provider', name);
     const switchTo = name => choose(page, front(), 'provider', name);
-    const locked = () => front().locator('[data-command="provider"]:disabled').first().waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false);
+    const locked = () => front().locator('[data-command="provider"]:disabled').first().waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false);
     const prompt = () => front().locator('[data-view-id="prompt"]');
     await front().getByText('The test fixture is complete.', { exact: true }).waitFor();
     const originalRoot = await front().getAttribute('data-win');

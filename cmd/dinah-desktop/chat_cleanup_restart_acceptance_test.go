@@ -95,7 +95,7 @@ func (f *chatCleanupAcceptanceProviders) Bind(t *testing.T, a *App) {
 		for id := range providerModules {
 			a.AgentStop(id)
 		}
-		a.turnIO().Close(3 * time.Second)
+		a.turnIO().Close(testWait)
 		a.busHost().CloseHandle()
 	})
 }

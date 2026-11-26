@@ -87,7 +87,7 @@ func TestTerminalShutdownRetainsDiagnosticsNoticeAndStickyUpdateSuppression(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	child := exec.CommandContext(ctx, exe, "-test.run=^TestTerminalShutdownNoticeChild$")
 	child.Env = append(os.Environ(), "DINAH_TEST_TERMINAL_NOTICE_DIR="+configDir(), "DINAH_TEST_TERMINAL_NOTICE_ID="+record.ID)

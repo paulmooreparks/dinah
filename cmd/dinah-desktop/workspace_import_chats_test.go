@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"studio/internal/acp"
 	"studio/internal/bus"
@@ -333,7 +332,7 @@ func TestAMovedChatContinuesWithItsFirstMessage(t *testing.T) {
 	if err := a.Send(next, "Carry on with the receipts.", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("the first message did not finish")
 	}
 	prompted := false

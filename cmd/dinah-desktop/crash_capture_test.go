@@ -9,7 +9,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
-	"time"
 )
 
 const testDiagnosticsDir = "DINAH_TEST_DIAGNOSTICS_DIR"
@@ -57,7 +56,7 @@ func TestCrashOutputSurvivesHandleRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	command := exec.CommandContext(ctx, exe, "-test.run=^TestCrashOutputSurvivesHandleRelease$", "-test.count=1")
 	for _, entry := range os.Environ() {

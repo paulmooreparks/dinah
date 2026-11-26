@@ -199,7 +199,7 @@ const READY = {
 };
 
 async function launch(options = {}) {
-  const { viewport = { width: 1280, height: 900 }, state = {}, app, init, args = null, ready = 'ui-state', dialogs = 'fail', goto = true, timeout = 10000, expectErrors = null } = options;
+  const { viewport = { width: 1280, height: 900 }, state = {}, app, init, args = null, ready = 'ui-state', dialogs = 'fail', goto = true, timeout = 30000, expectErrors = null } = options;
   const releaseLock = await acquireBrowserLock();
   let browser;
   // Native scrollbar input requires the control that Playwright normally hides

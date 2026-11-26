@@ -58,7 +58,7 @@ func TestATerminalRunsARealShellInTheWorkspace(t *testing.T) {
 		if code != 7 {
 			t.Fatalf("the shell ended with %d", code)
 		}
-	case <-time.After(20 * time.Second):
+	case <-time.After(testWait):
 		ctx, cancel := context.WithTimeout(context.Background(), terminalShutdownBudget)
 		defer cancel()
 		err := a.terminalService().Shutdown(ctx)

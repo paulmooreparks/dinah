@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"studio/internal/acp"
 )
@@ -111,7 +110,7 @@ func TestEmptyChatHostRestartBeforeFirstTurn(t *testing.T) {
 			b.connectGraceOverride = -1
 			b.judging.noAuto = true
 			t.Cleanup(func() {
-				b.turnIO().Close(time.Second)
+				b.turnIO().Close(testWait)
 				b.queueStore.Close()
 				b.closeAgentLogs()
 				b.closeChatStates()

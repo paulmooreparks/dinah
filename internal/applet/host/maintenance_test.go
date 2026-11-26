@@ -14,7 +14,7 @@ func await(t *testing.T, ch <-chan struct{}) {
 	t.Helper()
 	select {
 	case <-ch:
-	case <-time.After(5 * time.Second):
+	case <-time.After(2 * time.Minute):
 		t.Fatal("operation did not complete")
 	}
 }

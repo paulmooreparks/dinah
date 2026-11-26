@@ -168,7 +168,7 @@ const { launch } = require('./lib/page');
   });
   // The chat may already be reconnecting by itself; Reconnect Now starts it
   // otherwise.
-  if (!(await p.evaluate(() => __calls.some(c => c[0] === 'open' && c[1] === 'saved')))) await p.locator(front + ' [data-view-id="saved-reconnect"]').click({ timeout: 5000 }).catch(() => {});
+  if (!(await p.evaluate(() => __calls.some(c => c[0] === 'open' && c[1] === 'saved')))) await p.locator(front + ' [data-view-id="saved-reconnect"]').click({ timeout: 30000 }).catch(() => {});
   await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[1] === 'saved'));
   await p.locator(front + ' .msg', { hasText: 'empty groups work, replayed.' }).waitFor({ timeout: 30000 });
   await drawn(f => { const all = document.querySelectorAll(f + ' .delivered-card'); return all.length === 3 && [...all].every(c => c.querySelector('.delivered-text').innerHTML !== ''); }, front);

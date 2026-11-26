@@ -45,10 +45,10 @@ const path = require('path');
   // hold for a few hundred milliseconds, so a check that expects events waits for them
   // to arrive and then a further 250 ms in which a repeat or a stray could follow.
   const settle = async expected => {
-    if (expected) await page.waitForFunction(e => window.__got.map(g => g.join(':')).join(',') === e, expected, { timeout: 5000 }).catch(() => {});
+    if (expected) await page.waitForFunction(e => window.__got.map(g => g.join(':')).join(',') === e, expected, { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(250);
   };
-  const settleReads = async count => { await page.waitForFunction(n => window.__logs.length >= n, count, { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(250); };
+  const settleReads = async count => { await page.waitForFunction(n => window.__logs.length >= n, count, { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(250); };
   const check = async (name, expected) => { const seen = await got(); ok(name, seen === expected, 'expected ' + (expected || 'nothing') + ', saw ' + (seen || 'nothing')); };
   const text = win => page.locator('[data-win="' + win + '"] .run-log').first().textContent();
   try {

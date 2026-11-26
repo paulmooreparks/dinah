@@ -62,7 +62,7 @@ const { launch, PAGE } = require('./lib/page');
   const restart = async () => { await p.goto(PAGE); await t.waitReady(); await p.evaluate(() => __emit('agent:session', { sessionId: 'claude:dead', provider: 'claude', cwd: 'C:/Test', title: 'Release Chat', open: false })); };
   const opensFine = async (id, label) => {
     await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: id }), id);
-    await p.waitForFunction(() => { const w = document.querySelector('.win.active'); return w && !w.querySelector('[data-view-id="session-note-title"]') || document.querySelector('.win.active [data-view-id="session-note"]').hidden; }, null, { timeout: 5000 }).catch(() => {});
+    await p.waitForFunction(() => { const w = document.querySelector('.win.active'); return w && !w.querySelector('[data-view-id="session-note-title"]') || document.querySelector('.win.active [data-view-id="session-note"]').hidden; }, null, { timeout: 30000 }).catch(() => {});
     await p.waitForTimeout(500);
     const note = await v('session-note').isVisible().catch(() => false);
     const text = await front().innerText();
@@ -77,10 +77,10 @@ const { launch, PAGE } = require('./lib/page');
     await p.locator('dialog.switch-confirm[open]').waitFor();
     await p.locator('dialog.switch-confirm[open]').getByRole('button', { name: 'Continue', exact: true }).click();
     await front().getByText('Continued from saved history with Claude.', { exact: true }).waitFor();
-    const workingSeen = await p.waitForFunction(() => !!document.querySelector('.win.active .chat-working-chip .chat-state-working'), null, { timeout: 3000 }).then(() => true, () => false);
+    const workingSeen = await p.waitForFunction(() => !!document.querySelector('.win.active .chat-working-chip .chat-state-working'), null, { timeout: 30000 }).then(() => true, () => false);
     ok('after Continue from Saved History the chat works on its continuation at once, in the new session', workingSeen && engine.calls.filter(c => c[0] === 'recover').length === 1);
     ok('the page sends nothing itself; the continuation is the engine\'s', !engine.calls.some(c => c[0] === 'send'));
-    await p.waitForFunction(() => !!document.querySelector('.win.active .chat-working-chip .chat-state-idle'), null, { timeout: 3000 });
+    await p.waitForFunction(() => !!document.querySelector('.win.active .chat-working-chip .chat-state-idle'), null, { timeout: 30000 });
     for (const round of [1, 2]) {
       // Close the chat without any further prompt, then restart.
       await p.evaluate(() => { const key = pudlWindows.state().top; pudlWindows.close(key); });

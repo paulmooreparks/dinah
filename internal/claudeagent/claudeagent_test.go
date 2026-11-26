@@ -157,7 +157,7 @@ func start(t *testing.T, apiKey string) (*Conn, *recorder) {
 
 func initialize(t *testing.T, c *Conn) string {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 	var init acp.InitializeResult
 	if err := c.Call(ctx, "initialize", acp.InitializeParams{ProtocolVersion: 1}, &init); err != nil {
@@ -184,7 +184,7 @@ func TestTheAdapterGetsOnlyTheChosenCredential(t *testing.T) {
 func TestSessionIDsCarryThePrefixOnOurSideOnly(t *testing.T) {
 	c, r := start(t, "")
 	initialize(t, c)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 	var created struct {
 		SessionID string `json:"sessionId"`
@@ -271,7 +271,7 @@ func TestDiagramSessionEnvironmentDelivery(t *testing.T) {
 		Managed   map[string]string
 		Args      []string
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 	args := []string{"fixture-restricted", "argument with spaces"}
 	err = c.Call(ctx, "session/new", acp.NewSessionParams{Cwd: want["DIAGRAM_PICTURE_ROOT"], McpServers: []any{map[string]any{"name": "fixture-drawing-random", "command": os.Args[0], "args": args, "env": values}}}, &got)

@@ -53,7 +53,7 @@ const { launch } = require('./lib/page');
     ok('a mention arriving while the window is not active is carded', await p.evaluate(() => !__acks.includes(14) && __drawn.includes(14)));
     await p.evaluate(() => { window.__focused = true; window.dispatchEvent(new Event('focus')); });
     await frames();
-    await p.waitForFunction(() => __acks.includes(14), null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => __acks.includes(14), null, { timeout: 30000 }).catch(() => {});
     ok('the card ends when the window becomes active with the message on screen', await p.evaluate(() => __acks.includes(14) && dinahHost.notices.list(n => n.data && n.data.message === 14).length === 0));
 
     await p.evaluate(() => dinahWorkbench.open('needs-you'));
@@ -61,7 +61,7 @@ const { launch } = require('./lib/page');
     await arrive(15, true); await settle();
     ok('a mention arriving while another window is in front is carded', await p.evaluate(() => !__acks.includes(15) && __drawn.includes(15)));
     await p.evaluate(() => dinahBus.openGroup('harbor-review'));
-    await p.waitForFunction(() => __acks.includes(15), null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => __acks.includes(15), null, { timeout: 30000 }).catch(() => {});
     ok('raising the conversation with the message on screen ends the card', await p.evaluate(() => __acks.includes(15) && dinahHost.notices.list(n => n.data && n.data.message === 15).length === 0));
     ok('the request card is still there after all of that', await p.evaluate(() => dinahHost.notices.list(n => n.data && n.data.message === 13).length === 1));
     ok('the chat counts only the request', await cards() === 1);

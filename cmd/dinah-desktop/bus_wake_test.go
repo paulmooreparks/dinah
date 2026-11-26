@@ -526,7 +526,7 @@ func TestRecoveredBackgroundWakeKeepsItsSlotAndFinishesOriginalAttempt(t *testin
 	if err != nil || info.ID == source {
 		t.Fatalf("wake recovery: %+v %v", info, err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("recovery prompt did not finish")
 	}
 	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(source); active {

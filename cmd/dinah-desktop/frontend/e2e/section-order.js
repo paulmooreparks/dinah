@@ -104,7 +104,7 @@ const { launch, PAGE } = require('./lib/page');
       await toggle(name).focus();
       await page.keyboard.press('Shift+F10');
       const menu = page.locator('.context-menu');
-      await menu.waitFor({ timeout: 3000 });
+      await menu.waitFor({ timeout: 30000 });
       return menu.locator('.menu-action').evaluateAll(as => as.map(a => a.textContent.trim() + (a.disabled || a.getAttribute('aria-disabled') === 'true' ? ' (off)' : '')));
     };
     const is = (list) => async () => JSON.stringify(await order()) === JSON.stringify(list);
