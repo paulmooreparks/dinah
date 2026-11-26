@@ -10,7 +10,10 @@ import "strings"
 
 // Row is everything the product declares about one agent provider.
 type Row struct {
-	Name string
+	// SubagentHooks says the program's documented start/stop hooks identify
+	// helpers by native session and agent ID in the shared hook store.
+	SubagentHooks bool
+	Name          string
 	// ImageInput is where the answer to whether a chat's model reads pictures
 	// comes from: "initialize" (promptCapabilities.image), "adapter" (the
 	// adapter's own request for the model) or "none" (nothing documented says,
@@ -152,7 +155,7 @@ var Registry = map[string]Row{
 			Source: "OpenAI's images and vision guide allows up to 1,500 images and 512 MB in one request. The default of 20 is Paul's own choice, lower than that ceiling.",
 			URL:    "https://developers.openai.com/api/docs/guides/images-vision"}},
 	"claude": {Name: "Claude", BudgetUnit: "tokens", JudgeCallCost: 1_000, ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
-		InstallPage: "https://code.claude.com/docs/en/setup", SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
+		InstallPage: "https://code.claude.com/docs/en/setup", SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, SubagentHooks: true, MergedToolCalls: true, MatchesModelsByName: true,
 		// "default" is the mode Claude Code's documentation calls default and the
 		// agent shows as Manual: Claude asks before each action that needs
 		// permission. Paul chose it on 10 November 2026.

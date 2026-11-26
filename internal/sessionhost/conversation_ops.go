@@ -350,6 +350,12 @@ func (c *Conversation) BackgroundTask(id string) (BackgroundTask, bool) {
 	return c.details.BackgroundTaskLocked(id)
 }
 
+func (c *Conversation) ChildBackgroundUpdate(source string, update json.RawMessage) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.details.backgroundSourceUpdateLocked(source, update, c.activity.OpenLocked() && !c.activity.ParkedLocked() && !c.details.ReplayingLocked())
+}
+
 func (c *Conversation) HistoryPrepareReplayLocked() (ConversationMessage, bool) {
 	return c.history.PrepareReplayLocked()
 }

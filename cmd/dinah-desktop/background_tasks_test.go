@@ -27,7 +27,7 @@ func TestBackgroundWorkFollowsTheAdaptersReports(t *testing.T) {
 	feed(`{"sessionUpdate":"async_task_spawned","asyncTaskId":"autonomous-turn-1","name":"Claude is working","taskType":"turn","showInTranscript":false,"canStop":true}`)
 	feed(`{"sessionUpdate":"async_task_progress","asyncTaskId":"build","summary":"linking"}`)
 	info := s.Info()
-	if len(info.Background) != 2 || info.Background[0].ID != "build" || info.Background[0].Summary != "linking" || info.Background[0].Description != "go build" || !info.Background[0].CanStop || info.Background[1].Type != autonomousTurn {
+	if len(info.Background) != 2 || info.Background[0].ID == "" || info.Background[0].SourceID != "build" || info.Background[0].Summary != "linking" || info.Background[0].Description != "go build" || !info.Background[0].CanStop || info.Background[1].Type != autonomousTurn {
 		t.Fatalf("background work: %+v", info.Background)
 	}
 	if st := a.ExitStatus(); st.Chats != 1 {
@@ -45,7 +45,7 @@ func TestBackgroundWorkFollowsTheAdaptersReports(t *testing.T) {
 	if len(s.Info().Background) != 0 || a.ExitStatus().Chats != 0 {
 		t.Fatal("a failed task was kept")
 	}
-	if err := a.StopBackgroundTask(s.ID(), "build"); err == nil {
+	if err := a.StopBackgroundTask(s.ID(), info.Background[0].ID); err == nil {
 		t.Fatal("a finished task could be stopped")
 	}
 }

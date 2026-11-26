@@ -87,6 +87,20 @@ func (b *Bus) SubagentsRunning(ctx context.Context, agentSession string) (int, e
 	return n, err
 }
 
+// ObservedSubagentsRunning counts unmatched start hooks for this native session
+// only when it belongs to the supplied chat. The steering timeout is not evidence
+// that work finished, so this observation has no age cutoff.
+func (b *Bus) ObservedSubagentsRunning(ctx context.Context, session, agentSession string) (int, error) {
+	var n int
+	err := b.db.QueryRowContext(ctx, `SELECT COUNT(s.agent_id) FROM agent_sessions a
+		LEFT JOIN agent_subagents s ON a.agent_session = s.agent_session
+		WHERE a.session = ? AND a.agent_session = ? GROUP BY a.agent_session`, session, agentSession).Scan(&n)
+	if err == sql.ErrNoRows {
+		return -1, nil // An unbound session has no authoritative observation yet.
+	}
+	return n, err
+}
+
 // ForgetSubagents forgets an agent's subagents, when its session ends.
 func (b *Bus) ForgetSubagents(ctx context.Context, agentSession string) error {
 	return b.tx(ctx, func(t *sql.Tx) error {

@@ -36,6 +36,7 @@ func (a *App) busHost() *bushost.Service {
 	if a.busService == nil {
 		a.busService = bushost.New(bushost.Options{
 			State: configDir(), Labels: a.busWorkspaceLabels, Reconcile: func(ctx context.Context, b *bus.Bus, reported map[string]bool) {
+				a.observeHookWork(ctx, b)
 				a.busCoordinator().ReconcileResults(ctx, b, reported)
 			},
 			Deliver: func(ctx context.Context, b *bus.Bus) { a.busCoordinator().DeliverRound(ctx, b) }, Notice: a.noticeMentions, Wake: func(ctx context.Context, b *bus.Bus) { a.busCoordinator().ConnectWaking(ctx, b) }, Emit: a.emit,

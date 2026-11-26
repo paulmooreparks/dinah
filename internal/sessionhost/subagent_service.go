@@ -89,6 +89,10 @@ func (h *SubagentService) Update(sessionID string, update json.RawMessage) bool 
 	if !child {
 		return false
 	}
+	if owner.ChildBackgroundUpdate(sessionID, update) {
+		EmitSession(h.host.Emit, owner)
+		return true
+	}
 	h.KeepUpdate(owner, sessionID, u.SessionUpdate, update)
 	return true
 }
@@ -135,7 +139,15 @@ func (h *SubagentService) End(root *Conversation, id, state string) {
 
 func (h *SubagentService) Disconnect(root *Conversation) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	changed := root.DisconnectSubagents(now)
+	h.disconnected(root, root.DisconnectSubagents(now))
+}
+
+func (h *SubagentService) TurnEnded(root *Conversation) {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	h.disconnected(root, root.DisconnectTurnSubagents(now))
+}
+
+func (h *SubagentService) disconnected(root *Conversation, changed []SubagentInfo) {
 	sort.Slice(changed, func(i, j int) bool { return changed[i].Started < changed[j].Started })
 	for _, info := range changed {
 		h.NoteRun(info)
