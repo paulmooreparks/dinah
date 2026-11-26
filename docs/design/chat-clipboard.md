@@ -87,9 +87,9 @@ On Windows, `clipboard_image_windows.go` opens the clipboard with the same retry
 | --- | --- | --- |
 | `BI_RGB` | 24 bits | Opaque |
 | `BI_RGB` | 32 bits | Opaque; BITMAPINFOHEADER says the fourth byte is not used |
-| `BI_BITFIELDS` | 32 bits, masks after a BITMAPINFOHEADER or inside a V4 or V5 header | From a BITMAPV5HEADER's `bV5AlphaMask` only, otherwise opaque |
+| `BI_BITFIELDS` | 32 bits, masks after a BITMAPINFOHEADER or inside a V4 or V5 header | From a BITMAPV5HEADER's `bV5AlphaMask` only, otherwise opaque; opaque too when every pixel's alpha is zero |
 
-*Note.* Rows may be bottom-up (positive height) or top-down (negative height). Palettes, 16-bit bitmaps, JPEG and PNG compression, and headers of undocumented sizes are refused. Alpha is taken as straight, not premultiplied.
+*Note.* Rows may be bottom-up (positive height) or top-down (negative height). Palettes, 16-bit bitmaps, JPEG and PNG compression, and headers of undocumented sizes are refused. Alpha is taken as straight, not premultiplied. Some programs write 32-bit bitmaps with an alpha mask but leave the alpha bytes unused, and a fully transparent paste is never what the person copied, so a picture whose alpha is zero everywhere is made opaque (a ruling of 26 November 2026). The rule depends on no undocumented behaviour; it only refuses to produce an invisible picture. A picture with any non-zero alpha keeps its alpha as read.
 
 On macOS and Linux, `ClipboardImage` returns no picture for now, so menu Paste pastes text there. macOS (NSPasteboard) and Linux (GTK 3's `gtk_clipboard_request_image`) follow in their own branch with the same method and result.
 

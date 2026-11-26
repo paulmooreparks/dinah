@@ -147,6 +147,36 @@ func TestDIBToPNG(t *testing.T) {
 	}
 }
 
+func TestDIBAlphaAllZeroIsOpaque(t *testing.T) {
+	// An alpha mask with every alpha byte zero would be an invisible
+	// picture, so it is pasted opaque.
+	spec := dibSpec{headerSize: 124, bitCount: 32, compression: dibBitfields, masks: rgbaMasks, withAlpha: true}
+	data, err := dibToPNG(buildDIB(spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkPixels(t, decodePNG(t, data), nil)
+}
+
+func TestDIBAlphaOneNonZeroIsKept(t *testing.T) {
+	// One pixel with alpha is enough for the alpha to be taken as read,
+	// zeros included.
+	alpha := [2][3]uint8{{0, 0, 0}, {0, 1, 0}}
+	spec := dibSpec{headerSize: 124, bitCount: 32, compression: dibBitfields, masks: rgbaMasks, alpha: alpha, withAlpha: true}
+	data, err := dibToPNG(buildDIB(spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	img := decodePNG(t, data)
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 3; x++ {
+			if got := color.NRGBAModel.Convert(img.At(x, y)).(color.NRGBA).A; got != alpha[y][x] {
+				t.Errorf("pixel (%d,%d) alpha %d, want %d", x, y, got, alpha[y][x])
+			}
+		}
+	}
+}
+
 func TestDIBBitfieldsOtherOrder(t *testing.T) {
 	// Masks need not be in the usual places: red in the low byte, blue high.
 	spec := dibSpec{headerSize: 40, bitCount: 32, compression: dibBitfields, masks: []uint32{0x000000ff, 0x0000ff00, 0x00ff0000}}

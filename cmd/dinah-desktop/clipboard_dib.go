@@ -39,7 +39,8 @@ const (
 //   - BI_BITFIELDS at 32 bits, with the red, green and blue masks that
 //     follow a BITMAPINFOHEADER as three DWORDs, or inside a V4 or V5
 //     header; alpha is read only from a BITMAPV5HEADER's bV5AlphaMask, and
-//     otherwise the picture is opaque;
+//     otherwise the picture is opaque, as it is when every pixel's alpha
+//     is zero;
 //   - rows stored bottom-up (positive biHeight) or top-down (negative
 //     biHeight).
 //
@@ -133,6 +134,7 @@ func dibImage(dib []byte) (*image.NRGBA, error) {
 
 	img := image.NewNRGBA(image.Rect(0, 0, int(width), int(height)))
 	bytesPer := int64(bitCount / 8)
+	anyAlpha := false
 	for y := int64(0); y < height; y++ {
 		row := y
 		if !topDown {
@@ -149,9 +151,21 @@ func dibImage(dib []byte) (*image.NRGBA, error) {
 				c = color.NRGBA{R: masked(v, redMask), G: masked(v, greenMask), B: masked(v, blueMask), A: 0xff}
 				if alphaMask != 0 {
 					c.A = masked(v, alphaMask)
+					anyAlpha = anyAlpha || c.A != 0
 				}
 			}
 			img.SetNRGBA(int(x), int(y), c)
+		}
+	}
+	// A picture whose alpha is zero in every pixel would paste as nothing
+	// at all, which is never what the person copied; some programs write
+	// 32-bit bitmaps with an alpha mask but leave the alpha bytes unused.
+	// Such a picture is made opaque. This does not depend on any
+	// undocumented behaviour: it only refuses to produce an invisible
+	// picture. A picture with any non-zero alpha keeps its alpha as read.
+	if alphaMask != 0 && !anyAlpha {
+		for i := 3; i < len(img.Pix); i += 4 {
+			img.Pix[i] = 0xff
 		}
 	}
 	return img, nil
