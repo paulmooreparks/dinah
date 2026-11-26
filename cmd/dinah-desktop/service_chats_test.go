@@ -284,10 +284,13 @@ func TestServiceChatCancelledContextAndCancelTurnStopTheTurn(t *testing.T) {
 		reply servicechats.Reply
 		err   error
 	}
-	run := func(ctx context.Context) chan result {
+	run := func(ctx context.Context, deliver <-chan struct{}) chan result {
 		done := make(chan result, 1)
 		go func() {
 			reply, err := port.TakeTurn(ctx, chat.ID, servicechats.Prompt{Text: "long work", Label: "Sample"})
+			if deliver != nil {
+				<-deliver
+			}
 			done <- result{reply, err}
 		}()
 		select {
@@ -298,7 +301,7 @@ func TestServiceChatCancelledContextAndCancelTurnStopTheTurn(t *testing.T) {
 		return done
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	done := run(ctx)
+	done := run(ctx, nil)
 	cancel()
 	select {
 	case r := <-done:
@@ -313,24 +316,30 @@ func TestServiceChatCancelledContextAndCancelTurnStopTheTurn(t *testing.T) {
 	}
 	for deadline := time.Now().Add(testWait); a.session(chat.ID).Working() && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 	}
-	done = run(context.Background())
+	// Hold the caller's result forwarding independently of the port's turn.
+	// CancelTurn must finish without depending on this goroutine's next send.
+	deliver := make(chan struct{})
+	releaseResult := sync.OnceFunc(func() { close(deliver) })
+	t.Cleanup(releaseResult)
+	done = run(context.Background(), deliver)
 	requested, err := port.CancelTurn(context.Background(), chat.ID)
 	if !requested || err != nil {
 		t.Fatalf("CancelTurn: %v %v", requested, err)
 	}
+	if requested, err := port.CancelTurn(context.Background(), chat.ID); requested || err != nil {
+		t.Fatalf("CancelTurn with no turn of the port: %v %v", requested, err)
+	}
+	releaseResult()
 	select {
 	case r := <-done:
 		if r.err != nil || r.reply.StopReason != "cancelled" {
 			t.Fatalf("a turn stopped by CancelTurn: %+v", r)
 		}
-	default:
-		t.Fatal("CancelTurn returned before the turn did")
+	case <-t.Context().Done():
+		t.Fatal("the stopped turn's caller did not deliver its result")
 	}
 	if peer.cancels.Load() != 2 || peer.prompts.Load() != 2 {
 		t.Fatalf("cancels %d, prompts %d", peer.cancels.Load(), peer.prompts.Load())
-	}
-	if requested, err := port.CancelTurn(context.Background(), chat.ID); requested || err != nil {
-		t.Fatalf("CancelTurn with no turn of the port: %v %v", requested, err)
 	}
 }
 

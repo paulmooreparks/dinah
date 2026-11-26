@@ -31,3 +31,5 @@ All three reported cases pass five times with Go 1.26.11. The package results ar
 Only CI configuration, tests and this record change. No UI or product implementation changes. Remote build and publish clearance still require the integrated workflow to pass.
 
 The final full `scripts/go-gate.ps1 ./... -count=1 -timeout=30m -json` run passed with Go 1.26.11 and exit zero. Desktop completed in 438.818 seconds, with 918 top-level passes and the same eight existing capability skips. Docservice passed in 7.961 seconds, taskhost in 3.247 seconds and terminals in 17.364 seconds. No terminal assertion was skipped in this local run. The complete JSON output remains in `%TEMP%/dinah-ci-runtime-final-go.jsonl`. The ordinary local desktop timing run and this full run both finished without a hang.
+
+Remote receiving in run 45764486029 subsequently passed the terminal package in 25.1 seconds with Node 24. The desktop package completed in 673.7 seconds, inside the new budget. The remaining completed-test failures are investigated in `ci-contract-fixtures-2026-11-26.md`; the earlier Node and package-budget blockers did not recur in this run.

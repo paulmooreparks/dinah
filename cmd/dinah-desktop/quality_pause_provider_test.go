@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -107,6 +108,19 @@ func qualityPausePath(t *testing.T, mode string) {
 	provider := mode
 	if mode == "plain" {
 		provider = "devin"
+	}
+	if provider == "devin" {
+		command := product.CommandProgram
+		if runtime.GOOS == "windows" {
+			command += ".exe"
+		}
+		if err := os.WriteFile(filepath.Join(dir, command), []byte("fixture, never execute"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		previous := devinSteeringExecutable
+		devinSteeringExecutable = func() (string, error) { return filepath.Join(dir, "window"), nil }
+		t.Cleanup(func() { devinSteeringExecutable = previous })
+		t.Setenv("PATH", t.TempDir())
 	}
 	var httpMu sync.Mutex
 	var httpRows []qualityPauseWire

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 
+	"studio/internal/agents"
 	"studio/internal/layout"
 	"studio/internal/taskhost"
 )
@@ -26,7 +28,11 @@ func (a *App) describeTaskChats(ctx context.Context, scope taskhost.Scope) ([]ta
 	}
 	result := []taskhost.ChatDescription{}
 	for _, chat := range view.Chats {
-		if !layout.SamePath(chat.Workspace, binding.Path) {
+		if !filepath.IsAbs(chat.Workspace) {
+			continue
+		}
+		workspace, err := agents.ResolvePath(chat.Workspace)
+		if err != nil || !layout.SamePath(workspace, binding.Path) {
 			continue
 		}
 		state := string(chat.State.Life)

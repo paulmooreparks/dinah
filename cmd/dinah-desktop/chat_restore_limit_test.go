@@ -14,20 +14,36 @@ import (
 
 // heldSettings makes the test agent keep every request to change a setting
 // unanswered until the returned function is called, which a cleanup also
-// does. Each request sends on answered once it has been let go, just before
-// the agent answers it.
-func heldSettings(t *testing.T, c *testProviderConnection) (release func(), answered chan struct{}) {
+// does. Each request signals entered before waiting, and answered once it
+// has been let go, just before the agent answers it.
+func heldSettings(t *testing.T, c *testProviderConnection) (release func(), entered, answered chan struct{}) {
 	t.Helper()
 	gate := make(chan struct{})
 	answered = make(chan struct{}, 8)
+	entered = make(chan struct{}, 8)
 	var once sync.Once
 	release = func() { once.Do(func() { close(gate) }) }
 	c.onSetOption = func(string) {
+		entered <- struct{}{}
 		<-gate
 		answered <- struct{}{}
 	}
 	t.Cleanup(release)
-	return release, answered
+	return release, entered, answered
+}
+
+func requireSettingsReplyStillHeld(t *testing.T, entered, answered chan struct{}) {
+	t.Helper()
+	select {
+	case <-entered:
+	case <-t.Context().Done():
+		t.Fatal("the restore request did not reach the held provider")
+	}
+	select {
+	case <-answered:
+		t.Fatal("the chat opened only after the provider's restore reply")
+	default:
+	}
 }
 
 // chatOptionValue is the current value of one of a chat's settings.
@@ -47,7 +63,7 @@ func savedOption(a *App, chat, option string) string {
 }
 
 // A reopened chat whose agent answers the load and then never answers the
-// request to restore a setting is open and usable within the limit. It has
+// request to restore a setting opens and becomes usable before that reply. It has
 // the agent's values, it says so once, it keeps its saved choices, and no
 // second request is sent to the agent that is not answering. The answer
 // that comes later changes nothing.
@@ -56,20 +72,17 @@ func TestAReopenedChatOpensWhenARestoreIsNeverAnswered(t *testing.T) {
 	events := watchEvents(a)
 	c.options = append(c.options, acp.ConfigOption{ID: "effort", Name: "Effort", Type: "select", CurrentValue: json.RawMessage(`"low"`),
 		Options: json.RawMessage(`[{"value":"low","name":"Low"},{"value":"high","name":"High"}]`)})
-	release, answered := heldSettings(t, c)
+	release, entered, answered := heldSettings(t, c)
 	a.optionService().RestoreLimit = 40 * time.Millisecond
 	ws := t.TempDir()
 	const id = "codex:unrestored"
 	a.settings.SessionOptions = map[string]map[string]json.RawMessage{id: {"model": json.RawMessage(`"changed"`), "effort": json.RawMessage(`"high"`)}}
 
-	began := time.Now()
 	info, err := a.OpenSessionAt(ws, id)
 	if err != nil {
 		t.Fatalf("the open failed because a setting was not restored: %v", err)
 	}
-	if took := time.Since(began); took > 3*time.Second {
-		t.Fatalf("the open took %s with a limit of 40 ms", took)
-	}
+	requireSettingsReplyStillHeld(t, entered, answered)
 	s := a.session(id)
 	if s == nil || !s.Open() {
 		t.Fatal("the chat is not open")
@@ -117,22 +130,19 @@ func TestAReopenedChatOpensWhenARestoreIsNeverAnswered(t *testing.T) {
 }
 
 // A new chat whose agent never answers the request for the person's default
-// setting is made and usable within the limit, with the agent's own value.
+// setting is made and usable before that reply, with the agent's own value.
 func TestANewChatOpensWhenARestoreIsNeverAnswered(t *testing.T) {
 	a, c := providerTestApp(t)
 	events := watchEvents(a)
-	release, answered := heldSettings(t, c)
+	release, entered, answered := heldSettings(t, c)
 	a.optionService().RestoreLimit = 40 * time.Millisecond
 	a.settings.ProviderDefaults = map[string]map[string]json.RawMessage{"codex": {"model": json.RawMessage(`"codex-default"`)}}
 
-	began := time.Now()
 	info, err := a.NewSessionAt(t.TempDir())
 	if err != nil {
 		t.Fatalf("the chat was not made because a default was not restored: %v", err)
 	}
-	if took := time.Since(began); took > 3*time.Second {
-		t.Fatalf("the new chat took %s with a limit of 40 ms", took)
-	}
+	requireSettingsReplyStillHeld(t, entered, answered)
 	s := a.session(info.ID)
 	if s == nil || !s.Open() {
 		t.Fatal("the new chat is not open")

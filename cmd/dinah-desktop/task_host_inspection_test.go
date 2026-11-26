@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"studio/internal/taskhost"
@@ -18,6 +20,31 @@ func TestTaskInspectionReadsOnlyLocalWorkspaceChatsAndConfiguration(t *testing.T
 	if err != nil || len(chats) != 1 || chats[0].ChatID != "owned-chat" || chats[0].Workspace != scope.Workspace {
 		t.Fatalf("local inventory: %+v %v", chats, err)
 	}
+	t.Run("workspace-alias", func(t *testing.T) {
+		alias := filepath.Join(t.TempDir(), "workspace-alias")
+		if err := os.Symlink(root, alias); err != nil {
+			t.Skipf("creating a directory symlink is unavailable: %v", err)
+		}
+		a.settings.WorkspaceRecords[0].ExecutionPath = alias
+		defer func() {
+			a.settings.WorkspaceRecords[0].ExecutionPath = root
+			cleanupFixtureChat(t, a, "owned-chat", "codex", root, "")
+		}()
+		cleanupFixtureChat(t, a, "owned-chat", "codex", alias, "")
+		chats, err := a.describeTaskChats(context.Background(), scope)
+		if err != nil || len(chats) != 1 || chats[0].ChatID != "owned-chat" || chats[0].Workspace != scope.Workspace {
+			t.Fatalf("aliased local inventory: %+v %v", chats, err)
+		}
+	})
+	t.Run("unscoped-paths", func(t *testing.T) {
+		t.Chdir(root)
+		cleanupFixtureChat(t, a, "relative-chat", "codex", ".", "")
+		cleanupFixtureChat(t, a, "unscoped-chat", "codex", "", "")
+		chats, err := a.describeTaskChats(context.Background(), scope)
+		if err != nil || len(chats) != 1 || chats[0].ChatID != "owned-chat" {
+			t.Fatalf("an unscoped path entered the workspace inventory: %+v %v", chats, err)
+		}
+	})
 	if offered, err := a.checkTaskProgram(context.Background(), scope, "codex"); err != nil || !offered.Offered {
 		t.Fatalf("offered: %+v %v", offered, err)
 	}
