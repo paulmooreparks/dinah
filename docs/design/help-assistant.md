@@ -1,6 +1,6 @@
 # A help assistant in the window Assistant
 
-Paul asked on 26 November 2026, through Software Director, for a helper that a person can consult for advice on how to use a feature or solve a problem, which he described as an AI-enabled Clippy without the goofy animation, and suggested it could extend the Assistant. Software Director proposed eight points for it. This note checks those points against the code as it stands on master at 539440eb, says what would have to be added, and asks Paul what only he can decide. Nothing in it is built, and the form of any screen it describes needs his approved mockup first.
+Paul asked on 26 November 2026, through Software Director, for a helper that a person can consult for advice on how to use a feature or solve a problem, which he described as an AI-enabled Clippy without the goofy animation, and suggested it could extend the Assistant. Software Director proposed eight points for it. This note checks those points against the code as it stands on master at 539440eb, says what would have to be added, and records the seven decisions Paul made on it (section 7). Nothing in it is built, and the form of any screen it describes needs his approved mockup first.
 
 ## 1. What the Assistant does today
 
@@ -108,7 +108,9 @@ The mockup would be a clickable PUDL page with these screens and states:
 - An error card under Notifications with Ask About This, and the answer it leads to.
 - A follow-up question after an answer.
 
-## 7. Questions for Paul
+## 7. Decided by Paul
+
+Paul accepted all seven recommendations below on 26 November 2026, through Software Director: "Yes, I accept all seven recommendations." That approves the direction of the design. The mockup screens listed in section 6 still go to him before anything is built. The questions are kept as they were asked, and each recommendation is now the decision.
 
 1. Should help live in the existing Assistant popover, with Help, Ask for Help… opening it in question form? I recommend one popover and one key, as an extension of what exists.
 2. Should the writing of Dinah's help come first, with the helper built only once about 20 sections exist? I recommend yes, since without the help nearly every answer would be "not covered".
