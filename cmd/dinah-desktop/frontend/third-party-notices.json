@@ -2,7 +2,7 @@
  "components": [
   {
    "name": "The Go runtime and standard library",
-   "version": "1.26.10",
+   "version": "1.26.11",
    "licence": "BSD-3-Clause",
    "where": "Built into the programs",
    "notices": [
