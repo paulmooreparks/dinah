@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows/registry"
@@ -140,8 +139,8 @@ func TestAnEarlierInstallationsDocumentApplicationsAreRemoved(t *testing.T) {
 	}
 }
 
-// The target a shortcut file starts is read back as it was written, which is
-// what decides whether an application's shortcut is this product's to remove.
+// The target read from a shortcut must identify the program it was written
+// for. Windows can return a long path when the input used an 8.3 alias.
 func TestAShortcutsTargetIsReadBack(t *testing.T) {
 	dir := t.TempDir()
 	program := filepath.Join(dir, "program.exe")
@@ -156,7 +155,15 @@ func TestAShortcutsTargetIsReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.EqualFold(filepath.Clean(got), filepath.Clean(program)) {
+	wantInfo, err := os.Stat(program)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotInfo, err := os.Stat(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(gotInfo, wantInfo) {
 		t.Errorf("the shortcut starts %q, want %q", got, program)
 	}
 }
