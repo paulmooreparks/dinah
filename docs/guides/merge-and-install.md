@@ -32,7 +32,7 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 
 | Step | Command (from the repository root unless stated) | A pass looks like |
 |---|---|---|
-| 0. Check the last GitHub build | `gh run list -R paulmooreparks/dinah --workflow build.yml --branch master --limit 1 --json headSha,status,conclusion` | The run for the last pushed master has finished with `success`, or is still running. A failed run is reported to the lead who owns the failing area and to Software Director before the next merge starts, with the failing jobs from `gh run view <id> --log-failed`. The merge itself may go ahead unless the failure is in the area the handover changes. |
+| 0. Check the last GitHub build | `gh run list -R paulmooreparks/dinah --workflow build.yml --branch master --limit 1 --json headSha,status,conclusion` | The run for the last pushed master has finished with `success` and the "latest" release was published from that commit (`gh release view latest -R paulmooreparks/dinah --json targetCommitish`), or the run is still running. A failed run is handled by the rule under "A failure on GitHub" below before the next merge starts. The merge itself may go ahead unless the failure is in the area the handover changes. |
 | 1. Look at the branch | `git fetch -q origin`, `git log --oneline master..<branch>`, `git diff --stat master...<branch>` | The commits and files match what the handover described, and the branch is based on a recent master. |
 | 2. Merge | `git merge --ff-only <branch>` when the branch is on master's head; otherwise `git merge --no-edit <branch>` | A fast-forward, or a merge commit with no conflicts. |
 | 3. Forbidden-terms guard | `DINAH_FORBIDDEN_TERMS=~/.dinah/forbidden-terms.txt go test -count=1 -v ./internal/profile/` | `ok` with no `SKIP` line and no `(cached)`. |
@@ -78,6 +78,14 @@ Then reply to the handover message, which reaches the lead who handed the work o
 4. Name the test to Dinah Quality, which owns tests that fail at random, so it is fixed and does not become a known failure everyone passes over.
 
 A merge changes a package when it changes any file in that package's folder, or a file the package embeds.
+
+**A failure on GitHub.** Paul chose this rule on 26 November 2026: "Option b, retry once. Go with your recommendation." A failed test job in the GitHub build of master may be re-run once on the same commit, as follows.
+1. Report the first failure in full to the lead who owns the area and to Software Director: the run, the job, the test and its output from `gh run view <id> --log-failed`. Name the test to Dinah Quality.
+2. If every failing test is outside what the pushed change touched, re-run once with `gh run rerun <id> -R paulmooreparks/dinah --failed`. That re-runs the failed jobs and the jobs that depend on them, on the same commit, with no push. Push nothing to master while it runs, since a push cancels it.
+3. A retry is never used to pass a failure in a test the change itself touched. Such a failure blocks, and goes back to the lead.
+4. Publishing happens only if the re-run passes; the build and publish jobs then run as usual. If the same test fails a second time, that blocks: no further re-run, and the lead and Software Director are told.
+5. After the run, confirm that "latest" was published from that commit, and say so in the merge report.
+The workflow itself does not retry; this is a manual step, so every retry is visible in a report.
 
 **The push.** Push master by name and nothing else. On 30 October a loop that pushed every local branch put old-history branches on the new public repository, which then had to be recreated. Never push `backup/pre-rewrite`, anything under `refs/original`, or a bundle file. Never force-push master unless Paul has approved a history rewrite.
 
