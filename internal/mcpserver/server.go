@@ -643,7 +643,7 @@ func (s *Server) register(srv *mcp.Server, person string) {
 		})
 
 	mcp.AddTool(srv, &mcp.Tool{Name: "read_message",
-		Description: "Read a whole message from a group chat you are in, by its number. A message that does not mention you reaches you as a line with its number, and this tool returns the rest of it."},
+		Description: "Read a whole text message by its number if you sent it, received it, or belong to its group chat. This includes direct messages already delivered. A group notice reaches you as a line with its number, and this tool returns the rest of it. Reading does not mark a pending message delivered."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in readMessageIn) (*mcp.CallToolResult, any, error) {
 			me, err := s.current(ctx)
 			if err != nil {

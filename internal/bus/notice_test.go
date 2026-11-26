@@ -142,7 +142,7 @@ func TestAMentionIsNeverANotice(t *testing.T) {
 
 // A chat reads a message by its number if it is in the group, was sent it, or
 // sent it, and not otherwise.
-func TestReadMessageIsLimitedToTheChatsOwnGroups(t *testing.T) {
+func TestReadMessageIsLimitedToTheChatsOwnGroupsAndCorrespondence(t *testing.T) {
 	ctx := context.Background()
 	b, g, lead, docs, _ := noticeGroup(t)
 	m, err := b.Send(ctx, Sender{Session: &lead}, "#"+g.Name, "Headline.\nThe rest of the message.", nil, 0)
@@ -162,8 +162,34 @@ func TestReadMessageIsLimitedToTheChatsOwnGroups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.ReadMessage(ctx, docs.ID, direct.ID); err == nil || !strings.Contains(err.Error(), "not a message in a group chat") {
-		t.Fatalf("a direct message was read by number: %v", err)
+	for _, event := range []string{"before-delivery", "after-delivery"} {
+		if event == "after-delivery" {
+			if _, _, err := b.Deliver(ctx, docs.ID, DoorbellTurn); err != nil {
+				t.Fatal(err)
+			}
+		}
+		counter, err := b.ChangeCounter(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count, newest, err := b.Doorbell(ctx, docs.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, reader := range []Session{lead, docs} {
+			if got, err := b.ReadMessage(ctx, reader.ID, direct.ID); err != nil || got.ID != direct.ID || got.Text != direct.Text {
+				t.Fatalf("%s could not reread its direct message %s: %+v %v", reader.ID, event, got, err)
+			}
+		}
+		if _, err := b.ReadMessage(ctx, outsider.ID, direct.ID); err == nil {
+			t.Fatal("a stranger read a direct message")
+		}
+		if after, err := b.ChangeCounter(ctx); err != nil || after != counter {
+			t.Fatalf("read changed bus counter: %d %v", after, err)
+		}
+		if after, last, err := b.Doorbell(ctx, docs.ID); err != nil || after != count || last != newest {
+			t.Fatalf("read consumed delivery: %d %d %v", after, last, err)
+		}
 	}
 	if _, err := b.ReadMessage(ctx, docs.ID, 9999); err == nil {
 		t.Fatal("a message that does not exist was read")

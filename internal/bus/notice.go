@@ -69,9 +69,8 @@ func formatNotices(notices []Message, server string) string {
 	return b.String()
 }
 
-// ReadMessage returns a group's message to a chat that is in the group, or that
-// sent it or was sent it, whole, as an agent receives a message that mentions
-// it. It is how a chat reads what a notice began.
+// ReadMessage returns a whole text message to its sender or recipient, or to
+// a member of its group. Reading by number does not consume its delivery.
 func (b *Bus) ReadMessage(ctx context.Context, sessionID string, id int64) (Message, error) {
 	s, err := b.Session(ctx, sessionID)
 	if err != nil {
@@ -81,17 +80,23 @@ func (b *Bus) ReadMessage(ctx context.Context, sessionID string, id int64) (Mess
 	if err != nil {
 		return Message{}, err
 	}
-	if m.Kind != "text" || m.Room == "" {
-		return Message{}, fmt.Errorf("message %d is not a message in a group chat; read other messages with the inbox", id)
+	if m.Kind != "text" {
+		return Message{}, fmt.Errorf("message %d is not a text message; read other messages with the inbox", id)
 	}
-	var one int
-	err = b.db.QueryRowContext(ctx, `SELECT 1 FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, m.Room, s.ID).Scan(&one)
-	if errors.Is(err, sql.ErrNoRows) {
+	if m.Room == "" {
 		if !b.mayRead(ctx, s, m) {
-			return Message{}, fmt.Errorf("message %d is in a group chat this chat is not in", id)
+			return Message{}, fmt.Errorf("message %d was not sent by or to this chat or its workspace", id)
 		}
-	} else if err != nil {
-		return Message{}, err
+	} else {
+		var one int
+		err = b.db.QueryRowContext(ctx, `SELECT 1 FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, m.Room, s.ID).Scan(&one)
+		if errors.Is(err, sql.ErrNoRows) {
+			if !b.mayRead(ctx, s, m) {
+				return Message{}, fmt.Errorf("message %d is in a group chat this chat is not in", id)
+			}
+		} else if err != nil {
+			return Message{}, err
+		}
 	}
 	if err := b.db.QueryRowContext(ctx, `SELECT `+trustedSQL("m.from_workspace", "?")+` FROM messages m WHERE m.id = ?`, s.Workspace, s.Workspace, id).Scan(&m.Trusted); err != nil {
 		return Message{}, err
