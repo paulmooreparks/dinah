@@ -1,5 +1,5 @@
 {
-  "digest": "4819fe84166a2d3daf09a42f7b132e5e0e53a937481074448610ad5ecd78caae",
+  "digest": "1b3df1a591a184bf94e5762832b9628ef228ff4eed665d9afa799a84a9f9bd6e",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -1290,8 +1290,8 @@
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 24846,
-      "sha256": "219f2656dd229748aa760f873e2031821623597f58c72d755c50344550581e19"
+      "bytes": 25264,
+      "sha256": "1e366b3db48a8cfe8bd3e4b8d8803e50cb3dc2dcebf0388c2982559a54d8c406"
     },
     {
       "path": "content/md-engine/safe-html.js",

@@ -267,10 +267,17 @@
    Columns are never crushed to fit: v0.2.119 let every cell break a word
    anywhere, which gave a prose column the whole width and drew a short
    heading one or two letters to a line. Document lays tables out on its
-   sheets in pages.js; print keeps ordinary table layout. */
+   sheets in pages.js; print keeps ordinary table layout.
+
+   The scrolling box applies only to pages that cannot be edited (Preview
+   and the reading page). In Visual's editor, WebKit could not put the
+   caret after a table that was its own scrolling box at the end of a
+   document, so typing there never made a new paragraph (docs/backlog.md).
+   A too-wide table in Visual scrolls the pane sideways instead, and the
+   paragraphs still wrap at the pane. */
 @media screen {
   .doc-page:not(.doc-paginated) { min-width: 0; }
-  .doc-page:not(.doc-paginated) table { display: block; width: fit-content; max-width: 100%; overflow-x: auto; }
+  .doc-page:not(.doc-paginated):not(.page-view) table { display: block; width: fit-content; max-width: 100%; overflow-x: auto; }
   /* A label drawn as one piece (a status badge, keys, a host's inline
      shortcode) stays on one line, as the wiki draws it. */
   .doc-page :is(td, th) :is(.badge, .pm-sc, .sc-host[data-host-kind="inline"]) { white-space: nowrap; }
