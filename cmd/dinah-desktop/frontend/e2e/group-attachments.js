@@ -49,6 +49,8 @@ const { settled, settledCount } = require('./lib/settled');
           messages.push(m);
           return m;
         },
+        // A picture on the host's clipboard, for the box's menu Paste (clipboard_image_windows.go).
+        ClipboardImage: async () => ({ type: 'image/png', data: pixel }),
         OldAttachments: async days => { __calls.push(['count', days]); return days === 7 ? { files: 0, bytes: 0 } : { files: 2, bytes: 3 * 1048576 }; },
         RemoveOldAttachments: async days => { __calls.push(['remove', days]); return { files: 2, bytes: 3 * 1048576 }; }
       };
@@ -106,6 +108,17 @@ const { settled, settledCount } = require('./lib/settled');
 
     await chips.nth(1).getByRole('button', { name: 'Remove dropped.txt' }).click();
     ok('Remove takes a chip away', await chips.count() === 2 && !(await room.locator('.group-attachments').innerText()).includes('dropped.txt'));
+
+    // The box claims PUDL's edit menu with the same four rows, and its Paste
+    // attaches a copied picture as Ctrl+V does (docs/design/chat-clipboard.md).
+    await box.click({ button: 'right' });
+    await p.locator('.context-menu').first().waitFor({ state: 'visible' });
+    const menuRows = await p.evaluate(() => [...document.querySelectorAll('.context-menu .menu-action')].filter(r => r.offsetParent).map(r => (r.querySelector('.menubar-words') || r).textContent.trim()));
+    ok('the group box has the four stock edit rows', menuRows.join('|') === 'Cut|Copy|Paste|Select All', JSON.stringify(menuRows));
+    await p.locator('.context-menu .menu-action').nth(menuRows.indexOf('Paste')).click();
+    await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="bus-room"] .group-attachments .attachment').length === 3);
+    ok('menu Paste attaches a copied picture to the group message', /^pasted-.*\.png$/.test(await chips.nth(2).locator('.attachment-name').innerText()) &&
+      await chips.nth(2).locator('img').count() === 1 && await box.inputValue() === 'With files');
 
     // The draft keeps its words but not its files.
     const key = await room.getAttribute('data-win');

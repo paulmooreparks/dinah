@@ -353,6 +353,152 @@
     return c;
   }
 
+  /* A chat box's Edit menu (docs/design/chat-clipboard.md). PUDL's own
+     Cut, Copy, Paste and Select All paste only text, and the browser's
+     menu, whose Paste could attach a picture, is turned off. So a chat box
+     claims the menu (PUDL docs/EDIT-MENUS.md, "Editor transactions and
+     merging") and gives the same four rows, with PUDL's ids, labels,
+     shortcuts and icons, following the same rules: Cut and Copy need a
+     selection, Cut deletes only after the clipboard is written, text is
+     changed with execCommand so that Undo works, and an edit whose box or
+     selection changed while the clipboard was read is dropped with an
+     error. The one difference is Paste: it asks the host for a picture
+     first (App.ClipboardImage) and attaches one as Ctrl+V does, through
+     o.attach(files). When there is no picture, or the picture cannot be
+     read, it pastes the clipboard's text as PUDL's Paste would; a failed
+     picture read is only logged, and an error is shown only when the text
+     cannot be read either. Returns a function that removes the claim. */
+  /* As in PUDL, another interaction while the clipboard is read retires a
+     pending edit. Focus coming back to a claimed box is not one: PUDL's
+     menu gives the focus back to the box when it closes, under a flag of
+     its own the page cannot see, and the box's value and selection are
+     checked again before any edit. */
+  var editGeneration = 0, restoringEdit = false, claimed = new WeakSet();
+  ['pointerdown', 'keydown', 'focusin', 'input'].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      if (restoringEdit || (event.target.closest && event.target.closest('.context-menu'))) return;
+      if (type === 'focusin' && claimed.has(event.target)) return;
+      editGeneration++;
+    }, true);
+  });
+  function editIcon(id) {
+    var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16'); svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.5');
+    svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+    var path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', id === 'cut' ? 'M5.5 6.5L13 2M5.5 9.5L13 14M6 4.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM6 11.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z' :
+      id === 'paste' ? 'M6 3H3v11h10V3h-3M6 2h4v3H6ZM5.5 8h5M5.5 11h5' : 'M5 2H2v3M11 2h3v3M14 11v3h-3M5 14H2v-3M5 5h6v6H5Z');
+    svg.appendChild(path);
+    return [svg];
+  }
+  function editError(field, operation, error) {
+    var event = new CustomEvent('pudl:edit-error', { bubbles: true, cancelable: true, detail: { target: field, operation: operation, error: error } });
+    (field.isConnected ? field : document).dispatchEvent(event);
+    if (event.defaultPrevented) return;
+    if (window.pudlToast) window.pudlToast(error && error.message || String(error), { kind: 'danger' });
+    else console.error(error);
+  }
+  // The picture on the clipboard as a File, or null when there is none or
+  // it cannot be read, which is logged and never shown.
+  function clipboardPicture() {
+    var host = window.dinahHelpers && window.dinahHelpers.app();
+    if (!host || typeof host.ClipboardImage !== 'function') return Promise.resolve(null);
+    return Promise.resolve().then(function () { return host.ClipboardImage(); }).then(function (image) {
+      if (!image || !image.type || !image.data) return null;
+      var bytes;
+      if (typeof image.data === 'string') {
+        var raw = atob(image.data);
+        bytes = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      } else bytes = new Uint8Array(image.data);
+      // No name: the box names a pasted picture as it does for Ctrl+V.
+      return new File([bytes], '', { type: image.type });
+    }).catch(function (error) {
+      console.warn('The clipboard\'s picture could not be read, so its text is pasted.', error);
+      return null;
+    });
+  }
+  function editMenu(field, o) {
+    function asked(event) {
+      if (!event.detail || typeof event.detail.handlesEdit !== 'function') return;
+      event.detail.handlesEdit();
+      var s = { value: field.value, start: field.selectionStart, end: field.selectionEnd, direction: field.selectionDirection };
+      s.text = field.value.slice(s.start, s.end);
+      var opened = editGeneration;
+      function live(writing) {
+        return field.isConnected && !field.disabled && !field.closest('[inert]') && field.value === s.value && (!writing || !field.readOnly);
+      }
+      function restore() {
+        restoringEdit = true;
+        try { field.focus({ preventScroll: true }); field.setSelectionRange(s.start, s.end, s.direction); }
+        finally { restoringEdit = false; }
+      }
+      function ensureOwned(generation) {
+        if (generation !== editGeneration || !live(true) || document.activeElement !== field ||
+            field.selectionStart !== s.start || field.selectionEnd !== s.end) {
+          throw new Error('The editing target or selection changed while the clipboard operation was pending.');
+        }
+      }
+      function replace(text, deleting, generation) {
+        ensureOwned(generation); restore(); ensureOwned(generation);
+        var inputType = deleting ? 'deleteContentBackward' : 'insertText';
+        if (!field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, composed: true, cancelable: true, inputType: inputType, data: deleting ? null : text }))) return;
+        ensureOwned(generation);
+        var input = false;
+        function observed() { input = true; }
+        field.addEventListener('input', observed);
+        var changed;
+        try { changed = document.execCommand(deleting ? 'delete' : 'insertText', false, text); }
+        finally { field.removeEventListener('input', observed); }
+        if (!changed) throw new Error('This browser could not apply the edit with Undo support.');
+        if (!input) field.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: inputType, data: deleting ? null : text }));
+      }
+      var selected = !!s.text && live(false), writable = live(true);
+      function row(id, label, shortcut, enabled, action) {
+        var r = { id: id, label: label, shortcut: shortcut, bind: false, disabled: !enabled, run: function () {
+          if (opened !== editGeneration) { editError(field, id, new Error('The editing menu no longer owns its original target.')); return Promise.resolve(); }
+          var generation = ++editGeneration;
+          return Promise.resolve().then(function () {
+            if (!live(id === 'cut' || id === 'paste')) throw new Error('The editing target is no longer available.');
+            if (id === 'cut' || id === 'paste') { restore(); ensureOwned(generation); }
+            return action(generation);
+          }).catch(function (error) { editError(field, id, error); });
+        } };
+        if (id === 'copy') r.glyph = 'copy'; else r.icon = editIcon(id);
+        return r;
+      }
+      function copy(generation) {
+        if (generation !== editGeneration || !live(false) || !s.text) throw new Error('The selected text is no longer available.');
+        return window.pudlClipboard.writeText(s.text);
+      }
+      event.detail.add([
+        row('cut', 'Cut', 'Mod+X', selected && writable, function (generation) {
+          return copy(generation).then(function () { replace('', true, generation); });
+        }),
+        row('copy', 'Copy', 'Mod+C', selected, copy),
+        row('paste', 'Paste', 'Mod+V', writable, function (generation) {
+          return clipboardPicture().then(function (file) {
+            if (file) {
+              if (!field.isConnected) throw new Error('The editing target is no longer available.');
+              o.attach([file]);
+              return;
+            }
+            ensureOwned(generation);
+            return window.pudlClipboard.readText().then(function (text) { if (text) replace(text, false, generation); });
+          });
+        }),
+        row('select-all', 'Select All', 'Mod+A', field.isConnected && !field.disabled, function () {
+          if (!field.isConnected || field.disabled) return;
+          field.focus({ preventScroll: true }); field.select();
+        })
+      ]);
+    }
+    claimed.add(field);
+    field.addEventListener('pudl:contextmenu', asked);
+    return function () { claimed.delete(field); field.removeEventListener('pudl:contextmenu', asked); };
+  }
+
   function addItems(o) {
     return [
       // At the limit on the files in one message the command is disabled,
@@ -365,5 +511,5 @@
   }
 
   window.dinahComposer = { addItems: addItems, setSendKey: setSendKey, sendKey: function () { return sendKey; }, sendKeyName: sendKeyName, fit: fit, caretRows: caretRows,
-    history: history, bind: bind, box: box, layout: layout, keeper: keeper, forget: forget, attachments: attachments, sizeWords: sizeWords, maxFile: MAX_FILE };
+    history: history, bind: bind, box: box, layout: layout, keeper: keeper, forget: forget, attachments: attachments, editMenu: editMenu, sizeWords: sizeWords, maxFile: MAX_FILE };
 })();

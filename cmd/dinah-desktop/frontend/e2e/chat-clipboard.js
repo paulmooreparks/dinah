@@ -8,9 +8,17 @@ const { settled, settledCount } = require('./lib/settled');
       OpenSessionAt: async (ws, id) => ({ sessionId: id, provider: 'codex', title: id, cwd: ws, open: true }),
       ResolveDocumentLink: async (cwd, path) => { __links.push({cwd, path}); return { ref: path, found: true, opens: 'system', path: cwd + '/' + path }; },
       OpenPath: async () => 'opened',
-      Send: async (id, text, doc, attachments) => { __sent.push({ id, text, attachments }); }
+      Send: async (id, text, doc, attachments) => { __sent.push({ id, text, attachments }); },
+      // The host's clipboard for the menu's Paste: a picture
+      // (clipboard_image_windows.go) and the text (clipboard-transport.js).
+      // 'refuse' makes the read fail. Go sends a picture's bytes as base64.
+      ClipboardImage: async () => { if (__clip.image === 'refuse') throw new Error('The clipboard refused the picture.'); return __clip.image || { type: '', data: null }; },
+      ClipboardRead: async () => { if (__clip.text === 'refuse') throw new Error('The clipboard refused the text.'); return { html: '', text: __clip.text }; }
     }),
-    init: () => { window.__sent = []; window.__links = []; },
+    init: () => {
+      window.__sent = []; window.__links = []; window.__clip = { image: null, text: '' }; window.__editErrors = [];
+      document.addEventListener('pudl:edit-error', e => { __editErrors.push(e.detail.operation + ': ' + (e.detail.error && e.detail.error.message)); });
+    },
     ready: () => window.dinahWorkbench && window.dinahEditor,
     goto: false,
   });
@@ -87,5 +95,68 @@ const { settled, settledCount } = require('./lib/settled');
     ok('relative and spaced local Markdown links render safely', links.ok, links.detail);
     await a.locator('[data-chip-local]').first().click();
     ok('local link uses the owning chat execution folder', await page.evaluate(() => __links.length === 1 && __links[0].cwd.toLowerCase() === 'c:/test' && __links[0].path === 'docs/proposals/note.md'));
+
+    // The prompt claims PUDL's edit menu and gives the same four rows, whose
+    // Paste attaches a copied picture as Ctrl+V does (docs/design/chat-clipboard.md).
+    await page.evaluate(() => { window.__toasts = []; const t = window.pudlToast; window.pudlToast = (text, o) => { __toasts.push(String(text)); return t && t(text, o); }; });
+    const prompt = a.locator('[data-view-id="prompt"]');
+    // Shift+F10 opens the same menu without moving the caret off a selection.
+    const openMenu = async keyboard => {
+      if (keyboard) await page.keyboard.press('Shift+F10'); else await prompt.click({ button: 'right' });
+      await page.locator('.context-menu').first().waitFor({ state: 'visible' });
+      return page.evaluate(() => [...document.querySelectorAll('.context-menu .menu-action')].filter(r => r.offsetParent).map(r => ({
+        label: (r.querySelector('.menubar-words') || r).textContent.trim(), disabled: r.getAttribute('aria-disabled') === 'true' })));
+    };
+    const choose = async label => {
+      const at = await page.evaluate(l => [...document.querySelectorAll('.context-menu .menu-action')].findIndex(r => r.offsetParent && (r.querySelector('.menubar-words') || r).textContent.trim() === l), label);
+      await page.locator('.context-menu .menu-action').nth(at).click();
+    };
+    const clipboard = c => page.evaluate(c => { __clip = c; __editErrors = []; __toasts = []; }, c);
+    await prompt.fill('');
+    const before = await attachments(a).count();
+    await clipboard({ image: { type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=' }, text: 'not this' });
+    let rows = await openMenu();
+    ok('the prompt\'s menu has the four stock rows, claimed by the chat box', rows.map(r => r.label).join('|') === 'Cut|Copy|Paste|Select All' &&
+      await page.evaluate(() => __bridgeCalls.filter(c => c[0] === 'ClipboardImage').length === 0), JSON.stringify(rows));
+    ok('Cut and Copy are disabled with no selection, Paste and Select All enabled', rows.map(r => r.disabled).join() === 'true,true,false,false', JSON.stringify(rows));
+    await choose('Paste');
+    await page.waitForFunction(n => document.querySelectorAll('[data-win] .attachment-name').length > n, before);
+    const added = await attachments(a).allInnerTexts();
+    ok('menu Paste with a picture on the clipboard attaches it as Ctrl+V does', added.length === before + 1 && /^pasted-.*\.png$/.test(added[added.length - 1]) &&
+      await prompt.inputValue() === '' && await a.locator('.attachment img').count() > 0, JSON.stringify(added));
+
+    await clipboard({ image: null, text: 'menu words' });
+    await openMenu();
+    await choose('Paste');
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-view-id="prompt"]')].some(p => p.value === 'menu words'));
+    ok('menu Paste with no picture pastes the clipboard\'s text', await prompt.inputValue() === 'menu words' && await attachments(a).count() === before + 1);
+    await prompt.press('Control+z');
+    ok('Undo takes the pasted text away', await prompt.inputValue() === '', JSON.stringify(await prompt.inputValue()));
+
+    await clipboard({ image: 'refuse', text: 'fallback words' });
+    await openMenu();
+    await choose('Paste');
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-view-id="prompt"]')].some(p => p.value === 'fallback words'));
+    ok('a refused picture read falls back to the text and shows no error', await page.evaluate(() => __editErrors.length === 0 && __toasts.length === 0 && !document.querySelector('.toast')),
+      JSON.stringify(await page.evaluate(() => [__editErrors, __toasts])));
+
+    await prompt.fill('');
+    await clipboard({ image: 'refuse', text: 'refuse' });
+    await openMenu();
+    await choose('Paste');
+    await page.waitForFunction(() => __editErrors.length > 0);
+    ok('when the text cannot be read either, the error is shown', await page.evaluate(() => __editErrors[0].startsWith('paste:') && __toasts.some(t => /refused the text/.test(t))) && await prompt.inputValue() === '',
+      JSON.stringify(await page.evaluate(() => [__editErrors, __toasts])));
+
+    await prompt.fill('keep cut words');
+    await prompt.evaluate(el => { el.focus(); el.setSelectionRange(5, 8); });
+    await clipboard({ image: null, text: '' });
+    rows = await openMenu(true);
+    ok('with a selection Cut and Copy are enabled', rows.map(r => r.disabled).join() === 'false,false,false,false', JSON.stringify(rows));
+    await choose('Cut');
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-view-id="prompt"]')].some(p => p.value === 'keep  words'));
+    ok('Cut writes the selection to the clipboard, then deletes it', await page.evaluate(() => __runtime.some(c => c[0] === 'ClipboardSetText' && c[1] === 'cut')));
+    await prompt.press('Control+z');
+    ok('Undo puts the cut text back', await prompt.inputValue() === 'keep cut words', JSON.stringify(await prompt.inputValue()));
   } finally { await t.close(); }
 })();

@@ -3410,6 +3410,8 @@
       addFiles(files);
     }
     chips.dropOn(root.querySelector('.chat-pane'), function () { $('prompt').focus(); });
+    // The box's Edit menu, whose Paste attaches a copied picture as Ctrl+V does (composer.js).
+    window.dinahComposer.editMenu($('prompt'), { attach: addFiles });
     // The Add button: files from the computer through the system's file
     // dialog, or anything the @ pop-up offers, which it opens in the box.
     $('file-pick').addEventListener('change', function () {

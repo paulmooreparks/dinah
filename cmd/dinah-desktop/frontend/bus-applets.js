@@ -357,6 +357,8 @@
         if (!e.clipboardData.getData('text/plain')) e.preventDefault();
         chips.add(found);
       });
+      // The box's Edit menu, whose Paste attaches a copied picture as Ctrl+V does (composer.js).
+      window.dinahComposer.editMenu(text, { attach: function (found) { chips.add(found); } });
       box.attach = function () { return chips.pick(input).then(function () { text.focus(); }).catch(function (err) { attachmentFailed(message(err)); }); };
       box.dropOn = function (zone) { chips.dropOn(zone, function () { text.focus(); }); };
       box.files = function () { return files; };
