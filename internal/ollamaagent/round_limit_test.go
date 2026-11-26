@@ -61,10 +61,10 @@ func toolLoop(t *testing.T, toolRounds int) (*Conn, *host, string, *atomic.Int64
 
 func runTurn(t *testing.T, c *Conn, id string) acp.PromptResult {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	var res acp.PromptResult
-	if err := c.Call(ctx, "session/prompt", acp.PromptParams{SessionID: id, Prompt: []acp.ContentBlock{{Type: "text", Text: "Keep reading."}}}, &res); err != nil {
+	// These are round-count checks, not latency checks. Keep the model's
+	// complete sequence of real tool calls within the test runner's lifetime.
+	if err := c.Call(t.Context(), "session/prompt", acp.PromptParams{SessionID: id, Prompt: []acp.ContentBlock{{Type: "text", Text: "Keep reading."}}}, &res); err != nil {
 		t.Fatal(err)
 	}
 	return res
@@ -92,7 +92,7 @@ func TestATurnStopsAtTheLimitThePersonSet(t *testing.T) {
 		t.Fatalf("the turn did not say why it stopped: %s", h.said())
 	}
 	c.SetRoundLimit(func() int { return 0 })
-	if res := runTurn(t, c, id); requests.Load() <= 3 || res.StopReason == "max_turn_requests" {
+	if res := runTurn(t, c, id); requests.Load() != 101 || res.StopReason != "end_turn" {
 		t.Fatalf("the chat did not continue: stop %q after %d requests", res.StopReason, requests.Load())
 	}
 }

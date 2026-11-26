@@ -1,6 +1,6 @@
 # Wails 2.13 verification
 
-Wails is upgraded from v2.11.0 to v2.13.0. `go get` and `go mod tidy` ran with Go 1.26.10. The branch was then based on the separately delivered Go 1.26.11 commit `540ae828` to resolve a generated-notices merge conflict before receiving. Its final Go requirement is inherited from that base, and the notices were regenerated with Go 1.26.11. The Wails commit changes only the framework dependencies, their notices, a startup-test expectation and this record. No product UI code was changed.
+Wails is upgraded from v2.11.0 to v2.13.0. `go get` and `go mod tidy` ran with Go 1.26.10. The branch was then based on the separately delivered Go 1.26.11 commit `540ae828` to resolve a generated-notices merge conflict before receiving. Its final Go requirement is inherited from that base, and the notices were regenerated with Go 1.26.11. The Wails commit changes only the framework dependencies, their notices, startup and round-count test expectations and this record. No product UI code was changed.
 
 The Windows amd64 run of `scripts/vulnerability-gate.ps1` with Go 1.26.10 no longer reports GO-2026-6862. It still rejects the desktop target for GO-2026-6859 in the old standard library. That remaining finding is addressed on the separate Go 1.26.11 branch. Reports remain in `%TEMP%/dinah-wails213-vuln`; the nonzero gate result is retained rather than reported as a clean scan.
 
@@ -20,4 +20,12 @@ The fresh `pwsh scripts/go-gate.ps1 ./... -count=1` run passed with Go 1.26.10 a
 
 The initial Go 1.26.10 candidate is retained at `f107c375` on `quality/wails-2.13-go12610-evidence`. Verification of the combined source with Go 1.26.11 is recorded separately so that the two compiler versions are not conflated.
 
+The combined-source `scripts/vulnerability-gate.ps1` runs with Go 1.26.11 passed both executables on Windows amd64 and arm64, with no called vulnerabilities. The reports remain in `%TEMP%/dinah-wails213-go12611-vuln-amd64` and `%TEMP%/dinah-wails213-go12611-vuln-arm64`.
+
 Consumers that vendor Go dependencies must refresh their vendor directory after merging this upgrade. No branch was pushed and no product was installed during verification.
+
+With Go 1.26.11, rebuilt product binaries passed the hidden real-host journey again (17 checks, no failures or page errors), and all 17 window suites passed in 37 seconds. The respective receipts remain in `%TEMP%/dinah-wails213-go12611-hidden` and `%TEMP%/dinah-wails213-go12611-windows`.
+
+The first combined full Go gate failed only the Ollama round-count fixture's unrelated 30-second deadline, which cancelled after 75 requests. The fixture now uses the test lifetime context without reducing its tool rounds. Its resume assertion requires all 101 requests and normal completion. The whole Ollama package passes in 54.527 seconds with Go 1.26.11. The failed receipt remains in `%TEMP%/dinah-wails213-go12611-gate.log`, and the focused passing receipt remains in `%TEMP%/dinah-ollama-rounds-fixed.log`. This test-only correction is identical on the separate CI branch.
+
+The final combined full Go gate passed with Go 1.26.11 and exit zero after the round-count fixture correction. Its complete package results remain in `%TEMP%/dinah-wails213-go12611-final-gate.log`. This gate covers the final product and test sources; no failure was hidden or retried without a correction.
