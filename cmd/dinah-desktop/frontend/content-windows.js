@@ -139,6 +139,16 @@
       lastError = text;
       host().toast(text, 'danger');
     }
+    /* A refused Publish is always shown, even when an automatic save was
+       just refused for the same reason. failed() keeps an automatic save
+       from repeating one refusal at every pause in typing; a press of
+       Publish is the person's own act and must never pass in silence,
+       which read as success (Paul, 26 November 2026). */
+    function publishFailed(err) {
+      if (!host()) return;
+      lastError = message(err);
+      host().toast('The page was not published: ' + lastError, 'danger');
+    }
 
     /* A document with a file is written back after each pause in typing;
        a new one's text goes to its draft, which keeps it until Save As. */
@@ -219,7 +229,7 @@
             return current().then(retitle).then(function () { return draft; });
           });
         });
-      }).catch(failed);
+      }).catch(publishFailed);
     }
 
     var body = null, commentsAside = null, comments = null;
