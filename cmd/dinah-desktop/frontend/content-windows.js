@@ -133,10 +133,10 @@
       titled = title + '\u0000' + detail;
       window.dinahWorkbench.retitle(key, title, detail);
     }
-    function failed(err) {
+    function failed(err, explicit) {
       var text = message(err);
-      if (text === lastError || !host()) return;
-      lastError = text;
+      if ((!explicit && text === lastError) || !host()) return;
+      lastError = explicit ? '' : text;
       host().toast(text, 'danger');
     }
     /* A refused Publish is always shown, even when an automatic save was
@@ -145,9 +145,9 @@
        Publish is the person's own act and must never pass in silence,
        which read as success (Paul, 26 November 2026). */
     function publishFailed(err) {
-      if (!host()) return;
       lastError = message(err);
-      host().toast('The page was not published: ' + lastError, 'danger');
+      if (host()) host().toast('The page was not published: ' + lastError, 'danger');
+      throw err;
     }
 
     /* A document with a file is written back after each pause in typing;
@@ -156,21 +156,24 @@
        matches, say) is not tried again for the same text: the applet keeps
        its recovery snapshot at each attempt, which this window took as a
        change and saved again, so the refusal and its toast came round every
-       pause (seen on the real layout, 10 November 2026). The next change to
-       the text tries again. */
+       pause (seen on the real layout, 10 November 2026). A change to the
+       text or an explicit command tries again, so a repaired service can
+       accept the same text without forcing the person to edit it. */
     var refusedText = null;
-    function save() {
+    function save(explicit) {
       if (disposed) return Promise.resolve();
-      if (saving) return saving.then(save);
-      saving = current().then(function (doc) {
+      if (saving) return saving.catch(function () {}).then(function () { return save(explicit); });
+      saving = Promise.resolve().then(current).then(function (doc) {
         retitle(doc);
         if (!doc || !doc.modified || doc.readOnly) return;
         return textOf(key).then(function (text) {
-          if (refusedText !== null && text === refusedText) return;
+          if (!explicit && refusedText !== null && text === refusedText) return;
           return call('save').then(function () { refusedText = null; lastError = ''; refreshProblemsSoon(); return refreshDraft(); }).then(current).then(retitle)
             .catch(function (err) { refusedText = text; throw err; });
         });
-      }).catch(refused).finally(function () { saving = null; });
+      }).catch(function (err) {
+        return refused(err, explicit).then(function () { if (explicit) throw err; });
+      }).finally(function () { saving = null; });
       return saving;
     }
     function changed() {
@@ -183,7 +186,15 @@
         if ((!doc || !doc.path) && !disposed && mount) { allowClose = true; window.pudlWindows.close(key); }
       }).catch(function () {});
     }
-    function flush() { clearTimeout(saveTimer); return save(); }
+    function flush() { clearTimeout(saveTimer); return save(true); }
+    function explicitSave() {
+      return flush().then(function () {
+        return current().catch(function (err) { failed(err, true); throw err; });
+      }).then(function (doc) {
+        if (host() && doc) host().toast('Saved ' + doc.name + '.', 'info');
+        return doc;
+      });
+    }
     /* The draft as the service now sees it, after the applet's text went
        into it; a document that publishes needs this to know whether there
        is anything to publish. */
@@ -332,7 +343,7 @@
     $('mine').addEventListener('click', function () {
       $('outside').hidden = true;
       window.dinahContentHost.keepMine(resource);
-      flush();
+      flush().catch(function () {});
     });
     /* ---- Files added to the document --------------------------------------
        Insert Image… and Attach File… (the Documents menu), or an image pasted
@@ -724,12 +735,13 @@
     $('compare').addEventListener('click', compare);
     /* A refused save is a change made elsewhere, or a file changed on disk,
        or a plain failure, which is shown. */
-    function refused(err) {
-      return Promise.resolve(api().GetDraft(draft.id)).then(function (latest) {
+    function refused(err, explicit) {
+      if (explicit) failed(err, true);
+      return Promise.resolve().then(function () { return api().GetDraft(draft.id); }).then(function (latest) {
         draft = latest;
         if (latest.revision !== window.dinahContentHost.knownRevision(resource)) return showOutside();
-        return Promise.resolve(api().CompareDraft(draft.id)).then(function (c) { if (c.moved) return checkMoved(true); failed(err); });
-      }).catch(function () { failed(err); });
+        return Promise.resolve(api().CompareDraft(draft.id)).then(function (c) { if (c.moved) return checkMoved(true); if (!explicit) failed(err); });
+      }).catch(function () { if (!explicit) failed(err); });
     }
 
     /* Another program changes drafts without Dinah's events, so the window
@@ -788,10 +800,14 @@
     /* Documents › Save As runs the applet's own Save As, which asks Dinah
        for the file (content-host.js), so the window keeps its undo history. */
     function saveAs() {
-      return flush().then(function () {
+      // Save As submits the applet's current text to its new destination.
+      // A refused write to the old destination must not block that recovery.
+      clearTimeout(saveTimer);
+      var pending = saving || Promise.resolve();
+      return pending.catch(function () {}).then(function () {
         if (!mount) return;
         return window.pudlCommands.run('save-as', undefined, mount, { owner: { kind: 'person' } });
-      }).catch(failed);
+      }).catch(function (err) { failed(err, true); throw err; });
     }
     /* After Save As the draft has a new file, and its resource a new name. */
     function renamed(e) {
@@ -872,7 +888,7 @@
       redrawPictures: redrawPictures,
       canRename: function () { return !!draft.origin && draft.origin.kind === 'local-folder'; },
       rename: rename,
-      save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : draft.writeBack === 'publish' ? publish() : flush(); },
+      save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : draft.writeBack === 'publish' ? publish() : explicitSave(); },
       canSaveAs: function () { return true; },
       saveAs: saveAs,
       close: function () { window.pudlWindows.close(key); },
