@@ -9,10 +9,12 @@ import (
 )
 
 // Background work is what an agent runs on after its turn has ended: a
-// backgrounded command, a background subagent, a monitor, or a turn the
-// agent starts of its own when such work finishes. The Claude adapter
-// reports it through the AIR asyncTasks extension, which Dinah declares
-// (acp.ClientCaps), as three session updates documented in the adapter's
+// backgrounded command, a helper, or a turn the agent starts of its own.
+// The pinned Claude adapter reports commands and autonomous turns through
+// the AIR asyncTasks extension, which Dinah declares. Its Monitor tasks
+// are not reported; helpers have a separate hook observation contract.
+// The extension uses
+// three session updates documented in the adapter's
 // docs/air-extensions.md: async_task_spawned, async_task_progress (only the
 // fields that changed) and async_task_state_update (running, paused,
 // completed, failed or stopped). Dinah keeps the tasks that are not over,
@@ -50,6 +52,10 @@ func (a *App) StopBackgroundTask(sessionID, taskID string) error {
 	var out struct {
 		Stopped bool `json:"stopped"`
 	}
+	if t.SourceSession != "" {
+		sessionID = t.SourceSession
+	}
+	taskID = t.SourceID
 	if err := conn.Call(ctx, "_session/async_task/stop", map[string]string{"sessionId": sessionID, "asyncTaskId": taskID}, &out); err != nil {
 		return err
 	}

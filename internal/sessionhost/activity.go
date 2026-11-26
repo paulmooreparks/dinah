@@ -269,7 +269,7 @@ func (a *Activity) UnparkLocked() bool {
 func (a *Activity) ClosedDueLocked(window bool, now time.Time, after time.Duration) bool {
 	switch {
 	case !a.ReadyLocked() || a.ending != nil:
-	case window || a.inBackground || a.WorkingLocked() || a.details.BackgroundCountLocked() > 0:
+	case window || a.inBackground || a.WorkingLocked() || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0:
 		a.closedSince = time.Time{}
 	case a.closedSince.IsZero():
 		a.closedSince = now
@@ -305,7 +305,7 @@ func (e *SessionEnd) Wait() {
 func (e *SessionEnd) Complete()               { close(e.done) }
 func (a *Activity) EndingLocked() *SessionEnd { return a.ending }
 func (a *Activity) BeginEndLocked() *SessionEnd {
-	if !a.open || a.WorkingLocked() || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 || a.details.configuring || a.details.runtimeInterests > 0 {
+	if !a.open || a.WorkingLocked() || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0 || a.details.configuring || a.details.runtimeInterests > 0 {
 		return nil
 	}
 	e := &SessionEnd{done: make(chan struct{})}

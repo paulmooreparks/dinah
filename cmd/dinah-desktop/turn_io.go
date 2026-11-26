@@ -28,7 +28,7 @@ func (a *App) turnIO() *sessionhost.TurnIO {
 				a.copyAnswerToLead(s)
 			}, CommitTurn: func(s *Session, turn map[string]any) *sessionhost.LoggedEvent {
 				return a.transcriptCapture().CommitTurn(s, turn)
-			}, DisconnectSubagents: func(root *Session) { a.subagentService().Disconnect(root) },
+			}, DisconnectSubagents: a.turnSubagentsEnded,
 			CancelQuestions: func(session string) { a.permissions().CancelSession(session) }, Emit: a.emit, PrepareProviderApplets: prepareProviderApplets,
 			AppletPromptContext: a.appletPromptContext, PendingContinuationContext: func(s *Session) (string, error) { return a.continuations().PendingContext(s) },
 			ConsumeContinuationContext: func(s *Session) { a.transcriptCapture().ConsumeHandoff(s) }, Call: a.call, BusWaiting: func(s *Session) (string, []ConversationMessage) { return a.busCoordinator().Waiting(s) }, BusAfterTurn: func(s *Session) *prompt { return a.busCoordinator().AfterTurn(s) },

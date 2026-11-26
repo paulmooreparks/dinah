@@ -555,9 +555,8 @@ func (t *TurnIO) Run(s *Conversation, next *Prompt) {
 		// Steers no hook took in this turn go next, ahead of the queue.
 		late := t.SettleSteersWithSubmission(s, submission)
 		t.host.FinishTranscript(s, err, res.StopReason)
-		// The RFD has every subagent end before its parent's prompt
-		// returns; one the agent has not reported ended now has an unknown
-		// outcome (subagents.go).
+		// The host retains subagents when its documented hook observations
+		// still report work, even though the parent's prompt returned.
 		t.host.DisconnectSubagents(s)
 		var messages *Prompt
 		if err == nil && res.StopReason != "cancelled" {

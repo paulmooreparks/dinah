@@ -18,11 +18,14 @@ import (
 // speaks.
 type Conn struct {
 	*acp.Conn
-	handler       acp.Handler
-	mu            sync.Mutex
-	sessions      map[string]*session
-	models        []model
-	deletionGuard func(context.Context, string, []string) error
+	handler        acp.Handler
+	mu             sync.Mutex
+	sessions       map[string]*session
+	models         []model
+	deletionGuard  func(context.Context, string, []string) error
+	backgroundOnce sync.Once
+	backgroundWake chan struct{}
+	backgroundMu   sync.Mutex
 }
 
 // SetDeletionGuard installs the host's ownership check. Codex deletes spawned
@@ -61,7 +64,7 @@ func connect(r io.Reader, w io.WriteCloser, h acp.Handler, trace io.Writer) *Con
 }
 
 func newConn(h acp.Handler) *Conn {
-	return &Conn{handler: h, sessions: map[string]*session{}}
+	return &Conn{handler: h, sessions: map[string]*session{}, backgroundWake: make(chan struct{}, 1)}
 }
 
 // translator is the handler the transport calls with what the app-server

@@ -26,6 +26,10 @@ func (s State) WorkActivity() WorkActivity {
 			out.Foreground = "Agent's own turn in progress"
 			continue
 		}
+		if task.Type == "subagent" {
+			out.Subagents++
+			continue
+		}
 		out.Tasks++
 		if out.Tasks == 1 {
 			name = task.Name
@@ -34,7 +38,7 @@ func (s State) WorkActivity() WorkActivity {
 		}
 	}
 	if s.Open && !s.Parked {
-		out.Subagents = s.RunningSubagents
+		out.Subagents += s.RunningSubagents
 	}
 	switch {
 	case s.Working:

@@ -76,6 +76,8 @@ type model struct {
 	} `json:"supportedReasoningEfforts"`
 }
 type session struct {
+	background          map[string]observedTask // Protected by Conn.backgroundMu.
+	observeBackground   bool                    // Protected by Conn.mu; enabled after host replay.
 	model, effort, turn string
 	textTurn            string // The live turn admitted for identified text deltas.
 	approvals           string
@@ -144,7 +146,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 		if info == nil {
 			info = &acp.Implementation{Name: "dinah", Title: "Dinah", Version: "dev"}
 		}
-		if err := c.Conn.Call(ctx, "initialize", map[string]any{"clientInfo": info}, nil); err != nil {
+		if err := c.Conn.Call(ctx, "initialize", map[string]any{"clientInfo": info, "capabilities": map[string]bool{"experimentalApi": true}}, nil); err != nil {
 			return err
 		}
 		if err := c.Conn.Notify("initialized", nil); err != nil {

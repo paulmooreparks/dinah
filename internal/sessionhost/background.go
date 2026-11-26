@@ -26,6 +26,9 @@ type BackgroundTask struct {
 	// announced. Two tasks can share a start time, since the clock does not
 	// advance between every update.
 	seq uint64
+	// SourceSession and SourceID preserve the stop target for a child's task.
+	SourceSession string `json:"-"`
+	SourceID      string `json:"-"`
 }
 
 // backgroundUpdate takes one of the three async task updates into the
@@ -37,6 +40,10 @@ func (s *Details) BackgroundUpdate(update json.RawMessage) bool {
 }
 
 func (s *Details) backgroundUpdateLocked(update json.RawMessage, live bool) bool {
+	return s.backgroundSourceUpdateLocked("", update, live)
+}
+
+func (s *Details) backgroundSourceUpdateLocked(source string, update json.RawMessage, live bool) bool {
 	var u struct {
 		SessionUpdate string  `json:"sessionUpdate"`
 		ID            string  `json:"asyncTaskId"`
@@ -59,6 +66,11 @@ func (s *Details) backgroundUpdateLocked(update json.RawMessage, live bool) bool
 	if !live {
 		return true
 	}
+	sourceID := u.ID
+	// Scope every ID, including root IDs, so an arbitrary provider ID cannot
+	// collide with the representation of a child's scoped ID.
+	key, _ := json.Marshal([]string{source, u.ID})
+	u.ID = string(key)
 	t := s.background[u.ID]
 	if t == nil {
 		if u.SessionUpdate != "async_task_spawned" {
@@ -69,6 +81,7 @@ func (s *Details) backgroundUpdateLocked(update json.RawMessage, live bool) bool
 		}
 		s.backgroundSeq++
 		t = &BackgroundTask{ID: u.ID, State: "running", Started: time.Now().UTC().Format(time.RFC3339Nano), seq: s.backgroundSeq}
+		t.SourceSession, t.SourceID = source, sourceID
 		if s.background == nil {
 			s.background = map[string]*BackgroundTask{}
 		}
@@ -107,7 +120,7 @@ func (s *Details) BackgroundLocked() []BackgroundTask {
 }
 
 func (s *Details) BackgroundCountLocked() int { return len(s.background) }
-func (s *Details) ClearBackgroundLocked()     { s.background = nil }
+func (s *Details) ClearBackgroundLocked()     { s.background, s.hookSubagents = nil, nil }
 func (s *Details) BackgroundTaskLocked(id string) (BackgroundTask, bool) {
 	t := s.background[id]
 	if t == nil {

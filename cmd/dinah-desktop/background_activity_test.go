@@ -73,3 +73,52 @@ func TestBackgroundActivityAgreesWithExitAndSharedState(t *testing.T) {
 	s.SetReplaying(false)
 	check(execIdle, 0)
 }
+
+func TestChildShellWorkOutlivesChildAndParentAndKeepsItsStopTarget(t *testing.T) {
+	a, conn := providerTestApp(t)
+	s := putChat(a, "claude:child-shell", sessionInitial{Open: true, Working: true})
+	notify(a, s.ID(), spawnUpdate("child-shell-source", "Worker", "Build"))
+	notify(a, "child-shell-source", `{"sessionUpdate":"async_task_spawned","asyncTaskId":"same-id","taskType":"shell","name":"Child build","canStop":true}`)
+	notify(a, s.ID(), `{"sessionUpdate":"async_task_spawned","asyncTaskId":"same-id","taskType":"shell","name":"Root build"}`)
+	collisionID, _ := json.Marshal([]string{"child-shell-source", "same-id"})
+	collisionSpawn, _ := json.Marshal(map[string]any{"sessionUpdate": "async_task_spawned", "asyncTaskId": string(collisionID), "taskType": "shell", "name": "Opaque root ID"})
+	notify(a, s.ID(), string(collisionSpawn))
+	notify(a, s.ID(), `{"sessionUpdate":"subagent_state_update","subagentSessionId":"child-shell-source","state":"completed"}`)
+	a.turnSubagentsEnded(s)
+	s.ReleaseWork()
+	if st := chatStateOf(a, s.ID()); st.Exec == nil || st.Exec.State != execBackground || st.Exec.Tasks != 3 {
+		t.Fatalf("lost child task: %+v", st.Exec)
+	}
+	var childTask BackgroundTask
+	for _, task := range s.Info().Background {
+		if task.SourceSession != "" {
+			childTask = task
+		}
+	}
+	if childTask.SourceSession != "child-shell-source" || childTask.SourceID != "same-id" || childTask.ID == "same-id" {
+		t.Fatalf("stop target = %+v", childTask)
+	}
+	// The stand-in refuses unknown calls, but records the actual stop request.
+	if err := a.StopBackgroundTask(s.ID(), childTask.ID); err == nil {
+		t.Fatal("stand-in unexpectedly accepted Stop")
+	}
+	calls := conn.calls.Snapshot()
+	last := calls[len(calls)-1]
+	target, ok := last.params.(map[string]string)
+	if last.method != "_session/async_task/stop" || !ok || target["sessionId"] != "child-shell-source" || target["asyncTaskId"] != "same-id" {
+		t.Fatalf("Stop did not use the source identity: %+v", last)
+	}
+	notify(a, "child-shell-source", `{"sessionUpdate":"async_task_state_update","asyncTaskId":"same-id","state":"completed"}`)
+	if got := s.State().WorkActivity().Tasks; got != 2 {
+		t.Fatalf("child completion cleared root task: %d", got)
+	}
+	notify(a, s.ID(), `{"sessionUpdate":"async_task_state_update","asyncTaskId":"same-id","state":"completed"}`)
+	if got := s.State().WorkActivity().Tasks; got != 1 {
+		t.Fatalf("completion cleared a different opaque root ID: %d", got)
+	}
+	collisionStop, _ := json.Marshal(map[string]any{"sessionUpdate": "async_task_state_update", "asyncTaskId": string(collisionID), "state": "completed"})
+	notify(a, s.ID(), string(collisionStop))
+	if s.State().WorkActivity().Busy() {
+		t.Fatal("completed work retained busy state")
+	}
+}

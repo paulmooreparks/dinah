@@ -33,6 +33,27 @@ func turnFixture() (*TurnIO, *Conversation) {
 	return NewTurnIO(h), c
 }
 
+func TestTurnIORetainsHookObservedWorkUntilStop(t *testing.T) {
+	io, c := turnFixture()
+	c.ObserveHookSubagents(1)
+	c.SpawnSubagent(c.ID(), c.ID(), "child", "Worker", "", "", false, false, "", "")
+	io.host.DisconnectSubagents = func(s *Conversation) { s.DisconnectTurnSubagents("turn-ended") }
+	p := NewPrompt("Run work", nil)
+	io.Run(c, &p)
+	if c.Working() || c.State().WorkActivity().Subagents != 1 || !c.State().WorkActivity().Busy() {
+		t.Fatalf("turn end lost hook work: %+v", c.State())
+	}
+	child, _ := c.Subagent("child")
+	if child.State != subagentRunning {
+		t.Fatalf("child = %+v", child)
+	}
+	c.ObserveHookSubagents(0)
+	c.DisconnectTurnSubagents("stop-observed")
+	if c.State().WorkActivity().Busy() {
+		t.Fatal("stop did not clear busy state")
+	}
+}
+
 func TestHumanTurnAfterFinishedTurnOwnsWorkingUntilProviderReturns(t *testing.T) {
 	io, c := turnFixture()
 	first := NewPrompt("First turn", nil)

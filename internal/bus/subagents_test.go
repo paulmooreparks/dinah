@@ -58,3 +58,37 @@ func TestRunningSubagentsAreKeptByTheAgentsSession(t *testing.T) {
 		t.Fatalf("an ended session still has %d subagents", got)
 	}
 }
+
+func TestSubagentWorkObservationHasNoSteeringTimeoutAndRequiresBinding(t *testing.T) {
+	ctx := context.Background()
+	b, root := open(t)
+	chat, err := b.RegisterSession(ctx, "window-observation", workspace(t, root, "work"), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	b.now = func() time.Time { return now }
+	if err := b.SubagentStarted(ctx, "native", "worker"); err != nil {
+		t.Fatal(err)
+	}
+	check := func(session, native string, want int) {
+		t.Helper()
+		n, err := b.ObservedSubagentsRunning(ctx, session, native)
+		if err != nil || n != want {
+			t.Fatalf("observation = %d, %v; want %d", n, err, want)
+		}
+	}
+	check(chat.ID, "native", -1)
+	if err := b.BindAgentSession(ctx, "native", chat.ID); err != nil {
+		t.Fatal(err)
+	}
+	check(chat.ID, "native", 1)
+	now = now.Add(SubagentStaleAfter + time.Hour)
+	check(chat.ID, "native", 1)
+	check("another-chat", "native", -1)
+	check(chat.ID, "other-native", -1)
+	if err := b.SubagentStopped(ctx, "native", "worker"); err != nil {
+		t.Fatal(err)
+	}
+	check(chat.ID, "native", 0)
+}

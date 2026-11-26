@@ -16,11 +16,14 @@ var DetailsSource []byte
 // conversation mutex, preserving transactions with admission and turn state.
 // No method calls the host. NewDetails must run before session publication.
 type Details struct {
-	mu               *sync.Mutex
-	background       map[string]*BackgroundTask
-	backgroundSeq    uint64
-	subagents        map[string]*subagent
-	subagentSerial   int64
+	mu             *sync.Mutex
+	background     map[string]*BackgroundTask
+	backgroundSeq  uint64
+	subagents      map[string]*subagent
+	subagentSerial int64
+	// hookSubagents is authoritative for a provider whose documented hooks
+	// observe helpers beyond a turn. Nil retains native child-session counting.
+	hookSubagents    *int
 	options          []acp.ConfigOption
 	optionRevision   string
 	configuring      bool

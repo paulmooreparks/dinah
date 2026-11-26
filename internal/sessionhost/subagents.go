@@ -140,6 +140,9 @@ func (s *Details) SubagentListLocked() []SubagentInfo {
 // runningSubagents counts the chat's subagents still running. The caller
 // holds s.mu.
 func (s *Details) RunningSubagentsLocked() int {
+	if s.hookSubagents != nil {
+		return *s.hookSubagents
+	}
 	n := 0
 	for _, sa := range s.subagents {
 		if sa.info.State == subagentRunning {
@@ -147,6 +150,32 @@ func (s *Details) RunningSubagentsLocked() int {
 		}
 	}
 	return n
+}
+
+// ObserveHookSubagents installs a count from the host's authenticated hook
+// records. Hook IDs and native child-session IDs are different contracts; the
+// count replaces native counting rather than guessing a correspondence.
+func (c *Conversation) ObserveHookSubagents(n int) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.activity.OpenLocked() || n < 0 {
+		return false
+	}
+	prior := c.details.RunningSubagentsLocked()
+	c.details.hookSubagents = &n
+	return prior != n
+}
+
+// DisconnectTurnSubagents leaves native children alone while hooks still report
+// work. Only the provider can identify which child ended. An actual connection
+// shutdown continues to use DisconnectSubagents.
+func (c *Conversation) DisconnectTurnSubagents(now string) []SubagentInfo {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.details.hookSubagents != nil && *c.details.hookSubagents > 0 {
+		return nil
+	}
+	return c.details.DisconnectSubagentsLocked(now)
 }
 
 func (s *Details) SubagentLocked(id string) (SubagentInfo, bool) {
