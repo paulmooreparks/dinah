@@ -146,6 +146,28 @@
     var target = opener && opener.isConnected ? opener : document.getElementById('main'); opener = null;
     if (target) target.focus({ preventScroll: true });
   });
+  // The frame round a content picture takes the size the picture was given,
+  // and the picture fills it (media-viewer.css). A width in its width
+  // attribute or style becomes the frame's width, a style max-width the
+  // frame's max-width, and a picture given neither leaves the frame with no
+  // width, so it shrinks to fit its column. The frame used to be fixed at
+  // the picture's natural width in pixels, so a picture shown at 80% took
+  // 80% of its natural size and pushed its document page past the view.
+  // A pixel width is written as min(width, 100%) so it never widens a page
+  // that sizes itself to its content (min-width: fit-content).
+  function sizeFrame(frame, image) {
+    var width = (image.style.width || image.getAttribute('width') || '').trim(), cap = (image.style.maxWidth || '').trim();
+    if (/^\d+(\.\d+)?$/.test(width)) width += 'px';
+    if (width === 'auto') width = '';
+    if (cap === 'none') cap = '';
+    frame.style.width = !width ? '' : /%$/.test(width) ? width : 'min(' + width + ', 100%)';
+    frame.style.maxWidth = cap ? 'min(' + cap + ', 100%)' : '';
+    frame.toggleAttribute('data-media-width', !!width);
+    frame.toggleAttribute('data-media-cap', !!cap);
+    // A height with no width sizes the picture by its shape, so the picture
+    // keeps its own width rather than filling the frame.
+    frame.toggleAttribute('data-media-height', !width && !!(image.style.height || image.getAttribute('height')));
+  }
   function enhance(root) {
     var images = root.matches && root.matches('img') ? [root] : Array.from(root.querySelectorAll ? root.querySelectorAll('img') : []);
     images.forEach(function (image) {
@@ -156,18 +178,17 @@
         return;
       }
       if (image.dataset.mediaExpand) {
-        if (image.naturalWidth && image.parentElement.classList.contains('media-image-frame') && !image.parentElement.style.width) image.parentElement.style.width = image.naturalWidth + 'px';
+        if (image.parentElement.classList.contains('media-image-frame')) sizeFrame(image.parentElement, image);
         return;
       }
       image.dataset.mediaExpand = 'image'; image.tabIndex = 0;
       image.setAttribute('role', 'button'); image.setAttribute('aria-label', 'Expand Image' + (image.alt ? ': ' + image.alt : ''));
       var frame = document.createElement('span'), expand = document.createElement('button');
       frame.className = 'media-frame media-image-frame'; expand.type = 'button'; expand.className = 'icon-btn media-expand';
-      if (image.naturalWidth) frame.style.width = (image.getBoundingClientRect().width || image.naturalWidth) + 'px';
       expand.innerHTML = '<span class="glyph" style="--glyph:var(--glyph-search)" aria-hidden="true"></span>';
       expand.setAttribute('aria-label', image.getAttribute('aria-label')); expand.title = expand.getAttribute('aria-label');
       expand.addEventListener('click', function () { open(image, expand, image.alt || 'Image'); });
-      image.replaceWith(frame); frame.append(image, expand);
+      image.replaceWith(frame); frame.append(image, expand); sizeFrame(frame, image);
     });
   }
   function imageAction(event) {

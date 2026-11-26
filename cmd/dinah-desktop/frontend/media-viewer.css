@@ -36,3 +36,14 @@ img[data-media-expand]:focus-visible { outline: 2px solid var(--accent); outline
 .media-expand { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; }
 .media-image-frame { display: inline-block; max-width: 100%; vertical-align: middle; }
 .media-image-frame > img { display: block; }
+/* The frame holds the picture's declared size (media-viewer.js, sizeFrame)
+   and the picture fills it; important, since that size is often the
+   picture's own inline style. With no declared size the frame sizes to the
+   picture's natural width, held to its column, and the picture fills the
+   frame; width:100% rather than auto also gives an SVG with only a viewBox
+   the browser's default size instead of none. :where keeps these defaults
+   below every other rule, so a picture's own sizing (.sent-images) wins. */
+:where(.media-image-frame) > img { max-width: 100%; width: 100%; }
+:where(.media-image-frame[data-media-height]) > img { width: auto; }
+.media-image-frame[data-media-width] > img { width: 100% !important; height: auto !important; }
+.media-image-frame:is([data-media-width], [data-media-cap]) > img { max-width: 100% !important; }
