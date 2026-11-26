@@ -274,13 +274,24 @@
     var listViews = new WeakMap();
     function listBusy(host) {
       var view = listViews.get(host);
-      return !!(view && (view.pressed.size || (host.matches(':hover') && performance.now() < view.pointerUntil))) || host.contains(document.activeElement) || !!host.querySelector('[data-menu-for]');
+      return !!(view && (view.pressed.size || (host.matches(':hover') && performance.now() < view.pointerUntil) || performance.now() < view.keyUntil)) || !!host.querySelector('[data-menu-for]');
     }
     function listView(host) {
       var view = listViews.get(host);
       if (view) return view;
-      view = { pending: false, signature: '', pressed: new Set(), pointerUntil: 0, pointerTimer: 0 }; listViews.set(host, view);
+      view = { pending: false, signature: '', pressed: new Set(), pointerUntil: 0, pointerTimer: 0, keyUntil: 0, keyTimer: 0 }; listViews.set(host, view);
       function flush() { if (view.pending && !listBusy(host)) drawSessions(); }
+      function expireKey() {
+        view.keyTimer = 0;
+        var remaining = view.keyUntil - performance.now();
+        if (remaining > 0) { view.keyTimer = setTimeout(expireKey, Math.ceil(remaining)); return; }
+        view.keyUntil = 0; flush();
+      }
+      host.addEventListener('keydown', function () {
+        clearTimeout(view.keyTimer);
+        view.keyUntil = performance.now() + 2000;
+        view.keyTimer = setTimeout(expireKey, 2000);
+      }, true);
       function clearPointer() {
         clearTimeout(view.pointerTimer); view.pointerTimer = 0; view.pointerUntil = 0;
       }

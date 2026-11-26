@@ -82,9 +82,9 @@ const { launch } = require('./lib/page');
 
       await reset(); await row.locator('a[data-session]').focus();
       await p.evaluate(() => { __startPointerTrace('focused'); __pointerState('waiting'); });
-      await p.waitForTimeout(2300);
-      await finish('focused row ' + variant, true);
-      await p.evaluate(() => document.activeElement.blur()); await group('Needs You');
+      await group('Needs You');
+      await finish('focused row ' + variant, false);
+      t.ok('focus alone releases regrouping and follows its chat ' + variant, await row.locator('a[data-session]').evaluate(el => document.activeElement === el));
     }
     // A real menu remains a deliberate hold after its pointer lease expires.
     await p.setViewportSize({ width: 700, height: 1000 });
