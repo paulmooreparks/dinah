@@ -139,6 +139,8 @@ The underlying contracts are documented by Microsoft in [FileShare](https://lear
 
 `notifications-popover` checks the list that the taskbar's Notifications item opens, which is drawn from the same model as the pane. It covers the order (questions first, then the rest, each newest first, as in the pane), a glyph and a colour for each type, the two-line clamp with the whole text in each row's name and tooltip, a question opening its chat with the question in view, a report opening the pane at its card, the arrow keys and Escape, the empty state, the badge, rows added and answered while the list is open, and Show All and Clear All. Its screenshots show the list in both themes and the pane.
 
+`chats-busy-count` checks the Chats window's busy count from the engine's chat states. A chat in a turn, a chat with only a background task, a Needs You or stuck chat with a task or subagent still running, and a busy chat in a workspace the list does not show all count; an idle chat and a chat running in another window do not. It also checks that the count follows a turn ending, is written when the window opens, is removed at 0, and is written only when its value changes.
+
 `notification-severity` checks failure, approval, timeout, cancellation and result cards in light and dark themes, with semantic classes, colour tokens and distinct PUDL status glyphs, and that a burst of applet changes makes one load.
 
 ### Shell, Windows and Settings

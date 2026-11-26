@@ -70,6 +70,30 @@ Every producer adds entries to the store and none builds into the pane.
 
 Everything that counted cards now asks the store. The badge counts the entries that need the person. A chat window's attention mark and the chat list's Needs You group count the chat's questions, so a failed turn's report does not put its chat under Needs You. The Notifications window's attention mark is the badge's count, and F9 steps through the entries that need the person and that the pane's filter shows.
 
+## The Chats Busy Count
+
+The Chats window's tab shows how many chats are busy, beside the Notifications tab's count of what needs the person. Paul asked to see at a glance how many agents are working, approved the mockup in `docs/mockups/chats-busy-count.html`, and settled its open points on 26 November 2026.
+
+A chat is busy while a turn is in progress or while any background task or subagent is still running. The count covers every open chat this window runs, in every workspace, whichever workspace the list shows, because the tab belongs to the window. It ignores which group the list puts a chat in, so a chat under Needs You that still has a background task counts, and a stuck chat with a task running counts too. The count therefore need not equal the Working group's count. A chat running in another window has no execution state here and is not counted. When the count is gone, nothing at all is running.
+
+The count comes from the engine's chat states (`agent:chatstate`, or `ChatStates` after a resync), which give each open chat its execution state with the number of background tasks and subagents still running (`cmd/dinah-desktop/chat_state.go`). `dinahChatState.busyCount` counts the entries whose life is open and whose execution state is Working or Background or has a task or subagent left. The Chats browser writes it on the Chats window as `data-win-count`, with `data-win-count-label="busy"`, whenever the states change and when the window opens, and removes `data-win-count` at 0. It writes an attribute only when its value differs.
+
+PUDL draws `data-win-count` on a window's tab as a plain neutral badge, hidden at 0, with the accessible text "{n} busy" taken from the label. Dinah draws no badge of its own. Until a PUDL release that draws the attribute is taken, the attribute shows nothing, which Paul accepted.
+
+Paul's decisions of 26 November 2026 are listed in Table 1.
+
+**Table 1** *Decisions on the Chats Busy Count*
+
+| Question | Decision |
+| --- | --- |
+| Room for the badge | None is reserved. The Chats tab widens when a count appears, as the Notifications tab does today; the Notifications tab stays as it is. |
+| Badge style | A plain neutral badge, not the warning-coloured attention badge. |
+| The list's hold | Kept. The brief gap between the count changing and the held rows moving is accepted. |
+| What counts | Every open chat in every workspace with a turn in progress or any background task or subagent running, whichever group it is listed in. |
+| Zero | No count, which means nothing at all is running. |
+
+*Note.* The rule and the attribute are checked by the browser suite `e2e/chats-busy-count.js`.
+
 ## Accessibility
 
 Each row and each card leads with its glyph as well as its colour, so a type never rests on colour alone. A question that its producer has not announced is announced once, politely, through a live region the module keeps; Dinah's producers all announce theirs with a toast, which is a polite status region.
