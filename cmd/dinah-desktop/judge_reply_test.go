@@ -153,7 +153,7 @@ func TestASuggestedReplyThatWasNotTakenIsPassedOver(t *testing.T) {
 	set.SetJudge(&answering{`{"reply":"Yes."}`}, "test", "tokens")
 	got, _ := a.SuggestReply(id)
 	a.noteReplyPassedOver(id)
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for {
 		if outcome, _ := set.Store().Outcome(got.Call); outcome == replyPassedOver {
 			break

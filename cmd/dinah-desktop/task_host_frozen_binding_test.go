@@ -321,12 +321,12 @@ func (f *frozenTaskHost) Execute(handle string, r Request) Result {
 		}
 		select {
 		case <-f.roomPeer.entered:
-		case <-time.After(5 * time.Second):
+		case <-time.After(testWait):
 			f.t.Fatal("room observation did not become pending")
 		}
 		select {
 		case <-f.question:
-		case <-time.After(5 * time.Second):
+		case <-time.After(testWait):
 			f.t.Fatal("native permission did not become pending")
 		}
 		stored, err := f.a.taskServices.host.Read(context.Background(), f.scope(r), r.Operation)
@@ -345,7 +345,7 @@ func (f *frozenTaskHost) Execute(handle string, r Request) Result {
 			f.t.Logf("host operation failed: %+v", ended)
 		}
 		return frozenResult(ended, nil)
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		f.t.Fatal("task operation did not settle")
 	}
 	return Result{}
@@ -469,7 +469,7 @@ func (f *frozenTaskHost) Change(change string) {
 	case "block-owned-work-and-register-question-observer":
 		f.block.Store(true)
 	case "settle-owned-cancellation":
-		deadline := time.After(5 * time.Second)
+		deadline := time.After(testWait)
 		for f.a.taskServices.host.Snapshot().Workers != 0 {
 			select {
 			case <-f.terminal:

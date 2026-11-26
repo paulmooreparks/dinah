@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"testing"
-	"time"
 
 	"studio/internal/acp"
 )
@@ -22,7 +21,7 @@ func TestNativeUnsentHandoffAllocatesAndPromptsWithoutResume(t *testing.T) {
 	if err != nil || !handled || info.ID == tr.SessionID || info.ID == "" {
 		t.Fatalf("recovery: %+v %v %v", info, handled, err)
 	}
-	a.turnIO().Close(3 * time.Second)
+	a.turnIO().Close(testWait)
 	n, p := 0, 0
 	for _, call := range c.calls.Snapshot() {
 		switch call.method {
@@ -147,7 +146,7 @@ func TestNativeLifecycleMissingRecoverySurvivesTwoReopens(t *testing.T) {
 	if err != nil || info.ID == source {
 		t.Fatalf("automatic recovery: %+v %v", info, err)
 	}
-	a.turnIO().Close(3 * time.Second)
+	a.turnIO().Close(testWait)
 	c.resumeErr = nil
 	for range 2 {
 		closeChat(a, info.ID)
@@ -180,7 +179,7 @@ func TestNativeExplicitRecoveryPromptsThenSurvivesTwoCloseRestartCycles(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("recovery prompt did not finish")
 	}
 	if countCalls(c, "session/prompt") != 1 {

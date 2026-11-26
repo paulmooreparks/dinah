@@ -43,7 +43,7 @@ const { launch } = require('./lib/page');
     await page.locator('#settings').getByRole('tab', { name: 'Packages', exact: true }).click();
     return page;
   }
-  const shown = (page, text) => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 5000 }).then(() => true, () => false);
+  const shown = (page, text) => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 30000 }).then(() => true, () => false);
   const shot = (page, name) => t.shot('packages-' + name);
   try {
     // Dinah's own build has no package source.

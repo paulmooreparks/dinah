@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) {
@@ -38,7 +37,7 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("recovery prompt did not finish")
 	}
 	if result.Session.ID == tr.SessionID || result.ParentSessionID != tr.SessionID {

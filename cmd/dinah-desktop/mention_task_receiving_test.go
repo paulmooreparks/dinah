@@ -112,7 +112,7 @@ func (a *App) OrgChartHostFixtureMentionTask(kind string) (taskhost.Question, er
 	select {
 	case q := <-arrived:
 		return q, nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		return taskhost.Question{}, errors.New("reviewed task did not expose its actual pending question")
 	}
 }

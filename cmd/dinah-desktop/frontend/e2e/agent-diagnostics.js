@@ -54,7 +54,7 @@ const fs = require('fs'), path = require('path');
     ok('expired control cannot run later', !!(await ask({operation:'start',captureId:'expired',seconds:5,expiresAt:1})).error);
     reply = await ask({operation:'start',captureId:'capture-two',seconds:1});
     ok('new capture clears old evidence', reply.result.coverage.overwritten === 0 && reply.result.capture.id === 'capture-two');
-    await p.waitForTimeout(1200);
+    await p.waitForFunction(() => document.querySelector('#agent-diagnostics-status').textContent === 'Agent diagnostic capture: complete.');
     ok('capture expires without another request', await p.locator('#agent-diagnostics-status').textContent() === 'Agent diagnostic capture: complete.');
     ok('expired capture disconnects observers', await p.evaluate(()=>__diagnosticObservers.every(o=>!o.connected)));
     await ask({operation:'start',captureId:'capture-three',seconds:10});

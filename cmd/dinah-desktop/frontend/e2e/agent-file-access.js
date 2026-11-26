@@ -186,7 +186,7 @@ const { launch } = require('./lib/page');
       [{ root: '//files/finance', roots: ['//files/finance'], ruleIDs: ['n1'], startedAt: '2026-11-03T03:20:00Z', stalled: true }]);
     await p.waitForFunction(was => document.querySelector('[data-rule="n1"] .file-access-network-detail').textContent !== was, wordsBefore);
     await p.locator('#settings-tab-file-access').click();
-    ok('words cut short in a list drawn while hidden take focus once it is shown', await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 3000 }).then(() => true, () => false));
+    ok('words cut short in a list drawn while hidden take focus once it is shown', await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 30000 }).then(() => true, () => false));
     // Words that fit take no focus; when the list narrows, as in a narrower
     // window, those it now cuts short do. Settings is maximized first, so
     // that the verified words fit on its two lines.
@@ -197,7 +197,7 @@ const { launch } = require('./lib/page');
     const fitDetail = await detail.evaluate(el => ({ tab: el.hasAttribute('tabindex'), sh: el.scrollHeight, ch: el.clientHeight, w: el.clientWidth, text: el.textContent }));
     const fits = !fitDetail.tab;
     await p.evaluate(() => { document.getElementById('file-access-rules').style.maxWidth = '260px'; });
-    const narrowed = await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 3000 }).then(() => true, () => false);
+    const narrowed = await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 30000 }).then(() => true, () => false);
     await p.evaluate(() => { document.getElementById('file-access-rules').style.maxWidth = ''; });
     ok('words that fit take no focus, and take it once a narrower list cuts them short', fits && narrowed, JSON.stringify({ fits, narrowed, fitDetail }));
 

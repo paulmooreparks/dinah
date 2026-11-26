@@ -36,7 +36,7 @@ func TestPermissionCancellationRemovesPendingQuestion(t *testing.T) {
 			var key string
 			select {
 			case key = <-asked:
-			case <-time.After(time.Second):
+			case <-time.After(testWait):
 				t.Fatal("permission was not published")
 			}
 			if bySession {
@@ -49,7 +49,7 @@ func TestPermissionCancellationRemovesPendingQuestion(t *testing.T) {
 				if r.(acp.PermissionOutcome).Outcome.Outcome != "cancelled" {
 					t.Fatalf("unexpected permission result: %#v", r)
 				}
-			case <-time.After(time.Second):
+			case <-time.After(testWait):
 				t.Fatal("cancelled permission did not return")
 			}
 			if got := <-answered; got != key {
@@ -90,7 +90,7 @@ func holdPermission(t *testing.T, a *App, session string) func() {
 	go func() { defer close(done); a.permissions().Ask(ctx, session, nil, nil, nil) }()
 	select {
 	case <-ready:
-	case <-time.After(time.Second):
+	case <-time.After(testWait):
 		cancel()
 		t.Fatal("permission was not registered")
 	}
@@ -98,7 +98,7 @@ func holdPermission(t *testing.T, a *App, session string) func() {
 		cancel()
 		select {
 		case <-done:
-		case <-time.After(time.Second):
+		case <-time.After(testWait):
 			t.Fatal("permission did not finish")
 		}
 		a.sink = previous

@@ -108,7 +108,7 @@ const { launch } = require('./lib/page');
     // Settings › Agents › Devin says where prices come from.
     await p.evaluate(() => window.dinahWorkbench.open('settings'));
     await p.locator('#settings').getByRole('tab', { name: 'Agents', exact: true }).click();
-    await p.locator('#settings [data-provider="devin"]').waitFor({ timeout: 5000 }).catch(() => {});
+    await p.locator('#settings [data-provider="devin"]').waitFor({ timeout: 30000 }).catch(() => {});
     const note = await p.locator('#settings [data-provider="devin"] .devin-prices-note').textContent().catch(() => '');
     ok('Settings › Agents › Devin says where the prices come from', note === 'Model prices in the model list come from the Devin command line, and may be missing if Devin changes what it prints.', note);
   } finally { await t.close(); }

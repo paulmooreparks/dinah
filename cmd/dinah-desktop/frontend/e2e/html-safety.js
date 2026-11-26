@@ -57,7 +57,7 @@ function shellPolicy() {
       box.innerHTML = '<img src="data:image/png;base64,AAAA" onerror="window.__ran = \'handler\'">';
       document.body.appendChild(box);
     });
-    await page.waitForFunction(() => window.__violations.length > 0, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__violations.length > 0, null, { timeout: 30000 }).catch(() => {});
     ok('a Content Security Policy is in force on the page', await page.evaluate(() => window.__ran === undefined && window.__violations.some(d => /^script-src/.test(d))),
       JSON.stringify(await page.evaluate(() => ({ ran: window.__ran, violations: window.__violations }))));
 

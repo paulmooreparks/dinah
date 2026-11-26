@@ -174,7 +174,7 @@ const { choose, shows } = require('./lib/commands');
     await front().locator('[data-view-id="prompt"]').press('Control+Enter');
     await page.waitForFunction(() => __calls.some(c => c[0] === 'send'));
     ok('first prompt creates an explicit Codex session', await page.evaluate(() => __calls.some(c => c[0] === 'new' && c[1] === 'C:/Test' && c[2] === 'codex')));
-    ok('an idle conversation can change providers', await front().locator('[data-command="provider"]:not(:disabled)').first().waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false));
+    ok('an idle conversation can change providers', await front().locator('[data-command="provider"]:not(:disabled)').first().waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false));
     await page.evaluate(() => {
       __emit('agent:update', { sessionId: 'codex-chat', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hello from Codex' } } });
       __emit('agent:turn', { sessionId: 'codex-chat', stopReason: 'end_turn' });

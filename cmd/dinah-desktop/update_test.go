@@ -116,7 +116,7 @@ func TestWaitingToRestartHoldsNewWritesAndWaitsForOneUnderWay(t *testing.T) {
 	done()
 	select {
 	case <-finished:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the restart did not go on once the write had ended")
 	}
 	if st := a.UpdateState(); st.Writing != 0 {

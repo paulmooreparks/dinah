@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"studio/internal/acp"
 	"studio/internal/applet"
@@ -78,7 +77,7 @@ func testFreshApprovalForAction(t *testing.T, action applet.Action) {
 				a.Answer(q["key"].(string), answer)
 			}
 			for i := 0; i < 2; i++ {
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), testWait)
 				err := a.appletConsent(ctx, v, action)
 				cancel()
 				if err != nil {

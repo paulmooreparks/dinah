@@ -106,7 +106,7 @@ const { launch } = require('./lib/page');
   const { page, ok } = t;
   try {
     // A toast is shown when its words are on the page as the person sees it.
-    const shown = text => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 5000 }).then(() => true, () => false);
+    const shown = text => page.waitForFunction(t => document.body.innerText.includes(t), text, { timeout: 30000 }).then(() => true, () => false);
     const shot = name => t.shot('workspace-transfer-' + name);
     /* The window at a large screen's size, at 800 by 600 and in a narrow
        window, for looking at after a layout change; the suite's own

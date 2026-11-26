@@ -80,7 +80,7 @@ func TestAppTaskQuestionUsesPersonAnswerWithoutChatState(t *testing.T) {
 		if answer != "yes" {
 			t.Fatal(answer)
 		}
-	case <-time.After(time.Second):
+	case <-time.After(testWait):
 		t.Fatal("person answer did not settle task question")
 	}
 	if end := <-ended; end.Key != question.Key {

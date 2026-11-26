@@ -228,7 +228,7 @@ func TestAppletMCPExactInputAndMethods(t *testing.T) {
 		if q.InputJSON != exact {
 			t.Fatalf("input changed: %s", q.InputJSON)
 		}
-	case <-time.After(time.Second):
+	case <-time.After(testWait):
 		t.Fatal("no broker call")
 	}
 	listed, _ := json.Marshal(s.handle(json.RawMessage(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)))

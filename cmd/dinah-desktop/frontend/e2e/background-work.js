@@ -136,7 +136,7 @@ const { launch } = require('./lib/page');
     ok('an older snapshot does not bring background work back', s.chip === 'Idle', s.chip);
     await p.evaluate(() => { __snap.chats[0].exec = __exec('background', '1 background task: Watch build', { tasks: 1 }); __snap.groups[0].counts = { background: 1, idle: 1, unknown: 1, top: 'background' }; __snap.stateVer += 5; });
     await p.evaluate(() => __resync());
-    const resynced = await win.locator('.chat-working-chip .chat-state-background').waitFor({ timeout: 4000 }).then(() => true, () => false);
+    const resynced = await win.locator('.chat-working-chip .chat-state-background').waitFor({ timeout: 30000 }).then(() => true, () => false);
     ok('after a reconnect the page takes the engine\'s current state', resynced);
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

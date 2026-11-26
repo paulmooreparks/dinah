@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"studio/internal/acp"
 	"studio/internal/bus"
@@ -55,7 +54,7 @@ func TestRecoveryConflictKeepsLogicalRecipientAndDeliversOnlyItsQueue(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !a.turnIO().Close(3 * time.Second) {
+			if !a.turnIO().Close(testWait) {
 				t.Fatal("recovery's initial continuation did not finish")
 			}
 			if result.Session.ID == source || result.Session.ID == other || a.settings.BusSessions[result.Session.ID] != owner || a.settings.BusSessions[other] != otherOwner {
@@ -167,7 +166,7 @@ func TestRecoveryModelChoiceIsConfirmedBeforeRecipientCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !a.turnIO().Close(3 * time.Second) {
+	if !a.turnIO().Close(testWait) {
 		t.Fatal("recovery prompt did not finish")
 	}
 	if a.settings.ChatTransfers[source].Model != "changed" || a.settings.BusSessions[r.Session.ID] != owner || a.settings.BusSessions[other] != otherOwner {

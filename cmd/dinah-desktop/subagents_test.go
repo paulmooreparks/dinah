@@ -48,7 +48,7 @@ func (e *subagentEvents) of(name string) []any {
 // waitFor waits for an event of a name that passes match.
 func (e *subagentEvents) waitFor(t *testing.T, name string, match func(map[string]any) bool) map[string]any {
 	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		for _, d := range e.of(name) {
 			m, ok := d.(map[string]any)
@@ -236,7 +236,7 @@ func TestSubagentsLeftRunningAreDisconnected(t *testing.T) {
 	conn.Close()
 	select {
 	case <-p.Finished():
-	case <-time.After(3 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("provider cleanup did not finish")
 	}
 	if got := subagentByID(s.Info().Subagents, "late"); got.State != "disconnected" || !got.Local {
@@ -411,7 +411,7 @@ func TestSubagentRequestsReachTheirChat(t *testing.T) {
 		if got != acp.Cancelled() {
 			t.Fatalf("an ended subagent's question was answered: %v", got)
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("an ended subagent's question stayed open")
 	}
 	ev.waitFor(t, "agent:answered", func(m map[string]any) bool { return m["key"] == card["key"] })

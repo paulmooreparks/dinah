@@ -185,9 +185,9 @@ func TestChatStatesAreSentOnceWhenTheyChange(t *testing.T) {
 }
 
 // testWait is how long a test waits for something that must happen. It is a failure bound, not a measurement, so
-// it is far longer than a correct run needs and a loaded machine cannot reach it; a run that is right finishes as
-// fast as ever.
-const testWait = 30 * time.Second
+// it allows fixture process startup and durable I/O on a loaded runner. It is not a latency contract.
+// Keep cancellation, expiry and nonblocking assertions on their own explicit deadlines.
+const testWait = 2 * time.Minute
 
 // A reason that carries a detail is the prefix, a colon and the detail; without a detail it is the prefix alone.
 func TestAReasonWithoutADetailIsItsPrefixAlone(t *testing.T) {

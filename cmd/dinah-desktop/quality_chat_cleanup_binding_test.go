@@ -253,7 +253,7 @@ func (f *qualityHostCleanup) Send(route, id string) error {
 }
 func (f *qualityHostCleanup) Restart() {
 	f.a.lifecycle().StopAll()
-	f.a.turnIO().Close(3 * time.Second)
+	f.a.turnIO().Close(testWait)
 	f.a.busHost().CloseHandle()
 	f.a.queueStore.Close()
 	f.a.closeAppletBridge()

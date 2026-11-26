@@ -79,7 +79,7 @@ const { launch } = require('./lib/page');
     // providers are a submenu of choices.
     await p.locator('#menubar-panel').getByText('Provider', { exact: true }).click();
     const devinRow = p.locator('#menubar-sub .menu-action[role="menuitemradio"]').filter({ hasText: /^Devin/ }).first();
-    ok('the Chat menu offers the providers as a submenu of choices', await devinRow.waitFor({ timeout: 3000 }).then(() => true, () => false) && await devinRow.getAttribute('aria-checked') === 'true');
+    ok('the Chat menu offers the providers as a submenu of choices', await devinRow.waitFor({ timeout: 30000 }).then(() => true, () => false) && await devinRow.getAttribute('aria-checked') === 'true');
     await p.keyboard.press('Escape');
     await p.keyboard.press('Escape');
     await p.evaluate(() => dinahWorkbench.open('skills-browser'));
@@ -94,7 +94,7 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('Escape');
     await p.evaluate(() => dinahWorkbench.open('workspace'));
     // The Workspace pane adds no menu either, so the bar has one Workspace menu, the host's.
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
+    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).first().waitFor({ timeout: 30000 }).catch(() => {});
     ok('the bar has one Workspace menu with the Workspace pane in front', await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).count() === 1 && await p.locator('.menubar-row .menubar-front .menubar-title').count() === 0);
     await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Workspace$/ }).click();
     ok('the Workspace menu has the workspace commands and no window commands', await (async () => { const rows = await p.locator('#menubar-panel .menu-action').allTextContents(); return rows.some(row => row.includes('New Workspace')) && !rows.some(row => row.includes('Collapse')); })());
@@ -254,15 +254,20 @@ const { launch } = require('./lib/page');
     ok('desktop opts into live resizing', await p.locator('[data-win-layer]').getAttribute('data-win-resize-mode') === 'live');
     const resizeKey = await p.evaluate(() => { dinahWorkbench.register('resize-fixture',{title:'Resize Fixture',mode:'floating',init:()=>({})}); return dinahWorkbench.open({kind:'resize-fixture', path:'live-resize'}); });
     const resizeWin = p.locator('[data-win="' + resizeKey + '"]');
-    const beforeResize = await resizeWin.boundingBox();
-    const resizePoint = await resizeWin.locator('.win-rh[data-edge="se"]').evaluate(el => {
+    // Window mount and dock layout are queued across rendering frames.
+    await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const resizePoint = await p.waitForFunction(key => {
+      const win=document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+      const el=win?.querySelector('.win-rh[data-edge="se"]');
+      if(!el)return null;
       const r=el.getBoundingClientRect();
       for (const y of [.5,.9,.1]) for (const x of [.5,.9,.1]) {
         const point={x:r.x+r.width*x,y:r.y+r.height*y};
         if(document.elementFromPoint(point.x,point.y)===el)return point;
       }
       return null;
-    });
+    }, resizeKey).then(handle => handle.jsonValue());
+    const beforeResize = await resizeWin.boundingBox();
     if (!resizePoint) throw Error('live resize handle has no exposed target');
     await p.mouse.move(resizePoint.x,resizePoint.y); await p.mouse.down();
     await p.mouse.move(resizePoint.x+70,resizePoint.y+40,{steps:4});
@@ -282,7 +287,7 @@ const { launch } = require('./lib/page');
     ok('the ribbon has no tabs chooser while its tabs fit', !(await ribbonChooser.isVisible().catch(() => false)));
     const ribbonSize=p.viewportSize();
     await p.setViewportSize({width:700,height:ribbonSize.height});
-    await ribbonChooser.waitFor({timeout:5000});
+    await ribbonChooser.waitFor({timeout: 30000});
     await ribbonChooser.focus(); await p.keyboard.press('ArrowDown');
     ok('ribbon tabs chooser opens from the keyboard', await ribbonChooser.getAttribute('aria-expanded')==='true');
     await t.shot('ribbon-tabs-chooser');

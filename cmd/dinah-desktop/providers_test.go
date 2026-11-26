@@ -193,7 +193,9 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	// folder after the test returns (they run first, as the last cleanup registered).
 	t.Cleanup(func() {
 		c.Close() // turns waiting on the agent end because the agent is gone
-		a.turnIO().Close(3 * time.Second)
+		if !a.turnIO().Close(testWait) {
+			t.Error("provider fixture turns did not finish")
+		}
 	})
 	// A cancelled restart tells the paused chats to carry on in the background.
 	// It is waited for first of all, while the bus is open and the test's folder
@@ -458,7 +460,7 @@ func TestProviderDisconnectPreservesOtherSessionsAndChannels(t *testing.T) {
 	c.Close()
 	select {
 	case <-p.Finished():
-	case <-time.After(3 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("provider cleanup did not finish")
 	}
 	if a.session("codex:created") != nil || a.session(devin.ID()) != devin || !devin.Info().Open {

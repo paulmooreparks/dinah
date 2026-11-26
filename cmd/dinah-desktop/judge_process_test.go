@@ -171,7 +171,7 @@ func TestAJudgeProcessStartsOnceAndItsCostIsUnknown(t *testing.T) {
 func TestAJudgeProcessCallEndsWhenTheAgentStartsATool(t *testing.T) {
 	f := &judgeProcessFixture{tool: true}
 	_, j := judgeProcessJudge(t, f)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testWait)
 	defer cancel()
 	resp, err := j.Ask(ctx, judge.Request{System: "Name the chat.", Input: "{}"})
 	if err == nil || !strings.Contains(err.Error(), "tried to use a tool (Run echo)") || resp.Text != "" {
@@ -194,7 +194,7 @@ func TestAJudgeProcessEndsWhenIdleAndStartsAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := f.started[0]
-	for deadline := time.Now().Add(5 * time.Second); !first.ended(); {
+	for deadline := time.Now().Add(testWait); !first.ended(); {
 		if time.Now().After(deadline) {
 			t.Fatal("the idle process did not end")
 		}

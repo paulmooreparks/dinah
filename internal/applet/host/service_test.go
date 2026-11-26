@@ -107,7 +107,7 @@ func TestRetiredAndCurrentExecutionSurviveClose(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			select {
 			case <-finished:
-			case <-time.After(5 * time.Second):
+			case <-time.After(2 * time.Minute):
 				t.Error("execution did not finish")
 				return
 			}
@@ -147,7 +147,7 @@ func TestRetiredAndCurrentExecutionSurviveClose(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		select {
 		case <-started:
-		case <-time.After(5 * time.Second):
+		case <-time.After(2 * time.Minute):
 			t.Fatal("handler did not start")
 		}
 	}

@@ -58,13 +58,13 @@ func TestMalformedProtocolCannotPersistCapabilities(t *testing.T) {
 				}
 				select {
 				case <-seen:
-				case <-time.After(3 * time.Second):
+				case <-time.After(testWait):
 					t.Fatal("connection stopped serving notifications")
 				}
 				w.Close()
 				select {
 				case <-c.Done():
-				case <-time.After(3 * time.Second):
+				case <-time.After(testWait):
 					t.Fatal("reader did not end")
 				}
 				flushAppLog()

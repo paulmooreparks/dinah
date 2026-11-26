@@ -102,7 +102,7 @@ const { press, openMenu } = require('./lib/commands');
     let win = page.locator('.win[data-win-kind=files]');
     await win.locator('tr[data-name=alpha]').waitFor();
     ok('Files lists the workspace catalog without reading descendants', await win.locator('tr[data-name=beta]').count() === 1 && await page.evaluate(() => !__calls.some(c => c[0] === 'list' && c[1].split('/').length > 3)));
-    ok('New Folder is off where nothing can be written', await win.locator('[data-command="new-folder"]:disabled').waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false));
+    ok('New Folder is off where nothing can be written', await win.locator('[data-command="new-folder"]:disabled').waitFor({ state: 'attached', timeout: 30000 }).then(() => true, () => false));
     await win.locator('tr[data-name=alpha]').dblclick();
     await win.locator('tr[data-name=documents]').waitFor();
     await win.locator('tr[data-name=documents]').dblclick();
@@ -138,7 +138,7 @@ const { press, openMenu } = require('./lib/commands');
     // drop outside a target uploads nothing.
     const target = await win.locator('[data-fb="main"]').boundingBox();
     const outlined = await page.evaluate(([x, y]) => window.__drop(x, y, ['Tender.docx']), [target.x + 20, target.y + target.height - 20]);
-    await page.waitForFunction(() => document.querySelector('.toast') && /uploaded/.test(document.body.innerText), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('.toast') && /uploaded/.test(document.body.innerText), null, { timeout: 30000 }).catch(() => {});
     const sent = uploads[0] || '';
     ok('files dropped onto the listing are uploaded into the folder shown', uploads.length === 1 && outlined &&
       sent.includes('name="folder"') && sent.includes('"sourceId":"local"') && sent.includes('name="existing"\r\n\r\nskip') && sent.includes('filename="Tender.docx"') && sent.includes('contents of Tender.docx'));

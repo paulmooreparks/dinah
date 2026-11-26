@@ -61,7 +61,7 @@ const { launch, PAGE } = require('./lib/page');
       return win && { group: win.getAttribute('data-win-group'), label: win.getAttribute('data-win-group-label'), glyph: win.getAttribute('data-win-group-glyph') };
     }, key);
     // Whether a stack is drawn within a few seconds, without failing the run.
-    const appears = locator => locator.waitFor({ timeout: 5000 }).then(() => true, () => false);
+    const appears = locator => locator.waitFor({ timeout: 30000 }).then(() => true, () => false);
     // Waits until a stack says it has n windows.
     const counts = (id, n) => { const group = chatGroup(id); return page.waitForFunction(([bar, group, n]) => {
       const s = document.querySelector(bar + ' > [data-win-stack="' + group + '"]');

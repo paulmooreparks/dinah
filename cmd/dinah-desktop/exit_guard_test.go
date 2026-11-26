@@ -253,7 +253,7 @@ func TestACloseWaitsForAPageCallThatEndsAndThenExitsWithoutAsking(t *testing.T) 
 		if !ok || asked != 0 {
 			t.Fatalf("after the call ended the close went ahead %v and asked %d times", ok, asked)
 		}
-	case <-time.After(exitSettle):
+	case <-time.After(testWait):
 		t.Fatal("the close did not try again when the call ended")
 	}
 }

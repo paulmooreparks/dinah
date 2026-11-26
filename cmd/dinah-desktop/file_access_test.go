@@ -48,12 +48,12 @@ func TestFileAccessCachedServiceReadDoesNotTakeAppLock(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testWait):
 		a.mu.Unlock()
 		// Let a blocked accessor finish before the fixture closes its store.
 		select {
 		case <-done:
-		case <-time.After(2 * time.Second):
+		case <-time.After(testWait):
 		}
 		t.Fatal("a cached service read waited on the app lock")
 	}
@@ -95,7 +95,7 @@ func TestFileAccessBackgroundNotificationReachesSettings(t *testing.T) {
 	cancel()
 	select {
 	case <-released:
-	case <-time.After(time.Second):
+	case <-time.After(testWait):
 		t.Fatal("network subscription was not released")
 	}
 }

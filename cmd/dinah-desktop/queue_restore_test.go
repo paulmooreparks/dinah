@@ -150,7 +150,7 @@ func TestAStartedQueuedMessagesIdIsKeptInTheSavedCopy(t *testing.T) {
 		t.Fatalf("the continuation is %s", next.ID)
 	}
 	var started []string
-	for deadline := 0; deadline < 200; deadline++ {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); {
 		tr, err := readTranscript(next.ID)
 		if err == nil && len(tr.StartedQueueIDs) == 3 {
 			started = tr.StartedQueueIDs

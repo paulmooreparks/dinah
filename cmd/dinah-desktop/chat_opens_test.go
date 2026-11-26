@@ -72,7 +72,7 @@ func heldLoads(t *testing.T, c *testProviderConnection) (release func()) {
 // until waits for a condition that another goroutine brings about.
 func until(t *testing.T, what string, met func() bool) {
 	t.Helper()
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+	for end := time.Now().Add(testWait); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
 		if met() {
 			return
 		}

@@ -97,7 +97,7 @@ func (f *showFixture) seen(name string) []map[string]any {
 }
 
 func (f *showFixture) waitClosed() []map[string]any {
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for len(f.seen("show:closed")) == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}

@@ -98,7 +98,7 @@ func serviceChatFixture(t *testing.T) (*App, *serviceChatPeer, servicechats.Port
 	chats := servicechats.New(serviceChatBackend{a})
 	a.serviceChats.window = chats
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), testWait)
 		defer cancel()
 		if err := chats.Shutdown(ctx); err != nil {
 			t.Error(err)

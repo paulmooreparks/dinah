@@ -226,12 +226,12 @@ func TestAppletPersistenceFailureBlocksConsumption(t *testing.T) {
 	close(release)
 	// Reading the obstructed slot can fail before the worker finishes. Wait
 	// for its attempt before checking recovery or removing the obstruction.
-	for wait := time.Now().Add(3 * time.Second); b.Executing() > 0; time.Sleep(10 * time.Millisecond) {
+	for wait := time.Now().Add(testWait); b.Executing() > 0; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(wait) {
 			t.Fatal("applet worker did not finish")
 		}
 	}
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		_, err = a.appletInvocation(ws, "chat", "chat-one", v.ID)
 		if errors.Is(err, errAppletRecovery) {

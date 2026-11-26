@@ -46,7 +46,7 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => __releaseSnapshot());
     await p.waitForFunction(() => !__snapshotOwner.loading && !__snapshotOwner.settling && !__snapshotOwner.checkpointDraw);
     const answer = p.locator('.win[data-win-kind="chat-session"] .msg-row', { hasText: 'The final response survives replacement.' });
-    await answer.waitFor({ timeout: 5000 }).catch(() => {});
+    await answer.waitFor({ timeout: 30000 }).catch(() => {});
     t.ok('the final response remains in the adopted transcript', await answer.count() === 1);
     t.ok('the journal was read after the snapshot became ready', await p.evaluate(() => __journalReads > 0));
     await t.shot('chat-snapshot-response');

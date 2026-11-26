@@ -50,7 +50,7 @@ func TestDocumentWindowOutlivesAnOpenDialog(t *testing.T) {
 			go service.Serve()
 			defer service.Stop()
 			var client *docservice.Client
-			for end := time.Now().Add(5 * time.Second); client == nil; time.Sleep(10 * time.Millisecond) {
+			for end := time.Now().Add(testWait); client == nil; time.Sleep(10 * time.Millisecond) {
 				if client, err = docservice.Find(dir); err != nil && time.Now().After(end) {
 					t.Fatal(err)
 				}

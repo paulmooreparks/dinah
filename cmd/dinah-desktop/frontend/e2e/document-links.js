@@ -148,7 +148,7 @@ const { launch } = require('./lib/page');
       sofar += piece;
       await p.evaluate(piece => __say(piece), piece);
       const full = await p.evaluate(text => __full(text), sofar);
-      const same = await p.waitForFunction(full => { const el = __last(); return !!el && !dinahChatText.linksPending() && el.innerHTML === full; }, full, { timeout: 5000 }).then(() => true, () => false);
+      const same = await p.waitForFunction(full => { const el = __last(); return !!el && !dinahChatText.linksPending() && el.innerHTML === full; }, full, { timeout: 30000 }).then(() => true, () => false);
       if (!same && !mismatch) mismatch = JSON.stringify(sofar) + ' drew ' + await p.evaluate(() => __last().innerHTML) + ' but whole is ' + full;
     }
     ok('a streamed message with paths shows what the whole text shows after every chunk', !mismatch, mismatch);

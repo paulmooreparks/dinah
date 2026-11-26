@@ -71,7 +71,7 @@ func TestAnActionOnAStandaloneDocumentNamesItsDocument(t *testing.T) {
 	go service.Serve()
 	t.Cleanup(service.Stop)
 	var client *docservice.Client
-	for i := 0; i < 200 && client == nil; i++ {
+	for deadline := time.Now().Add(testWait); client == nil && time.Now().Before(deadline); {
 		time.Sleep(10 * time.Millisecond)
 		client, _ = docservice.Find(dir)
 	}

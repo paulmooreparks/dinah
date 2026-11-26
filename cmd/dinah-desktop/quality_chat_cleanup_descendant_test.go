@@ -86,7 +86,7 @@ func TestQualityCleanupIndependentDescendant(t *testing.T) {
 			}
 			t.Cleanup(func() { c.Close(); <-c.Done() })
 			c.SetDeletionGuard(f.a.codexDeletionGuard)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), testWait)
 			defer cancel()
 			if kind == "owned-control" {
 				if err := c.Call(ctx, "session/delete", acp.DeleteSessionParams{SessionID: root}, nil); err != nil {

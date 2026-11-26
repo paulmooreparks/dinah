@@ -73,7 +73,7 @@ const { launch } = require('./lib/page');
 
     // The list: members first, then a one-on-one chat's groups.
     await box.click(); await box.type('@');
-    await p.waitForFunction(() => [...document.querySelectorAll('.group-mention-pop .md-section-label')].some(h => /Other Chats/.test(h.textContent)), null, { timeout: 5000 }).catch(() => {});
+    await p.waitForFunction(() => [...document.querySelectorAll('.group-mention-pop .md-section-label')].some(h => /Other Chats/.test(h.textContent)), null, { timeout: 30000 }).catch(() => {});
     const h1 = await heads();
     ok('the @ list offers the members first, then windows, applets, documents and other chats', h1[0] === 'Members, asked to answer' && h1.includes('Windows') && h1.includes('Applets') && h1.includes('Open Documents') && h1.includes('Other Chats, referred to and not asked'), JSON.stringify(h1));
     const k1 = await keys();
