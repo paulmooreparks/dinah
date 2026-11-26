@@ -39,6 +39,9 @@ const { launch } = require('./lib/page');
       await p.evaluate(({ theme, tokens, scale }) => { pudlSetTheme(theme); tokens.forEach(([name, value]) => document.documentElement.style.setProperty(name, parseFloat(value) * scale + 'px')); document.activeElement.blur(); __listStep('idle'); }, { theme, tokens, scale });
       await frames();
       const row = p.locator('#sessions [data-session-row="alpha"]'), link = row.locator('a[data-session]');
+      await p.evaluate(() => { window.__listPressObserved = false; document.querySelector('#sessions').addEventListener('pointerdown', () => { __listPressObserved = true; }, { once: true }); });
+      await row.hover(); await p.mouse.down();
+      await p.waitForFunction(() => __listPressObserved);
       await link.focus();
       const trace = await p.evaluate(async () => {
         const host = document.querySelector('#sessions'), anchor = host.querySelector('[data-session-row="alpha"] a');
@@ -77,7 +80,8 @@ const { launch } = require('./lib/page');
         }
         return { before, samples, failures };
       });
-      t.ok('list focus holds geometry through every state ' + [theme,width,scale].join('/'), trace.failures.length === 0, JSON.stringify(trace.failures.slice(0, 2)));
+      t.ok('a pressed pointer holds geometry and focus through every state ' + [theme,width,scale].join('/'), trace.failures.length === 0, JSON.stringify(trace.failures.slice(0, 2)));
+      await p.mouse.move(1, 1); await p.mouse.up();
       // A pointer holds regrouping even after focus leaves.
       await row.hover();
       await p.evaluate(() => { document.activeElement.blur(); __listStep('waiting'); });
@@ -148,5 +152,5 @@ const { launch } = require('./lib/page');
     t.ok('closing the menu applies the pending regrouping', await row.count() === 1);
     fs.writeFileSync(path.join(process.argv[3], 'list-state-stability.json'), JSON.stringify(evidence, null, 2));
     fs.writeFileSync(path.join(process.argv[3], 'list-menu-geometry.json'), JSON.stringify(menuTrace, null, 2));
-  } finally { await t.close(); }
+  } finally { await p.mouse.up().catch(() => {}); await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
