@@ -8,7 +8,7 @@
 // could not be changed keeps its row with the reason under its title.
 const { launch } = require('./lib/page');
 (async () => {
-  const t = await launch({ viewport: { width: 1440, height: 900 }, app: () => {
+  const t = await launch({ viewport: { width: 1440, height: 900 }, args: { locale: process.env.DINAH_CLEANUP_LOCALE || 'en-US' }, app: args => {
     const make = (id, extra) => Object.assign({ sessionId: id, title: 'Chat ' + id, workspace: 'C:/Fixture', workspaceName: 'Fixture', provider: 'codex', providerName: 'Codex', lastActivity: '2025-01-01T00:00:00Z', messageCount: 17, messageCountKnown: true, open: false, eligible: true, refusal: '', restorable: false }, extra);
     const rows = [make('old', { programCopies: [{ provider: 'claude', providerName: 'Claude' }], lastActivity: '2024-06-01T00:00:00Z', messageCount: 1204 }), make('working', { eligible: false, refusal: 'The chat is working.', working: true, open: true }), make('pinned', { eligible: false, refusal: 'Unpin this chat first.', pinned: true }), make('other', { workspace: 'C:/Other', workspaceName: 'Other', provider: 'devin', providerName: 'Devin', lastActivity: '2025-03-01T00:00:00Z', messageCount: 3 }), make('unknown', { lastActivity: '', messageCountKnown: false })];
     const bin = ['bin', 'bin2', 'external'].map(id => make(id, { removedAt: '2026-11-01T00:00:00Z', expiresAt: '2026-12-01T00:00:00Z', restorable: true, runtimeNote: 'Still loaded by Codex until the program stops or the window restarts.', finalDeleteConfirmation: 'This chat will be permanently deleted. Codex keeps its own copy.' }));
@@ -18,6 +18,7 @@ const { launch } = require('./lib/page');
     };
     window.__cleanupCalls = []; window.__listings = 0;
     return {
+      HostLocale: async () => args.locale,
       Sessions: async () => rows.map(r => ({ sessionId: r.sessionId, title: r.title, cwd: r.workspace, provider: r.provider, open: r.open })),
       ListChatCleanup: async () => {
         window.__listings++;
@@ -46,6 +47,7 @@ const { launch } = require('./lib/page');
   } });
   const p = t.page;
   try {
+    await p.evaluate(() => dinahRegional.ready);
     await p.evaluate(() => dinahWorkbench.open('chat-browser'));
     await p.locator('#chat-browser-view [data-cmd="clean-up-chats"]').waitFor();
     const key = await p.evaluate(() => dinahWorkbench.open('chat-cleanup'));
@@ -62,7 +64,9 @@ const { launch } = require('./lib/page');
     // The window's shape.
     t.ok('the window has two tabs, Chats and Recycle Bin, each with its count', (await win.locator('[role="tab"]').allInnerTexts()).map(s => s.replace(/\s+/g, ' ').trim()).join('|') === 'Chats 5|Recycle Bin 3', (await win.locator('[role="tab"]').allInnerTexts()).join('|'));
     t.ok('the Chats tab is a table with a heading for each column', (await chatsPanel.locator('thead th').allInnerTexts()).map(s => s.trim()).filter(Boolean).join('|') === 'Chat|Workspace|Agent Programs|Last Activity|Messages|State');
-    t.ok('a chat says its workspace, its agent programs, its messages and its state on one row', /Chat old\s+Fixture\s+Codex, Claude\s+1 Jun 2024.*\s+1,204\s+\S+/.test((await chat('old').innerText()).replace(/\n+/g, ' ')), await chat('old').innerText());
+    const expectedRow = await p.evaluate(() => ({ date: dinahRegional.format('2024-06-01T00:00:00Z', 'date'), messages: new Intl.NumberFormat().format(1204) }));
+    const oldCells = (await chat('old').locator('td').allInnerTexts()).map(s => s.trim());
+    t.ok('a chat says its workspace, its agent programs, its messages and its state on one row', oldCells[1] === 'Chat old' && oldCells[2] === 'Fixture' && oldCells[3] === 'Codex, Claude' && oldCells[4].includes(expectedRow.date) && oldCells[5] === expectedRow.messages && !!oldCells[6], await chat('old').innerText());
     t.ok('the line under the table says how many chats there are and what deleting does', /^5 chats\. A deleted chat goes to the Recycle Bin and can be restored for 30 days\.$/.test(await foot(chatsPanel)), await foot(chatsPanel));
 
     // Why a chat cannot be deleted, and what the host does not know.
@@ -127,7 +131,8 @@ const { launch } = require('./lib/page');
     await chatsPanel.getByRole('button', { name: 'Show Recycle Bin', exact: true }).click();
     await binRow('bin').waitFor();
     t.ok('Show Recycle Bin opens the other tab', await win.locator('#chat-cleanup-tab-bin').getAttribute('aria-selected') === 'true' && await binPanel.isVisible());
-    t.ok('the bin says once what it is, and each chat when it is deleted for good', /stays here for 30 days/.test(await binPanel.locator('.cleanup-note').innerText()) && /1 Dec 2026/.test(await binRow('bin').innerText()), await binRow('bin').innerText());
+    const expiry = await p.evaluate(() => dinahRegional.format('2026-12-01T00:00:00Z', 'date'));
+    t.ok('the bin says once what it is, and each chat when it is deleted for good', /stays here for 30 days/.test(await binPanel.locator('.cleanup-note').innerText()) && (await binRow('bin').locator('td').nth(5).innerText()).includes(expiry), await binRow('bin').innerText());
     t.ok('a bin row discloses a program that still has the chat loaded, and keeps the long deletion text for the question', (await binRow('bin').locator('.cleanup-reason').innerText()).includes('Still loaded by Codex') && !(await binRow('bin').innerText()).includes('permanently deleted'));
     await binRow('bin').getByRole('button', { name: 'Restore Chat bin', exact: true }).click();
     await p.waitForFunction(() => !document.querySelector('#chat-cleanup-bin tr[data-chat-id="bin"]'));

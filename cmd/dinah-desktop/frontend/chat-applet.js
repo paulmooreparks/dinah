@@ -1849,8 +1849,8 @@
         }
         var live = s.workGroup;
         while (drop > 0 && live && !s.log.contains(live) && live._list.firstElementChild) {
-          var child = live._list.firstElementChild;
-          forgetRow(s, child); child.remove(); s.trimmed = (s.trimmed || 0) + 1; drop--;
+          var liveChild = live._list.firstElementChild;
+          forgetRow(s, liveChild); liveChild.remove(); s.trimmed = (s.trimmed || 0) + 1; drop--;
           dirtyGroups.add(live);
         }
         trimMarker(s);
