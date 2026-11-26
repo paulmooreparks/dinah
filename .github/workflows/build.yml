@@ -1,6 +1,8 @@
 # Builds Dinah for Windows, Linux and macOS on every push to master and
 # publishes the result as the "latest" prerelease, replacing the one before it,
 # so that the newest build can always be downloaded from the same place.
+# A manual run on another branch builds and tests it the same way and
+# publishes nothing.
 #
 # go.mod replaces dinah-extension-go with a sibling folder, so that repository
 # is checked out beside this one. Its main branch has to contain whatever this
@@ -24,8 +26,10 @@ on:
 permissions:
   contents: read
 
+# Each branch has its own group, so a manual run on another branch never
+# cancels a run of master.
 concurrency:
-  group: build-master
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -323,6 +327,10 @@ jobs:
   publish:
     name: Publish the latest build
     needs: build
+    # Only master is published. A manual run on another branch builds and
+    # tests it on every system and publishes nothing, so it cannot replace
+    # the "latest" download with a branch's build.
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: write
