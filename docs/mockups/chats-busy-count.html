@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Busy Count on Chats: mockup</title>
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/app.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/dinah.css">
+  <link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/chat-state.css">
+  <style>
+    /* Only the frame around the example is styled here. The tabs, badges,
+       groups and rows use the shipped PUDL and Dinah classes. */
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: var(--bg); font-family: var(--font); font-size: var(--text-base); }
+    .mock-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .mock-header h1 { margin: 0; font-size: var(--text-md); font-weight: 700; }
+    .mock-header .mock-tag { margin-inline-start: auto; font-size: var(--text-sm); color: var(--text-muted); }
+    .mock-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-5) 0; }
+    .mock-controls .mock-label { font-size: var(--text-sm); color: var(--text-muted); min-width: 5rem; }
+    .mock-stage { padding: var(--space-5); display: flex; justify-content: center; }
+    .mock-dock { width: min(30rem, 100%); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
+    .mock-dock > .win-dock-tablist { position: static; display: flex; border-bottom: 1px solid var(--border); }
+    .mock-panel { min-height: 22rem; }
+    .mock-said { margin: 0 var(--space-5); min-height: 1.5em; color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+    .mock-notes { margin: var(--space-4) auto var(--space-5); padding: 0 var(--space-5); max-width: 44rem; font-size: var(--text-sm); }
+    .mock-notes li { margin-bottom: var(--space-1); }
+  </style>
+</head>
+<body>
+  <header class="mock-header">
+    <h1>Busy Count on Chats</h1>
+    <button class="btn btn-sm" type="button" id="theme">Dark Theme</button>
+    <span class="mock-tag">Mockup. Invented chats, nothing real.</span>
+  </header>
+
+  <div class="mock-controls" role="group" aria-label="Simulate">
+    <span class="mock-label">Simulate</span>
+    <button class="btn btn-sm" type="button" id="turn-start">Turn Starts</button>
+    <button class="btn btn-sm" type="button" id="turn-end">Turn Ends</button>
+    <button class="btn btn-sm" type="button" id="task-start">Task Starts</button>
+    <button class="btn btn-sm" type="button" id="task-end">Task Ends</button>
+    <button class="btn btn-sm" type="button" id="all-idle">All Idle</button>
+    <button class="btn btn-sm" type="button" id="reset">Start Again</button>
+  </div>
+
+  <div class="mock-stage">
+    <section class="mock-dock" aria-label="Right Dock">
+      <div class="tablist win-dock-tablist" role="tablist" aria-label="Right Dock">
+        <div class="section-tab win-dock-entry" role="presentation" data-selected>
+          <button type="button" role="tab" aria-selected="true" id="tab-chats" data-dock-key="chat-browser"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="win-item-title">Chats</span><span class="badge win-item-attention" data-count aria-hidden="true" style="display: none"></span></button>
+        </div>
+        <div class="section-tab win-dock-entry" role="presentation">
+          <button type="button" role="tab" aria-selected="false" id="tab-notes" data-dock-key="needs-you" aria-label="Notifications, 2 needing attention" title="Notifications, 2 needing attention"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="win-item-title">Notifications</span><span class="badge warn win-item-attention" aria-hidden="true">2</span></button>
+        </div>
+        <div class="section-tab win-dock-entry" role="presentation">
+          <button type="button" role="tab" aria-selected="false" id="tab-groups" data-dock-key="bus" aria-label="Group Chats" title="Group Chats"><span class="glyph win-item-glyph" style="--glyph: var(--glyph-inbox)" aria-hidden="true"></span><span class="win-item-title">Group Chats</span></button>
+        </div>
+      </div>
+      <div class="mock-panel browser-applet" id="chat-browser-view">
+        <div class="browser-toolbar">
+          <div class="chat-find">
+            <input class="form-input browser-search" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
+            <span class="form-select-wrap browser-scope"><select class="form-select" id="chat-scope" aria-label="Chat Scope"><option value="current">This Workspace</option><option value="all">All Open Workspaces</option></select></span>
+          </div>
+        </div>
+        <div class="session-list" id="sessions" role="list" aria-label="Chats"></div>
+      </div>
+    </section>
+  </div>
+  <p class="mock-said" id="said" role="status"></p>
+
+  <div class="mock-notes">
+    <p><strong>What the count says.</strong></p>
+    <ul>
+      <li>The Chats tab shows how many chats are busy. A chat is busy while its agent is in a turn, and also while it has any background task or subagent still running, whatever else its state says.</li>
+      <li>The count covers every chat this window runs, in every open workspace, because the tab belongs to the window and not to one workspace. Changing the list between This Workspace and All Open Workspaces changes the list only, and the count stays the same.</li>
+      <li>When nothing at all is running the badge is gone, so a tab with no count means no chat is in a turn and no background task or subagent is left.</li>
+      <li>A chat under Needs You that still has a background task running is counted. Release Notes here waits for an approval while its task runs, so it is listed under Needs You and counted as busy. The count therefore need not equal the Working group's count.</li>
+      <li>The badge is a plain neutral badge, without the warning colour of the Notifications count, because a busy chat needs nothing from you.</li>
+      <li>No room is kept for the badge. The Chats tab widens when a count appears and narrows when it goes, as the Notifications tab does today, and the tabs after it move with it. The Notifications tab stays as it is.</li>
+      <li>The list keeps its hold while the pointer is over it, so the count can change a moment before the held rows move to their new groups.</li>
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      // Invented chats in two open workspaces. state: working, background, waiting or idle.
+      var start = [
+        { id: 'lexer', title: 'Lexer Rewrite', ws: 'Parser', agent: 'Claude', state: 'working', tasks: 0, when: '10:42' },
+        { id: 'build', title: 'Nightly Build', ws: 'Parser', agent: 'Codex', state: 'background', tasks: 1, when: '10:31' },
+        { id: 'docs', title: 'Docs Pass', ws: 'Parser', agent: 'Claude', state: 'waiting', tasks: 0, when: '10:20' },
+        { id: 'triage', title: 'Test Triage', ws: 'Parser', agent: 'Codex', state: 'idle', tasks: 0, when: '09:58' },
+        { id: 'landing', title: 'Landing Page', ws: 'Website', agent: 'Claude', state: 'working', tasks: 0, when: '10:40' },
+        { id: 'notes', title: 'Release Notes', ws: 'Website', agent: 'Codex', state: 'waiting', tasks: 1, when: '10:36' },
+        { id: 'images', title: 'Image Audit', ws: 'Website', agent: 'Codex', state: 'idle', tasks: 0, when: '09:15' }
+      ];
+      var here = 'Parser', chats = [];
+      var words = { working: 'Working', background: 'Background', waiting: 'Waiting', idle: 'Idle' };
+      var reserves = ['Working', 'Background', 'Waiting', 'Idle'];
+      function why(c) {
+        if (c.state === 'working') return 'Turn in progress';
+        if (c.state === 'background') return c.tasks + (c.tasks === 1 ? ' background task' : ' background tasks');
+        if (c.state === 'waiting') return 'Needs your answer or approval' + (c.tasks ? '; ' + c.tasks + (c.tasks === 1 ? ' background task' : ' background tasks') + ' still running' : '');
+        return 'No work in progress';
+      }
+      // Busy is a turn in progress or any background task still running, whatever group the chat is listed in.
+      function busy(c) { return c.state === 'working' || c.tasks > 0; }
+      function groupOf(c) { return c.state === 'waiting' ? 'Needs You' : c.state === 'working' || c.state === 'background' ? 'Working' : 'Chats'; }
+      function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+      function chip(state, text) {
+        var b = el('span', 'badge browser-row-badge chat-state chat-state-' + state, text);
+        b.dataset.state = state === 'background' ? 'working' : state;
+        return b;
+      }
+      function row(c, scope) {
+        var r = el('div', 'md-row browser-row'); r.setAttribute('role', 'listitem'); r.dataset.sessionRow = c.id;
+        var a = el('a', 'md-item'); a.href = '#'; a.addEventListener('click', function (e) { e.preventDefault(); });
+        var line = el('span', 'browser-row-line chat-state-line');
+        line.appendChild(el('span', 'browser-row-title session-title', c.title));
+        var slot = el('span', 'chat-state-slot session-badge');
+        slot.appendChild(chip(c.state, words[c.state]));
+        reserves.forEach(function (w) { var copy = chip(w.toLowerCase(), w); copy.classList.add('chat-state-reserve'); copy.setAttribute('aria-hidden', 'true'); slot.appendChild(copy); });
+        line.appendChild(slot);
+        a.appendChild(line);
+        a.appendChild(el('span', 'session-reason', why(c)));
+        a.appendChild(el('span', 'md-meta session-row-meta', [c.agent, c.when].concat(scope === 'all' ? [c.ws] : []).join(' · ')));
+        r.appendChild(a);
+        return r;
+      }
+      function group(name, rows) {
+        var s = el('section', 'browser-group session-browser-group'); s.dataset.section = 'chats-' + name;
+        var head = el('div', 'browser-group-head');
+        var toggle = el('button', 'tree-toggle browser-group-toggle'); toggle.type = 'button'; toggle.setAttribute('aria-expanded', 'true');
+        head.appendChild(toggle);
+        head.appendChild(el('h3', 'browser-group-title', name));
+        var count = el('span', 'badge browser-group-count', String(rows.length)); count.setAttribute('aria-label', rows.length + (rows.length === 1 ? ' item' : ' items'));
+        head.appendChild(count);
+        s.appendChild(head);
+        var body = el('div', 'browser-group-body'); body.setAttribute('role', 'list');
+        rows.forEach(function (r) { body.appendChild(r); });
+        s.appendChild(body);
+        return s;
+      }
+      function draw() {
+        var scope = document.getElementById('chat-scope').value;
+        var shown = chats.filter(function (c) { return scope === 'all' || c.ws === here; });
+        var groups = { 'Needs You': [], Working: [], Chats: [] };
+        shown.forEach(function (c) { groups[groupOf(c)].push(row(c, scope)); });
+        var host = document.getElementById('sessions'); host.replaceChildren();
+        ['Needs You', 'Working', 'Chats'].forEach(function (name) { if (groups[name].length) host.appendChild(group(name, groups[name])); });
+        // The count is the window's, covering every busy chat in every open workspace. No room is kept for it, so the
+        // tab widens when it appears and narrows when it goes.
+        var n = chats.filter(busy).length, badge = document.querySelector('#tab-chats [data-count]');
+        badge.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
+        badge.style.display = n ? '' : 'none';
+        var label = 'Chats' + (n ? ', ' + n + ' busy' : ', all idle');
+        document.getElementById('tab-chats').setAttribute('aria-label', label);
+        document.getElementById('tab-chats').title = label;
+      }
+      function say(text) { document.getElementById('said').textContent = text; }
+      function first(test) { return chats.filter(test)[0]; }
+      document.getElementById('turn-start').addEventListener('click', function () {
+        var c = first(function (c) { return c.state === 'idle'; }) || first(function (c) { return c.state === 'background'; });
+        if (!c) { say('Every chat is already in a turn or waiting.'); return; }
+        c.state = 'working'; draw(); say(c.title + ' started a turn.');
+      });
+      document.getElementById('turn-end').addEventListener('click', function () {
+        var c = first(function (c) { return c.state === 'working'; });
+        if (!c) { say('No chat is in a turn.'); return; }
+        c.state = c.tasks ? 'background' : 'idle'; draw();
+        say(c.title + ' ended its turn' + (c.tasks ? ' and still has a background task, so it stays busy.' : ' and is idle.'));
+      });
+      document.getElementById('task-start').addEventListener('click', function () {
+        var c = first(function (c) { return c.state === 'idle'; });
+        if (!c) { say('No idle chat is left to start a task.'); return; }
+        c.tasks += 1; c.state = 'background'; draw(); say(c.title + ' has a background task running after its turn.');
+      });
+      document.getElementById('task-end').addEventListener('click', function () {
+        var c = first(function (c) { return c.tasks > 0; });
+        if (!c) { say('No chat has a background task.'); return; }
+        c.tasks -= 1; if (c.state === 'background' && !c.tasks) c.state = 'idle'; draw();
+        say(c.title + "'s background task finished" + (c.state === 'idle' ? ', so it is idle.' : '.'));
+      });
+      document.getElementById('all-idle').addEventListener('click', function () {
+        chats.forEach(function (c) { c.tasks = 0; if (c.state === 'working' || c.state === 'background') c.state = 'idle'; }); draw(); say('Nothing is running any more, so the badge is gone. A chat waiting for you stays under Needs You.');
+      });
+      document.getElementById('reset').addEventListener('click', function () {
+        chats = start.map(function (c) { return Object.assign({}, c); }); document.getElementById('chat-scope').value = 'all'; draw(); say('');
+      });
+      document.getElementById('chat-scope').addEventListener('change', function () { draw(); say(this.value === 'all' ? 'The list shows every open workspace.' : 'The list shows the Parser workspace only. The count is unchanged.'); });
+      document.getElementById('theme').addEventListener('click', function () {
+        var dark = document.documentElement.dataset.theme !== 'dark';
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'; this.textContent = dark ? 'Light Theme' : 'Dark Theme';
+      });
+      chats = start.map(function (c) { return Object.assign({}, c); });
+      document.getElementById('chat-scope').value = 'all';
+      draw();
+    })();
+  </script>
+</body>
+</html>
