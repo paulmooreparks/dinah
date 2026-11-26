@@ -277,6 +277,10 @@
    paragraphs still wrap at the pane. */
 @media screen {
   .doc-page:not(.doc-paginated) { min-width: 0; }
+  /* Each column may be as narrow as its content: the 6em minimum above
+     kept "No" and a date at 84px and left a prose column little room in a
+     narrow pane. 2em keeps an empty new column wide enough to click. */
+  .doc-page:not(.doc-paginated) :is(td, th) { min-width: 2em; }
   .doc-page:not(.doc-paginated):not(.page-view) table { display: block; width: fit-content; max-width: 100%; overflow-x: auto; }
   /* A label drawn as one piece (a status badge, keys, a host's inline
      shortcode) stays on one line, as the wiki draws it. */
