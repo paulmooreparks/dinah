@@ -221,3 +221,31 @@ func TestAnInstalledNameIsItsApplication(t *testing.T) {
 		}
 	}
 }
+
+func TestShortcutTargetsUseFileIdentity(t *testing.T) {
+	dir := t.TempDir()
+	original, alias, different := filepath.Join(dir, "original.exe"), filepath.Join(dir, "alias.exe"), filepath.Join(dir, "different.exe")
+	for _, path := range []string{original, different} {
+		if err := os.WriteFile(path, []byte("program"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Link(original, alias); err != nil {
+		t.Fatal(err)
+	}
+	if !sameShortcutTarget(original, alias) {
+		t.Fatal("two paths to the same file did not match")
+	}
+	if sameShortcutTarget(original, different) {
+		t.Fatal("different files matched")
+	}
+	if err := os.Remove(original); err != nil {
+		t.Fatal(err)
+	}
+	if !sameShortcutTarget(original, original) {
+		t.Fatal("the same missing old path did not match")
+	}
+	if sameShortcutTarget(original, different) {
+		t.Fatal("a missing old path matched a different file")
+	}
+}

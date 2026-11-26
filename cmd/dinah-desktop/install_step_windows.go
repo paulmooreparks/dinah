@@ -79,7 +79,7 @@ func retarget(link, from, to string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if !strings.EqualFold(filepath.Clean(target.ToString()), filepath.Clean(from)) {
+	if !sameShortcutTarget(target.ToString(), from) {
 		return false, nil
 	}
 	if _, err := os.Stat(to); err != nil {
@@ -92,4 +92,15 @@ func retarget(link, from, to string) (bool, error) {
 	}
 	_, err = oleutil.CallMethod(shortcut, "Save")
 	return err == nil, err
+}
+
+// sameShortcutTarget accepts the shell's long spelling of an existing file.
+// The spelling check still handles an old program that has already moved.
+func sameShortcutTarget(target, program string) bool {
+	if strings.EqualFold(filepath.Clean(target), filepath.Clean(program)) {
+		return true
+	}
+	targetInfo, targetErr := os.Stat(target)
+	programInfo, programErr := os.Stat(program)
+	return targetErr == nil && programErr == nil && os.SameFile(targetInfo, programInfo)
 }

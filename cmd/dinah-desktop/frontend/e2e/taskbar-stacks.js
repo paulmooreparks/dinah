@@ -195,7 +195,7 @@ const { launch, PAGE } = require('./lib/page');
     ok('a stack returns to an ordinary button with one represented window', await page.locator(bar + ' > [data-win-stack="' + terminalGroup + '"]').count() === 0);
     await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'full'));
     await page.setViewportSize({ width: 3000, height: 900 });
-    await page.locator(bar + ' > [data-win-stack]').waitFor({ state: 'detached' });
+    await page.waitForFunction(bar => document.querySelectorAll(bar + ' > [data-win-stack]').length === 0, bar);
     ok('full mode keeps separate buttons when they fit', await button(b1).count() === 1 && await button(b2).count() === 1);
     await page.setViewportSize({ width: 600, height: 900 });
     await counts('ws_BETA', 3);
