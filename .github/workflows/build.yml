@@ -169,6 +169,11 @@ jobs:
         with:
           go-version-file: dinah/go.mod
           cache-dependency-path: dinah/go.sum
+      # Terminal fixtures must use the same explicit Node line as browser tests,
+      # rather than whichever Node release the runner image puts on PATH.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
       - name: Prepare full Go diagnostics
         run: |
           $diagnostics = Join-Path $env:RUNNER_TEMP 'full-go-diagnostics'
@@ -179,11 +184,14 @@ jobs:
           "DINAH_TEST_NATIVE_SCRATCH_DIR=$nativeScratch" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
       - name: Record ordinary-handle Node startup
         run: go run ./tools/nodepreflight -out "$env:DINAH_TEST_DIAGNOSTICS_DIR/node-preflight.json"
+      # The desktop package has 926 tests. The runner completed 382 in
+      # 600 seconds; allow the whole package to finish and retain its
+      # per-test progress while keeping a finite package timeout.
       - name: Test every package
         id: full_go_tests
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
-          & pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
+          & pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -timeout=30m -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
           $testExitCode = $LASTEXITCODE
           exit $testExitCode
       - name: Extract restricted native stacks

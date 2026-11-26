@@ -51,7 +51,7 @@ func (e *sentEvents) outcome(t *testing.T) ChatOpenOutcome {
 	select {
 	case o := <-e.open:
 		return o
-	case <-time.After(5 * time.Second):
+	case <-t.Context().Done():
 		t.Fatal("no outcome of the open reached the page")
 		return ChatOpenOutcome{}
 	}

@@ -37,15 +37,19 @@ func start(t *testing.T, dir string, headless bool) *harness {
 	}
 	go s.Serve()
 	t.Cleanup(s.Stop)
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
 		if _, err := Find(dir); err == nil {
 			return &harness{t: t, s: s, dir: dir}
 		}
-		time.Sleep(10 * time.Millisecond)
+		select {
+		case <-t.Context().Done():
+			t.Fatal("the service did not announce itself before the test ended")
+			return nil
+		case <-tick.C:
+		}
 	}
-	t.Fatal("the service did not announce itself")
-	return nil
 }
 
 // windowsEnd waits for the service to close every document, as it does when

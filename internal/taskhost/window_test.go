@@ -66,8 +66,6 @@ func begin(t *testing.T, w *Window, p Plan) *Handle {
 }
 func await(t *testing.T, w *Window, s Scope, id string) Receipt {
 	t.Helper()
-	deadline := time.NewTimer(3 * time.Second)
-	defer deadline.Stop()
 	tick := time.NewTicker(time.Millisecond)
 	defer tick.Stop()
 	for {
@@ -79,8 +77,8 @@ func await(t *testing.T, w *Window, s Scope, id string) Receipt {
 			return r
 		}
 		select {
-		case <-deadline.C:
-			t.Fatal("receipt did not settle")
+		case <-t.Context().Done():
+			t.Fatalf("receipt did not settle before the test ended: state %q, %v", r.State, t.Context().Err())
 		case <-tick.C:
 		}
 	}

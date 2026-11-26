@@ -16,7 +16,7 @@ import (
 type needs []string
 
 const fullGoTestCommand = `$PSNativeCommandUseErrorActionPreference = $false
-& pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
+& pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -timeout=30m -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
 $testExitCode = $LASTEXITCODE
 exit $testExitCode
 `
