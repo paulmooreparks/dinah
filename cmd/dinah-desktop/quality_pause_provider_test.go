@@ -246,6 +246,9 @@ func qualityPausePath(t *testing.T, mode string) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if !strings.Contains(string(data), "quality working turn") {
+			t.Fatalf("working receipt exposed a stale prompt: %q", data)
+		}
 		err = a.busHost().With(func(b *bus.Bus) error {
 			mcpserver.HostedTurnHook(context.Background(), b, "devin:fixture", "UserPromptSubmit", string(data), "quality-turn")
 			return nil

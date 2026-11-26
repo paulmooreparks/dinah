@@ -16,6 +16,11 @@ $lease = $null
 if (-not $borrowed) {
   $lease = Enter-DinahBrowserLock $lockPath ('go test ' + ($GoTestArgs -join ' ') + ' in ' + (Get-Location).Path)
 }
+# Loaded machines and the hosted runner can take more than ten minutes for the
+# desktop package. Match CI's finite package budget, preserving caller overrides.
+if (-not ($GoTestArgs | Where-Object { $_ -match '^-{1,2}timeout(?:=|$)' })) {
+  $GoTestArgs += '-timeout=30m'
+}
 try {
   & go test @GoTestArgs
   exit $LASTEXITCODE

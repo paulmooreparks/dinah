@@ -11,6 +11,8 @@ readline.createInterface({input:process.stdin}).on('line',line=>{
  const m=JSON.parse(line),p=m.params||{};
  const reply=result=>emit({id:m.id,result});
  if(m.id===undefined){if(m.method==='session/cancel'||m.method==='turn/interrupt')record({violation:'unexpected cancellation notification'});return;}
+ // Publish the prompt before its receipt so the host cannot bind an earlier turn.
+ if(mode==='devin'&&m.method==='session/prompt')fs.writeFileSync(path.join(dir,'prompt'),text(p));
  record({method:m.method,...classify(text(p)),expectedTurnId:p.expectedTurnId,idleBehavior:p._meta?.steering?.idleBehavior});
  switch(m.method){
  case 'initialize': reply(mode==='codex'?{}:{protocolVersion:1,agentCapabilities:{loadSession:true},_meta:mode==='claude'?{steering:{supported:true}}:{}});break;
@@ -24,7 +26,6 @@ readline.createInterface({input:process.stdin}).on('line',line=>{
  case 'turn/start':case 'session/prompt':{
   if(pending){record({violation:'concurrent ordinary prompt'});emit({id:m.id,error:{code:-32600,message:'concurrent prompt'}});break;}
   const s=text(p);const id='turn-'+(++turn);pending={id:m.id,turn:id};
-  if(mode==='devin')fs.writeFileSync(path.join(dir,'prompt'),s);
   if(mode==='codex')reply({turn:{id,status:'inProgress'}});
   if(!classify(s).work)finish();
   break;
