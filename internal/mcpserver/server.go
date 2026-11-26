@@ -449,6 +449,7 @@ func (s *Server) sentReceipt(ctx context.Context, m bus.Message) *mcp.CallToolRe
 	}
 	spent += s.outsideWindow(ctx, m)
 	spent += s.heldNote(ctx, m)
+	spent += s.hopLimitNote(ctx, m)
 	if s.window {
 		return text("Sent as message %d to %s. This is a delivery receipt. Replies arrive automatically when idle or after your active turn. Continue independent work or end your turn; do not poll or sleep.%s", m.ID, m.To, spent)
 	}
@@ -534,6 +535,22 @@ func (s *Server) heldNote(ctx context.Context, m bus.Message) string {
 		return " Of the members it wakes, " + names[0] + " has a held delivery: an earlier opening of it was never confirmed, so this message waits for it until that chat takes a turn of its own or the hold is cleared in Notifications."
 	}
 	return " Of the members it wakes, these have a held delivery: " + strings.Join(names, ", ") + ". An earlier opening of each was never confirmed, so this message waits for each of them until it takes a turn of its own or its hold is cleared in Notifications."
+}
+
+// hopLimitNote explains the direct-message guard and the sender's next steps.
+func (s *Server) hopLimitNote(ctx context.Context, m bus.Message) string {
+	if m.Room != "" {
+		return ""
+	}
+	holds, err := s.bus.HopLimitedRecipients(ctx, m.ID)
+	if err != nil {
+		return ""
+	}
+	var note strings.Builder
+	for _, hold := range holds {
+		fmt.Fprintf(&note, " %s will not be woken for this message: it is past the limit of %d automatic handoffs between these workspaces, so it waits until %s speaks to that chat or another eligible message starts a turn. If it cannot wait, post it in a group chat you share with %s, where this limit does not apply, or use ask_person to ask %s to set a trusted link between the workspaces in Group Chats.", hold.Recipient, hold.Limit, s.bus.PersonName(), hold.Recipient, s.bus.PersonName())
+	}
+	return note.String()
 }
 
 // register adds the bus's tools to srv, whose descriptions call the person

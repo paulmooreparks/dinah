@@ -39,6 +39,14 @@ A message in a group goes to every member chat. The rule for waking stays as it 
 
 Existing rooms are converted once. A room's workspace member becomes the chats of that workspace that the bus knows at the time, and the room keeps its messages. Workspace membership then no longer exists, so the bus has one model, not two.
 
+### Direct handoffs and trusted links
+
+Direct messages stop waking chats after three automatic handoffs unless a trusted link between the sender's and recipient's workspaces permits more. The count follows the furthest message the sending chat has read, so a long exchange can leave a direct result waiting after the receiving chat's turn ends. Group posts have no hop limit; their separate group turn budget still applies.
+
+In Group Chats, choose Trust a Link… to configure the workspace pair. A workspace can trust itself. The offered limit is ten handoffs, and the limit can be turned off. The current `studio` self-link has no limit. A new workspace whose chats work as a team needs its own self-link if its direct handoffs must continue past the default limit.
+
+The send receipt warns when a pending direct message exceeds its recipient's effective limit. It suggests a shared group or asking the person to configure a trusted link. This warning changes no delivery rule.
+
 ### Starting a group
 
 A chat window's Actions menu gains Start a Group Chat… and Add to a Group Chat…. The Bus pane's New Room becomes New Group Chat…. Each opens the same picker.
