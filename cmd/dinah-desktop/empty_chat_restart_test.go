@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -68,6 +69,20 @@ func TestEmptyChatHostRestartBeforeFirstTurn(t *testing.T) {
 			id := provider + ":empty"
 			if provider == "devin" {
 				id = "empty-devin"
+				// The peer never executes hooks, but creation validates the
+				// command location. Keep that prerequisite in this fixture.
+				dir := t.TempDir()
+				command := product.CommandProgram
+				if runtime.GOOS == "windows" {
+					command += ".exe"
+				}
+				if err := os.WriteFile(filepath.Join(dir, command), []byte("fixture, never execute"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				previous := devinSteeringExecutable
+				devinSteeringExecutable = func() (string, error) { return filepath.Join(dir, "window"), nil }
+				t.Cleanup(func() { devinSteeringExecutable = previous })
+				t.Setenv("PATH", t.TempDir())
 			}
 			attach := func(app *App) *emptyChatPeer {
 				c := &emptyChatPeer{testProviderConnection: newTestProviderConnection(), file: store}
