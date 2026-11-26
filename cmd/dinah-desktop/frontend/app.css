@@ -954,6 +954,10 @@ dialog.dialog.transfer-dialog .dialog-actions { position: static; flex: none; al
 
 .sent-images { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-2); }
 .sent-images img { width:auto; height:auto; max-width:min(240px,100%); max-height:160px; object-fit:contain; cursor:zoom-in; }
+/* The media viewer's frame round a thumbnail sizes to its content, which
+   ignores the thumbnail's percentage limit, so the frame has the same limit
+   and hugs the thumbnail (media-viewer.css). */
+.sent-images .media-image-frame { max-width:min(240px,100%); }
 
 /* The chips in a chat window's title bar (Working, Background and
    Subagents) are PUDL's title-bar status chips since 0.88.0, which take the
