@@ -270,7 +270,7 @@
     var fittedTables=new WeakMap();
     function fitTables(flow,drawingsOnly){
         flow.querySelectorAll('table').forEach(function(table){if(table.closest('.doc-page-gap,.doc-gap-cap')||drawingsOnly&&!table.closest('.pm-source'))return;
-            var parent=table.parentElement,css=getComputedStyle(parent),host=table.closest('.doc-paginated'),scale=host?Number(host.style.zoom)||1:1,available=parent.clientWidth-(parseFloat(css.paddingLeft)||0)-(parseFloat(css.paddingRight)||0),owners=new Set(),hash=0,walker=document.createTreeWalker(table,NodeFilter.SHOW_TEXT),text;
+            var host=table.closest('.doc-paginated');if(!host)return;var parent=table.parentElement,css=getComputedStyle(parent),scale=host?Number(host.style.zoom)||1:1,available=parent.clientWidth-(parseFloat(css.paddingLeft)||0)-(parseFloat(css.paddingRight)||0),owners=new Set(),hash=0,walker=document.createTreeWalker(table,NodeFilter.SHOW_TEXT),text;
             for(var node=table;node;node=node.parentElement)(node.getAttribute('data-md-style')||'').split(/\s+/).filter(Boolean).forEach(function(owner){owners.add(owner);});
             while((text=walker.nextNode())){if(text.parentElement.closest('.doc-page-gap,.doc-gap-cap'))continue;for(var i=0;i<text.data.length;i++)hash=(hash*31+text.data.charCodeAt(i))|0;}
             var context=available+'|'+getComputedStyle(table).font+'|'+document.fonts.status+'|'+hash+'|'+Array.from(table.querySelectorAll('img')).map(function(img){return img.src+':'+img.naturalWidth+':'+img.naturalHeight;}).join('|')+'|'+Array.from(document.querySelectorAll('style[data-md-style-owner]')).filter(function(style){return owners.has(style.getAttribute('data-md-style-owner'));}).map(function(style){return style.textContent;}).join('\n');
@@ -542,6 +542,8 @@
                 var page = o.pagination && o.pagination();
                 if (!page || !v.dom.isConnected) {
                     o.page.querySelectorAll('.doc-table-gap-cover,.doc-row-header-layer,.doc-table-cut-border').forEach(function(node){node.remove();});
+                    /* The sheet's column widths belong to Document; left in place they held Visual's tables to the sheet's width (decision 212). */
+                    v.dom.querySelectorAll('table > colgroup[data-doc-columns]').forEach(function(node){node.remove();});
                     release();
                     if (signature) { signature = ''; if (o.syncSelection) { o.syncSelection(); } v.dispatch(v.state.tr.setMeta(key, PM.DecorationSet.empty).setMeta('addToHistory', false)); }
                     return;
