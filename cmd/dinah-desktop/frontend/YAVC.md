@@ -5,8 +5,8 @@
 | Item | Value |
 | --- | --- |
 | Producer | https://github.com/paulmooreparks/yavc.app |
-| Release | v0.2.117, commit `138be7e3007c83973fa312478b4f2245ecadc875`, downloaded from the release's assets (`yavc-content-v0.2.117.zip`, SHA-256 `b33c60cdda6ee552b2e0bf7d8161c81d70035e698a51e10e1210ca28ff31ccce`), checked with yavc.app's `scripts/release_record.py` against the release record pinned on the bus (SHA-256 `af8960e85fabf333fc9c755c167b6dcb5f619b8781f0537d14386af7cbc71768`) and against GitHub's build attestation |
-| Manifest digest | `c1af96c875f1de3005c47ccd083ade700e9ba1ace0e29e90365e72c235156446` |
+| Release | v0.2.118, commit `a4278389dd45cf6b277ccd155dbe404c68a797c2`, downloaded from the release's assets (`yavc-content-v0.2.118.zip`, SHA-256 `15f74e6c32771db2eb63fd91e860cc253e6ad2fc2900bb0b8ca302868884426e`), checked with yavc.app's `scripts/release_record.py` against the release record pinned on the bus (SHA-256 `cd867659043439f83cf57b855069d62849b988140f37da17103947b62218e3ae`) and against GitHub's build attestation |
+| Manifest digest | `d594878c60b19f836fbc7556f9022f6f6ec03adc0a82fce214a0bd3d05bdead5` |
 | Applets | Editor 46.37.57, Docs 1.37.57, Diagrams 0.46.15, Slides 0.65.10 |
 | PUDL | 0.109.0, the same release Dinah ships in `pudl/` |
 

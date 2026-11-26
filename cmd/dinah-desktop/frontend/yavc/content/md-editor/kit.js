@@ -1456,6 +1456,20 @@
         hostDrawing(pictures, request).then(function(html){if(hostLive(pictures)&&dom.isConnected)draw(html);});
         return { dom: dom, contentDOM: content, ignoreMutation:function(m){return m.type!=='selection'&&!content.contains(m.target);} };
     }
+    /* Whether a host span can be changed: the host has a form for this
+       opening (shortcodeHost.form gives one, and gives null where there
+       is nothing to change). The answer is kept for each host and opening,
+       so a page with many spans asks once for each different one. */
+    var hostSpanForms = new WeakMap();
+    function canEditHostSpan(name, open, pictures) {
+        var service=hostService(pictures),entry=(pictures.hostCatalog||[]).find(function(h){return h.name===name;});
+        if(!service||!entry||entry.managed||typeof service.form!=='function'||typeof service.build!=='function'||!hostSpanRequest(name,open))return Promise.resolve(false);
+        var known=hostSpanForms.get(service);if(!known){known=new Map();hostSpanForms.set(service,known);}
+        if(known.has(open))return known.get(open);
+        var answer=hostCall(new Map(),function(signal){return service.form(open,hostContext(pictures,signal));},pictures).then(function(form){return !!form;},function(){return false;});
+        if(known.size>=500)known.clear();known.set(open,answer);
+        return answer;
+    }
     function editHostSpan(name, open, pictures) {
         var service=hostService(pictures),entry=(pictures.hostCatalog||[]).find(function(h){return h.name===name;});
         if(!service||!entry||entry.managed||typeof service.form!=='function'||typeof service.build!=='function')return Promise.resolve(null);
@@ -2173,7 +2187,7 @@
         commands: commands, editing: editing, apply: apply, classesOf: classesOf, insertItem: insertItem, inserts: inserts, textFormat: textFormat, textInsert: textInsert,
         askText: askText, askFields: askFields, askChoice: askChoice, askProperties: askProperties, STOCK: STOCK, askColour: askColour, askColours: askColours, askClass: askClass,
         askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, sitePicture: sitePicture, pictureData: pictureData, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
-        fillHosts: fillHosts, prefillHosts: prefillHosts, printHosts: printHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
+        fillHosts: fillHosts, prefillHosts: prefillHosts, printHosts: printHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, canEditHostSpan: canEditHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
         _page: null
     };
 })();
