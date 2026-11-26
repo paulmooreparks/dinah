@@ -23,6 +23,26 @@ func (a *App) ClipboardRead() (ClipboardContent, error) {
 	return a.readClipboard()
 }
 
+// ClipboardImage is a picture on the clipboard: Type "image/png" with the
+// PNG file's bytes in Data, or Type "" and no Data when the clipboard holds
+// no picture. Go encodes Data in JSON as base64, which the page decodes.
+type ClipboardImage struct {
+	Type string `json:"type"`
+	Data []byte `json:"data"`
+}
+
+// ClipboardImage reads a picture from the clipboard for a chat box's menu
+// Paste (docs/design/chat-clipboard.md). Keyboard paste (Ctrl+V) gets the
+// picture from the web view with the key, but a menu command has no paste
+// event, and the page cannot read a picture itself without a permission
+// prompt. An error means the read was refused or failed; an empty result
+// means there is no picture. The shape is the same on every system:
+// Windows reads it in clipboard_image_windows.go, and macOS and Linux
+// follow with the same method.
+func (a *App) ClipboardImage() (ClipboardImage, error) {
+	return a.readClipboardImage()
+}
+
 // htmlFragment is the HTML of a clipboard entry in Windows' HTML clipboard
 // format, which starts with a header of byte offsets ("HTML Clipboard
 // Format", Microsoft's Win32 documentation): the fragment between

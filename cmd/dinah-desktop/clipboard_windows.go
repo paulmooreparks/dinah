@@ -29,17 +29,8 @@ const cfUnicodeText = 13
 func (a *App) readClipboard() (ClipboardContent, error) {
 	name, _ := windows.UTF16PtrFromString("HTML Format")
 	htmlFormat, _, _ := procRegisterClipboardFormatW.Call(uintptr(unsafe.Pointer(name)))
-	// Another program may have the clipboard open for a moment.
-	opened := false
-	for i := 0; i < 10 && !opened; i++ {
-		if r, _, _ := procOpenClipboard.Call(0); r != 0 {
-			opened = true
-		} else {
-			time.Sleep(20 * time.Millisecond)
-		}
-	}
-	if !opened {
-		return ClipboardContent{}, errors.New("the clipboard is in use by another program; try again")
+	if err := openClipboard(); err != nil {
+		return ClipboardContent{}, err
 	}
 	defer procCloseClipboard.Call()
 	var out ClipboardContent
@@ -53,6 +44,18 @@ func (a *App) readClipboard() (ClipboardContent, error) {
 		out.Text = windows.UTF16ToString(u)
 	}
 	return out, nil
+}
+
+// openClipboard opens the clipboard for reading, trying again for a moment
+// when another program has it open. The caller closes it.
+func openClipboard() error {
+	for i := 0; i < 10; i++ {
+		if r, _, _ := procOpenClipboard.Call(0); r != 0 {
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return errors.New("the clipboard is in use by another program; try again")
 }
 
 // clipboardBytes copies the clipboard's data in one format, or nil when it
