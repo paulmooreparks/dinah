@@ -91,7 +91,45 @@ On Windows, `clipboard_image_windows.go` opens the clipboard with the same retry
 
 *Note.* Rows may be bottom-up (positive height) or top-down (negative height). Palettes, 16-bit bitmaps, JPEG and PNG compression, and headers of undocumented sizes are refused. Alpha is taken as straight, not premultiplied. Some programs write 32-bit bitmaps with an alpha mask but leave the alpha bytes unused, and a fully transparent paste is never what the person copied, so a picture whose alpha is zero everywhere is made opaque (a ruling of 26 November 2026). The rule depends on no undocumented behaviour; it only refuses to produce an invisible picture. A picture with any non-zero alpha keeps its alpha as read.
 
-On macOS and Linux, `ClipboardImage` returns no picture for now, so menu Paste pastes text there. macOS (NSPasteboard) and Linux (GTK 3's `gtk_clipboard_request_image`) follow in their own branch with the same method and result.
+macOS and Linux read the picture with the same method and result, each through its platform's documented clipboard calls (Table 6). Both need cgo, which the release builds use for the window anyway; a build without cgo, or any other system, falls back to `clipboard_image_other.go`, which reports no picture, so menu Paste pastes text there.
+
+**Table 6** *The Clipboard Picture Read on Each System*
+
+| System | File | Calls | Picture formats read |
+| --- | --- | --- | --- |
+| Windows | `clipboard_image_windows.go` | `OpenClipboard`, `IsClipboardFormatAvailable`, `GetClipboardData` | `CF_DIBV5`, else `CF_DIB`, converted to PNG in Go |
+| macOS | `clipboard_image_darwin.go` | `[NSPasteboard generalPasteboard]`, `availableTypeFromArray:`, `dataForType:`; `[NSBitmapImageRep imageRepWithData:]` and `representationUsingType:NSBitmapImageFileTypePNG properties:` for TIFF | `NSPasteboardTypePNG` as it is, else `NSPasteboardTypeTIFF` converted to PNG by AppKit |
+| Linux | `clipboard_image_linux.go` and `clipboard_image_linux.c` | `g_idle_add`, then `gtk_clipboard_request_image` on `gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)`, then `gdk_pixbuf_save_to_buffer` with `"png"` | Any image type GTK 3 and GdkPixbuf can turn into a `GdkPixbuf`, saved as PNG |
+
+*Note.* Each file cites the vendor's documentation for every call it makes.
+
+On macOS the read runs on the main thread, where AppKit's window programs keep their user interface work. A call from another thread waits for the main queue with `dispatch_sync(dispatch_get_main_queue(), ...)`, and a call already on the main thread (`[NSThread isMainThread]`) reads directly, since a `dispatch_sync` to the queue it is running on deadlocks. The PNG bytes are copied into memory from `malloc` inside an `@autoreleasepool`, so AppKit's objects are released before the call returns, and Go copies them with `C.GoBytes` and frees them.
+
+On Linux GTK's functions may only be called from the thread that runs its main loop, which in the window is Wails' GTK main thread. The read schedules the request there with `g_idle_add`, which GLib documents as callable from any thread. GTK calls back once with the picture, or with none, and the callback saves it as PNG and hands the bytes to Go through a channel found by a `runtime/cgo.Handle`. Paste waits at most five seconds, so a clipboard owner that has hung makes the read fail and Paste falls back to text. A callback that arrives after that finds room in the channel for its one answer and deletes the handle itself.
+
+The page's fallback covers both systems unchanged: `clipboardPicture` in `composer.js` logs a failed or refused read to the console and returns no picture, and Paste then pastes the text.
+
+Opt-in tests put a small six-colour PNG on the clipboard and read it back through `readClipboardImage`, comparing every pixel: `clipboard_image_darwin_live_test.go` writes it once as PNG and once as TIFF, and `clipboard_image_linux_live_test.go` starts GTK on a thread of its own and writes it with `gtk_clipboard_set_image`. They replace the clipboard's contents, so they need both the `live` tag and `DINAH_LIVE_CLIPBOARD_PICTURE=1`:
+
+```
+DINAH_LIVE_CLIPBOARD_PICTURE=1 go test -tags live -run TestLiveClipboardPicture -v ./cmd/dinah-desktop
+```
+
+The Linux test needs a display (X11 or Wayland). The macOS test needs the main thread to serve Apple's main dispatch queue, which a test binary's main thread never does, so when it is turned on it keeps the main goroutine on the main thread and gives it to `dispatch_main` while the tests run elsewhere (the `runTests` hook in `main_test.go`). Neither test is run by CI.
+
+### Proved so far
+
+As of 26 November 2026 the macOS and Linux reads are written and reviewed but have not been compiled anywhere (Table 7). The machine they were written on runs Windows; its WSL Ubuntu 24.04 has gcc and pkg-config but no Go and no GTK 3 development headers, and nothing was installed. What did run there is `gofmt`, and `go vet` of the package for Linux and macOS with cgo off, with and without the `live` tag, which shows those builds without cgo still get exactly one `readClipboardImage`, from `clipboard_image_other.go`. The first real compile of both will be the release workflow's Linux and macOS builds of the window.
+
+**Table 7** *Proved So Far for the Clipboard Picture Read*
+
+| System | Compiled | Read back in CI | Tried on a real desktop |
+| --- | --- | --- | --- |
+| Windows | Yes, in the Windows Go gate and CI | No; CI converts synthetic bitmaps only | Not yet recorded |
+| macOS | No; first compile will be the release workflow's macOS build | No; the opt-in test is not run by CI | No |
+| Linux | No; first compile will be the release workflow's Linux build | No; the opt-in test is not run by CI | No |
+
+*Note.* "Read back" means a picture put on the real clipboard and read through `readClipboardImage`, which only the opt-in tests do. Update this table when a build, a test run or a trial on a desktop proves more.
 
 The Go tests convert synthetic bitmaps of every supported form, decode the PNG and compare pixels, and check each refusal. The browser suites `chat-clipboard` and `group-attachments` stub `ClipboardImage` and check the four rows, Cut and Copy disabled without a selection, a picture attached by menu Paste, text pasted when there is no picture and taken away by Undo, the quiet fallback when the picture read is refused, the error when the text read fails as well, and Cut with Undo. What a real program puts on the Windows clipboard, and whether WebView2's Undo history matches the browser's here, can only be checked on an installed build.
 

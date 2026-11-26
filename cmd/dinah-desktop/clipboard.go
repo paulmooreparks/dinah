@@ -37,8 +37,8 @@ type ClipboardImage struct {
 // event, and the page cannot read a picture itself without a permission
 // prompt. An error means the read was refused or failed; an empty result
 // means there is no picture. The shape is the same on every system:
-// Windows reads it in clipboard_image_windows.go, and macOS and Linux
-// follow with the same method.
+// Windows reads it in clipboard_image_windows.go, macOS in
+// clipboard_image_darwin.go and Linux in clipboard_image_linux.go.
 func (a *App) ClipboardImage() (ClipboardImage, error) {
 	return a.readClipboardImage()
 }

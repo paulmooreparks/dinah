@@ -39,7 +39,14 @@ func TestMain(m *testing.M) {
 	if err := pty.ReleaseStandardHandles(); err != nil {
 		panic(err)
 	}
-	code := m.Run()
-	_ = os.RemoveAll(dir)
-	os.Exit(code)
+	os.Exit(runTests(func() int {
+		code := m.Run()
+		_ = os.RemoveAll(dir)
+		return code
+	}))
 }
+
+// runTests runs the tests and returns their exit code. The opt-in macOS
+// clipboard test (clipboard_image_darwin_live_test.go) replaces it so that
+// the main thread is left to serve Apple's main dispatch queue.
+var runTests = func(run func() int) int { return run() }
