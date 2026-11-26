@@ -179,6 +179,22 @@
     document.addEventListener('dinah:locale', drawSessions);
     document.addEventListener('dinah:team-state', drawSessions);
 
+    /* The Chats window's count is the number of busy chats in every open
+       workspace, whichever the list shows (dinahChatState.busyCount). PUDL
+       draws data-win-count on the window's tab as a neutral badge and reads
+       "{n} busy" from the label; none busy removes the count, so the tab
+       shows nothing at all. It is written when the engine's states change
+       and when the window opens, and only when its value differs. */
+    function drawBusyCount() {
+      var win = window.dinahHelpers.windowOf('chat-browser');
+      if (!win) return;
+      var n = window.dinahChatState.busyCount(), put = window.dinahHelpers.setAttr;
+      put(win, 'data-win-count-label', 'busy');
+      put(win, 'data-win-count', n > 0 ? n : null);
+    }
+    document.addEventListener('dinah:execution-state', drawBusyCount);
+    document.addEventListener('pudl:windows-change', drawBusyCount);
+
     function when(iso) {
       if (!iso) return '';
       var d = new Date(iso), now = new Date();

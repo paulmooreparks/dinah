@@ -35,6 +35,22 @@
   function counts(value) {
     return value && (groups.get(value.name) || value.counts || value.team || value);
   }
+  /* busyCount is how many open chats this window runs, in every workspace,
+     have a turn in progress or any background task or subagent still
+     running, whatever else their state says: a chat waiting for the person
+     with a task still running counts. It is the Chats tab's count, and it
+     need not equal the list's Working group (Paul, 26 November 2026,
+     docs/design/notifications.md). A chat running in another window has
+     no execution state here and is not counted. */
+  function isBusy(entry) {
+    var exec = entry && entry.life === 'open' && entry.exec;
+    return !!exec && (exec.state === 'working' || exec.state === 'background' || exec.tasks > 0 || exec.subagents > 0);
+  }
+  function busyCount() {
+    var n = 0;
+    chats.forEach(function (entry) { if (isBusy(entry)) n++; });
+    return n;
+  }
   /* apply takes a snapshot and says whether it was accepted. It also
      works out which chats' states the snapshot changed, as a Set of
      session ids kept in lastChanged (null when nothing changed), and the
@@ -141,5 +157,5 @@
     }
     return el;
   }
-  window.dinahChatState = { describe: describe, badge: badge, read: read, counts: counts, apply: apply, connect: connect };
+  window.dinahChatState = { describe: describe, badge: badge, read: read, counts: counts, busyCount: busyCount, apply: apply, connect: connect };
 })();

@@ -168,7 +168,7 @@
        move the window, which costs a look and can never leave a window
        wrongly undrawn. */
     var still = new Set([MARK, 'data-win-state', 'data-win-state-label', 'data-win-state-detail', 'data-win-lifecycle', 'data-win-running',
-      'data-win-attention', 'data-win-progress', 'data-win-detail', 'data-win-glyph', 'data-win-icon', 'data-chat-current',
+      'data-win-attention', 'data-win-count', 'data-win-count-label', 'data-win-progress', 'data-win-detail', 'data-win-glyph', 'data-win-icon', 'data-chat-current',
       'data-dinah-title', 'data-dinah-title-detail', 'aria-label', 'title']);
     attributes = new MutationObserver(function (records) {
       if (records.some(function (r) { return !still.has(r.attributeName); })) soon();
