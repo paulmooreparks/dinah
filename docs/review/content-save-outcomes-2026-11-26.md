@@ -12,9 +12,11 @@ The rendered regression uses the real packaged Editor, window controller and con
 
 The original source at 1433a982 fails the silent-Publish assertions in both notice variants. Source at 306e04ca passes the initial visible-notice regression in 11 seconds but fails the six stricter failure-propagation and stale-publication assertions. The final focused selection passes all eleven suites in 41 seconds, with no page errors: content-save-outcomes, document-windows, document-links, document-diagrams, document-comments, documents-menu, content-host-location, content-action-outputs, contained-content, covered-editor and diff-then-editor.
 
+An additional regression-only run passes in 15 seconds after adding actual typing pauses and a check of the rendered File menu Publish command. Existing message wording and command labels are reused.
+
 The first fixture timed out because it invoked the Editor's File Save replacement without answering its Publish confirmation. That failed receipt is retained. The first implementation blocked the Documents menu's Save As recovery after a previous refusal; the unchanged base passed that suite, and the implementation was corrected without changing the menu suite. A later positive fixture initially continued refusing the service after its simulated repair; that failed receipt is also retained.
 
-Private evidence folders are `%TEMP%/dinah-content-outcomes-red`, `dinah-content-outcomes-baseline`, `dinah-content-outcomes-strict-red`, `dinah-content-outcomes-family`, `dinah-content-outcomes-documents-baseline`, `dinah-content-outcomes-retry`, `dinah-content-outcomes-save-as-recovery`, `dinah-content-outcomes-original-red` and `dinah-content-outcomes-complete`. All runs were hidden and headless through the shared test queue. No full browser run or installed-window acceptance was performed.
+Private evidence folders are `%TEMP%/dinah-content-outcomes-red`, `dinah-content-outcomes-baseline`, `dinah-content-outcomes-strict-red`, `dinah-content-outcomes-family`, `dinah-content-outcomes-documents-baseline`, `dinah-content-outcomes-retry`, `dinah-content-outcomes-save-as-recovery`, `dinah-content-outcomes-original-red` and `dinah-content-outcomes-complete` and `dinah-content-outcomes-typing-pauses`. All runs were hidden and headless through the shared test queue. No full browser run or installed-window acceptance was performed.
 
 ## Receiving
 

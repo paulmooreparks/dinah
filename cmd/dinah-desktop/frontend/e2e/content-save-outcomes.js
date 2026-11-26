@@ -62,6 +62,12 @@ const { launch } = require('./lib/page');
       t.ok('no success notice is shown, notice kept=' + keepNotice, await p.evaluate(() => !__notices.some(x => x.kind === 'success')));
       t.ok('the title remains Not published, notice kept=' + keepNotice, await p.locator('[data-win]').filter({ has: p.locator('.content-applet') }).evaluate(el => el.textContent.includes('Not published')));
       t.ok('Publish remains enabled, notice kept=' + keepNotice, await p.evaluate(() => dinahDocuments.get(__key).canPublish()));
+      await p.locator('nav[data-menubar] .menubar-title').filter({ hasText: /^File$/ }).first().click();
+      const publishRow = p.locator('.menubar-panel .menu-action').filter({ hasText: /^Publish/ });
+      await publishRow.waitFor({ state: 'visible' });
+      t.ok('the rendered Publish command remains enabled, notice kept=' + keepNotice,
+        !await publishRow.isDisabled() && await publishRow.getAttribute('aria-disabled') !== 'true');
+      await p.keyboard.press('Escape');
       t.ok('a refused flush rejects to its caller, notice kept=' + keepNotice, !!save.error);
       t.ok('a refused Publish rejects to its caller, notice kept=' + keepNotice, !!publish.error);
       t.ok('a refused flush prevents publishing stale draft text, notice kept=' + keepNotice, await p.evaluate(() => __publishes === 0));
@@ -72,6 +78,15 @@ const { launch } = require('./lib/page');
       }
       t.ok('unchanged refused text is not automatically retried, notice kept=' + keepNotice, await p.evaluate(c => __updates === c.updates && __notices.length === c.notices, counts));
 
+      const errorsBeforeTyping = await p.evaluate(() => __notices.filter(x => x.text === __refusal).length);
+      for (let i = 0; i < 2; i++) {
+        const before = await p.evaluate(() => __updates);
+        await p.locator('.content-applet .cm-content').click();
+        await p.keyboard.type(' Pause ' + i + '.');
+        await p.waitForFunction(n => __updates > n, before);
+      }
+      t.ok('typing pauses do not repeat the host refusal notice, notice kept=' + keepNotice,
+        await p.evaluate(n => __notices.filter(x => x.text === __refusal).length === n, errorsBeforeTyping));
       for (const action of ['flush', 'flush']) {
         const before = await p.evaluate(() => __notices.length);
         const error = await t.deadline('repeating ' + action, p.evaluate(async action => {
