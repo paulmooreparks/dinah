@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	ole "github.com/go-ole/go-ole"
@@ -48,6 +49,9 @@ func windowShortcuts(exe, earlier string) ([]string, error) {
 // retarget points the shortcut at link to to when it points to from, through
 // the Windows Script Host's shell object, as startMenuShortcut writes one.
 func retarget(link, from, to string) (bool, error) {
+	// COM initialization, interface calls and cleanup belong to one OS thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		var oleErr *ole.OleError
 		if !errors.As(err, &oleErr) || oleErr.Code() != 1 {

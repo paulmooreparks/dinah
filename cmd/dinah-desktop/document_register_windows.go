@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	ole "github.com/go-ole/go-ole"
@@ -186,6 +187,9 @@ func documentShortcut(app documentInstalled, remove bool) error {
 // the Windows Script Host's shell object, whose CreateShortcut opens a
 // shortcut that already exists.
 func shortcutTarget(link string) (string, error) {
+	// COM initialization, interface calls and cleanup belong to one OS thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		var oleErr *ole.OleError
 		if !errors.As(err, &oleErr) || oleErr.Code() != 1 {
@@ -235,6 +239,9 @@ func startMenuShortcut(name, program string, remove bool) error {
 
 // writeShortcut writes the shortcut file at link, called name, to program.
 func writeShortcut(link, name, program string) error {
+	// COM initialization, interface calls and cleanup belong to one OS thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		// S_FALSE means the thread already has COM, which is fine.
 		var oleErr *ole.OleError

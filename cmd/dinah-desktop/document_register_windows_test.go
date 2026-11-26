@@ -168,6 +168,43 @@ func TestAShortcutsTargetIsReadBack(t *testing.T) {
 	}
 }
 
+func TestAShortcutCanBeRetargeted(t *testing.T) {
+	dir := t.TempDir()
+	from, to := filepath.Join(dir, "old.exe"), filepath.Join(dir, "new.exe")
+	for _, path := range []string{from, to} {
+		if err := os.WriteFile(path, []byte("program"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(dir, "Program.lnk")
+	if err := writeShortcut(link, "Program", from); err != nil {
+		t.Fatalf("write shortcut: %v", err)
+	}
+	changed, err := retarget(link, from, to)
+	if err != nil || !changed {
+		t.Fatalf("retarget: changed=%v, error=%v", changed, err)
+	}
+	got, err := shortcutTarget(link)
+	if err != nil {
+		t.Fatalf("read shortcut: %v", err)
+	}
+	gotInfo, err := os.Stat(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantInfo, err := os.Stat(to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(gotInfo, wantInfo) {
+		t.Fatalf("shortcut starts %q, want %q", got, to)
+	}
+	changed, err = retarget(link, from, to)
+	if err != nil || changed {
+		t.Fatalf("unrelated target changed: %v, %v", changed, err)
+	}
+}
+
 // Started under an application's installed name, the program is that
 // application; under the window program's own name it is not.
 func TestAnInstalledNameIsItsApplication(t *testing.T) {
