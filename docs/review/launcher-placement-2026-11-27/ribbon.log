@@ -1,0 +1,7 @@
+PASS the ribbon is off until the person turns it on
+PASS turned on, a menu title is a tab whose rows are tools
+PASS a tool runs its command
+PASS a danger row is a danger button
+PASS a tool folded to its glyph keeps its name and a tooltip
+PASS turning the ribbon off brings the menus back
+PASS no page errors

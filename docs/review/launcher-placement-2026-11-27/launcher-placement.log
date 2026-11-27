@@ -1,0 +1,26 @@
+PASS the first opening starts closed light-menu
+PASS the launcher visibly opens light-menu
+PASS the panel opens below its visible Launcher control light-menu
+PASS menu-bar placement keeps its existing six-pixel gap light-menu
+FAIL first opening never moves after its first visible frame light-menu :: {"first":{"at":1049.7,"left":0,"top":0,"width":720,"height":600,"inlineTop":"","inlineLeft":"","transform":"none","transition":"all","animations":[]},"final":{"at":2268.6,"left":49,"top":44,"width":720,"height":600,"inlineTop":"44px","inlineLeft":"49px","transform":"none","transition":"all","animations":[]},"minTop":0,"maxTop":44,"minLeft":0,"maxLeft":49}
+PASS a second pointer click on the same control closes the panel light-menu
+PASS no page errors
+PASS the first opening starts closed light-ribbon
+PASS the launcher visibly opens light-ribbon
+FAIL the panel opens below its visible Launcher control light-ribbon :: {"invoker":{"x":20,"y":57,"width":96.5625,"height":28},"final":{"at":2351.2,"left":50,"top":57,"width":720,"height":600,"inlineTop":"57px","inlineLeft":"50px","transform":"none","transition":"all","animations":[]},"diagnostics":{"selected":{"text":"Dinah","label":null,"tag":"BUTTON","left":50,"top":18,"bottom":51},"version":"http://dinah.test/pudl/pudl-launcher.js"}}
+PASS first opening never moves after its first visible frame light-ribbon
+FAIL a second pointer click on the same control closes the panel light-ribbon :: {"panelCoversControl":true,"tag":"BUTTON","text":"Settings"}
+PASS no page errors
+PASS the first opening starts closed dark-menu
+PASS the launcher visibly opens dark-menu
+PASS the panel opens below its visible Launcher control dark-menu
+PASS menu-bar placement keeps its existing six-pixel gap dark-menu
+FAIL first opening never moves after its first visible frame dark-menu :: {"first":{"at":821.332,"left":0,"top":0,"width":720,"height":600,"inlineTop":"","inlineLeft":"","transform":"none","transition":"all","animations":[]},"final":{"at":2037.9,"left":49,"top":44,"width":720,"height":600,"inlineTop":"44px","inlineLeft":"49px","transform":"none","transition":"all","animations":[]},"minTop":0,"maxTop":44,"minLeft":0,"maxLeft":49}
+PASS a second pointer click on the same control closes the panel dark-menu
+PASS no page errors
+PASS the first opening starts closed dark-ribbon
+PASS the launcher visibly opens dark-ribbon
+FAIL the panel opens below its visible Launcher control dark-ribbon :: {"invoker":{"x":20,"y":57,"width":96.5625,"height":28},"final":{"at":2045.9,"left":50,"top":57,"width":720,"height":600,"inlineTop":"57px","inlineLeft":"50px","transform":"none","transition":"all","animations":[]},"diagnostics":{"selected":{"text":"Dinah","label":null,"tag":"BUTTON","left":50,"top":18,"bottom":51},"version":"http://dinah.test/pudl/pudl-launcher.js"}}
+PASS first opening never moves after its first visible frame dark-ribbon
+FAIL a second pointer click on the same control closes the panel dark-ribbon :: {"panelCoversControl":true,"tag":"BUTTON","text":"Settings"}
+PASS no page errors

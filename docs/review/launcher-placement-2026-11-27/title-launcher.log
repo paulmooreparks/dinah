@@ -1,0 +1,15 @@
+PASS launcher is closed before opening
+PASS identity opens the launcher
+PASS launcher chrome remains right aligned
+PASS catalog filters real destinations
+PASS launcher pins beside workspace
+PASS taskbar remains outside launcher split
+PASS close collapses pinned catalog
+PASS destination executes and dismisses popup
+PASS size settings resize the popup
+PASS search is addressable
+PASS launcher preferences use host store
+PASS URL restoration applies category and presentation
+PASS popup fits narrow viewport
+PASS visible menu control opens launcher with keyboard
+PASS no page errors
