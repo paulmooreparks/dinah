@@ -154,20 +154,25 @@ const { launch, PAGE } = require('./lib/page');
     await page.evaluate(() => __emit('agent:update', { sessionId: 'reading-chat', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '\n\nA later message.' } } }));
     ok('later chat content leaves a reader above the end in place', await page.locator('[data-win="' + chatKey + '"] [data-view-id="activity"]').evaluate(el => el.scrollTop === 200));
     await page.evaluate(() => {
-      const app = go.main.App; window.__realSave = app.SaveUIState; window.__saves = [];
-      app.SaveUIState = state => new Promise((resolve, reject) => __saves.push({ state, resolve, reject }));
+      const app = go.main.App; window.__realSave = app.SaveUIStateChanges; window.__saves = [];
+      // Hold only the invented writes. Layout and scroll changes may arrive
+      // while a held save drains, and must retain a completing native peer.
+      app.SaveUIStateChanges = changes => Object.hasOwn(changes.set, 'test-serialized')
+        ? new Promise((resolve, reject) => __saves.push({ state: { values: changes.set }, resolve, reject }))
+        : __realSave(changes);
       dinahUIState.set('test-serialized', 1); window.__firstFlush = dinahUIState.flush();
     });
     await page.waitForFunction(() => __saves.length === 1);
     await page.evaluate(() => { dinahUIState.set('test-serialized', 2); window.__secondFlush = dinahUIState.flush(); __saves[0].resolve(); });
     await page.waitForFunction(() => __saves.length === 2);
     ok('native writes serialize and retain the newest state', await page.evaluate(() => __saves[0].state.values['test-serialized'] === 1 && __saves[1].state.values['test-serialized'] === 2));
-    await t.deadline('the two serialized native writes to finish', page.evaluate(async () => { __saves[1].resolve(); await Promise.all([__firstFlush, __secondFlush]); }), 30000);
+    await t.deadline('the two serialized native writes to finish', page.evaluate(async () => { dinahUIState.set('test-background-during-save', true); __saves[1].resolve(); await Promise.all([__firstFlush, __secondFlush]); }), 30000);
+    ok('unrelated state arriving during a held write is saved', nativeState.values['test-background-during-save'] === true);
     await page.evaluate(() => { dinahUIState.set('test-serialized', 3); window.__failure = dinahUIState.flush().then(() => 'accepted', () => 'rejected'); });
     await page.waitForFunction(() => __saves.length === 3);
     await page.evaluate(() => __saves[2].reject(new Error('Disk unavailable')));
     ok('an explicit flush rejects failure so native close can remain canceled', await t.deadline('the rejected flush to settle', page.evaluate(() => __failure), 30000) === 'rejected');
-    await t.deadline('the restored native save to flush', page.evaluate(async () => { go.main.App.SaveUIState = __realSave; await dinahUIState.flush(); }), 30000);
+    await t.deadline('the restored native save to flush', page.evaluate(async () => { go.main.App.SaveUIStateChanges = __realSave; await dinahUIState.flush(); }), 30000);
     await stop();
 
     ({ page } = await start({ delay: true }));
