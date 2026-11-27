@@ -7,7 +7,9 @@ const skins = JSON.parse(fs.readFileSync(path.join(FRONTEND, 'pudl/pudl-skins.js
   try {
     await p.evaluate(() => {
       const panel = document.createElement('section'); panel.id = 'identity-paint-audit';
-      const style = document.createElement('style'); style.textContent = '#identity-paint-audit,#identity-paint-audit *{transition:none!important;animation:none!important}'; document.head.append(style);
+      // Compare ink on a flat substrate. Gradient raster differences are
+      // outside this check; the zero-difference predicate stays exact.
+      const style = document.createElement('style'); style.textContent = '#identity-paint-audit,#identity-paint-audit *{transition:none!important;animation:none!important}#identity-paint-audit button{background-image:none!important}'; document.head.append(style);
       Object.assign(panel.style, { position: 'fixed', left: '32px', top: '100px', zIndex: '2147483647', padding: '20px', background: 'var(--surface)', display: 'grid', gridTemplateColumns: '180px', gap: '8px' });
       for (const kind of ['conversation', 'document', 'files', 'tools']) for (const state of ['ordinary', 'current', 'disabled']) {
         const source = document.querySelector('#dinah-launcher .glyph[data-identity-kind="' + kind + '"]');

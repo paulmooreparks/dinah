@@ -1,0 +1,548 @@
+{
+  "source": "preserved adoption-tree failure screenshots",
+  "cases": [
+    {
+      "skin": "standard",
+      "mode": "light",
+      "kind": "document",
+      "state": "disabled",
+      "backgroundChanges": 37,
+      "backgroundSample": [
+        {
+          "x": 152,
+          "y": 1,
+          "a": [
+            245,
+            246,
+            238,
+            255
+          ],
+          "b": [
+            245,
+            246,
+            239,
+            255
+          ]
+        },
+        {
+          "x": 156,
+          "y": 1,
+          "a": [
+            245,
+            246,
+            238,
+            255
+          ],
+          "b": [
+            245,
+            246,
+            239,
+            255
+          ]
+        },
+        {
+          "x": 160,
+          "y": 1,
+          "a": [
+            245,
+            246,
+            238,
+            255
+          ],
+          "b": [
+            245,
+            246,
+            239,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 11,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "standard",
+      "mode": "light",
+      "kind": "files",
+      "state": "current",
+      "backgroundChanges": 118,
+      "backgroundSample": [
+        {
+          "x": 151,
+          "y": 1,
+          "a": [
+            240,
+            243,
+            236,
+            255
+          ],
+          "b": [
+            240,
+            243,
+            237,
+            255
+          ]
+        },
+        {
+          "x": 153,
+          "y": 1,
+          "a": [
+            239,
+            243,
+            236,
+            255
+          ],
+          "b": [
+            240,
+            243,
+            236,
+            255
+          ]
+        },
+        {
+          "x": 155,
+          "y": 1,
+          "a": [
+            239,
+            243,
+            236,
+            255
+          ],
+          "b": [
+            240,
+            243,
+            237,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 37,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "standard",
+      "mode": "light",
+      "kind": "tools",
+      "state": "current",
+      "backgroundChanges": 115,
+      "backgroundSample": [
+        {
+          "x": 151,
+          "y": 1,
+          "a": [
+            240,
+            243,
+            237,
+            255
+          ],
+          "b": [
+            240,
+            243,
+            236,
+            255
+          ]
+        },
+        {
+          "x": 153,
+          "y": 1,
+          "a": [
+            240,
+            243,
+            236,
+            255
+          ],
+          "b": [
+            239,
+            243,
+            236,
+            255
+          ]
+        },
+        {
+          "x": 155,
+          "y": 1,
+          "a": [
+            240,
+            243,
+            237,
+            255
+          ],
+          "b": [
+            239,
+            243,
+            236,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 27,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "glaze",
+      "mode": "dark",
+      "kind": "document",
+      "state": "disabled",
+      "backgroundChanges": 63,
+      "backgroundSample": [
+        {
+          "x": 153,
+          "y": 1,
+          "a": [
+            43,
+            51,
+            53,
+            255
+          ],
+          "b": [
+            42,
+            50,
+            53,
+            255
+          ]
+        },
+        {
+          "x": 157,
+          "y": 1,
+          "a": [
+            43,
+            51,
+            53,
+            255
+          ],
+          "b": [
+            42,
+            50,
+            53,
+            255
+          ]
+        },
+        {
+          "x": 161,
+          "y": 1,
+          "a": [
+            43,
+            51,
+            53,
+            255
+          ],
+          "b": [
+            42,
+            50,
+            53,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 19,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "glaze",
+      "mode": "dark",
+      "kind": "files",
+      "state": "current",
+      "backgroundChanges": 99,
+      "backgroundSample": [
+        {
+          "x": 152,
+          "y": 1,
+          "a": [
+            46,
+            55,
+            57,
+            255
+          ],
+          "b": [
+            45,
+            54,
+            57,
+            255
+          ]
+        },
+        {
+          "x": 156,
+          "y": 1,
+          "a": [
+            46,
+            55,
+            57,
+            255
+          ],
+          "b": [
+            46,
+            54,
+            57,
+            255
+          ]
+        },
+        {
+          "x": 160,
+          "y": 1,
+          "a": [
+            46,
+            55,
+            57,
+            255
+          ],
+          "b": [
+            45,
+            54,
+            57,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 36,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "glaze",
+      "mode": "dark",
+      "kind": "tools",
+      "state": "current",
+      "backgroundChanges": 102,
+      "backgroundSample": [
+        {
+          "x": 150,
+          "y": 1,
+          "a": [
+            46,
+            55,
+            57,
+            255
+          ],
+          "b": [
+            46,
+            55,
+            58,
+            255
+          ]
+        },
+        {
+          "x": 152,
+          "y": 1,
+          "a": [
+            45,
+            54,
+            57,
+            255
+          ],
+          "b": [
+            46,
+            55,
+            57,
+            255
+          ]
+        },
+        {
+          "x": 154,
+          "y": 1,
+          "a": [
+            46,
+            55,
+            57,
+            255
+          ],
+          "b": [
+            46,
+            55,
+            58,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 23,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "alloy",
+      "mode": "light",
+      "kind": "document",
+      "state": "disabled",
+      "backgroundChanges": 44,
+      "backgroundSample": [
+        {
+          "x": 152,
+          "y": 2,
+          "a": [
+            243,
+            243,
+            237,
+            255
+          ],
+          "b": [
+            244,
+            243,
+            237,
+            255
+          ]
+        },
+        {
+          "x": 154,
+          "y": 2,
+          "a": [
+            243,
+            243,
+            236,
+            255
+          ],
+          "b": [
+            243,
+            243,
+            237,
+            255
+          ]
+        },
+        {
+          "x": 160,
+          "y": 2,
+          "a": [
+            243,
+            243,
+            237,
+            255
+          ],
+          "b": [
+            244,
+            243,
+            237,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 9,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "alloy",
+      "mode": "light",
+      "kind": "files",
+      "state": "current",
+      "backgroundChanges": 111,
+      "backgroundSample": [
+        {
+          "x": 152,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            233,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            232,
+            255
+          ]
+        },
+        {
+          "x": 156,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            233,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            232,
+            255
+          ]
+        },
+        {
+          "x": 160,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            233,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            232,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 41,
+      "maxChannelDelta": 1.0
+    },
+    {
+      "skin": "alloy",
+      "mode": "light",
+      "kind": "tools",
+      "state": "current",
+      "backgroundChanges": 117,
+      "backgroundSample": [
+        {
+          "x": 152,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            232,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            233,
+            255
+          ]
+        },
+        {
+          "x": 156,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            232,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            233,
+            255
+          ]
+        },
+        {
+          "x": 160,
+          "y": 1,
+          "a": [
+            238,
+            239,
+            232,
+            255
+          ],
+          "b": [
+            238,
+            239,
+            233,
+            255
+          ]
+        }
+      ],
+      "glyphChanges": 22,
+      "maxChannelDelta": 1.0
+    }
+  ],
+  "flatControl": {
+    "regions": 144,
+    "regionsWithBackgroundDifferences": 0,
+    "checksPassed": 433
+  },
+  "negativeControls": [
+    "hide and show unchanged panel",
+    "replace audit buttons with identical clones",
+    "remove and restore the same gradient",
+    "repaint a temporary background patch",
+    "remove and restore fallback-only identity metadata"
+  ]
+}
