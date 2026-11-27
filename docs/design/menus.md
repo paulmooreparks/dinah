@@ -77,6 +77,6 @@ The browser suite `e2e/host-menus-order.js` covers both steps: the titles of the
 
 ## Launcher keyboard command
 
-View includes Launcher after Refresh. Ctrl+Shift+X on Windows and Command+Shift+X on Mac toggle the launcher directly in either menu-bar or ribbon mode. The host command registry owns the binding and supplies its menu row, command-search entry, Keyboard Shortcuts entry and command tooltip. Opening focuses the launcher search field. Closing through the same key restores the previous focus without scrolling or changing the active window. With no previous focus, the visible launcher opener is the fallback.
+View includes Launcher after Refresh. Launcher declares A as its menu letter, preserving Color Mode's existing L. Ctrl+Shift+X on Windows and Command+Shift+X on Mac toggle the launcher directly in either menu-bar or ribbon mode. The host command registry owns the binding and supplies its menu row, command-search entry, Keyboard Shortcuts entry and command tooltip. Opening focuses the launcher search field. Closing through the same key restores the previous focus without scrolling or changing the active window. With no previous focus, the visible launcher opener is the fallback.
 
 PUDL owns launcher presentation and focus restoration. The host calls toggle(root, { returnFocus: document.activeElement }). The prior-focus requirement awaits the documented returnFocus option in PUDL 0.112.0; the host must not treat an editor or terminal as a popup opener to obtain that result.
