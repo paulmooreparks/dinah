@@ -7,6 +7,30 @@
   var kinds = new Map();
   var instances = new Map();
   var launchers = new Map();
+  // Explicit destination identities, independent of glyph shape and activation kind.
+  var IDENTITY_KINDS = Object.freeze({
+    'chat': 'conversation', 'chat-session': 'conversation', 'chat-browser': 'conversation',
+    'bus': 'conversation', 'bus-room': 'conversation', 'bus-thread': 'conversation', 'group-picker': 'conversation',
+    'needs-you': 'conversation', 'decisions': 'conversation', 'org-chart': 'conversation',
+    'chat-cleanup': 'conversation', 'in-progress': 'conversation', 'judgements': 'conversation',
+    'chat-failures': 'conversation', 'subagents': 'conversation', 'subagent': 'conversation', 'subagent-archive': 'conversation',
+    'editor': 'document', 'content-docs': 'document', 'content-diagrams': 'document', 'content-slides': 'document',
+    'content-slides-presenter': 'document', 'document': 'document', 'workspace-resource': 'document', 'diff': 'document',
+    'files': 'files', 'workspace': 'tools', 'show-workspace': 'tools', 'terminal': 'tools', 'shell': 'tools',
+    'settings': 'tools', 'skills-browser': 'tools', 'skill': 'tools', 'theme-editor': 'tools',
+    'extensions': 'tools', 'extension-terminal': 'tools', 'assistant-tasks': 'tools',
+    'setup': 'tools', 'help-chats': 'tools', 'open-source-notices': 'tools', 'applet-artifact': 'document',
+    'dinah.chat': 'conversation', 'dinah.team': 'conversation', 'dinah.requests': 'conversation', 'dinah.notifications': 'conversation',
+    'dinah.documents': 'document', 'yavc.docs': 'document', 'yavc.editor': 'document', 'yavc.diagrams': 'document', 'yavc.slides': 'document',
+    'dinah.standalone': 'document', 'dinah.document-comments': 'document', 'dinah.files': 'files',
+    'dinah.terminal': 'tools', 'dinah.settings': 'tools', 'dinah.skills': 'tools', 'dinah.windows': 'tools',
+    'dinah.diagnostics': 'tools', 'com.parkscomputing.dinah-git': 'tools', 'dinah.workspace': 'tools'
+  });
+  function identityKind(id) { return Object.prototype.hasOwnProperty.call(IDENTITY_KINDS, id) ? IDENTITY_KINDS[id] : ''; }
+  function itemIdentity(item, key) {
+    var cfg = kinds.get(item.kind), applet = cfg && (typeof cfg.applet === 'function' ? cfg.applet(item, key) : cfg.applet);
+    return identityKind(item.kind) || identityKind(applet && applet.id);
+  }
   var svgSerial = 0;
   var embedSerial = 0;
   var layoutKey = 'dinah-workbench-layout';
@@ -223,12 +247,15 @@
   function groupWindow(win, item) {
     var cfg = item && kinds.get(item.kind), group = null;
     var applet = cfg && (typeof cfg.applet === 'function' ? cfg.applet(item, win.dataset.win) : cfg.applet);
+    var identity = item && (identityKind(item.kind) || identityKind(applet && applet.id));
+    if (identity) { if (win.dataset.winIdentityKind !== identity) win.dataset.winIdentityKind = identity; }
+    else if (win.hasAttribute('data-win-identity-kind')) win.removeAttribute('data-win-identity-kind');
     if (applet && applet.id && applet.title) {
       var owner = applet.workspace === true && grouping ? grouping(cfg.workspaceOf ? cfg.workspaceOf(item, win.dataset.win) : item.workspace || '') : null;
       if (applet.workspace === false || owner) {
         // Encoding the tuple keeps distinct IDs distinct, including punctuation.
-        var identity = owner ? [applet.id, owner.key] : [applet.id];
-        var bytes = new TextEncoder().encode(JSON.stringify(identity));
+        var groupIdentity = owner ? [applet.id, owner.key] : [applet.id];
+        var bytes = new TextEncoder().encode(JSON.stringify(groupIdentity));
         var key = 'applet-' + btoa(Array.from(bytes, function (byte) { return String.fromCharCode(byte); }).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         group = { key: key, label: owner ? owner.label + ' (' + applet.title + ')' : applet.title, glyph: applet.glyph || cfg.glyph || 'app', detail: owner ? owner.label : '', workspace: owner ? owner.label : '' };
       }
@@ -409,6 +436,7 @@
     saveLayout();
   }
   window.dinahWorkbench = {
+    identityKind: identityKind,
     /* Another file's answer to a kind of question the engine puts to the
        page (askPage in Go), such as content-windows.js's for the content
        applets' actions. */
@@ -433,7 +461,7 @@
     registerLauncher: function (id, definition) {
       if (!id || !definition.title || typeof definition.run !== 'function') throw new Error('A tool needs an identity, title and launcher.');
       if (launchers.has(id)) throw new Error('Duplicate tool launcher: ' + id);
-      launchers.set(id, Object.freeze(Object.assign({}, definition, { id: id })));
+      launchers.set(id, Object.freeze(Object.assign({}, definition, { id: id, identityKind: identityKind(id) || identityKind(definition.applet) })));
       document.dispatchEvent(new CustomEvent('dinah:launchers-change'));
     },
     unregisterLauncher: function (id) { if (launchers.delete(id)) document.dispatchEvent(new CustomEvent("dinah:launchers-change")); },
@@ -507,7 +535,7 @@
       if (!item) return null;
       if (provider === 'applets' && item.kind === 'launcher') {
         var launcher = launchers.get(item.path);
-        return launcher ? {label:launcher.title,glyph:launcher.glyph || 'app',icon:launcher.icon,open:launcher.run} : null;
+        return launcher ? {label:launcher.title,glyph:launcher.glyph || 'app',icon:launcher.icon,identityKind:launcher.identityKind,open:launcher.run} : null;
       }
       var cfg = kinds.get(item.kind);
       if (!cfg || cfg.pinnable === false) return null;
@@ -523,7 +551,7 @@
       var named = '';
       if (!(kept && kept.title) && typeof cfg.titleOf === 'function') { try { named = cfg.titleOf(item) || ''; } catch (e) { named = ''; } }
       return { label: combinedTitle((kept && kept.title) || named || item.title || cfg.title, kept && kept.detail || ''),
-        glyph:cfg.glyph || 'app', icon:cfg.icon,
+        glyph:cfg.glyph || 'app', icon:cfg.icon, identityKind:itemIdentity(item,id),
         open: function () { return cfg.launcher && provider === 'applets' ? cfg.launcher.run() : window.dinahWorkbench.open(item); } };
     },
     ready: async function (key) {

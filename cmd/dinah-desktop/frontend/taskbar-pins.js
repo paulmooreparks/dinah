@@ -8,7 +8,7 @@
     if (!item || item.kind !== 'shell') return null;
     var shell = item.path === 'default' ? {id:'default',name:'Terminal'} : dinahShellTerminal.shells().find(function (s) { return s.id === item.path; });
     if (!shell) return null;
-    return {label:shell.name,glyph:'terminal',open:function () {
+    return {label:shell.name,glyph:'terminal',identityKind:bench.identityKind(item.kind),open:function () {
       return dinahResources.currentPath().then(function (path) { return dinahResources.openTerminal(path,null,shell.id === 'default' ? undefined : shell.id); });
     }};
   }
@@ -16,7 +16,7 @@
   var providers = ['applets','items','shells'].map(function (provider) {
     return {id:provider,resolve:function (request) {
       var found = info(provider,request.id);
-      return found ? {status:'available',destination:{id:request.id,label:found.label,glyph:found.glyph,icon:found.icon,command:true}} : {status:'unavailable'};
+      return found ? {status:'available',destination:{id:request.id,label:found.label,glyph:found.glyph,icon:found.icon,identityKind:found.identityKind,command:true}} : {status:'unavailable'};
     }};
   });
   /* A pinned button is for one thing, and the thing may come to have

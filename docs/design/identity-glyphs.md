@@ -1,0 +1,11 @@
+# Destination identity glyphs
+
+The host classifies destination identities through the single IDENTITY_KINDS table in workbench.js. The recognized PUDL kinds are conversation, document, files and tools. Explicit window kinds and applet IDs select a kind; labels, glyph shapes and activation addresses do not.
+
+Chats, group chats, notifications, decisions, team and request applets use conversation. Chat management, the organisation chart, in-progress work and judgements share that classification. Documents and the content editors use document, including document viewers, diffs, artifacts, stand-alone document actions and comment actions. Files uses files. Workspace, Skills, Settings, Terminal and host utilities use tools, including window, diagnostics and Git applets. An unknown third-party applet stays neutral. A bus-only applet receives a table entry without acquiring a new launcher, window or tab.
+
+Launcher destination glyphs receive data-identity-kind directly. Window roots receive data-win-identity-kind when their source is created, regrouped or rekeyed. Resolved taskbar descriptors carry identityKind, including shell pins. PUDL owns generated dock, taskbar, navigation and switcher glyphs. Its root-metadata observer updates those surfaces after a classification changes.
+
+Action and status glyphs receive no classification. Existing logos and images remain unchanged. No title identity glyph is introduced. Identity metadata adds no layout or geometry, and the PUDL contract preserves ordinary foreground ink for current, selected and disabled identities.
+
+The host requires PUDL 0.112.0's IDENTITY-GLYPHS.md contract for generated classifications and colour. The identity-kinds browser suite checks authored labels, window metadata, provider pins, generated surfaces, reclassification and unchanged layout. The identity-ink suite compares screenshots at the same glyph positions with and without classification across all nine admitted skins in light and dark. It requires changed ordinary ink and unchanged current and disabled ink, retaining raw paints, bounds and screenshots. These adoption assertions remain red with PUDL 0.110.1. Native host and operating-system high-contrast acceptance are separate.
