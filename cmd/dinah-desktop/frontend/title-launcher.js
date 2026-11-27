@@ -9,11 +9,12 @@
   function draw() {
     var list = root.querySelector('[data-start-items]');
     actions.clear(); list.replaceChildren();
-    function add(id, title, category, glyph, run, disabled) {
+    function add(id, title, category, glyph, run, disabled, identityKind) {
       actions.set(id, run);
       var li = document.createElement('li'); li.className = 'md-row'; li.dataset.startItem = ''; li.dataset.startCategory = category;
       var button = document.createElement('button'); button.type = 'button'; button.className = 'menu-action md-item start-item'; button.dataset.launcherAction = id; button.disabled = !!disabled;
       var icon = document.createElement('span'); icon.className = 'glyph'; icon.style.setProperty('--glyph', 'var(--glyph-' + (glyph || 'window') + ')'); icon.setAttribute('aria-hidden', 'true');
+      if (identityKind) icon.dataset.identityKind = identityKind;
       var name = document.createElement('span'); name.className = 'start-name'; name.textContent = title;
       button.append(icon, name); li.append(button);
       var pin = window.dinahTaskbarPins && dinahTaskbarPins.reference(id);
@@ -35,18 +36,18 @@
       ['skills-browser','panes','document'], ['needs-you','panes','warning','Notifications'], ['bus','panes','inbox'],
       ['install-packages-file','settings','download']
     ].forEach(function (entry) {
-      var cmd = dinahCommands.describe(entry[0],entry[3]); add(entry[0],cmd.label,entry[1],entry[2],cmd.run,cmd.disabled);
+      var cmd = dinahCommands.describe(entry[0],entry[3]); add(entry[0],cmd.label,entry[1],entry[2],cmd.run,cmd.disabled,dinahWorkbench.identityKind(entry[0]));
       list.lastElementChild.querySelector('button').dataset.launcherCommand = entry[0];
     });
-    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || CATEGORY[tool.id] || 'tools',tool.glyph,tool.run); });
+    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || CATEGORY[tool.id] || 'tools',tool.glyph,tool.run,undefined,tool.identityKind); });
     var terminal = dinahWorkbench.launchers().find(function (tool) { return tool.id === 'terminal'; });
     // The entry is called for what it starts, a Terminal running the shell chosen in Settings (docs/design/menus.md).
-    add('terminal:default','Terminal','terminals','terminal',terminal ? terminal.run : function () {},!terminal);
+    add('terminal:default','Terminal','terminals','terminal',terminal ? terminal.run : function () {},!terminal,dinahWorkbench.identityKind('terminal'));
     if (window.dinahShellTerminal) {
       dinahShellTerminal.shells().forEach(function (shell) {
         add('terminal:'+shell.id,shell.name,'terminals','terminal',function () {
           return dinahResources.currentPath().then(function (path) { return dinahResources.openTerminal(path,null,shell.id); });
-        });
+        },false,dinahWorkbench.identityKind('terminal'));
       });
     }
     // A category with nothing in it, as Tools is in a product that adds no tools, is not listed.
