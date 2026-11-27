@@ -58,7 +58,8 @@
     return ['mod', 'alt', 'shift'].filter(function (m) { return mods[m]; }).concat(key.length === 1 ? key.toUpperCase() : key).join('+');
   }
   function shown(s) {
-    return String(s).split('+').map(function (p) { return p === 'Mod' ? 'Ctrl' : p; }).join('+');
+    var mod = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '') ? 'Cmd' : 'Ctrl';
+    return String(s).split('+').map(function (p) { return p === 'Mod' ? mod : p; }).join('+');
   }
 
   function register(entry) {

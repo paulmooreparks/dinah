@@ -74,3 +74,9 @@ None. Paul settled the last one, what F1 opens, on 19 November 2026 (rule 14).
 ## Tests
 
 The browser suite `e2e/host-menus-order.js` covers both steps: the titles of the bar; what Chat, Workspace, View, Documents, Window and Help hold and in what order; the Chat rows greyed with their reason when no chat is in front; Ctrl+N and F5; the themes' marks; which windows add a menu and what it is called; what the launcher no longer lists, its categories, and the name Exit. `e2e/chat-menu-stale.js` covers the Chat menu following a chat that starts working, with the menu closed and with it open.
+
+## Launcher keyboard command
+
+View includes Launcher after Refresh. Ctrl+Shift+X on Windows and Command+Shift+X on Mac toggle the launcher directly in either menu-bar or ribbon mode. The host command registry owns the binding and supplies its menu row, command-search entry, Keyboard Shortcuts entry and command tooltip. Opening focuses the launcher search field. Closing through the same key restores the previous focus without scrolling or changing the active window. With no previous focus, the visible launcher opener is the fallback.
+
+PUDL owns launcher presentation and focus restoration. The host calls toggle(root, { returnFocus: document.activeElement }). The prior-focus requirement awaits the documented returnFocus option in PUDL 0.112.0; the host must not treat an editor or terminal as a popup opener to obtain that result.
