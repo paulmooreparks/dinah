@@ -22,6 +22,12 @@ const { launch } = require('./lib/page');
     try {
       await p.waitForFunction(() => window.pudlLauncher && pudlLauncher.state(document.getElementById('dinah-launcher')));
       await p.evaluate(ribbon => pudlMenubar.ribbon(ribbon), ribbon);
+      t.ok('the opener metadata comes from the command registry ' + name, await p.evaluate(() => document.querySelector('[data-menubar]').getAttribute('data-menubar-launcher-shortcut') === dinahCommands.rows('view').find(c => c.label === 'Launcher').shortcut));
+      if (ribbon) {
+        const opener = await p.evaluate(() => { const el = pudlMenubar.launcherButton({ visible: true }); return { tooltip: el.getAttribute('data-tooltip'), keys: el.getAttribute('aria-keyshortcuts') }; });
+        t.ok('the ribbon opener tooltip shows the platform key ' + name, /Launcher.*X/.test(opener.tooltip || '') && (opener.tooltip || '').includes(mac ? '⌘' : 'Ctrl'), JSON.stringify(opener));
+        t.ok('the ribbon opener exposes the platform accessibility key ' + name, opener.keys === (mac ? 'Meta' : 'Control') + '+Shift+X', JSON.stringify(opener));
+      }
       const editorKey = await p.evaluate(() => dinahContentWindows.newDocument(undefined, '', 'editor'));
       await p.locator('.win[data-win-kind="editor"] .cm-content').waitFor();
       const chatKey = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'shortcut-chat' }));
