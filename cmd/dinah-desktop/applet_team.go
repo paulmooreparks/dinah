@@ -36,7 +36,7 @@ const (
 
 func (a *App) teamAppletBundle() (applet.Bundle, error) {
 	startInput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["title","brief"],"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"brief":{"type":"string","minLength":1,"maxLength":32768},"workspace":{"type":"string","maxLength":4096},"provider":{"type":"string","maxLength":64},"model":{"type":"string","maxLength":256}}}`)
-	startOutput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["sessionId","busId","title","group"],"properties":{"sessionId":{"type":"string"},"busId":{"type":"string"},"title":{"type":"string"},"group":{"type":"string"}}}`)
+	startOutput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["sessionId","busId","title","group","model","notApplied"],"properties":{"sessionId":{"type":"string"},"busId":{"type":"string"},"title":{"type":"string"},"group":{"type":"string"},"model":{"type":"string"},"notApplied":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["id","reason"],"properties":{"id":{"type":"string"},"reason":{"type":"string"}}}}}}`)
 	assignInput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["member","text"],"properties":{"member":{"type":"string","minLength":1,"maxLength":512},"text":{"type":"string","minLength":1,"maxLength":32768}}}`)
 	assignOutput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["message","group"],"properties":{"message":{"type":"integer"},"group":{"type":"string"}}}`)
 	retireInput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["member"],"properties":{"member":{"type":"string","minLength":1,"maxLength":512}}}`)
@@ -45,16 +45,16 @@ func (a *App) teamAppletBundle() (applet.Bundle, error) {
 	listOutput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["group","members"],"properties":{"group":{"type":"string"},"members":{"type":"array","items":{"type":"object"}}}}`)
 	optionValue := `{"type":["string","boolean","number"],"maxLength":1024}`
 	start2Input := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["title","brief"],"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"brief":{"type":"string","minLength":1,"maxLength":32768},"remit":{"type":"string","maxLength":32768},"lead":{"type":"string","maxLength":512},"workspace":{"type":"string","maxLength":4096},"provider":{"type":"string","maxLength":64},"model":{"type":"string","maxLength":256},"options":{"type":"object","maxProperties":64,"additionalProperties":` + optionValue + `}}}`)
-	start2Output := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["sessionId","busId","title","group","lead","notApplied"],"properties":{"sessionId":{"type":"string"},"busId":{"type":"string"},"title":{"type":"string"},"group":{"type":"string"},"lead":{"type":"string"},"notApplied":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["id","reason"],"properties":{"id":{"type":"string"},"reason":{"type":"string"}}}}}}`)
+	start2Output := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["sessionId","busId","title","group","lead","model","notApplied"],"properties":{"sessionId":{"type":"string"},"busId":{"type":"string"},"title":{"type":"string"},"group":{"type":"string"},"lead":{"type":"string"},"model":{"type":"string"},"notApplied":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["id","reason"],"properties":{"id":{"type":"string"},"reason":{"type":"string"}}}}}}`)
 	describeInput := json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"member":{"type":"string","maxLength":512}}}`)
 	describeOutput := json.RawMessage(`{"type":"object","additionalProperties":false,"required":["team"],"properties":{"team":{"type":"object"}}}`)
 	manifest := applet.Manifest{ID: "dinah.team", Version: "1.1.0", APIVersion: 1, Title: "Team", Description: "Start, assign and retire the chats of the calling chat's own team, and read and build teams in its own tree. A chat can act only on the chats it leads, directly or through its members.", Actions: []applet.Action{
-		{Ref: teamStartAction, Title: "Start a Team Member", Description: "Start a new chat as a member of the calling chat's team, and give it its brief as its first message in the team's group chat. It is in the calling chat's workspace, with the calling chat's provider and model, unless told otherwise. It has its provider's default for every setting, a permission mode included: authority is not handed on. Returns the new chat's session ID.", InputSchema: startInput, OutputSchema: startOutput, Capabilities: []string{"team.manage"}, Replay: "once"},
+		{Ref: teamStartAction, Title: "Start a Team Member", Description: "Start a new chat as a member of the calling chat's team, and give it its brief as its first message in the team's group chat. It is in the calling chat's workspace, with the calling chat's provider and model, unless told otherwise. It has its provider's default for every setting, a permission mode included: authority is not handed on. Returns the new chat's session ID, effective model ID, and any refused settings in notApplied.", InputSchema: startInput, OutputSchema: startOutput, Capabilities: []string{"team.manage"}, Replay: "once"},
 		{Ref: teamAssignAction, Title: "Assign Work to a Team Member", Description: "Post a message in the team's group chat that mentions one of the calling chat's own team members, which wakes it, and keep it as the member's current task. The member is given by its session ID, which dinah.team/list@1 returns, or by its busId. A session ID the member had before it was switched to another program is taken as the same chat; the busId never changes, so it is the one to keep in a record.", InputSchema: assignInput, OutputSchema: assignOutput, Capabilities: []string{"team.manage"}, Replay: "once"},
 		{Ref: teamRetireAction, Title: "Retire a Team Member", Description: "End a team member's session and keep its history. It stays listed in the team, marked retired, is not woken by the team's messages, and can be reopened from the window. The member is given as dinah.team/assign@1 takes it.", InputSchema: retireInput, OutputSchema: retireOutput, Capabilities: []string{"team.manage"}, Replay: "once"},
 		{Ref: teamListAction, Title: "List the Team", Description: "List the calling chat's team members with their session IDs, states and current tasks, nested teams under their leads.", InputSchema: listInput, OutputSchema: listOutput, Capabilities: []string{"chat.read"}, Replay: "pure"},
 		{Ref: teamDescribeAction, Title: "Describe a Team", Description: "Return the calling chat's tree as data, or the subtree under one chat in it given as member by its session ID, an earlier session ID of the same chat, or its busId. Each chat has its sessionId, busId, title, remit (the brief it was started with, kept apart from its current task) and remitSource, provider, model (value and name), options (its settings other than the model, by ID, as dinah.team/start@2 takes them), settings (the same with names and categories; category mode is a permission mode), workspace (its folder), workspaceName, lead (its lead's session ID), state, stateWhy, retired and members. A chat outside the caller's tree is refused. It reads and changes nothing, and works for closed chats.", InputSchema: describeInput, OutputSchema: describeOutput, Capabilities: []string{"chat.read"}, Replay: "pure"},
-		{Ref: teamStart2Action, Title: "Start a Team Member Under a Chat", Description: "Start a new chat as dinah.team/start@1 does, with three additions. lead is the session ID of a chat in the calling chat's tree to start it under, the calling chat when left out; its brief is then posted by that lead in that lead's group. remit is kept as what the member is for, the brief when left out; later assignments do not change it. options are settings for the new chat by ID, as dinah.team/describe@1 returns them; a model is given as model. A permission mode (a setting of category mode) is accepted only when it is the calling chat's own mode on the same program or the program's default, since no order of the programs' modes is documented; a refusal says which modes may be given. A setting that could not be given once the chat was made is listed in notApplied with why. Returns the new chat's session ID.", InputSchema: start2Input, OutputSchema: start2Output, Capabilities: []string{"team.manage"}, Replay: "once"},
+		{Ref: teamStart2Action, Title: "Start a Team Member Under a Chat", Description: "Start a new chat as dinah.team/start@1 does, with three additions. lead is the session ID of a chat in the calling chat's tree to start it under, the calling chat when left out; its brief is then posted by that lead in that lead's group. remit is kept as what the member is for, the brief when left out; later assignments do not change it. options are settings for the new chat by ID, as dinah.team/describe@1 returns them; a model is given as model. A permission mode (a setting of category mode) is accepted only when it is the calling chat's own mode on the same program or the program's default, since no order of the programs' modes is documented; a refusal says which modes may be given. A setting or requested model that could not be given once the chat was made is listed in notApplied with why; the member keeps its effective model, returned as model. Returns the new chat's session ID, effective model ID, and any refused settings in notApplied.", InputSchema: start2Input, OutputSchema: start2Output, Capabilities: []string{"team.manage"}, Replay: "once"},
 	}}
 	handlers := map[string]applet.Handler{
 		teamStartAction:    a.teamStartHandler,
@@ -120,7 +120,7 @@ func (a *App) teamStartHandler(ctx context.Context, input string) (applet.Result
 	if err != nil {
 		return applet.Result{}, err
 	}
-	return builtinJSON(map[string]any{"sessionId": out.SessionID, "busId": out.BusID, "title": out.Title, "group": out.Group})
+	return builtinJSON(map[string]any{"sessionId": out.SessionID, "busId": out.BusID, "title": out.Title, "group": out.Group, "model": out.Model, "notApplied": out.NotApplied})
 }
 
 // teamStart starts a member for start@1 and start@2. Its remit is kept as it joins the team: the request's, or its
@@ -173,13 +173,16 @@ func (a *App) teamStart(ctx context.Context, in teamStartRequest) (teamStarted, 
 			}
 		}
 	}
+	notApplied := []map[string]string{}
 	if model != "" {
-		a.followModel(info.ID, model)
+		if err := a.followModel(info.ID, model); err != nil {
+			notApplied = append(notApplied, map[string]string{"id": "model", "reason": err.Error()})
+		}
 	}
-	var notApplied []map[string]string
 	if len(in.Options) > 0 {
-		notApplied = a.applyTeamOptions(info.ID, caller, normalizedProvider(provider), in.Options)
+		notApplied = append(notApplied, a.applyTeamOptions(info.ID, caller, normalizedProvider(provider), in.Options)...)
 	}
+	model = a.teamEffectiveModel(info.ID)
 	memberBus := a.knownBusID(info.ID)
 	if memberBus == "" {
 		return teamStarted{}, errors.New("the new team member is not on the bus")
@@ -214,29 +217,47 @@ func (a *App) teamStart(ctx context.Context, in teamStartRequest) (teamStarted, 
 		return teamStarted{}, fmt.Errorf("the team member was started, but it could not be made one of your team or given its brief: %w", err)
 	}
 	a.teamsChanged()
-	return teamStarted{SessionID: info.ID, BusID: memberBus, Title: in.Title, Group: group, Lead: leadChat, NotApplied: notApplied}, nil
+	return teamStarted{SessionID: info.ID, BusID: memberBus, Title: in.Title, Group: group, Lead: leadChat, Model: model, NotApplied: notApplied}, nil
 }
 
 // followModel gives a new chat the model its lead has, when its provider offers the same.
-func (a *App) followModel(chat, model string) {
+func (a *App) followModel(chat, model string) error {
 	s := a.session(chat)
 	if s == nil {
-		return
+		return fmt.Errorf("requested model %q was not applied because the new chat is not open", model)
 	}
 	for _, o := range s.Options() {
 		if o.Category != "model" {
 			continue
 		}
+		if judgeOptionString(o.CurrentValue) == model {
+			return nil
+		}
 		for _, v := range judgeOptionValues(o) {
 			if v.Value == model {
 				value, _ := json.Marshal(model)
 				if _, err := a.SetSessionOption(chat, o.ID, value); err != nil {
-					logf("bus", "warning", "the new team member %s could not be given the model %s: %v", chat, model, err)
+					return fmt.Errorf("requested model %q was not applied: %w", model, err)
 				}
-				return
+				if actual := a.teamEffectiveModel(chat); actual != model {
+					return fmt.Errorf("requested model %q was not applied; the program reports model %q", model, actual)
+				}
+				return nil
 			}
 		}
 	}
+	return fmt.Errorf("the program does not offer requested model %q", model)
+}
+
+func (a *App) teamEffectiveModel(chat string) string {
+	if s := a.session(chat); s != nil {
+		for _, o := range s.Options() {
+			if o.Category == "model" {
+				return judgeOptionString(o.CurrentValue)
+			}
+		}
+	}
+	return ""
 }
 
 // knownWorkspace says a folder is the folder of a workspace Dinah has.

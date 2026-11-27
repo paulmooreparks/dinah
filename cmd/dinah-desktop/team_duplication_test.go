@@ -297,8 +297,8 @@ func TestAModeIsCheckedAgainstTheNewChatsOwnDefaultWhenDinahGivesNone(t *testing
 	}
 }
 
-// start@1 is unchanged: the same output, and no setting but the model is given; the brief is kept as the remit.
-func TestStartOneIsUnchangedAndKeepsTheBriefAsTheRemit(t *testing.T) {
+// start@1 reports its model without changing its inputs, settings authority or saved remit.
+func TestStartOneReportsModelAndKeepsTheBriefAsTheRemit(t *testing.T) {
 	a, c, lead, _ := duplicationApp(t, "codex:one")
 	ctx := asChat(a, lead)
 	before := len(c.calls.Snapshot())
@@ -306,8 +306,8 @@ func TestStartOneIsUnchangedAndKeepsTheBriefAsTheRemit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 4 || out["sessionId"] != "codex:one" || out["title"] != "One" || out["busId"] == "" || out["group"] == "" {
-		t.Fatalf("the start@1 output changed: %v", out)
+	if len(out) != 6 || out["model"] != "changed" || len(out["notApplied"].([]any)) != 0 || out["sessionId"] != "codex:one" || out["title"] != "One" || out["busId"] == "" || out["group"] == "" {
+		t.Fatalf("the start@1 output lacks its identity or model report: %v", out)
 	}
 	for _, call := range c.calls.Snapshot()[before:] {
 		if p, ok := call.params.(acp.SetConfigOptionParams); ok && p.ConfigID != "model" {

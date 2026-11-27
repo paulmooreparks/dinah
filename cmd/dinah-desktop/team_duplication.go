@@ -251,8 +251,8 @@ type teamStartRequest struct {
 
 // teamStarted is what a start did. NotApplied are the settings that could not be given, each with why.
 type teamStarted struct {
-	SessionID, BusID, Title, Group, Lead string
-	NotApplied                           []map[string]string
+	SessionID, BusID, Title, Group, Lead, Model string
+	NotApplied                                  []map[string]string
 }
 
 func (a *App) teamStart2Handler(ctx context.Context, input string) (applet.Result, error) {
@@ -271,7 +271,7 @@ func (a *App) teamStart2Handler(ctx context.Context, input string) (applet.Resul
 	if notApplied == nil {
 		notApplied = []map[string]string{}
 	}
-	return builtinJSON(map[string]any{"sessionId": out.SessionID, "busId": out.BusID, "title": out.Title, "group": out.Group, "lead": out.Lead, "notApplied": notApplied})
+	return builtinJSON(map[string]any{"sessionId": out.SessionID, "busId": out.BusID, "title": out.Title, "group": out.Group, "lead": out.Lead, "model": out.Model, "notApplied": notApplied})
 }
 
 // teamLeadFor finds the chat a member is to be started under: the caller itself, or a chat in its tree that is not
