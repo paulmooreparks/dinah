@@ -48,6 +48,7 @@ const {launch}=require('./lib/page');
   await p.goBack();
   await p.waitForFunction(()=>pudlLauncher.state(document.getElementById('dinah-launcher')).presentation==='popup');
   await p.setViewportSize({width:640,height:800});
+  await p.waitForFunction(()=>pudlLauncher.state(document.getElementById('dinah-launcher')).compact);
   t.ok('popup fits narrow viewport',await root.evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1&&el.getBoundingClientRect().left>=-1));
   await p.evaluate(()=>pudlLauncher.close(document.getElementById('dinah-launcher')));
   await p.evaluate(()=>pudlMenubar.launcherButton({visible:true}).focus());

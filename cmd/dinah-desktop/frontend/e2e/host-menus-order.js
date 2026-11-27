@@ -23,7 +23,7 @@ const { launch } = require('./lib/page');
     const view = await rows('[data-command-menu="view"]');
     t.ok('View begins with the six panes under their heading', view.slice(0, 8).join('|') === '[Panes]|Workspace|Chats|In Progress|Skills|Notifications|Group Chats|-');
     // Full Screen is the native window's, which this page stands in for without.
-    t.ok('View then has the display switch, Refresh and the colours', view.slice(8).filter((r) => r !== 'Full Screen').join('|') === 'Show the Agent\'s Thinking|-|Refresh|-|Color Mode >|Themes >|Skin >', view.slice(8).join('|'));
+    t.ok('View then has the display switch, Refresh, Launcher and the colours', view.slice(8).filter((r) => r !== 'Full Screen').join('|') === 'Show the Agent\'s Thinking|-|Refresh|Launcher|-|Color Mode >|Themes >|Skin >', view.slice(8).join('|'));
     t.ok('View holds no command that starts or does something', !view.some((r) => /Decisions|Org Chart|Clean Up|Broadcast|Find and Open|Commands|Go to/.test(r)));
     const documents = await rows('[data-command-menu="documents"]');
     t.ok('Documents has Find and Open after Open, and no In Progress', documents.join('|').startsWith('New Document|Open…|Find and Open…') && !documents.includes('In Progress'));

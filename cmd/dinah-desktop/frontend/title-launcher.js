@@ -101,6 +101,9 @@
     saved[layout.id === 'launcher-workspace' ? 'paneWidth' : 'categoryWidth'] = size;
     dinahUIState.set(store, saved);
   });
+  var launcherCommand = dinahCommands.register({ id: 'toggle-launcher', menu: 'view', after: 'refresh', label: 'Launcher', glyph: 'app', shortcut: 'Mod+Shift+X',
+    enabled: function () { return started; }, run: function () { pudlLauncher.toggle(root, { returnFocus: document.activeElement }); } });
+  document.querySelector('[data-menubar]').setAttribute('data-menubar-launcher-shortcut', launcherCommand.shortcut);
   function init() {
     if (started) return;
     draw(); var saved=dinahUIState.get(store)||{};
