@@ -1,0 +1,17 @@
+# Launcher placement adoption gate
+
+The tests-only branch frontend/launcher-placement-gate reproduces two launcher faults on aaac05ce with the unmodified PUDL 0.110.0 distribution. No application or vendored source is changed. The new launcher-placement browser suite is intentionally failing and should remain unmerged until an upstream adoption satisfies it.
+
+At 1440 by 1000 pixels, in both light and dark themes, the visible ribbon Launcher button spans y=57 through y=85. The panel instead settles at x=50, y=57 and covers the button. Hit testing the button's center returns the panel's Settings button. A second pointer click there does not toggle the launcher closed. The suite uses pointer coordinates rather than forcing a click through the overlapping panel.
+
+With the ribbon off, the settled position remains x=49, y=44, six pixels below its control at y=12 through y=38. A second pointer click closes it. Its first visible animation frame is at x=0, y=0 with no inline top or left; later frames are at x=49, y=44. The light trace places the first visible frame at 1038.7 ms and the toggle event at 1047.2 ms. The dark trace has the same ordering. Ribbon-on opening is already at its incorrect final location in the captured first frame; movement was not observed in that variant.
+
+The incorrect anchor is confirmed. Dinah's title-launcher.js supplies pudlMenubar.launcherButton({visible:true}) as an explicit anchor. PUDL's launcherButton fallback in pudl-menubar.js:2519 returns the top-bar Dinah title ending at y=51 rather than the ribbon Launcher control. PUDL's anchor selection prefers that supplied anchor over the actual event invoker, and its six-pixel offset produces y=57.
+
+The show-before-place reading also needs a distinction. The observed ribbon-off jump follows native popover opening, whose beforetoggle handler changes launcher state without positioning it. The later toggle handler in pudl-launcher.js:325 calls place, after the first visible frame. The present path at line 159 also opens before positioning, but its synchronous placement did not cause an observed ribbon-on jump in this run. The recorded frames have no active animations; this reproduction is a position jump rather than evidence of an animated slide.
+
+The gate asserts panel placement below the visible control, unchanged ribbon-off placement, no displacement after the first visible frame, and second-click closure. Every case begins from a fresh page load and a closed launcher. Measurements run on animation frames for at least 1.2 seconds after first visibility, without disabling motion or modifying PUDL. All four theme/mode cases visibly open and have at least ten measured frames.
+
+The confirmed hidden/headless selection completed in 15 seconds. launcher-placement has six expected failing observations: ribbon overlap and second-click closure in both themes, and first-opening movement with the ribbon off in both themes. Existing title-launcher and ribbon suites pass. There are no page errors. The original first run and the confirmed run are retained under `%TEMP%/dinah-launcher-placement-first` and `%TEMP%/dinah-launcher-placement-confirmed`. Each contains logs, screenshots and launcher-placement.json with frame coordinates; the confirmed trace also includes toggle times and hit-test results.
+
+The shared test queue was used. No native installed-window or separate product acceptance was performed. The branch should accompany the upstream PUDL repair and gate its eventual adoption, with these assertions retained.
