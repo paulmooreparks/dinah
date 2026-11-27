@@ -8,7 +8,55 @@ const {launch,OUT,FRONTEND}=require('./lib/page'),{spawn,execFileSync}=require('
  const info=JSON.parse((await lines.next()).value),t=await launch({goto:false}),context=await t.context.browser().newContext({viewport:{width:1360,height:900}}),p=await context.newPage(),records=[],errors=[];
  const set=async(skin,mode)=>{host.stdin.write(JSON.stringify({skin,mode})+'\n');const line=await lines.next();if(line.done)throw Error('Isolated host stopped: '+stderr);return JSON.parse(line.value);};
  p.on('pageerror',e=>errors.push(String(e)));
- await context.addInitScript(()=>{localStorage.setItem('pudl-skin','gel');localStorage.setItem('pudl-theme','system');window.__webSkinFrame=null;function sample(){if(document.body&&window.pudlSkins){const b=document.createElement('button');b.className='btn';document.body.append(b);__webSkinFrame={skin:pudlSkins.current(),preference:pudlSkins.preference(),mode:document.documentElement.dataset.theme,radius:getComputedStyle(b).borderRadius};b.remove();}else requestAnimationFrame(sample);}requestAnimationFrame(sample);});
+ // Keep timing evidence in memory. Print it only after the original assertion fails.
+ let sheetRequests=[];
+ const requestRecords=new WeakMap();
+ p.on('request',request=>{
+  if(request.resourceType()!=='stylesheet')return;
+  const record={url:request.url(),requestedAt:Date.now(),status:null};
+  sheetRequests.push(record);requestRecords.set(request,record);
+ });
+ p.on('response',response=>{
+  const record=requestRecords.get(response.request());
+  if(record)Object.assign(record,{status:response.status(),respondedAt:Date.now()});
+ });
+ p.on('requestfailed',request=>{
+  const record=requestRecords.get(request);
+  if(record)Object.assign(record,{failedAt:Date.now(),error:request.failure()?.errorText});
+ });
+ await context.addInitScript(()=>{
+  const events=[];
+  window.__webSkinDiagnostics=events;
+  const record=(kind,detail)=>events.push({at:performance.timeOrigin+performance.now(),kind,...detail});
+  for(const kind of ['load','error'])document.addEventListener(kind,event=>{
+   const link=event.target;
+   if(link instanceof HTMLLinkElement&&link.dataset.pudlSkin)record(kind,{id:link.dataset.pudlSkin,url:link.href});
+  },true);
+  document.addEventListener('pudl:skin-change',event=>record('skin-change',event.detail));
+  // Observe the initializer's own registrations too, without reading CSSOM early.
+  let api;
+  Object.defineProperty(window,'pudlSkins',{configurable:true,get:()=>api,set:value=>{
+   api=value;
+   const register=value.register;
+   value.register=function(id,link){
+    const attempt={id,url:link?.href};record('register-attempt',attempt);
+    try{const result=Reflect.apply(register,this,arguments);record('register-result',{...attempt,result});return result;}
+    catch(error){record('register-error',{...attempt,error:String(error)});throw error;}
+   };
+  }});
+ });
+ const diagnose=async(name,first)=>{
+  try{
+   const settled=await t.deadline('collect the failed web skin diagnostics',p.evaluate(async()=>{
+    for(let n=0;n<3;n++)await new Promise(resolve=>requestAnimationFrame(resolve));
+    const skin=window.pudlSkins?.current();
+    return {at:performance.timeOrigin+performance.now(),skin,preference:window.pudlSkins?.preference(),available:window.pudlSkins?.available(),events:window.__webSkinDiagnostics};
+   }));
+   console.log('FAIL web skin diagnostics :: '+JSON.stringify({name,url:p.url(),first,stylesheets:sheetRequests,settled}));
+  }catch(error){console.log('FAIL web skin diagnostics unavailable :: '+String(error));}
+ };
+
+ await context.addInitScript(()=>{localStorage.setItem('pudl-skin','gel');localStorage.setItem('pudl-theme','system');window.__webSkinFrame=null;function sample(){if(document.body&&window.pudlSkins){const b=document.createElement('button');b.className='btn';document.body.append(b);__webSkinFrame={skin:pudlSkins.current(),preference:pudlSkins.preference(),mode:document.documentElement.dataset.theme,radius:getComputedStyle(b).borderRadius};b.remove();window.__webSkinDiagnostics.push({at:performance.timeOrigin+performance.now(),kind:"first-frame",...__webSkinFrame});}else requestAnimationFrame(sample);}requestAnimationFrame(sample);});
  try{
   await p.goto(info.signin);await p.waitForURL(info.url+'/');t.ok('the isolated host signs in through its real HttpOnly cookie',(await context.cookies()).some(c=>c.httpOnly));
   const skins=['standard','bevel','gel','glaze'];
@@ -17,8 +65,9 @@ const {launch,OUT,FRONTEND}=require('./lib/page'),{spawn,execFileSync}=require('
    for(const width of [1360,560]){
     await p.setViewportSize({width,height:900});
     for(const [label,url]of [['desktop','/'],['inbox','/inbox'],['groups','/rooms'],['conversation','/rooms/'+encodeURIComponent(info.room)]]){
+     sheetRequests=[];
      const response=await p.goto(info.url+url);await p.waitForFunction(()=>!!__webSkinFrame);const first=await p.evaluate(()=>__webSkinFrame);
-     t.ok([skin,mode,motion,width,label].join('/')+' draws the server-owned preference',response.ok()&&first.skin===skin&&first.preference===skin&&first.mode===mode,JSON.stringify(first));
+     if(!t.ok([skin,mode,motion,width,label].join('/')+' draws the server-owned preference',response.ok()&&first.skin===skin&&first.preference===skin&&first.mode===mode,JSON.stringify(first)))await diagnose([skin,mode,motion,width,label].join('/'),first);
      records.push({skin,mode,motion,width,page:label,first});
      if(motion==='no-preference')await p.screenshot({path:path.join(OUT,['web',skin,mode,width,label].join('-')+'.png')});
     }
