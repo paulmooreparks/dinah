@@ -1,10 +1,10 @@
 // Native catalogue/preferences drive all skin changes; mounted work survives.
-const {launch,OUT,FRONTEND}=require('./lib/page');
+const {launch,OUT,FRONTEND,PAGE}=require('./lib/page');
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const catalogue=JSON.parse(fs.readFileSync(path.join(FRONTEND,'pudl/pudl-skins.json'),'utf8'));
 const admitted=catalogue.skins.filter(s=>s.admitted),choices=admitted.map(({id,label})=>({id,label}));
 (async()=>{
- const t=await launch({viewport:{width:1600,height:1000},args:{choices},app:({choices})=>{
+ const t=await launch({goto:false,viewport:{width:1600,height:1000},args:{choices},app:({choices})=>{
   let state={version:1,active:'mineral',skin:'standard',themes:[],overrides:{}},revision=0;
   window.__saveSkinCalls=[];window.__failSkinSave=false;window.__failSkinRead=false;
   const snapshot=()=>({state:JSON.parse(JSON.stringify(state)),revision:String(revision),skins:choices,effective:choices.some(s=>s.id===state.skin)?state.skin:'standard'});
@@ -17,6 +17,14 @@ const admitted=catalogue.skins.filter(s=>s.admitted),choices=admitted.map(({id,l
  }});
  const {page:p,ok}=t,requests=[];t.context.on('request',r=>requests.push(r.url()));
  try{
+  // Window history changes can make the browser reload its favicon later.
+  // Inline only the fixture favicon, leaving every application request observed.
+  const mark=fs.readFileSync(path.join(FRONTEND,'product-mark.svg')).toString('base64');
+  const source=fs.readFileSync(path.join(FRONTEND,'index.html'),'utf8');
+  if(!source.includes('rel="icon" href="product-mark.svg"'))throw Error('The fixture favicon link was not found.');
+  const html=source.replace('rel="icon" href="product-mark.svg"','rel="icon" href="data:image/svg+xml;base64,'+mark+'"');
+  await t.context.route('http://dinah.test/index.html',route=>route.fulfill({contentType:'text/html',body:html}));
+  await p.goto(PAGE);await t.waitReady();
   await p.evaluate(()=>dinahAppearance.ready);
   ok('the admitted catalogue is bundled with its verified stylesheet bytes',admitted.every(s=>!s.stylesheet||crypto.createHash('sha256').update(fs.readFileSync(path.join(FRONTEND,'pudl',s.stylesheet))).digest('hex')===s.sha256));
   ok('static declared skin links match the admitted catalogue',JSON.stringify(await p.locator('link[data-pudl-skin]').evaluateAll(els=>els.map(e=>e.dataset.pudlSkin).sort()))===JSON.stringify(admitted.filter(s=>s.stylesheet).map(s=>s.id).sort()));
@@ -36,9 +44,6 @@ const admitted=catalogue.skins.filter(s=>s.admitted),choices=admitted.map(({id,l
    }
   }
   await p.evaluate(key=>pudlWindows.raise(key),chat);await prompt.focus();await prompt.evaluate(el=>el.setSelectionRange(2,9));
-  // Skin readiness does not include the independently loaded shell images.
-  // Finish those loads before attributing new requests to this one switch.
-  await t.deadline('shell images before the measured skin switch',p.evaluate(()=>Promise.all([...document.images].map(image=>image.decode()))));
   const before=await p.evaluate(()=>({url:location.href,rectangles:[...document.querySelectorAll('.win[data-win]')].map(el=>[el.dataset.win,el.getBoundingClientRect().toJSON()])})),count=requests.length;
   await p.evaluate(()=>dinahAppearance.selectSkin('gel'));
   await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
