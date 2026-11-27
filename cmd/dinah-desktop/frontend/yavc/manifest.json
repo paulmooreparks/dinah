@@ -1,5 +1,5 @@
 {
-  "digest": "87d8129a407f94935f7d5e56f96d0d5ea95823fcf62ff5ff30fcb54cab8309c9",
+  "digest": "709649d91d1a678297824c03524d334ec2a3be3f5a099f44f213e5a9d66841c3",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -1800,13 +1800,13 @@
     },
     {
       "path": "pudl/min/pudl-launcher.js",
-      "bytes": 16795,
-      "sha256": "51f6f86992195712fad3939e6e05fc7922608b89b76753d346eca06d8bd4e9ab"
+      "bytes": 17338,
+      "sha256": "6e47e85c521ae47c1c5c3bec805098df36fee981529dfd91364de45ec31be889"
     },
     {
       "path": "pudl/min/pudl-launcher.js.map",
-      "bytes": 21598,
-      "sha256": "cfdf489726170548452ae87342d6294d76cac5884c99b11907f95b1acb4bbaa2"
+      "bytes": 22374,
+      "sha256": "6d7052b3cd52340746dc52641c5d6b68a6899496151b122b48d4ede3908dc692"
     },
     {
       "path": "pudl/min/pudl-listbox.js",
@@ -1840,13 +1840,13 @@
     },
     {
       "path": "pudl/min/pudl-menubar.js",
-      "bytes": 68312,
-      "sha256": "36ce4cf75a12e9a7f17a8ad6bb34908839e409087bb11424a491b8f6abc20506"
+      "bytes": 68968,
+      "sha256": "67350a37b6bacd14ed72634cdfadfa0874ac5729f172fe66e842850aa793e0a7"
     },
     {
       "path": "pudl/min/pudl-menubar.js.map",
-      "bytes": 89063,
-      "sha256": "7d4620968f9b98b99456c6b56c16af0646ca25e91c2aa25bba849a2dbe5cc94a"
+      "bytes": 89694,
+      "sha256": "00a979323933ea939f90729ff959e2c95a8ff0d736f548680d4af67932657a9f"
     },
     {
       "path": "pudl/min/pudl-native.js",
@@ -2210,8 +2210,8 @@
     },
     {
       "path": "pudl/pudl-launcher.js",
-      "bytes": 30396,
-      "sha256": "b4d373273d5b0190f573c4d2acbddcde93baff659dd2a1601a8cc05edbc07bbf"
+      "bytes": 31584,
+      "sha256": "b0836c84253c53f55c6dcb59e5c89a2baf66dcf7f628c557dece4e9c97ab60b3"
     },
     {
       "path": "pudl/pudl-listbox.js",
@@ -2230,8 +2230,8 @@
     },
     {
       "path": "pudl/pudl-menubar.js",
-      "bytes": 133675,
-      "sha256": "c86780c939a5d8b5884e897de8c0f871d91ff2f1923230abc92ed2010a93ecf1"
+      "bytes": 134680,
+      "sha256": "19d3d87706fc22fca6b4678f41fadaaed6a85b54ae5f4cf58b2cf5b8f020e94d"
     },
     {
       "path": "pudl/pudl-native.js",
@@ -2376,7 +2376,7 @@
     {
       "path": "pudl/pudl.css",
       "bytes": 265961,
-      "sha256": "c3bff3e8504ca6751187e31b7a5bc2204d254d86542e8faff59ffb30be963c56"
+      "sha256": "53ff3cd10a0fc56763e1eaf881b02709f789ef4e08f1635583282b28f45dc6ee"
     },
     {
       "path": "pudl/vendor/cfworker-json-schema-4.1.1/NOTICE.txt",

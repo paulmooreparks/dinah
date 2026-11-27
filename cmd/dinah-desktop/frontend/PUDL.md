@@ -147,4 +147,4 @@ The release corrects two launcher faults that Dinah's browser suite `launcher-pl
 
 PUDL issues 43 and 44, the two Firefox defects, are still open, and the changelog again says sites serving Firefox visitors should not take this release until both are closed. The desktop window is Microsoft Edge WebView2, which they do not affect, and the bus page has no launcher.
 
-yavc.app has not yet published a release that bundles 0.110.1, so `yavc/` still bundles 0.110.0 and `YAVC.md` still says 0.110.0 until that release is taken in a separate commit. The commit before this one is the rollback.
+This adoption was committed before yavc.app had a release that bundles 0.110.1, so for one commit `yavc/` still bundled 0.110.0 and the Go test that compares the yavc.app release's PUDL with Dinah's copy failed on the seven changed files. yavc.app v0.2.124, which bundles this PUDL and has no other change, was taken in the next commit (`YAVC.md`). The commit before this adoption is the rollback for both.
