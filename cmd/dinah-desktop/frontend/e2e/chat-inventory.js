@@ -37,16 +37,22 @@ const fs = require('fs'), path = require('path');
       await p.waitForFunction(expected=>{
         return document.querySelectorAll('.org-chart [data-org-chat]').length===expected;
       },expected);
-      const read=()=>p.evaluate(()=>{
+      const read=expected=>{
         const visible=el=>!el.hidden&&!el.closest('[hidden]');
         const sidebar=[...document.querySelectorAll('#sessions [data-session-row]')].filter(el=>visible(el)).map(el=>({id:el.dataset.sessionRow,title:el.querySelector('.session-title').textContent,state:el.querySelector('.session-badge > :first-child').textContent.trim()}));
         const chart=[...document.querySelectorAll('.org-chart [data-org-chat]')].map(el=>({id:el.dataset.orgChat,title:el.querySelector('.org-chart-title').textContent,state:el.querySelector('.org-chart-state').textContent.trim()}));
         const cleanup=[...document.querySelectorAll('#chat-cleanup-chats tr[data-chat-id]')].filter(el=>visible(el)&&!el.dataset.outcome).map(el=>({id:el.dataset.chatId,title:el.querySelector('.cleanup-title').textContent,state:el.querySelector('.cleanup-state')?.textContent.trim()}));
-        return Object.fromEntries(Object.entries({sidebar,chart,cleanup}).map(([key,rows])=>[key,rows.sort((a,b)=>a.id.localeCompare(b.id))]));
-      });
+        const value=Object.fromEntries(Object.entries({sidebar,chart,cleanup}).map(([key,rows])=>[key,rows.sort((a,b)=>a.id.localeCompare(b.id))]));
+        if(typeof expected==='number'&&(!Object.values(value).every(rows=>rows.length===expected)||JSON.stringify(value.sidebar)!==JSON.stringify(value.chart)||JSON.stringify(value.sidebar)!==JSON.stringify(value.cleanup)))return false;
+        return value;
+      };
       await p.waitForFunction(()=>[...document.querySelectorAll('#chat-cleanup-chats tr[data-chat-id]:not([hidden])')].every(el=>el.querySelector('.cleanup-state')));
-      const value=await read(); evidence.push({label,...value});
-      t.ok(label+' agrees by identity, title and state on all three surfaces',JSON.stringify(value.sidebar)===JSON.stringify(value.chart)&&JSON.stringify(value.sidebar)===JSON.stringify(value.cleanup),JSON.stringify(value));
+      // The shared inventory fans out to separately scheduled surfaces.
+      // Sample their completed projection atomically, including the restored row.
+      let value;try{const sample=await p.waitForFunction(read,expected);value=await sample.jsonValue();await sample.dispose();}
+      catch(error){value=await p.evaluate(read);}
+      evidence.push({label,...value});
+      t.ok(label+' agrees by identity, title and state on all three surfaces',Object.values(value).every(rows=>rows.length===expected)&&JSON.stringify(value.sidebar)===JSON.stringify(value.chart)&&JSON.stringify(value.sidebar)===JSON.stringify(value.cleanup),JSON.stringify(value));
       return value;
     }
     const baseline=await compare('all programs, closed chats, switched heads and a separate fork',13);

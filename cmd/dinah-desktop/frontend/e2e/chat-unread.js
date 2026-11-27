@@ -22,6 +22,7 @@ const { launch } = require('./lib/page');
         __readingUpdate({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Earlier report ' + i + '.\n\n' + 'Report paragraph.\n\n'.repeat(12) } });
       }
     });
+    await log.locator('.activity-row').filter({hasText:'Earlier report 15.'}).waitFor({state:'attached'});
     await page.waitForFunction(key => {
       const log = document.querySelector('[data-win="' + key + '"] [data-view-id="activity"]');
       return log.scrollHeight > log.clientHeight * 3 && log.scrollHeight - log.scrollTop - log.clientHeight < 24;
@@ -34,9 +35,12 @@ const { launch } = require('./lib/page');
     });
     const divider = win.locator('.transcript-unread-divider');
     await divider.waitFor();
+    await log.locator('.activity-row').filter({hasText:'New report.'}).waitFor({state:'attached'});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const before = Number((await divider.innerText()).match(/\d+/)[0]);
     for (let i = 0; i < 5; i++) await page.evaluate(() => __readingUpdate({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Another chunk in the same report.\n\n' } }));
-    await win.locator('.activity-row').filter({ hasText: 'Another chunk in the same report.' }).first().waitFor({ state: 'attached' });
+    await page.waitForFunction(key=>{const log=document.querySelector('[data-win="'+key+'"] [data-view-id="activity"]');return (log.textContent.match(/Another chunk in the same report\./g)||[]).length===5;},key);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     ok('streaming chunks do not increase the logical unread-message count', Number((await divider.innerText()).match(/\d+/)[0]) === before);
     await win.getByRole('button', { name: /Jump to the latest/i }).click();
     await divider.waitFor({ state: 'detached' });
