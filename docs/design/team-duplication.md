@@ -50,13 +50,13 @@ An open chat's program and settings come from the chat itself. A closed chat's c
 
 ### Remit
 
-The remit is kept in a new column, `team_members.remit`, added to the bus database the way earlier columns were, so older rows read as empty. Both `start@1` and `start@2` write it in the same transaction that makes the chat a member; `start@1` keeps the brief, and its input and output are unchanged. `assign@1` does not touch the row. A member that the person moves to another lead keeps its remit, since the remit says what it is for. When a member replaces its lead, the former lead becomes a member with no remit, because it was never started as one.
+The remit is kept in a new column, `team_members.remit`, added to the bus database the way earlier columns were, so older rows read as empty. Both `start@1` and `start@2` write it in the same transaction that makes the chat a member; `start@1` keeps the brief, and its input is unchanged. Both start versions now return the effective model and refused settings as described below. `assign@1` does not touch the row. A member that the person moves to another lead keeps its remit, since the remit says what it is for. When a member replaces its lead, the former lead becomes a member with no remit, because it was never started as one.
 
 `remitSource` is `kept` for a remit in the row. For an older member it is `start brief` when the remit was recovered, and empty when nothing was found. The recovered remit is the lead's first message that mentions the member, and it counts only when the newest line the lead left before it in the same group, saying it started a member, ends with that message's first line, as `start@1` writes it. It is worked out on every read and never written back, so `describe@1` stays a read.
 
 ### Starting under a chat in the tree
 
-`start@2` checks that `lead` is in the caller's tree and not retired, before anything is started. The new chat's workspace, program and model default to the caller's, as `start@1`'s do. Its brief is posted by its own lead in that lead's team group, so the member's task, wake and relays work as they do for any member, and the line saying it was started reads "at the request of" the caller. The output is `start@1`'s with `lead` and `notApplied` added.
+`start@2` checks that `lead` is in the caller's tree and not retired, before anything is started. The new chat's workspace, program and model default to the caller's, as `start@1`'s do. Its brief is posted by its own lead in that lead's team group, so the member's task, wake and relays work as they do for any member, and the line saying it was started reads "at the request of" the caller. The output is `start@1`'s with `lead` added. Both versions return `model` and `notApplied`.
 
 ### The own-tree rule
 
@@ -76,4 +76,10 @@ Dinah had no built-in skills before this one. A built-in skill is a folder with 
 
 ### Tests
 
-`cmd/dinah-desktop/team_duplication_test.go` and `internal/bus/team_remit_test.go` cover the nested tree with remits, model values and names and settings, a closed member, refusals outside the tree, a start under a sub-lead, settings applied and saved, the permission rule both before and after the chat is made, the remit surviving assignments and moves, recovery from a start brief, `start@1` unchanged, and the skill listed for the person and for agents.
+`cmd/dinah-desktop/team_duplication_test.go` and `internal/bus/team_remit_test.go` cover the nested tree with remits, model values and names and settings, a closed member, refusals outside the tree, a start under a sub-lead, settings applied and saved, the permission rule both before and after the chat is made, the remit surviving assignments and moves, recovery from a start brief, `start@1`'s input and authority unchanged, and the skill listed for the person and for agents.
+
+## Model reporting repair of 28 November 2026
+
+Both start versions keep the newly created member when a requested or inherited model cannot be applied. This follows the existing postcreation setting-refusal contract: refusing the whole action would hide an already allocated member and discard otherwise accepted settings. The result includes the effective model ID in `model`, read from the program's reported options after applying the settings. It is empty when the program exposes no model option.
+
+An unavailable model, a provider refusal, or a successful setter that reports a different model produces a `notApplied` entry with `id` equal to `model` and a reason identifying the requested model. Other refused settings remain in the same list. The group's start line uses the effective model. These output fields are additive in `start@1`; `start@2` adds `model` to its existing refusal report. No permission or start-authority rule changes.
