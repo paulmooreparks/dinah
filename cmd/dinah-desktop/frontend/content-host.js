@@ -474,6 +474,7 @@
               titled = Promise.resolve(api().RetitleDraft(id, updated.revision, pageTitle));
             }
             return titled.then(function (ready) { return api().SaveDraftAs(id, ready.revision, target); }).then(function (saved) {
+              if (window.dinahHost) (saved.notes || []).forEach(function (note) { window.dinahHost.toast(note, 'warn', { keep: true }); });
               var resource = resourceFor(saved);
               known.set(resource, saved.revision);
               return findFolder(resource, saved).then(function () {

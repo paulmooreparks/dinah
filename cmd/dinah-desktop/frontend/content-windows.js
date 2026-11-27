@@ -1346,6 +1346,7 @@
             return api().UpdateDraft(v.id, v.revision, text);
           }).then(function (v) { return api().SaveDraftAs(v.id, v.revision, target); });
         }).then(function (saved) {
+          if (host()) (saved.notes || []).forEach(function (note) { host().toast(note, 'warn', { keep: true }); });
           var again = remounts.get(saveKey);
           return (again ? again() : Promise.resolve()).then(function () { return firstDocument(saveKey); });
         }).then(function (doc) { return { output: doc }; });
