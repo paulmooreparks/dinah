@@ -37,6 +37,11 @@ func (a *App) call(conn agentConnection, method string, params, out any) error {
 // quickly, such as a list, so that an agent that hangs is reported rather
 // than waited on; 0 is no limit.
 func (a *App) callWithin(conn agentConnection, limit time.Duration, method string, params, out any) error {
+	if method == "session/load" || method == "session/resume" {
+		if err := a.resetHookWorkForRequest(conn, params); err != nil {
+			return err
+		}
+	}
 	ctx := context.Background()
 	if limit > 0 {
 		var cancel context.CancelFunc
@@ -48,6 +53,9 @@ func (a *App) callWithin(conn agentConnection, limit time.Duration, method strin
 		err = callNativeAllocation(ctx, conn, request, out)
 	} else {
 		err = conn.Call(ctx, method, params, out)
+	}
+	if err == nil && method == "session/close" {
+		err = a.resetHookWorkForRequest(conn, params)
 	}
 	if acp.IsAuthRequired(err) {
 		provider := a.providerOf(conn)

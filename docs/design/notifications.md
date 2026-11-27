@@ -72,6 +72,8 @@ Everything that counted cards now asks the store. The badge counts the entries t
 
 ## The Chats Busy Count
 
+Claude start-hook observations expire at the owned session's load, resume, confirmed close or connection loss. A historical start cannot restore the Background chip after a fresh execution lifetime begins. TaskStop inside the same live lifetime can still leave a stale chip when SubagentStop is missing; [Background Work](background-work.md#provider-coverage-and-known-limits) records that limit. No timeout estimates completion.
+
 The count depends on the documented observations in [Background Work](background-work.md#provider-coverage-and-known-limits). Claude hooks and reported shell tasks, and supported Codex server snapshots, can keep a chat busy after its turn. Monitor tasks, detached work and providers without a documented host lifecycle can remain unseen. An empty count cannot certify that such unreported work stopped. Failed observations retain previously reported work. The count has no existing tooltip or help text to extend, so this change adds no screen wording.
 
 The Chats window's tab shows how many chats are busy, beside the Notifications tab's count of what needs the person. Paul asked to see at a glance how many agents are working, approved the mockup in `docs/mockups/chats-busy-count.html`, and settled its open points on 26 November 2026.

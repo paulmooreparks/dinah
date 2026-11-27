@@ -96,7 +96,7 @@ func (a *App) lifecycle() *sessionhost.ProviderLifecycle {
 			TraceForProvider: func(string) sessionhost.Trace { return a.logs().trace },
 			RedactTrace:      redactAppletContexts, RevokeChannels: a.revokeAppletChannels,
 			CloseChatLog:    func(id string) { a.chatLogs().Close(id) },
-			CancelQuestions: func(session string) { a.permissions().CancelSession(session) }, DisconnectSubagents: func(root *Session) { a.subagentService().Disconnect(root) },
+			CancelQuestions: func(session string) { a.permissions().CancelSession(session) }, DisconnectSubagents: a.hookWorkConnectionEnded,
 			Emit: a.emitProviderEvent, ClientVersion: appVersion,
 		})
 	})

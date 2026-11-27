@@ -2,12 +2,71 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
 	"studio/internal/bus"
 	"studio/internal/providers"
 )
+
+// resetChatHookWork retires only the named chat's observations. Native session
+// IDs identify history, so a fresh owned execution must not inherit old starts.
+func (a *App) resetChatHookWork(provider, id string) error {
+	row := providers.Registry[provider]
+	if !row.SubagentHooks || row.SessionPrefix == "" || !strings.HasPrefix(id, row.SessionPrefix) {
+		return nil
+	}
+	a.mu.Lock()
+	busID := a.settings.BusSessions[id]
+	s := a.runtime.ConversationLocked(id)
+	a.mu.Unlock()
+	if s != nil && s.BusID() != "" {
+		busID = s.BusID()
+	}
+	if busID == "" {
+		return nil
+	}
+	err := a.busHost().With(func(b *bus.Bus) error {
+		return b.ResetObservedSubagents(context.Background(), busID, row.HookNamespace+strings.TrimPrefix(id, row.SessionPrefix))
+	})
+	if err != nil {
+		return fmt.Errorf("retiring prior subagent observations: %w", err)
+	}
+	if s != nil && s.ObserveHookSubagents(0) {
+		a.chatStatesChanged()
+	}
+	return nil
+}
+
+func (a *App) resetHookWorkForRequest(conn agentConnection, params any) error {
+	provider := a.providerOf(conn)
+	if !providers.Registry[provider].SubagentHooks {
+		return nil
+	}
+	raw, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+	var p struct {
+		SessionID string `json:"sessionId"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return err
+	}
+	if p.SessionID == "" {
+		return nil
+	} // The provider validates malformed input.
+	return a.resetChatHookWork(provider, p.SessionID)
+}
+
+func (a *App) hookWorkConnectionEnded(s *Session) {
+	if err := a.resetChatHookWork(s.Provider(), s.ID()); err != nil {
+		logf("agent", "error", "retiring subagent observations for chat %s after connection loss: %v", s.ID(), err)
+	}
+	a.subagentService().Disconnect(s)
+}
 
 // Hook observations use the current Claude native session and its registered
 // bus binding. Neither a provider switch nor another chat can lend it work.

@@ -108,3 +108,13 @@ func (b *Bus) ForgetSubagents(ctx context.Context, agentSession string) error {
 		return err
 	})
 }
+
+// ResetObservedSubagents retires one owned native session's hook observations
+// at a host-confirmed execution lifetime boundary. Other chat bindings survive.
+func (b *Bus) ResetObservedSubagents(ctx context.Context, session, agentSession string) error {
+	return b.tx(ctx, func(t *sql.Tx) error {
+		_, err := t.Exec(`DELETE FROM agent_subagents WHERE agent_session = ? AND EXISTS
+			(SELECT 1 FROM agent_sessions a WHERE a.agent_session = agent_subagents.agent_session AND a.session = ?)`, agentSession, session)
+		return err
+	})
+}
