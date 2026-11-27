@@ -2,11 +2,24 @@ const { launch } = require('./lib/page');
 const fs = require('fs');
 const path = require('path');
 const { OUT } = require('./lib/page');
+const { execFileSync } = require('child_process');
+const crypto = require('crypto');
+const frontend = path.resolve(__dirname, '..');
+const bindings = {
+  hostCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frontend, encoding: 'utf8' }).trim(),
+  pudlVersion: fs.readFileSync(path.join(frontend, 'pudl/VERSION'), 'utf8').trim(),
+  anchorCall: 'pudlMenubar.launcherButton({visible:true})',
+  source: 'Real index.html and unmodified PUDL in the shared browser harness; App bridge is stubbed.',
+  hashes: Object.fromEntries(['title-launcher.js', 'pudl/pudl-menubar.js', 'pudl/pudl-launcher.js', 'pudl/pudl-start.js'].map(file =>
+    [file, crypto.createHash('sha256').update(fs.readFileSync(path.join(frontend, file))).digest('hex')]))
+};
 (async () => {
   const records = [];
   for (const theme of ['light', 'dark']) for (const ribbon of [false, true]) {
     const t = await launch({ viewport: { width: 1440, height: 1000 } });
     const p = t.page, name = theme + (ribbon ? '-ribbon' : '-menu');
+    const captures = [];
+    let cdp;
     try {
       await p.waitForFunction(() => window.pudlLauncher && pudlLauncher.state(document.getElementById('dinah-launcher')));
       await p.evaluate(({ theme, ribbon }) => { pudlSetTheme(theme); pudlMenubar.ribbon(ribbon); }, { theme, ribbon });
@@ -47,11 +60,26 @@ const { OUT } = require('./lib/page');
         }
         requestAnimationFrame(frame);
       });
+      const timeOrigin = await p.evaluate(() => performance.timeOrigin);
+      const captureDir = path.join(OUT, 'launcher-placement-frames', name);
+      fs.mkdirSync(captureDir, { recursive: true });
+      cdp = await t.context.newCDPSession(p);
+      cdp.on('Page.screencastFrame', event => {
+        const file = String(captures.length).padStart(4, '0') + '.png';
+        fs.writeFileSync(path.join(captureDir, file), Buffer.from(event.data, 'base64'));
+        captures.push({ file, metadata: event.metadata });
+        cdp.send('Page.screencastFrameAck', { sessionId: event.sessionId }).catch(() => {});
+      });
+      await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1, maxWidth: 1440, maxHeight: 1000 });
       await p.mouse.click(invoker.x + invoker.width / 2, invoker.y + invoker.height / 2);
       await p.waitForFunction(() => __placementDone);
       const trace = await p.evaluate(() => __placementTrace), last = trace.at(-1);
       const events = await p.evaluate(() => __placementEvents);
-      const record = { name, invoker, diagnostics, trace, events };
+      await cdp.send('Page.stopScreencast');
+      const record = { name, invoker, diagnostics, trace, events, timeOrigin, captures,
+        observationSources: { trace: 'requestAnimationFrame and getBoundingClientRect', events: 'native beforetoggle/toggle',
+          captures: 'CDP Page.screencastFrame compositor PNGs; capture delivery may omit intermediate frames',
+          invoker: 'visible control Playwright boundingBox', diagnostics: 'host anchor API return' } };
       records.push(record);
       t.ok('the launcher visibly opens ' + name, trace.length >= 10);
       if (last) {
@@ -75,7 +103,7 @@ const { OUT } = require('./lib/page');
       t.ok('a second pointer click on the same control closes the panel ' + name, record.closedOnSecondClick, JSON.stringify(record.covered));
     } finally {
       fs.mkdirSync(OUT, { recursive: true });
-      fs.writeFileSync(path.join(OUT, 'launcher-placement.json'), JSON.stringify(records, null, 2));
+      fs.writeFileSync(path.join(OUT, 'launcher-placement.json'), JSON.stringify({ bindings, records }, null, 2));
       await t.close();
     }
   }
