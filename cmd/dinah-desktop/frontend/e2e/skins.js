@@ -36,8 +36,12 @@ const admitted=catalogue.skins.filter(s=>s.admitted),choices=admitted.map(({id,l
    }
   }
   await p.evaluate(key=>pudlWindows.raise(key),chat);await prompt.focus();await prompt.evaluate(el=>el.setSelectionRange(2,9));
+  // Skin readiness does not include the independently loaded shell images.
+  // Finish those loads before attributing new requests to this one switch.
+  await t.deadline('shell images before the measured skin switch',p.evaluate(()=>Promise.all([...document.images].map(image=>image.decode()))));
   const before=await p.evaluate(()=>({url:location.href,rectangles:[...document.querySelectorAll('.win[data-win]')].map(el=>[el.dataset.win,el.getBoundingClientRect().toJSON()])})),count=requests.length;
   await p.evaluate(()=>dinahAppearance.selectSkin('gel'));
+  await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const preserved=await p.evaluate(()=>({nodes:__skinNodes.every(el=>el.isConnected),prompt:__skinPrompt.isConnected&&__skinPrompt.value==='Keep the skin-switch draft.',focus:document.activeElement===__skinPrompt,selection:[__skinPrompt.selectionStart,__skinPrompt.selectionEnd],url:location.href,rectangles:[...document.querySelectorAll('.win[data-win]')].map(el=>[el.dataset.win,el.getBoundingClientRect().toJSON()])}));
   ok('skin switching preserves mounted applets, draft, focus, selection and URL',preserved.nodes&&preserved.prompt&&preserved.focus&&preserved.selection.join(',')==='2,9'&&preserved.url===before.url,JSON.stringify(preserved));
   ok('skin switching preserves window positions and dimensions',JSON.stringify(preserved.rectangles)===JSON.stringify(before.rectangles));
