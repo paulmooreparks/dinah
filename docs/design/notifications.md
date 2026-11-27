@@ -82,7 +82,7 @@ A chat is busy while a turn is in progress or while any background task or subag
 
 The count comes from the engine's chat states (`agent:chatstate`, or `ChatStates` after a resync), which give each open chat its execution state with the number of background tasks and subagents still running (`cmd/dinah-desktop/chat_state.go`). `dinahChatState.busyCount` counts the entries whose life is open and whose execution state is Working or Background or has a task or subagent left. The Chats browser writes it on the Chats window as `data-win-count`, with `data-win-count-label="busy"`, whenever the states change and when the window opens, and removes `data-win-count` at 0. It writes an attribute only when its value differs.
 
-PUDL draws `data-win-count` on a window's tab as a plain neutral badge, hidden at 0, with the accessible text "{n} busy" taken from the label. Dinah draws no badge of its own. Until a PUDL release that draws the attribute is taken, the attribute shows nothing, which Paul accepted.
+PUDL draws `data-win-count` on a window's tab as a plain neutral badge, hidden at 0, with the accessible text "{n} busy" taken from the label. Dinah draws no badge of its own. PUDL 0.110.0 is the first release that draws the attribute (PUDL `docs/WINDOW-STATUS.md`, Neutral Counts), and Dinah took it on 27 November 2026; before that the attribute showed nothing, which Paul accepted. The badge widens the tab and reserves no room while the count is absent.
 
 Paul's decisions of 26 November 2026 are listed in Table 1.
 

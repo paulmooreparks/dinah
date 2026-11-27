@@ -863,7 +863,7 @@
   },
   {
    "name": "PUDL, the Pleasantly Usable Design Language",
-   "version": "0.109.0",
+   "version": "0.110.0",
    "licence": "Apache-2.0",
    "where": "Bundled with the page",
    "notices": [

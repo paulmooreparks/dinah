@@ -1,5 +1,5 @@
 // The host clipboard transport for PUDL's edit menu (clipboard-transport.js,
-// docs/design/chat-clipboard.md). Dinah ships PUDL 0.109.0, which defines
+// docs/design/chat-clipboard.md). Dinah ships PUDL 0.109.0 or later, which defines
 // window.pudlClipboard, so the script gives the menu Dinah's clipboard:
 // ClipboardRead for Paste and ClipboardSetText for Copy and Cut, with every
 // failure a rejection. The main page and the document page each set their

@@ -36,6 +36,25 @@ const { launch } = require('./lib/page');
       rows: [...document.querySelectorAll('#sessions [data-session-row]')].map(r => r.dataset.sessionRow),
       groupOf: Object.fromEntries([...document.querySelectorAll('#sessions [data-session-row]')].map(r => [r.dataset.sessionRow, r.closest('[data-section]').dataset.section])) };
   });
+  // What PUDL draws for the count on the Chats window's tab, and where the
+  // tab, its neighbours, its strip and the window's panel are, so that the
+  // badge can be checked to widen the tab and move nothing else.
+  const drawn = () => p.evaluate(() => {
+    const tab = document.querySelector('[data-dock-key="chat-browser"], .win-bar [data-win-tab="chat-browser"]');
+    const box = n => { const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
+    const badge = tab && tab.querySelector('.win-item-count');
+    const strip = tab && tab.parentElement;
+    const panel = document.getElementById(tab && tab.getAttribute('aria-controls'));
+    return { found: !!tab,
+      badge: badge ? { hidden: badge.hidden, shown: badge.getClientRects().length > 0, text: badge.textContent,
+        tone: ['warn', 'danger', 'positive', 'accent'].filter(c => badge.classList.contains(c)), w: box(badge).w } : null,
+      label: tab ? tab.getAttribute('aria-label') : '', title: tab ? tab.getAttribute('title') : '',
+      tab: tab ? box(tab) : null, strip: strip ? box(strip) : null, panel: panel ? box(panel) : null,
+      before: tab ? [...strip.children].slice(0, [...strip.children].indexOf(tab)).map(box) : [],
+      after: tab ? [...strip.children].slice([...strip.children].indexOf(tab) + 1).map(box) : [],
+      bar: (() => { const b = document.querySelector('.win-bar'); return b ? box(b) : null; })() };
+  });
+  const same = (a, b) => Math.abs(a - b) < 0.5;
   const exec = (state, more) => Object.assign({ state, why: state }, more || {});
   const step = async (changes, want) => {
     await p.evaluate(c => __busy(c), changes);
@@ -63,9 +82,27 @@ const { launch } = require('./lib/page');
     });
     let s = await step({}, null);
     ok('no busy chat: the window has no count, and the label says busy', !s.has && s.label === 'busy', JSON.stringify(s));
+    const idleTab = await drawn();
+    ok('no busy chat: the Chats tab draws no badge and its name says nothing busy',
+      idleTab.found && (!idleTab.badge || (idleTab.badge.hidden && !idleTab.badge.shown && idleTab.badge.text === '')) && !/busy/.test(idleTab.label), JSON.stringify(idleTab));
 
     s = await step({ turn: exec('working') }, '1');
     ok('a chat in a turn counts', s.count === '1', JSON.stringify(s));
+    const busyTab = await drawn();
+    ok('a busy chat: the Chats tab draws a neutral badge with the count',
+      busyTab.badge && !busyTab.badge.hidden && busyTab.badge.shown && busyTab.badge.text === '1' && busyTab.badge.tone.length === 0, JSON.stringify(busyTab.badge));
+    ok('a busy chat: the tab\'s name and tooltip say 1 busy', /, 1 busy\b/.test(busyTab.label) && /1 busy\b/.test(busyTab.title), JSON.stringify({ label: busyTab.label, title: busyTab.title }));
+    const grew = busyTab.tab.w - idleTab.tab.w;
+    ok('the badge widens the tab and changes nothing else in the tab\'s place', grew > 0 && same(busyTab.tab.x, idleTab.tab.x) && same(busyTab.tab.y, idleTab.tab.y) && same(busyTab.tab.h, idleTab.tab.h),
+      JSON.stringify({ idle: idleTab.tab, busy: busyTab.tab }));
+    ok('the strip, the tabs before it and the Chats panel do not move', same(busyTab.strip.y, idleTab.strip.y) && same(busyTab.strip.h, idleTab.strip.h)
+      && busyTab.before.length === idleTab.before.length && busyTab.before.every((b, i) => same(b.x, idleTab.before[i].x) && same(b.y, idleTab.before[i].y) && same(b.w, idleTab.before[i].w) && same(b.h, idleTab.before[i].h))
+      && busyTab.panel && idleTab.panel && ['x', 'y', 'w', 'h'].every(k => same(busyTab.panel[k], idleTab.panel[k])),
+      JSON.stringify({ idle: { strip: idleTab.strip, panel: idleTab.panel }, busy: { strip: busyTab.strip, panel: busyTab.panel } }));
+    ok('the tabs after it move along by the widening alone', busyTab.after.length === idleTab.after.length
+      && busyTab.after.every((b, i) => same(b.y, idleTab.after[i].y) && same(b.w, idleTab.after[i].w) && same(b.h, idleTab.after[i].h) && (same(b.x - idleTab.after[i].x, grew) || same(b.x, idleTab.after[i].x))),
+      JSON.stringify({ grew, idle: idleTab.after, busy: busyTab.after }));
+    ok('the taskbar does not move or change height', (!busyTab.bar && !idleTab.bar) || ['x', 'y', 'w', 'h'].every(k => same(busyTab.bar[k], idleTab.bar[k])), JSON.stringify({ idle: idleTab.bar, busy: busyTab.bar }));
 
     s = await step({ task: exec('background', { tasks: 1 }) }, '2');
     ok('a chat with only a background task counts', s.count === '2', JSON.stringify(s));
@@ -105,6 +142,9 @@ const { launch } = require('./lib/page');
 
     s = await step({ task: exec('idle'), asks: exec('idle'), 'far-turn': exec('idle') }, null);
     ok('the last busy chat going idle removes the count', !s.has && s.label === 'busy', JSON.stringify(s));
+    const quietTab = await drawn();
+    ok('with the count removed the badge is gone and the tab is its old width', quietTab.badge && quietTab.badge.hidden && !quietTab.badge.shown && !/busy/.test(quietTab.label) && same(quietTab.tab.w, idleTab.tab.w),
+      JSON.stringify({ badge: quietTab.badge, w: quietTab.tab.w, was: idleTab.tab.w }));
     const writes = await p.evaluate(() => __countWrites);
     ok('each write changed the value', writes.every((v, i) => i === 0 || v !== writes[i - 1]), JSON.stringify(writes));
     await t.shot('chats-busy-count');

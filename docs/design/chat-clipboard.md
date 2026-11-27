@@ -27,7 +27,7 @@ Dinah's side is `cmd/dinah-desktop/frontend/clipboard-transport.js`. The main pa
 
 *Note.* `ClipboardRead` reads through Win32 on Windows and through Wails elsewhere; the edit menu uses only the plain text.
 
-The script feature-detects the accessor. With a PUDL older than 0.109.0 there is no `window.pudlClipboard`, and the script does nothing; it never defines one. Running it twice sets the transport once, since each `setTransport` call also retires the menu's pending edits. The browser suite `clipboard-transport` checks the transport against the PUDL 0.109.0 that Dinah ships, and checks the first case by serving the menu script with its accessor taken away.
+The script feature-detects the accessor. With a PUDL older than 0.109.0 there is no `window.pudlClipboard`, and the script does nothing; it never defines one. Running it twice sets the transport once, since each `setTransport` call also retires the menu's pending edits. The browser suite `clipboard-transport` checks the transport against the PUDL that Dinah ships (0.109.0 or later), and checks the first case by serving the menu script with its accessor taken away.
 
 Dinah took PUDL 0.109.0 and yavc.app v0.2.117, which bundles it, on 25 November 2026. The documents that load `pudl-menu.js`, and what each does for the transport, are listed in Table 2.
 
