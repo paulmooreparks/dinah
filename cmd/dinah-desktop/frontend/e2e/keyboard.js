@@ -145,6 +145,7 @@ const { launch, PAGE } = require('./lib/page');
     ok('Rename… is in the Document menu, with no key, since F2 is the window\'s own', await panel.locator('[role^="menuitem"]', { hasText: 'Rename' }).count() === 1 && !(await panel.textContent()).includes('F2'));
     await p.keyboard.press('Escape');
     await openTitle('View');
+    ok('Launcher uses A and preserves Color Mode on L', await panel.locator('[role^="menuitem"]', { hasText: /^Launcher/ }).getAttribute('data-letter') === 'a' && await panel.locator('[role^="menuitem"]', { hasText: /^Color Mode$/ }).getAttribute('data-letter') === 'l');
     await panel.locator('[role^="menuitem"]', { hasText: /^Color Mode$/ }).click();
     await p.waitForTimeout(100);
     ok('the theme rows are one of three', await p.locator('[role="menuitemradio"]', { hasText: /^Light/ }).count() === 1 && await p.locator('[role="menuitemradio"]', { hasText: /^Follow the System/ }).count() === 1);
