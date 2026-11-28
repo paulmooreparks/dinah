@@ -62,6 +62,14 @@ func readExecutableFileMetadata(path string) string {
 	return result
 }
 
+// nodeDumpLimit bounds the dump helper. A test that has already failed must
+// not wait long for its diagnostic, so the limit is short. The test of the
+// helper itself raises it, since there a dump that takes longer on a loaded
+// runner is still a good dump: with the short limit the helper was stopped
+// after 5 seconds on the hosted runner and left an empty file (runs of 15
+// and 28 November 2026).
+var nodeDumpLimit = 5 * time.Second
+
 // A disposable process bounds a native dump call even if DbgHelp blocks.
 // This runs after the startup or readiness deadline has already expired.
 func nodeDumpDiagnostic(shellPID int, since time.Time, target ...uint32) string {
@@ -76,7 +84,7 @@ func nodeDumpDiagnostic(shellPID int, since time.Time, target ...uint32) string 
 	if err != nil {
 		return "dump helper unavailable: " + err.Error()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), nodeDumpLimit)
 	defer cancel()
 	command := exec.CommandContext(ctx, executable, "-test.run=^TestNodeDumpDiagnosticHelper$")
 	command.WaitDelay = 500 * time.Millisecond
@@ -149,6 +157,10 @@ func TestNodeDumpDiagnosticCapturesOwnedChild(t *testing.T) {
 	}
 	dir := t.TempDir()
 	t.Setenv("DINAH_TEST_NATIVE_SCRATCH_DIR", dir)
+	// This test checks what the helper writes, so it waits for the helper.
+	short := nodeDumpLimit
+	nodeDumpLimit = 2 * time.Minute
+	defer func() { nodeDumpLimit = short }()
 	since := time.Now()
 	child := exec.Command(node, "-e", "setInterval(()=>{},1000)")
 	if err := child.Start(); err != nil {
