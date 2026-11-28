@@ -1,5 +1,7 @@
 # Wizard Host Contract
 
+Status: accepted. Paul accepted this proposal on 28 November 2026, through Software Director, with the words "1 - 5, per your recomendation". His answers to the five questions it raised are recorded under Decisions.
+
 This document is the design of the host calls that a linear set-up wizard uses to create a workspace, its files and its team of agents on the person's authority. Paul asked for it through Software Director on 28 November 2026. It covers two mechanisms: creating a team when no chat is calling, and a durable record of a creation operation that Resume and Stop can rely on. It also describes a plain Dinah workspace wizard built on the same calls. Nothing here is built, and no product code follows from this document.
 
 The template format itself stays in docs/design/workspace-template-contract.md. This document replaces that draft's sections on team creation and resumable operations with a concrete call surface, and the last section lists what changes in it.
@@ -155,7 +157,7 @@ An operation runs its steps in a fixed order, and each step writes its intent be
 
 *Note.* The workspace step creates the main folder only when the person chose Create It Now, as import does today. Whether a synchronising service will later bring a file to a path is not something a documented interface can tell Dinah, so the plan treats only what is on disk at apply time as true.
 
-The chat steps run under a task host task whose scope is the new workspace. That task can begin only after step 2 has a receipt, while the person confirmed the whole plan before step 1. The service's `Confirm` hook therefore accepts the team steps' review only when every permit in it appears in the plan the person already confirmed for this operation. Question 1 asks Paul to approve that rule.
+The chat steps run under a task host task whose scope is the new workspace. That task can begin only after step 2 has a receipt, while the person confirmed the whole plan before step 1. The service's `Confirm` hook therefore accepts the team steps' review only when every permit in it appears in the plan the person already confirmed for this operation. Paul approved that rule on 28 November 2026 (Decisions, item 1).
 
 ### Stock Files and Conflicts
 
@@ -250,7 +252,7 @@ Re-applying a template later is an operation of kind `update`. Its plan compares
 
 ## Changes to the Workspace Template Contract
 
-The template draft of 25 November needs these edits once Paul accepts this document (Table 12).
+The template draft of 25 November needs these edits now that Paul has accepted this document (Table 12).
 
 **Table 12** *Edits to docs/design/workspace-template-contract.md*
 
@@ -261,18 +263,20 @@ The template draft of 25 November needs these edits once Paul accepts this docum
 | The Team, Table 4 | Say that a member's `lead` may be any role, which makes nested teams, and that an absent team section or a lead with no members is valid. |
 | The Team, model | Say that a requested model the program does not offer blocks the role at plan time and is reported in `notApplied` if it disappears before creation. |
 | The Lead's First Research Turn | Move out of the first build. Creation and update never start a turn, and Table 12's two brief rows go with it. A first turn becomes a separate operation later. |
-| Resumable Create and Update | Point to this document's Mechanism 2, and add the confirmation rule across the workspace step (question 1). |
+| Resumable Create and Update | Point to this document's Mechanism 2, and add the confirmation rule across the workspace step (Decisions, item 1). |
 | Record of an Applied Template, Table 6 | Add `createdBy`, the operation ID, written in the same settings write that registers the workspace. |
 | Host Integration Points, Folder | Note that Replace uses `WriteText` and so works for text files only until a byte-level compare-and-set exists. |
-| Questions Open With Paul, question 2 | Mark it as answered by this design for the first build, subject to question 3 below. |
+| Questions Open With Paul, question 2 | Done. Mark it as answered by this design for the first build, since creation never starts the lead's first turn (Decisions, item 3). |
 
-## Open Questions
+## Decisions
 
-1. May the setup service's `Confirm` hook accept the team steps' task host review on the strength of the person's earlier confirmation of the whole plan, when every permit is in that plan? I recommend yes. The alternative is a second confirmation in the middle of an operation, which the person would see as a repeated question about something already approved.
-2. Should Replace of a stock file work for binary files in the first build? I recommend no. `WriteText` is the only compare-and-set write Dinah has, and Save Incoming Beside It covers binary files safely.
-3. Is it settled that creation never starts the lead's first turn? I recommend yes, matching the downstream proposal that defers all research. The format keeps the `brief` field for a later operation.
-4. Should the person be able to create a workspace on a main folder that already belongs to one? I recommend no. That case is a re-apply, which has its own plan and change list, and refusing it keeps `create` free of merging rules.
-5. Should the plain Dinah wizard be built in the first increment, or only the calls? I recommend building the calls with tests first and the plain wizard next, after its mockup is approved, because the calls alone are enough for a downstream wizard to proceed.
+Paul answered the five questions this proposal raised on 28 November 2026, through Software Director, and took the recommendation on each with the words "1 - 5, per your recomendation".
+
+1. One confirmation covers the planned chat steps. The setup service's `Confirm` hook accepts the team steps' task host review on the strength of the person's earlier confirmation of the whole plan, when every permit in that review is in the plan. The person is never asked a second time in the middle of an operation about something already approved.
+2. Replace of a stock file does not work for binary files in the first build. `WriteText` is the only compare-and-set write Dinah has, and Save Incoming Beside It covers binary files safely.
+3. Creation never starts the lead's first turn, which matches the downstream proposal that defers all research. The format keeps the `brief` field for a later operation.
+4. The person cannot create a workspace on a main folder that already belongs to one. That case is a re-apply, which has its own plan and change list, and `create` refuses it with `folder_in_use` so that it stays free of merging rules.
+5. The calls are built first, with their tests, and the plain Dinah wizard follows once its mockup is approved. The calls alone are enough for a downstream wizard to proceed.
 
 ## What in the Code Disagrees With This Design
 

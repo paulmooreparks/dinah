@@ -94,7 +94,7 @@ The `team` section describes agents to be made fresh in the new workspace (Table
 | `members` | No | The other roles. |
 | `members[].id` | Yes | The role's stable ID. |
 | `members[].title` | Yes | The chat's title. |
-| `members[].lead` | Yes | The ID of the role it reports to, which is the lead or another member. |
+| `members[].lead` | Yes | The ID of the role it reports to, which may be the lead or any other member, so a team may nest to any depth. |
 | `members[].remit` | Yes | What the role is for, kept as the member's remit in `team_members.remit`. |
 | `members[].brief` | No | The role's first message. Without it, the role starts with no turn. |
 | `members[].provider` | Yes | A provider identifier from Dinah's provider table. |
@@ -106,9 +106,11 @@ The `team` section describes agents to be made fresh in the new workspace (Table
 
 *Note.* A team allowance warns the person when it is passed and stops nothing (`team_budget.go`). A template therefore cannot promise a hard limit on what research costs.
 
+A template with no `team` section is valid and makes no chats, and so is a team whose lead has no members, which makes a single chat.
+
 A template never grants authority. A permission mode in `options` is refused when the template is read, so every agent made from a template starts with its program's default mode, which is the fallback rule of docs/design/team-duplication.md for the case of a caller that does not exist. The person can raise a chat's mode afterwards, as for any chat.
 
-When a role's provider or model is not on this computer, the role is shown as pending. Dinah never substitutes another provider. The person may choose one that is available, and that choice becomes a local override of the role.
+When a role's provider or model is not on this computer, the role is shown as pending. A requested model that the program does not offer blocks the role when the plan is made, and a model that disappears between the plan and creation is reported in the role's `notApplied` list. Dinah never substitutes another provider or model. The person may choose one that is available, and that choice becomes a local override of the role.
 
 ### What a Template Never Contains
 
@@ -159,12 +161,13 @@ The example below shows the shape with invented values. The `sample-wiki` kind a
 
 ### The Record of an Applied Template
 
-A workspace made or updated from a template keeps a record of what was applied, so that a retry knows what is done and a later update can compare three states. Today's `workspaces.Record` has no field for this and, unlike `Source` and `Pin`, no `Extra` map, so the record needs a new field (Table 6).
+A workspace made or updated from a template keeps a record of what was applied, so that a retry knows what is done and a later update can compare three states. Today's `workspaces.Record` has no field for this and, unlike `Source` and `Pin`, no `Extra` map, so the record needs new fields (Table 6).
 
 **Table 6** *Fields of the Applied Template Record*
 
 | Field | Meaning |
 | --- | --- |
+| `createdBy` | The ID of the operation that registered the workspace, written in the same settings write that registers it. |
 | `template.id`, `template.revision`, `template.digest` | The template that was applied last. |
 | `template.origin` | The product's origin record, kept as it came, at most 4 KiB. |
 | `template.appliedAt` | When the last operation finished. |
@@ -239,11 +242,11 @@ Dinah today can make folders for an import but cannot place files from one, and 
 | Resolve a conflict | Nothing. | The choices are Keep Local, which is the default, Save Incoming Beside It under a name that adds the template revision, and Replace, offered only for `unchanged-since-applied`. A merge is not offered by Dinah; the person can merge the saved copy themselves. |
 | Changes between plan and apply | Nothing. | Apply re-reads each file's SHA-256. A file that changed since the plan stops that step and asks for a new plan of that file. |
 
-*Note.* Whether a synchronising service will later bring a file to the same path is not something any documented interface can tell Dinah. The plan therefore treats only what is on disk at apply time as the truth and says so beside a folder the person did not create in this operation.
+*Note.* Whether a synchronising service will later bring a file to the same path is not something any documented interface can tell Dinah. The plan therefore treats only what is on disk at apply time as the truth and says so beside a folder the person did not create in this operation. Replace writes through `WriteText`, so it works for text files only until Dinah has a byte-level compare-and-set write, and the first build offers no Replace for binary files (docs/design/wizard-host-contract.md, Decisions, item 2).
 
 ### Team Creation
 
-The team machinery covers most of the shape, but every one of the six `dinah.team` actions needs a calling chat, and the wizard has none (Table 10). Each handler starts with `teamCaller` in `applet_team.go`, which refuses an invocation whose owner kind is not `chat`, a calling chat that is not open, and one that is not on the bus. The task host can already open a fresh chat for a person-owned task with no calling chat, but nothing in it makes that chat a team member with a remit. The new work is a host operation that makes the lead through the task host and then its members through the same internal steps `teamStart` uses.
+The team machinery covers most of the shape, but every one of the six `dinah.team` actions needs a calling chat, and the wizard has none (Table 10). Each handler starts with `teamCaller` in `applet_team.go`, which refuses an invocation whose owner kind is not `chat`, a calling chat that is not open, and one that is not on the bus. The task host can already open a fresh chat for a person-owned task with no calling chat, but nothing in it makes that chat a team member with a remit. The new work is a host operation that makes the lead through the task host and then its members through the same internal steps `teamStart` uses. Mechanism 1 of docs/design/wizard-host-contract.md describes that host function, the validation it runs and its role receipts.
 
 **Table 10** *Team Creation, Today and New*
 
@@ -254,7 +257,7 @@ The team machinery covers most of the shape, but every one of the six `dinah.tea
 | Make a member with a remit under a lead | `teamStart` in `applet_team.go`, used by `dinah.team/start@1` and `start@2`, starts the chat with `NewSessionWithProviderAt`, calls `bus.SetLeadWithRemit`, and posts the start line and the brief in the lead's group. It needs the calling chat from `teamCaller`. | A host function that runs the bus steps of `teamStart` for a chat made by recorded allocation, with the person as the requester, so a member gets its remit and its place in the tree without a calling chat. `start@1` and `start@2` keep their own rule. |
 | Make a chat a member without a remit | `SetTeamLead` in `team_views.go`, which is the person's own action. | Not used, since it writes no remit. |
 | Settings and authority | `checkTeamOptions` and `applyTeamOptions` in `team_duplication.go` accept a setting of category `mode` only when `permittedModes` allows it, which is the caller's own mode on the same program or the program's default, and list settings that could not be given in `notApplied`. Both take the calling chat's session as an argument. `checkTeamOptions` checks nothing when the program has no saved option list, leaving the check to `applyTeamOptions` once the chat exists. | A variant of the two functions with no caller. Since a template contains no mode, it checks only that each setting is offered and allowed, and lists the rest in `notApplied`. |
-| Groups | `bus.ImportGroup` (`internal/bus/imported.go`) makes a group with its turn budget or joins one of the same title; a team's group is made by setting its lead. The task host's room operations (`EnsureRoom`, `PostRoom` and the rest) are refused today, because the desktop never sets a room adapter (`taskRooms` in `task_host.go` returns nil), as docs/design/task-host-binding.md requires until the complete adapter exists. | Template groups are made with `ImportGroup`, keyed by the operation and group ID rather than by title, so a group of the same title made by the person is not joined by accident. |
+| Groups | `bus.ImportGroup` (`internal/bus/imported.go`) makes a group with its turn budget or joins one of the same title; a team's group is made by setting its lead. The task host's room operations (`EnsureRoom`, `PostRoom` and the rest) are refused today, because the desktop never sets a room adapter (`taskRooms` in `task_host.go` returns nil), as docs/design/task-host-binding.md requires until the complete adapter exists. | Template groups are made with a new bus call that makes the room and a `room_origins` row, keyed by the operation and group ID, in one transaction. `ImportGroup` is not used, because it matches by title, which would join a group of the same title made by the person, and the `rooms` table has no column for a tag. |
 | Asking the person once | The `duplicate-a-team` built-in skill asks with `ask_person` before starting anyone. | The wizard's own review is that single approval. An agent that applies a template through an applet action asks with `ask_person` first, as the skill does. |
 | Budgets | `SetTeamBudget` in `team_budget.go`. | Applied from `budgets` after the roles exist. |
 
@@ -278,6 +281,8 @@ Dinah already has a durable journal for multi-step work that opens chats, takes 
 
 *Note.* Every claim about the task host in this table is from its design document and from the code on master. The task host design records its own acceptance separately and claims no acceptance pass in the document itself.
 
+Mechanism 2 of docs/design/wizard-host-contract.md describes the operation record, the order of its steps and the calls that a wizard makes. The team steps run under a task host task that can begin only after the workspace exists, while the person confirmed the whole plan before the first step. Paul decided on 28 November 2026 that one confirmation covers the planned chat steps, so the service's `Confirm` hook accepts the team steps' review when every permit in it appears in the plan the person already confirmed for the operation (docs/design/wizard-host-contract.md, Decisions, item 1).
+
 Each step's key decides whether the step's work already exists (Table 12). A step writes its intent before it acts and its receipt after, and a step found with an intent and no receipt on resume is settled by looking for its key.
 
 **Table 12** *How Each Step Is Recognised on Retry*
@@ -289,11 +294,7 @@ Each step's key decides whether the step's work already exists (Table 12). A ste
 | Make a directory | Relative path | Whether it exists. |
 | Write a stock file | Relative path and SHA-256 | Whether the file has that SHA-256. |
 | Make a role's chat | Operation ID and role ID | The task host's `OpenChat` receipt, which contains the provider's session ID once received. |
-| Make a group | Operation ID and group ID | A tag recorded on the group. |
-| Send the lead's first brief | Operation ID and role ID | The task host's `TakeTurn` receipt. |
-| Send a member's first brief | Operation ID and role ID | A bus origin record for that pair, in the way `message_origins` records an imported message, since the task host's room operations are unavailable. |
-
-*Note.* A `TakeTurn` whose response was lost is `unknown`, and the task host never resends a prompt on that account. The person sees the lead's chat and decides.
+| Make a group | Operation ID and group ID | The group's `room_origins` row. |
 
 ### Tagging a New Chat With Its Operation
 
@@ -322,20 +323,20 @@ Re-applying a newer revision is an update operation that compares three states: 
 
 ### The Lead's First Research Turn
 
-Dinah can already start a chat's turn and post a brief to a member, and an update must never start one by accident (Table 14). The first turn is therefore its own step that runs only when the operation's choices include it.
+The lead's first research turn is not part of the first build. Creation and update never start a turn, and a first turn becomes a separate operation later, with its own plan and confirmation (docs/design/wizard-host-contract.md, Decisions, item 3). Dinah can already start a chat's turn and post a brief to a member, which is what that later operation would use (Table 14).
 
 **Table 14** *Starting the First Turn, Today and New*
 
 | Need | Today | New |
 | --- | --- | --- |
-| Start a chat's turn | The task host's `TakeTurn` takes the chat's exclusive turn admission, sends one labelled turn through the normal queue, file authority and permission checks, and reports completion, refusal, cancellation or an unknown outcome (`task_host_operations.go`). `App.Send` in `session.go`, the composer's path, sends a prompt with no receipt and refuses while the window waits to restart (`TurnIO.Send`). | The `start-brief` step sends the lead's brief with `TakeTurn` after the team exists. |
-| Brief a member | `teamStart` posts the brief in the lead's group with `SendMentioning`, which wakes the member. | Members whose role has a brief get it the same way when the step runs, with the bus origin key of Table 12. |
+| Start a chat's turn | The task host's `TakeTurn` takes the chat's exclusive turn admission, sends one labelled turn through the normal queue, file authority and permission checks, and reports completion, refusal, cancellation or an unknown outcome (`task_host_operations.go`). `App.Send` in `session.go`, the composer's path, sends a prompt with no receipt and refuses while the window waits to restart (`TurnIO.Send`). | The later first-turn operation sends the lead's brief with `TakeTurn` after the team exists. |
+| Brief a member | `teamStart` posts the brief in the lead's group with `SendMentioning`, which wakes the member. | Members whose role has a brief get it the same way when that operation runs, with a bus origin key for each operation and role, in the way `message_origins` records an imported message. |
 | The words of the brief | The caller writes them. | The template's `brief` is the default. The apply call accepts a replacement per role, so the product can compose the research instruction, including the shared brief and its scope, without Dinah reading it. |
-| Not starting twice | The `TakeTurn` receipt for the lead, which is never resent after a lost response. Nothing for a brief posted in a group. | The `TakeTurn` receipt for the lead and the bus origin key of Table 12 for members. A retried creation never sends a second brief, and an update has no `start-brief` step. |
+| Not starting twice | The `TakeTurn` receipt for the lead, which is never resent after a lost response. Nothing for a brief posted in a group. | The `TakeTurn` receipt for the lead and the bus origin key for members. A retried first-turn operation never sends a second brief, and creation and update send none. |
 | Cost limits | Team allowances warn and hold nothing; group turn budgets limit how many turns agents start in a group (docs/plans/group-turn-budgets.md); effort is a model setting. | No new limit. The step can set a group turn budget and a team allowance from the template, and the review must not call either a cap on cost. |
 | Progress | A chat's state and current task, as `dinah.team/list@1` returns them. | The operation's state reports the step's receipt and the lead's chat. The product turns those into its own research status. |
 
-*Note.* Whether the step runs by default is open question 2 below. The contract supports either answer.
+*Note.* Open question 2 below, on whether research starts by default, is answered for the first build by docs/design/wizard-host-contract.md, which decides that creation never starts the lead's first turn.
 
 ## Decided With Paul
 
@@ -355,7 +356,7 @@ The contract was written so that none of the open questions changes the format, 
 | No. | Question | Contract Depends On It? | How the Draft Stays Independent |
 | --- | --- | --- | --- |
 | 1 | Where is a starter stored: a table on a page or a versioned attachment? | No | Dinah reads a package's bytes and keeps an opaque origin. Inline text in a bare JSON document keeps a table-based store possible. |
-| 2 | Does research start by default? | No | The first brief is a separate step chosen per operation. The product picks the default. |
+| 2 | Does research start by default? | No | Answered for the first build. Creation never starts the lead's first turn, and a first turn becomes a separate operation later (docs/design/wizard-host-contract.md, Decisions, item 3). |
 | 3 | Who publishes shared briefs? | No | Dinah publishes nothing and stores no brief as such. |
 | 4 | What is the pilot's scope? | Partly | The format does not change. The pilot decides which source kinds must be registered and tested, and whether the update operation is needed in the first build. |
 | 5 | Is authoring a skill, a flow or a command? | Partly | The host functions are the same for all three. A skill run by an agent also needs applet actions for building and applying a template, guarded by `ask_person` as `duplicate-a-team` is. A command or a product flow can call the host functions directly. |
