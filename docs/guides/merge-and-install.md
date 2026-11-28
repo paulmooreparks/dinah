@@ -79,6 +79,22 @@ Then reply to the handover message, which reaches the lead who handed the work o
 
 A merge changes a package when it changes any file in that package's folder, or a file the package embeds.
 
+**A fix Paul is waiting for.** Paul set this rule on 26 November 2026: "If it gets hung on one or two tests, I want to know what they are so that I can make a judgment call." When one or two failing checks (a local gate, a GitHub run, a release check or a review) hold a fix he is waiting for, and the failure will not be fixed within about 15 minutes, the integrator tells the Dinah Team Lead at once, before a second attempt at the same run, and the lead tells Software Director. One short message covers the points in Table 2.
+
+**Table 2** *Contents of a Report on a Held Fix*
+
+| Point | What to say |
+| --- | --- |
+| The fix | What Paul gets when it lands. |
+| Each failing check | What it tests, in plain words. |
+| Where | Where it fails and where it passes (master, the branch, alone, on GitHub). |
+| Relevance | Whether the failure bears on the change. |
+| Risk | What could go wrong if the fix goes ahead. |
+| Options | Go ahead with the failure tracked, wait (with an estimate), or split the change. |
+| Recommendation | Which option, and why. |
+
+*Note.* The rule changes none of the following. The one-retry rules above still apply. Only Paul can let a fix through when the failing test is one the change touches. Signing, attestation, the forbidden-terms guard and the commit scan are never skipped. A check left failing gets an owner and is fixed afterwards.
+
 **A failure on GitHub.** Paul chose this rule on 26 November 2026: "Option b, retry once. Go with your recommendation." A failed test job in the GitHub build of master may be re-run once on the same commit, as follows.
 1. Report the first failure in full to the lead who owns the area and to Software Director: the run, the job, the test and its output from `gh run view <id> --log-failed`. Name the test to Dinah Quality.
 2. If every failing test is outside what the pushed change touched, re-run once with `gh run rerun <id> -R paulmooreparks/dinah --failed`. That re-runs the failed jobs and the jobs that depend on them, on the same commit, with no push. Push nothing to master while it runs, since a push cancels it.
@@ -124,9 +140,9 @@ Stage a vendored folder with `git add -u` plus the new files by name. Never stag
 
 ## Habits that are written down nowhere else
 
-Table 2 collects the practices I followed by habit. Each one comes from a failure that happened at least once.
+Table 3 collects the practices I followed by habit. Each one comes from a failure that happened at least once.
 
-**Table 2** *Practices and the Failures Behind Them*
+**Table 3** *Practices and the Failures Behind Them*
 
 | Practice | Why |
 |---|---|
@@ -169,9 +185,9 @@ The set-aside copy (`<program>.old-<timestamp>`) in the program folder is the pr
 
 ## Credentials and tools
 
-Table 3 lists what the procedure relies on. None of it is stored in the repository.
+Table 4 lists what the procedure relies on. None of it is stored in the repository.
 
-**Table 3** *Credentials and Tools the Procedure Uses*
+**Table 4** *Credentials and Tools the Procedure Uses*
 
 | What | Where it is | Used for |
 |---|---|---|
