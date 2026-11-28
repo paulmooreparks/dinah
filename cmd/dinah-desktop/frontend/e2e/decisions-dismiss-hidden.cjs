@@ -123,6 +123,11 @@ const UNCHECKED = 'The last send or dismissal has not been confirmed. Check its 
 
   try {
     await t.start();
+    // A fresh home with a working agent opens the Judgements question by itself once, in a flyout over the lower part
+    // of the page (judgements-applet.js, offerSetupOnce), where it took the press meant for a button on the hosted
+    // runner. This home is marked as one where the question has already opened, with the call the page itself makes,
+    // before the agent is set. cold-start-hidden.cjs covers a first start.
+    await call('NoteJudgementSetupShown');
     await call('SetAgentExecutable', 'devin', t.agent); await call('SetWorkspace', t.workspace);
     await openDecisions();
     const foot = await ask('Foot Chat'), menu = await ask('Menu Chat'), carded = await ask('Card Chat'), noticed = await ask('Notice Chat');
