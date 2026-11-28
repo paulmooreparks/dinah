@@ -187,6 +187,14 @@ const { settled, settledCount } = require('./lib/settled');
     await thumb.waitFor();
     ok('a picture is shown as a thumbnail under the text', await thumb.count() === 1 && await thumb.getAttribute('alt') === 'shot.png');
     await p.waitForFunction(() => !!document.querySelector('.win[data-win-kind="bus-room"] [data-bus-message="2"] .sent-images img[data-media-expand]'));
+    // The list follows its end until the person moves it with the wheel, a key or the scroll bar
+    // (transcript.js, input). A scroll that a script makes is not one of those, so the list goes back
+    // to its end a frame later, and a press aimed at this message, which is above the end, could then
+    // land on nothing (hosted runs of 22 and 28 November 2026). The wheel is turned first, as a
+    // person would turn it, and the press follows once the list has stopped following.
+    await room.locator('.bus-log').hover();
+    await p.mouse.wheel(0, -4000);
+    await p.waitForFunction(() => document.querySelector('.win[data-win-kind="bus-room"] .bus-log').dataset.following === 'false');
     await thumb.click();
     await p.locator('#media-viewer').waitFor({ state: 'visible' });
     ok('the thumbnail opens in the media viewer', await p.locator('#media-viewer .lightbox-img').count() === 1);

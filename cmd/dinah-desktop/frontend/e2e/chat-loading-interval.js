@@ -165,6 +165,12 @@ const fs = require('fs'), path = require('path');
    if(mode === 'history-failure') ok('retry recovers journal events received during the failed history read', transcript.split('[DURING-FAILURE]').length === 2 && transcript.split('SENT-DURING-FAILURE').length === 2 && transcript.split('finished its turn').length === 2);
    ok(mode + ': snapshot and in-flight journal entries appear once', transcript.split('CURRENT-ANSWER').length === 2 && transcript.split('[BETWEEN-READS]').length === 2 && (mode === 'unavailable' || transcript.split('[AFTER-SNAPSHOT]').length === 2), transcript.slice(-400));
    const button = win.getByRole('button', { name: 'Show Saved Chat History', exact: true });
+   // The button is the transcript's first row, and the transcript follows its end until the person
+   // moves it with the wheel, a key or the scroll bar (transcript.js, input). A scroll that a script
+   // makes is not one of those, so the transcript went back to its end a frame later and the press
+   // could land on nothing (hosted run 46139569584). The wheel is turned first, as a person would.
+   await win.locator('[data-view-id=activity]').hover(); await p.mouse.wheel(0, -100000);
+   await p.waitForFunction(() => document.querySelector('.win.active [data-view-id=activity]').dataset.following === 'false');
    await button.scrollIntoViewIfNeeded(); await button.click();
    await p.waitForFunction(() => __historyRequests.length === 1);
    ok(mode + ': omitted history requests the complete saved snapshot', await p.evaluate(() => __historyRequests[0] === 'codex:loading'));
