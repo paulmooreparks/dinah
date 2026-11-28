@@ -96,7 +96,7 @@ The `team` section describes agents to be made fresh in the new workspace (Table
 | `members[].title` | Yes | The chat's title. |
 | `members[].lead` | Yes | The ID of the role it reports to, which may be the lead or any other member, so a team may nest to any depth. |
 | `members[].remit` | Yes | What the role is for, kept as the member's remit in `team_members.remit`. |
-| `members[].brief` | No | The role's first message. Without it, the role starts with no turn. |
+| `members[].brief` | No | The role's first message, stored for the later first-turn operation. Creation and update never send it. |
 | `members[].provider` | Yes | A provider identifier from Dinah's provider table. |
 | `members[].model` | No | A model value that provider offers. Without it, the provider's default. |
 | `members[].options` | No | Settings by option ID, as `dinah.team/start@2` takes them. Any setting of category `mode` is refused. |
@@ -194,10 +194,10 @@ Each concern in the onboarding work has one owner (Table 7). Where both sides ar
 | Credentials | Product's connection, through `internal/connections` | Dinah keeps only the connection's identifier. |
 | The main folder, directories and stock files | Dinah | The product supplies the template; the person chooses the folder in a Dinah step. |
 | Conflicts with local files | Dinah | The product's wizard shows Dinah's plan and passes the person's choices back. |
-| Making agents, teams and groups | Dinah | The product supplies roles through the template and may replace a role's first brief at apply time. |
+| Making agents, teams and groups | Dinah | The product supplies roles through the template. A role's brief is stored for the later first-turn operation, and creation and update never send it. |
 | Operation identity, receipts, retry and resume | Dinah | The product keeps the operation's ID in its own route and asks Dinah for the operation's state. |
 | Comparing an applied template with a newer one | Dinah | The product shows the change list and passes back the person's choice for each change. |
-| Starting the lead's first turn | Dinah sends it; the product writes it | The product composes the brief, including any reference to the shared brief and its scope. |
+| Starting the lead's first turn | Dinah sends it in the later first-turn operation; the product writes it | The product composes the brief, including any reference to the shared brief and its scope. Dinah stores the brief for that later operation, and creation and update never send it. |
 | Research status as the person sees it | Product | Dinah reports the step's receipt and the chat's state, and the product derives its own status words. |
 | The shared brief, its review and its access filtering | Product | Dinah stores a copy only as an ordinary stock file or a source, if the product puts it there. |
 | Publishing a template or a brief | Product | Dinah never publishes anything to a site. |
