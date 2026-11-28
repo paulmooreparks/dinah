@@ -194,7 +194,7 @@
       if (entry.separator) { if (out.length && out[out.length - 1] !== '-') out.push('-'); return; }
       if (entry.expand) { out = out.concat(expanded(entry)); return; }
       var on = enabled(entry);
-      var row = { label: value(entry.menuLabel) || value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: value(entry.shortcut) || '',
+      var row = { id: entry.id, label: value(entry.menuLabel) || value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: value(entry.shortcut) || '',
         reason: on ? '' : value(entry.reason) || '', mnemonic: entry.mnemonic || '', run: function () { run(entry.id); } };
       var checked = value(entry.checked);
       if (typeof checked === 'boolean') row.checked = checked;
@@ -235,6 +235,62 @@
      command search here, as rows in the shape searchable() returns. */
   var searchSources = [];
   function addSearch(source) { searchSources.push(source); }
+
+  /* The audit of what is drawn (strict mode only, which the browser suites
+     set). Whatever draws a menu from rows() says so with drew(), and the
+     registry keeps a plain copy of those rows. audit() reads the rows again
+     and returns every difference between the copy and the live state, and
+     every data-cmd control whose drawn state differs from its command's. A
+     difference means that something changed a command's state and did not
+     call changed(). The audit draws nothing and asks for no redraw. While a
+     redraw is waiting on the registry's timer nothing can be stale after it,
+     so the audit then reports nothing; while a menu of the bar is open the
+     host holds its redraw until the menu closes (host-menus.js), so the
+     menus are left out then and only the controls are compared. */
+  var drawn = new Map();
+  function picture(list) {
+    return list.map(function (row) {
+      if (row === '-') return '-';
+      var out = { id: row.id || '', label: String(row.label), disabled: !!row.disabled, shortcut: row.shortcut || '', reason: row.reason || '' };
+      if (typeof row.checked === 'boolean') out.checked = row.checked;
+      if (row.items) out.items = row.items.map(function (item) { return item === '-' ? '-' : item.heading ? 'heading ' + item.heading : [String(item.label), !!item.disabled, item.checked === true].join(' | '); }).join(' ; ');
+      return out;
+    }).filter(function (row) { return row !== '-'; });
+  }
+  function drew(menu, group, list) {
+    if (window.dinahStrict) drawn.set(JSON.stringify([menu, group === undefined ? null : group]), picture(list));
+  }
+  function audit() {
+    var out = [];
+    if (timer) return out;
+    var menuOpen = !!(window.pudlMenubar && window.pudlMenubar.isOpen && window.pudlMenubar.isOpen());
+    if (!menuOpen) drawn.forEach(function (was, key) {
+      var place = JSON.parse(key), menu = place[0];
+      var now = picture(place[1] === null ? rows(menu) : rows(menu, place[1]));
+      // Rows are matched by their command, and rows with none (those an
+      // entry expands to) by their place among such rows.
+      function keyed(list) { var map = new Map(), n = 0; list.forEach(function (row) { map.set(row.id || '#' + n++, row); }); return map; }
+      var before = keyed(was), after = keyed(now);
+      before.forEach(function (row, id) {
+        var live = after.get(id);
+        if (!live) { out.push({ command: id, menu: menu, field: 'visible', drawn: true, live: false }); return; }
+        ['label', 'disabled', 'checked', 'shortcut', 'reason', 'items'].forEach(function (field) {
+          if (row[field] !== live[field]) out.push({ command: id, menu: menu, field: field, drawn: row[field], live: live[field] });
+        });
+      });
+      after.forEach(function (row, id) { if (!before.has(id)) out.push({ command: id, menu: menu, field: 'visible', drawn: false, live: true }); });
+    });
+    commandControls().forEach(function (control) {
+      var entry = resolve(control.dataset.cmd);
+      if (!entry) return;
+      var id = control.dataset.cmd, disabled = !available(entry);
+      if (('disabled' in control ? control.disabled : control.getAttribute('aria-disabled') === 'true') !== disabled) out.push({ command: id, control: true, field: 'disabled', drawn: !disabled, live: disabled });
+      var checked = value(entry.checked);
+      if (typeof checked === 'boolean' && control.getAttribute('aria-checked') !== String(checked)) out.push({ command: id, control: true, field: 'checked', drawn: control.getAttribute('aria-checked'), live: checked });
+      if (control.hasAttribute('data-command-label') && control.textContent !== value(entry.label)) out.push({ command: id, control: true, field: 'label', drawn: control.textContent, live: value(entry.label) });
+    });
+    return out;
+  }
 
   function flush(options) {
     clearTimeout(timer); timer = 0;
@@ -471,7 +527,7 @@
     changed();
   }
 
-  window.dinahCommands = { installHost, describe, alias, register: register, run: run, rows: rows, searchable: searchable, changed: changed, flush: flush, controlsFor: controlsFor, shown: shown, menus: MENUS, addHelp: addHelp, addSearch: addSearch };
+  window.dinahCommands = { installHost, describe, alias, register: register, run: run, rows: rows, searchable: searchable, changed: changed, flush: flush, drew: drew, audit: audit, controlsFor: controlsFor, shown: shown, menus: MENUS, addHelp: addHelp, addSearch: addSearch };
 
   register({ id: 'keyboard-shortcuts', menu: 'help', mnemonic: 'K', label: 'Keyboard Shortcuts', shortcut: 'F1', run: keyboardHelp });
 })();

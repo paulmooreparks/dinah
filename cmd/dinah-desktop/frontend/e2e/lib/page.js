@@ -49,8 +49,15 @@
 //   t.shot(name, options?)         a screenshot in the run's output folder,
 //                                  with Playwright's options (fullPage…).
 //   t.errors                       page errors and browser dialogs so far.
-//   t.close()                      prints "no page errors", closes the
-//                                  browser, and exits 1 on any failure.
+//   t.close()                      audits the drawn commands, prints "no page
+//                                  errors", closes the browser, and exits 1
+//                                  on any failure.
+//
+// The audit asks the page's command registry (commands.js, audit) whether any
+// menu row or command control shows a state other than its command's live
+// one, which happens when code changes a command's state and does not call
+// dinahCommands.changed(). It runs first in t.close() and draws nothing. A
+// suite that leaves a stale state on purpose passes auditCommands: false.
 const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
@@ -199,7 +206,7 @@ const READY = {
 };
 
 async function launch(options = {}) {
-  const { viewport = { width: 1280, height: 900 }, state = {}, app, init, args = null, ready = 'ui-state', dialogs = 'fail', goto = true, timeout = 30000, expectErrors = null } = options;
+  const { viewport = { width: 1280, height: 900 }, state = {}, app, init, args = null, ready = 'ui-state', dialogs = 'fail', goto = true, timeout = 30000, expectErrors = null, auditCommands = true } = options;
   const releaseLock = await acquireBrowserLock();
   let browser;
   // Native scrollbar input requires the control that Playwright normally hides
@@ -271,6 +278,12 @@ async function launch(options = {}) {
       return Promise.race([Promise.resolve(promise).then(value => { clearTimeout(timer); return value; }, error => { clearTimeout(timer); throw error; }), bound]);
     },
     async close() {
+      /* A page that is closed, or one with no registry (a suite that went to
+         another document), has nothing to audit. */
+      if (auditCommands && !page.isClosed()) {
+        const stale = await t.deadline('the command audit', page.evaluate(() => window.dinahCommands && window.dinahCommands.audit ? window.dinahCommands.audit() : []), 10000).catch(() => []);
+        if (stale.length) t.ok('every drawn command shows its live state', false, stale.map(s => s.command + (s.control ? ' (control)' : ' (' + s.menu + ' menu)') + ' ' + s.field + ': drawn ' + JSON.stringify(s.drawn) + ', live ' + JSON.stringify(s.live)).join(' | '));
+      }
       t.ok('no page errors', errors.length === 0, errors.join(' | '));
       /* browser.close() has no deadline of its own, and a wedged browser must
          never hold a suite (30 October 2026). t.deadline names the wait. */
