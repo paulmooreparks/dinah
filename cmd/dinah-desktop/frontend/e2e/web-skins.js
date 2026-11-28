@@ -65,8 +65,18 @@ const {launch,OUT,FRONTEND}=require('./lib/page'),{spawn,execFileSync}=require('
    for(const width of [1360,560]){
     await p.setViewportSize({width,height:900});
     for(const [label,url]of [['desktop','/'],['inbox','/inbox'],['groups','/rooms'],['conversation','/rooms/'+encodeURIComponent(info.room)]]){
-     sheetRequests=[];
-     const response=await p.goto(info.url+url);await p.waitForFunction(()=>!!__webSkinFrame);const first=await p.evaluate(()=>__webSkinFrame);
+     // The case is about a page whose stylesheets the host delivered. On the hosted runner the browser has failed to
+     // open a connection for one of them (net::ERR_NO_BUFFER_SPACE, stress run of 28 November 2026), and the page then
+     // rightly drew Standard. Such a failure is the browser's requestfailed event, which is recorded above; the page is
+     // loaded again, at most twice, and a line says so. A stylesheet the host answered, with any status, is never retried.
+     let response,first;
+     for(let attempt=1;;attempt++){
+      sheetRequests=[];
+      response=await p.goto(info.url+url);await p.waitForFunction(()=>!!__webSkinFrame);first=await p.evaluate(()=>__webSkinFrame);
+      const lost=sheetRequests.filter(r=>r.error);
+      if(!lost.length||attempt===3)break;
+      console.log('NOTE '+[skin,mode,motion,width,label].join('/')+': the browser could not fetch '+lost.map(r=>r.url.replace(info.url,'')+' ('+r.error+')').join(', ')+', so the page is loaded again');
+     }
      if(!t.ok([skin,mode,motion,width,label].join('/')+' draws the server-owned preference',response.ok()&&first.skin===skin&&first.preference===skin&&first.mode===mode,JSON.stringify(first)))await diagnose([skin,mode,motion,width,label].join('/'),first);
      records.push({skin,mode,motion,width,page:label,first});
      if(motion==='no-preference')await p.screenshot({path:path.join(OUT,['web',skin,mode,width,label].join('-')+'.png')});
