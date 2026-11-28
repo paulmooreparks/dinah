@@ -23,7 +23,10 @@ const record = () => {
     // A frame may be taken while the start screen's own parts are still being read from the page,
     // on a slow machine, and a part that is not there yet has no words.
     const words = (root, selector) => { const el = root.querySelector(selector); return el ? el.textContent : ''; };
-    return { parts, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(words(screen, '.start-screen-words')) && words(screen, '.start-screen-name').trim() !== '' };
+    // What each part of the status area is, how wide, and its words. This is printed with a frame
+    // that moved, to say which part of the status area changed; it is not compared.
+    const chips = Array.from(document.querySelectorAll('.status-area > *')).filter(el => el.getBoundingClientRect().width > 0).map(el => (el.id || el.className) + ' ' + Math.round(el.getBoundingClientRect().width) + ' ' + JSON.stringify(el.textContent.trim().replace(/\s+/g, ' '))).join(', ');
+    return { parts, chips, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(words(screen, '.start-screen-words')) && words(screen, '.start-screen-name').trim() !== '' };
   };
   let last = '';
   (function tick() {
@@ -64,7 +67,7 @@ const record = () => {
       ok('the start screen shows the name of the product and says what is happening meanwhile', before.some(frame => frame.starting));
       ok('an unfinished layout was recorded behind the start screen', before.some(frame => text(frame) !== text(last)), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
       ok('the saved layout is what is shown', !!last.parts['window chat-session'] && !last.parts['window needs-you'] && last.seen && !last.busy, text(last));
-      ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame)).join('\n'));
+      ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame) + ' status: ' + frame.chips).join(' // '));
       ok('the launcher pane never stood empty beside the windows', frames.every(frame => !frame.parts.slot), frames.filter(frame => frame.parts.slot).map(frame => frame.t + ' ' + frame.parts.slot).join(' '));
       ok('the start screen is gone, and a press reaches the page', await p.evaluate(() => getComputedStyle(document.getElementById('start-screen')).display === 'none' && !!document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('.dinah-workbench')));
       ok('the start screen had the logo, the name and a line of progress', await p.evaluate(() => { const s = document.getElementById('start-screen'); return !!s.querySelector('img.start-screen-logo') && s.querySelector('.start-screen-name').textContent === 'Dinah' && !!s.querySelector('progress') && s.querySelector('.start-screen-words').textContent === 'Opening your windows…'; }));
@@ -83,7 +86,7 @@ const record = () => {
       const seen = frames.filter(frame => frame.seen);
       ok('with no saved layout the default windows are shown', last.seen && !!last.parts['window workspace'], JSON.stringify(last.parts));
       ok('and Chats is the pane in front in its dock, with Notifications behind it', !!last.parts['window chat-browser'] && !last.parts['window needs-you'], JSON.stringify(last.parts));
-      ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts)).join('\n'));
+      ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
     } finally { await t.close(); }
   }
   // A page whose state cannot be read is still shown, with the reason.
