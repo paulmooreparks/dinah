@@ -14,6 +14,13 @@
 # took to suite-times.json in $Out; copy a full run's file over the recorded
 # one when the suites have changed enough to unbalance the shares.
 #
+# set-aside.json lists the checks that are set aside under the merge guide's
+# rule for a red build: each has its suite, a regular expression for the
+# check's name, the date, the owner who will repair it, and the cause. A suite
+# whose only failures are set-aside checks is reported as ok, and every run
+# prints the list, so a set-aside check stays in view until its entry is
+# removed. A set-aside check that passes is not reported.
+#
 # Each suite runs its own browser and shares nothing with the others, so
 # they run side by side, -Jobs at a time, a quarter of the processors by
 # default. Half the processors took about 63 s on Paul's 32-processor
@@ -123,6 +130,9 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   $bad = @($result -split "`n" | Where-Object { $_ -match '^FAIL|Error:|Timeout.*exceeded|Timed out after|^    at .*\.js:' })
   [pscustomobject]@{ Suite = $s; Seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); Failed = ($bad.Count -gt 0 -or $proc.ExitCode -ne 0); Lines = $bad; Output = $result }
 }
+$setAside = @()
+$setAsideFile = Join-Path $here 'set-aside.json'
+if (Test-Path $setAsideFile) { $setAside = @((Get-Content $setAsideFile -Raw | ConvertFrom-Json).checks) }
 $failed = 0
 # failures.txt in $Out keeps what a failing suite printed, apart from its PASS lines,
 # so a failure seen once is not lost when the screen is closed. It is empty when
@@ -132,12 +142,23 @@ foreach ($r in ($results | Sort-Object Suite)) {
   # Keep stdout and stderr in full, including Playwright's indented call log
   # and assertions that passed before a failure. Console output stays brief.
   Set-Content -Path (Join-Path $Out ($r.Suite + '.log')) -Value $r.Output -Encoding utf8
+  # A suite fails with exit code 1 when a check fails. When every line that
+  # counts against it is a set-aside check's FAIL line, the suite is ok.
+  $excused = @()
+  $mine = @($setAside | Where-Object { $_.suite -eq $r.Suite })
+  if ($r.Failed -and $mine.Count -and $r.Lines.Count) {
+    $excused = @($r.Lines | Where-Object { $line = $_; $line -match '^FAIL ' -and @($mine | Where-Object { ($line.Substring(5) -split ' :: ', 2)[0].TrimEnd() -match $_.check }).Count })
+    if ($excused.Count -eq $r.Lines.Count) { $r.Failed = $false }
+  }
   if ($r.Failed) {
     $failed++; "$($r.Suite) :"; $r.Lines | ForEach-Object { "  $_" }
     $record.Add("$($r.Suite) :")
     $r.Output -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^PASS ' } | ForEach-Object { $record.Add("  $($_.TrimEnd())") }
+  } elseif ($excused.Count) {
+    "$($r.Suite) : ok apart from $($excused.Count) set-aside check(s)"; $excused | ForEach-Object { "  set aside: $_" }
   } else { "$($r.Suite) : ok" }
 }
+foreach ($entry in ($setAside | Where-Object { $suites -contains $_.suite })) { "Set aside since $($entry.date), owner $($entry.owner): $($entry.suite), $($entry.check)" }
 Set-Content -Path (Join-Path $Out 'failures.txt') -Value $record -Encoding utf8
 $took = [ordered]@{}
 foreach ($r in ($results | Sort-Object Suite)) { $took[$r.Suite] = $r.Seconds }
