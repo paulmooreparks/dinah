@@ -5,7 +5,7 @@
    "suite": "skins-startup",
    "check": "^broken-bevel/(light|dark) first drawn frame uses the cached available skin and mode$",
    "date": "2026-11-28",
-   "owner": "PUDL Team Lead",
+   "owner": "PUDL repair",
    "cause": "When the Bevel stylesheet fails to load, pudlSkins.available() can still list Bevel on the first frame, because PUDL takes a link whose sheet object exists as loaded before the link's error event has been handled. The page then reports Bevel while it draws Standard. The check is right and stays. It failed in hosted runs 42951183143, 44057109218 and 45736587906.",
    "run": "45736587906"
   }

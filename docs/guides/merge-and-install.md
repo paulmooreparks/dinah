@@ -205,5 +205,6 @@ A test that is set aside under the rule "A red build of master" is listed in Tab
 
 | Test | Set aside on | Owner | Failing run |
 |---|---|---|---|
+| `skins-startup`, the check "broken-bevel first drawn frame uses the cached available skin and mode" (`e2e/set-aside.json`) | 2026-11-28 | PUDL repair | 45736587906 |
 
-*Note.* The table is empty when no test is set aside.
+*Note.* The table is empty when no test is set aside. The repair of the `skins-startup` check is PUDL pull request 54, which waits for Paul's decision.
