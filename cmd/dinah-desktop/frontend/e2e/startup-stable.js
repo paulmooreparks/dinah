@@ -89,6 +89,32 @@ const record = () => {
       ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
     } finally { await t.close(); }
   }
+  // The page's scripts are deferred, and the saved state can arrive before the last of them has run.
+  // Here PUDL's window script is held back until the state has been restored and twelve more frames
+  // have been drawn, as a loaded machine holds it. Until 28 November 2026 the start screen lifted in
+  // those frames, over a page with no windows, and the windows and the bar then moved in plain sight.
+  {
+    const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, init: record });
+    const { page: p, ok } = t;
+    try {
+      let release;
+      const held = new Promise(resolve => { release = resolve; });
+      await t.context.route('http://dinah.test/pudl/pudl-windows.js', async route => { await held; await route.fallback(); });
+      await p.goto('http://dinah.test/index.html', { waitUntil: 'commit' });
+      await p.waitForFunction(() => document.documentElement.dataset.uiStateReady === 'true');
+      await p.evaluate(() => new Promise(resolve => { let left = 12; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const early = await p.evaluate(() => window.__frames.filter(frame => frame.seen).length);
+      release();
+      await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none');
+      // Thirty more frames are recorded, in which a late change would show.
+      await p.evaluate(() => new Promise(resolve => { let left = 30; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const frames = await p.evaluate(() => window.__frames), last = frames[frames.length - 1];
+      const seen = frames.filter(frame => frame.seen);
+      ok('the start screen stays up while a script of the page has still to run', early === 0, String(early));
+      ok('and the page is first seen with its default windows', seen.length > 0 && !!seen[0].parts['window workspace'] && !!seen[0].parts['window chat-browser'], JSON.stringify(seen[0] && seen[0].parts));
+      ok('and nothing moved once it could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
+    } finally { await t.close(); }
+  }
   // A page whose state cannot be read is still shown, with the reason.
   {
     const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, app: () => ({ State: async () => { throw new Error('The state could not be read.'); } }) });

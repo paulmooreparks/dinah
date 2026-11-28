@@ -154,11 +154,30 @@
       })();
     });
   }
+  /* The page's scripts are deferred, and the saved state can arrive between
+     two of them, before PUDL's window script has run and made the windows
+     and the bar. Every wait here is bounded in time, so a wait started then
+     ran out with nothing yet to watch, and the page was shown with no
+     windows in it, which then appeared and moved the bar (startup-stable,
+     hosted stress run of 28 November 2026). The waits therefore start once
+     the document's scripts have all run, which is when the browser fires
+     DOMContentLoaded. This script is deferred too, so it is listening
+     before that event; the document's readyState cannot be used, since it
+     reads "interactive" while the deferred scripts are still running. A
+     copy of this script added to a page later would find the document
+     complete, or else hear the window's load event. */
+  var scriptsHaveRun = new Promise(function (resolve) {
+    if (document.readyState === 'complete') { resolve(); return; }
+    document.addEventListener('DOMContentLoaded', function () { resolve(); }, { once: true });
+    window.addEventListener('load', function () { resolve(); }, { once: true });
+  });
+  function scriptsRun() { return scriptsHaveRun; }
   function awaitArrangement() {
     return new Promise(function (resolve) {
-      var timer = setTimeout(done, SETTLE_LIMIT);
-      function done() { clearTimeout(timer); document.removeEventListener('pudl:windows-change', done); resolve(); }
+      var timer = 0, finished = false;
+      function done() { if (finished) return; finished = true; clearTimeout(timer); document.removeEventListener('pudl:windows-change', done); resolve(); }
       document.addEventListener('pudl:windows-change', done);
+      scriptsRun().then(function () { if (!finished) timer = setTimeout(done, SETTLE_LIMIT); });
     }).then(barQuiet);
   }
   /* Resolves when the layout the page starts with has been drawn. A page
@@ -170,7 +189,7 @@
   function restoreLayoutNow() {
     var saved = get('dinah-workbench-layout');
     // The other listeners of the event below set the bar up; the quiet is looked for after them.
-    layoutDrawn = frames(1).then(barQuiet);
+    layoutDrawn = scriptsRun().then(function () { return frames(1); }).then(barQuiet);
     if (!originalSearch && typeof saved === 'string') {
       try {
         var query = new URLSearchParams(saved), opened = (query.get('open') || '').split(',');
