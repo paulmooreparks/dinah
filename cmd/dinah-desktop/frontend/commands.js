@@ -297,7 +297,15 @@
     frontChatCommands = undefined;
     renderControls();
     document.dispatchEvent(new CustomEvent('dinah:commands-change',{detail:{refreshOpenMenus:!!options?.refreshOpenMenus}}));
+    var waiters = idlers; idlers = [];
+    waiters.forEach(function (resolve) { resolve(); });
   }
+  /* idle() returns a promise that resolves once no redraw is waiting: at
+     once when none is, and otherwise after the waiting redraw has been made
+     and its listeners have drawn. A check waits on it, never on a length of
+     time (docs/CONTRIBUTING.md, Writing browser checks). */
+  var idlers = [];
+  function idle() { return new Promise(function (resolve) { if (timer) idlers.push(resolve); else resolve(); }); }
   function changed() {
     frontChatCommands = undefined;
     renderControls();
@@ -528,6 +536,8 @@
   }
 
   window.dinahCommands = { installHost, describe, alias, register: register, run: run, rows: rows, searchable: searchable, changed: changed, flush: flush, drew: drew, audit: audit, controlsFor: controlsFor, shown: shown, menus: MENUS, addHelp: addHelp, addSearch: addSearch };
+
+  window.dinahCommands.idle = idle;
 
   register({ id: 'keyboard-shortcuts', menu: 'help', mnemonic: 'K', label: 'Keyboard Shortcuts', shortcut: 'F1', run: keyboardHelp });
 })();

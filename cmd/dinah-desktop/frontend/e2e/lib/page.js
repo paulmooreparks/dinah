@@ -45,6 +45,10 @@
 //   t.page, t.context, t.browser   Playwright's.
 //   t.emit(name, data)             fires an event in the page.
 //   t.calls(method?)               the recorded calls, or those of one method.
+//   t.settled()                    waits until the page has drawn everything
+//                                  that has already happened (see below).
+//   t.until(read, pass)            reads a value until pass(value) is true
+//                                  and returns the last value read.
 //   t.ok(name, pass, detail?)      prints PASS or FAIL and remembers failures.
 //   t.shot(name, options?)         a screenshot in the run's output folder,
 //                                  with Playwright's options (fullPage…).
@@ -264,6 +268,38 @@ async function launch(options = {}) {
     async waitReady(which = ready) {
       if (which === false) return;
       await page.waitForFunction(typeof which === 'function' ? which : READY[which] || READY['ui-state']);
+    },
+    /* A check waits for a stated condition, never for a length of time.
+       settled() is the condition "the page has drawn what has happened so
+       far": the command registry has made any redraw that was waiting
+       (commands.js, idle) and the render queue has nothing left that it can
+       draw (render-scheduler.js, idle). Both are promises the product keeps,
+       and settled() resolves when both hold at once. It says nothing about
+       work the product has not started yet, such as an answer still to come
+       from the host, so a check that expects a change waits for that change
+       with until() or Playwright's own waits, and settled() is for a check
+       that something did not change. */
+    settled(name = 'the page to settle') {
+      return t.deadline(name, page.evaluate(async () => {
+        const waiting = promise => Promise.race([promise.then(() => false), Promise.resolve().then(() => true)]);
+        for (;;) {
+          await window.dinahCommands.idle();
+          await window.dinahRender.idle();
+          if (!(await waiting(window.dinahCommands.idle()))) return;
+        }
+      }));
+    },
+    /* until(read, pass) calls read, which returns what a check will judge,
+       until pass(value) is true or the time is up, and returns the last
+       value either way, so the check that follows reports what was there.
+       Between reads it waits for the page's next frame. */
+    async until(read, pass, ms = 10000) {
+      const end = Date.now() + ms;
+      for (;;) {
+        const value = await read();
+        if (pass(value) || Date.now() >= end) return value;
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
+      }
     },
     /* page.evaluate and browser.close take no timeout, neither their own nor the
        page's default: a page promise that never settles, or a browser that never

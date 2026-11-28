@@ -90,3 +90,34 @@ test('one broken geometry callback does not prevent the others from running', ()
   scheduler.enqueue({}, root(), () => {}, () => { value++; });
   frame(); assert.equal(value, 1); assert.equal(errors.length, 2); assert.equal(frames.size, 0);
 });
+// idle() is the signal a check waits on (docs/CONTRIBUTING.md). Each case
+// records when the promise resolved against the frames that had run.
+(async () => {
+  const settled = async promise => { let done = false; promise.then(() => { done = true; }); for (let i = 0; i < 5; i++) await null; return done; };
+  assert.equal(await settled(scheduler.idle()), true);
+  console.log('PASS an empty queue is idle at once');
+  let draws = 0;
+  scheduler.enqueue({}, root(), () => { draws++; now += 6; return draws < 3; });
+  const busy = scheduler.idle();
+  assert.equal(await settled(busy), false);
+  frame(); assert.equal(await settled(busy), false);
+  frame(); assert.equal(await settled(busy), false);
+  frame(); assert.equal(draws, 3); assert.equal(await settled(busy), true);
+  console.log('PASS idle waits for unfinished work across frames and resolves after its last frame');
+  const hidden = root(), key = {}; hidden.shown = false;
+  scheduler.enqueue(key, hidden, () => {});
+  const parked = scheduler.idle();
+  assert.equal(await settled(parked), false);
+  frame(); assert.equal(await settled(parked), true);
+  hidden.shown = true; resize();
+  const woken = scheduler.idle();
+  assert.equal(await settled(woken), false);
+  frame(); assert.equal(await settled(woken), true);
+  console.log('PASS a view that cannot be seen does not hold idle, and waking it does');
+  const cancelled = {};
+  scheduler.enqueue(cancelled, root(), () => {});
+  const removed = scheduler.idle();
+  assert.equal(await settled(removed), false);
+  scheduler.cancel(cancelled); assert.equal(await settled(removed), true);
+  console.log('PASS cancelling the last job resolves idle');
+})().catch(error => { console.error(error); process.exitCode = 1; });
