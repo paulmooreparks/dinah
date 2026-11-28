@@ -1,0 +1,13 @@
+{
+ "comment": "Checks set aside under the merge guide's rule for a red build of master. run.ps1 reports a suite as ok when its only failures match an entry here. Remove an entry in the commit that repairs its check.",
+ "checks": [
+  {
+   "suite": "skins-startup",
+   "check": "^broken-bevel/(light|dark) first drawn frame uses the cached available skin and mode$",
+   "date": "2026-11-28",
+   "owner": "PUDL Team Lead",
+   "cause": "When the Bevel stylesheet fails to load, pudlSkins.available() can still list Bevel on the first frame, because PUDL takes a link whose sheet object exists as loaded before the link's error event has been handled. The page then reports Bevel while it draws Standard. The check is right and stays. It failed in hosted runs 42951183143, 44057109218 and 45736587906.",
+   "run": "45736587906"
+  }
+ ]
+}

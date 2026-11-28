@@ -23,7 +23,10 @@ const record = () => {
     // A frame may be taken while the start screen's own parts are still being read from the page,
     // on a slow machine, and a part that is not there yet has no words.
     const words = (root, selector) => { const el = root.querySelector(selector); return el ? el.textContent : ''; };
-    return { parts, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(words(screen, '.start-screen-words')) && words(screen, '.start-screen-name').trim() !== '' };
+    // What each part of the status area is, how wide, and its words. This is printed with a frame
+    // that moved, to say which part of the status area changed; it is not compared.
+    const chips = Array.from(document.querySelectorAll('.status-area > *')).filter(el => el.getBoundingClientRect().width > 0).map(el => (el.id || el.className) + ' ' + Math.round(el.getBoundingClientRect().width) + ' ' + JSON.stringify(el.textContent.trim().replace(/\s+/g, ' '))).join(', ');
+    return { parts, chips, seen: !!screen && !covering, hidden: covering, busy: !!document.body && document.body.hasAttribute('aria-busy'), starting: covering && /\S/.test(words(screen, '.start-screen-words')) && words(screen, '.start-screen-name').trim() !== '' };
   };
   let last = '';
   (function tick() {
@@ -64,7 +67,7 @@ const record = () => {
       ok('the start screen shows the name of the product and says what is happening meanwhile', before.some(frame => frame.starting));
       ok('an unfinished layout was recorded behind the start screen', before.some(frame => text(frame) !== text(last)), before.map(frame => Object.keys(frame.parts).join(' ')).join(' / '));
       ok('the saved layout is what is shown', !!last.parts['window chat-session'] && !last.parts['window needs-you'] && last.seen && !last.busy, text(last));
-      ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame)).join('\n'));
+      ok('nothing moved once the contents could be seen', seen.length > 0 && seen.every(frame => text(frame) === text(last)), seen.map(frame => frame.t + ' ' + text(frame) + ' status: ' + frame.chips).join(' // '));
       ok('the launcher pane never stood empty beside the windows', frames.every(frame => !frame.parts.slot), frames.filter(frame => frame.parts.slot).map(frame => frame.t + ' ' + frame.parts.slot).join(' '));
       ok('the start screen is gone, and a press reaches the page', await p.evaluate(() => getComputedStyle(document.getElementById('start-screen')).display === 'none' && !!document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('.dinah-workbench')));
       ok('the start screen had the logo, the name and a line of progress', await p.evaluate(() => { const s = document.getElementById('start-screen'); return !!s.querySelector('img.start-screen-logo') && s.querySelector('.start-screen-name').textContent === 'Dinah' && !!s.querySelector('progress') && s.querySelector('.start-screen-words').textContent === 'Opening your windows…'; }));
@@ -83,7 +86,59 @@ const record = () => {
       const seen = frames.filter(frame => frame.seen);
       ok('with no saved layout the default windows are shown', last.seen && !!last.parts['window workspace'], JSON.stringify(last.parts));
       ok('and Chats is the pane in front in its dock, with Notifications behind it', !!last.parts['window chat-browser'] && !last.parts['window needs-you'], JSON.stringify(last.parts));
-      ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts)).join('\n'));
+      ok('and they did not move once they could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
+    } finally { await t.close(); }
+  }
+  // The page's scripts are deferred, and the saved state can arrive before the last of them has run.
+  // Here PUDL's window script is held back until the state has been restored and twelve more frames
+  // have been drawn, as a loaded machine holds it. Until 28 November 2026 the start screen lifted in
+  // those frames, over a page with no windows, and the windows and the bar then moved in plain sight.
+  {
+    const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, init: record });
+    const { page: p, ok } = t;
+    try {
+      let release;
+      const held = new Promise(resolve => { release = resolve; });
+      await t.context.route('http://dinah.test/pudl/pudl-windows.js', async route => { await held; await route.fallback(); });
+      await p.goto('http://dinah.test/index.html', { waitUntil: 'commit' });
+      await p.waitForFunction(() => document.documentElement.dataset.uiStateReady === 'true');
+      await p.evaluate(() => new Promise(resolve => { let left = 12; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const early = await p.evaluate(() => window.__frames.filter(frame => frame.seen).length);
+      release();
+      await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none');
+      // Thirty more frames are recorded, in which a late change would show.
+      await p.evaluate(() => new Promise(resolve => { let left = 30; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const frames = await p.evaluate(() => window.__frames), last = frames[frames.length - 1];
+      const seen = frames.filter(frame => frame.seen);
+      ok('the start screen stays up while a script of the page has still to run', early === 0, String(early));
+      ok('and the page is first seen with its default windows', seen.length > 0 && !!seen[0].parts['window workspace'] && !!seen[0].parts['window chat-browser'], JSON.stringify(seen[0] && seen[0].parts));
+      ok('and nothing moved once it could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
+    } finally { await t.close(); }
+  }
+  // The text faces are web fonts that are swapped in when they arrive, and words are narrower in the
+  // face that stands in for them. Here the font files are held back until the page's scripts have run,
+  // its state has been restored and twelve more frames have been drawn. Until 28 November 2026 the
+  // start screen lifted in those frames, and the status items then grew in plain sight.
+  {
+    const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, init: () => { document.addEventListener('DOMContentLoaded', () => { window.__scriptsRun = true; }); } });
+    const { page: p, ok } = t;
+    try {
+      await t.context.addInitScript({ content: '(' + record.toString() + ')();' });
+      let release, asked = 0;
+      const held = new Promise(resolve => { release = resolve; });
+      await t.context.route('http://dinah.test/**/*.woff2', async route => { asked++; await held; await route.fallback(); });
+      await p.goto('http://dinah.test/index.html', { waitUntil: 'commit' });
+      await p.waitForFunction(() => window.__scriptsRun && document.documentElement.dataset.uiStateReady === 'true');
+      await p.evaluate(() => new Promise(resolve => { let left = 12; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const early = await p.evaluate(() => window.__frames.filter(frame => frame.seen).length);
+      release();
+      await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none');
+      // Thirty more frames are recorded, in which a late change would show.
+      await p.evaluate(() => new Promise(resolve => { let left = 30; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const frames = await p.evaluate(() => window.__frames), last = frames[frames.length - 1];
+      const seen = frames.filter(frame => frame.seen);
+      ok('the page asked for a font, and the start screen stays up while it has still to arrive', asked > 0 && early === 0, asked + ' ' + early);
+      ok('and nothing moved once the page could be seen in its own fonts', seen.length > 0 && seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
     } finally { await t.close(); }
   }
   // A page whose state cannot be read is still shown, with the reason.
