@@ -1,0 +1,116 @@
+# Runs chosen tests again and again for a set time on a hosted Windows runner,
+# to find out whether a failure that nobody could reproduce is real. It is
+# started by hand and publishes nothing:
+#
+#   gh workflow run stress.yml --ref <branch> -f kind=browser -f filter=skins,ui-state -f minutes=60
+#   gh workflow run stress.yml --ref <branch> -f kind=go -f filter=TestName -f package=./cmd/dinah-desktop
+#
+# Every round runs the filter once. A round that fails keeps its output in
+# the run's artifact, and the run fails if any round failed. The summary
+# gives the number of rounds and of failures, so a run with no failure says
+# how many times the test passed.
+name: Stress
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: What the filter selects, browser suites or Go tests
+        type: choice
+        options: [browser, go]
+        default: browser
+      filter:
+        description: Browser suites separated by commas (they run two at a time, as in the build), or a Go test name or regular expression
+        type: string
+        required: true
+      package:
+        description: The Go package to test, for kind go
+        type: string
+        default: ./cmd/dinah-desktop
+      minutes:
+        description: How long to keep starting rounds
+        type: number
+        default: 60
+  workflow_call:
+    inputs:
+      kind: { type: string, default: browser }
+      filter: { type: string, required: true }
+      package: { type: string, default: ./cmd/dinah-desktop }
+      minutes: { type: number, default: 60 }
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    name: Repeat ${{ inputs.filter }} for ${{ inputs.minutes }} minutes
+    runs-on: windows-latest
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    env:
+      STRESS_KIND: ${{ inputs.kind }}
+      STRESS_FILTER: ${{ inputs.filter }}
+      STRESS_PACKAGE: ${{ inputs.package }}
+      STRESS_MINUTES: ${{ inputs.minutes }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: dinah
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dinah/cmd/dinah-desktop/frontend/e2e/package-lock.json
+      - name: Install the browser test driver
+        if: inputs.kind == 'browser'
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Repeat the tests
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $minutes = [double]$env:STRESS_MINUTES
+          if ($minutes -le 0 -or $minutes -gt 180) { 'minutes must be more than 0 and at most 180'; exit 2 }
+          $out = Join-Path $env:RUNNER_TEMP 'stress-reports'
+          [IO.Directory]::CreateDirectory($out) | Out-Null
+          $root = (Get-Location).Path
+          $until = (Get-Date).AddMinutes($minutes)
+          $rounds = 0; $failed = 0
+          while ((Get-Date) -lt $until) {
+            $rounds++
+            $round = Join-Path $out ('round-{0:d4}' -f $rounds)
+            [IO.Directory]::CreateDirectory($round) | Out-Null
+            if ($env:STRESS_KIND -eq 'go') {
+              & go test -count=1 -run $env:STRESS_FILTER $env:STRESS_PACKAGE 2>&1 | Out-File -FilePath (Join-Path $round 'go-test.log') -Encoding utf8
+            } else {
+              & pwsh -NoProfile -File (Join-Path $root 'cmd/dinah-desktop/frontend/e2e/run.ps1') -Only $env:STRESS_FILTER -Out $round 2>&1 | Out-File -FilePath (Join-Path $round 'run.log') -Encoding utf8
+            }
+            if ($LASTEXITCODE -ne 0) {
+              $failed++
+              "Round $rounds failed"
+              Get-ChildItem $round -Filter *.log | Where-Object { $_.Name -in 'go-test.log', 'run.log' } | Get-Content | Select-Object -Last 60
+            } else {
+              Remove-Item -Recurse -Force $round
+            }
+          }
+          $line = "$rounds rounds of $env:STRESS_FILTER in $minutes minutes, $failed failed"
+          $line
+          $line >> $env:GITHUB_STEP_SUMMARY
+          if ($rounds -eq 0 -or $failed) { exit 1 }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: stress-reports
+          path: ${{ runner.temp }}/stress-reports/

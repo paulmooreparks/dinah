@@ -4,6 +4,15 @@
 #
 #   cd cmd/dinah-desktop/frontend/e2e; npm install; pwsh ./run.ps1
 #   pwsh ./run.ps1 -Only editor,files
+#   pwsh ./run.ps1 -Shard 3/8
+#
+# -Shard i/n runs the i-th of n shares of the suites, so that n runners can
+# divide one run between them. The shares are balanced by the seconds each
+# suite took in a recorded run (suite-times.json), and every suite belongs
+# to exactly one share. The suites start longest first, so a long suite never
+# starts last and holds the run alone. Each run writes the seconds its suites
+# took to suite-times.json in $Out; copy a full run's file over the recorded
+# one when the suites have changed enough to unbalance the shares.
 #
 # Each suite runs its own browser and shares nothing with the others, so
 # they run side by side, -Jobs at a time, a quarter of the processors by
@@ -14,6 +23,9 @@
 # with the time the run took.
 param(
   [string[]]$Only,
+  [string]$Shard,
+  # -List prints the suites the run would start, in order, and runs nothing.
+  [switch]$List,
   [string]$Out = (Join-Path ([IO.Path]::GetTempPath()) 'dinah-e2e'),
   [int]$Jobs = [Math]::Max(2, [Math]::Floor([Environment]::ProcessorCount / 4)),
   # A suite that runs this many seconds is killed with its whole process tree
@@ -35,6 +47,35 @@ if ($Only) {
   if ($unknown) { "No such suite: $($unknown -join ', ')"; exit 1 }
   $suites = $suites | Where-Object { $Only -contains $_ }
 }
+# A suite with no recorded time is given the median, so a new suite neither
+# empties a share nor overloads one.
+$recorded = @{}
+$timesFile = Join-Path $here 'suite-times.json'
+if (Test-Path $timesFile) {
+  (Get-Content $timesFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $recorded[$_.Name] = [double]$_.Value }
+}
+$known = @($recorded.Values | Sort-Object)
+$median = if ($known.Count) { $known[[Math]::Floor($known.Count / 2)] } else { 1 }
+$weight = { param($name) if ($recorded.ContainsKey($name)) { $recorded[$name] } else { $median } }
+# Longest first, and by name among equals, so the order is the same everywhere.
+$suites = @($suites | Sort-Object @{ Expression = { & $weight $_ }; Descending = $true }, @{ Expression = { $_ } })
+if ($Shard) {
+  if ($Shard -notmatch '^(\d+)/(\d+)$' -or [int]$Matches[1] -lt 1 -or [int]$Matches[1] -gt [int]$Matches[2]) { "-Shard takes i/n with 1 <= i <= n, not $Shard"; exit 1 }
+  $share = [int]$Matches[1]; $shares = [int]$Matches[2]
+  # Each suite, longest first, goes to the share with the least time so far.
+  $totals = [double[]]::new($shares)
+  $mine = [System.Collections.Generic.List[string]]::new()
+  foreach ($s in $suites) {
+    $least = 0
+    for ($i = 1; $i -lt $shares; $i++) { if ($totals[$i] -lt $totals[$least]) { $least = $i } }
+    $totals[$least] += & $weight $s
+    if ($least -eq $share - 1) { $mine.Add($s) }
+  }
+  $suites = @($mine)
+  "Share $share of $shares : $($suites.Count) suites, about $([Math]::Round($totals[$share - 1])) recorded seconds"
+}
+if (-not @($suites).Count) { 'No suites to run'; exit 1 }
+if ($List) { $suites; exit 0 }
 . (Join-Path $here 'lib/browser-lock.ps1')
 $browserLease = $null
 $browserTicket = $env:DINAH_BROWSER_TEST_TICKET
@@ -67,6 +108,7 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   # Node writes UTF-8; the console code page must not decode its output.
   $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
   $psi.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
+  $clock = [System.Diagnostics.Stopwatch]::StartNew()
   $proc = [System.Diagnostics.Process]::Start($psi)
   $stdOut = $proc.StandardOutput.ReadToEndAsync()
   $stdErr = $proc.StandardError.ReadToEndAsync()
@@ -79,7 +121,7 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   $result = ($stdOut.GetAwaiter().GetResult() + "`n" + $stdErr.GetAwaiter().GetResult())
   if ($timedOut) { $result = "FAIL the suite ran past the $using:SuiteTimeout-second limit and was killed; its last lines are below`n" + $result }
   $bad = @($result -split "`n" | Where-Object { $_ -match '^FAIL|Error:|Timeout.*exceeded|Timed out after|^    at .*\.js:' })
-  [pscustomobject]@{ Suite = $s; Failed = ($bad.Count -gt 0 -or $proc.ExitCode -ne 0); Lines = $bad; Output = $result }
+  [pscustomobject]@{ Suite = $s; Seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); Failed = ($bad.Count -gt 0 -or $proc.ExitCode -ne 0); Lines = $bad; Output = $result }
 }
 $failed = 0
 # failures.txt in $Out keeps what a failing suite printed, apart from its PASS lines,
@@ -97,6 +139,9 @@ foreach ($r in ($results | Sort-Object Suite)) {
   } else { "$($r.Suite) : ok" }
 }
 Set-Content -Path (Join-Path $Out 'failures.txt') -Value $record -Encoding utf8
+$took = [ordered]@{}
+foreach ($r in ($results | Sort-Object Suite)) { $took[$r.Suite] = $r.Seconds }
+Set-Content -Path (Join-Path $Out 'suite-times.json') -Value ($took | ConvertTo-Json) -Encoding utf8
 "{0} suites in {1:n0} s, {2} at a time" -f @($suites).Count, ((Get-Date) - $started).TotalSeconds, $Jobs
 if ($failed) { "$failed suite(s) failed"; exit 1 }
 

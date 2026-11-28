@@ -1,8 +1,8 @@
 # Builds Dinah for Windows, Linux and macOS on every push to master and
 # publishes the result as the "latest" prerelease, replacing the one before it,
 # so that the newest build can always be downloaded from the same place.
-# A manual run on another branch builds and tests it the same way and
-# publishes nothing.
+# A pull request, or a manual run on another branch, builds and tests it the
+# same way and publishes nothing.
 #
 # go.mod replaces dinah-extension-go with a sibling folder, so that repository
 # is checked out beside this one. Its main branch has to contain whatever this
@@ -21,15 +21,17 @@ name: Build
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Each branch has its own group, so a manual run on another branch never
-# cancels a run of master.
+# Every commit of master has a group of its own, so a push never cancels the
+# build of the commit before it and every commit of master gets a result. On
+# any other branch or pull request a newer run replaces the older one.
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.ref }}-${{ github.ref == 'refs/heads/master' && github.sha || 'newest' }}
   cancel-in-progress: true
 
 jobs:
@@ -218,8 +220,14 @@ jobs:
           "Native extraction and cleanup outcome: ${{ steps.native_extraction.outcome }}" >> $env:GITHUB_STEP_SUMMARY
           "Diagnostic staging outcome: ${{ steps.diagnostics_boundary.outcome }}" >> $env:GITHUB_STEP_SUMMARY
 
+  # The suites are divided between eight runners (run.ps1 -Shard), each of
+  # which runs its share two at a time. Building waits for every share.
   browser:
-    name: Run the full browser suite
+    name: Run the full browser suite, share ${{ matrix.share }} of 8
+    strategy:
+      fail-fast: false
+      matrix:
+        share: [1, 2, 3, 4, 5, 6, 7, 8]
     runs-on: windows-latest
     defaults:
       run:
@@ -247,13 +255,13 @@ jobs:
         run: |
           npm ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Run every browser suite
+      - name: Run this share of the browser suites
         working-directory: dinah/cmd/dinah-desktop/frontend/e2e
-        run: ./run.ps1 -Out ${{ runner.temp }}/browser-reports
+        run: ./run.ps1 -Shard ${{ matrix.share }}/8 -Out ${{ runner.temp }}/browser-reports
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: browser-reports
+          name: browser-reports-${{ matrix.share }}
           path: ${{ runner.temp }}/browser-reports/
 
   build:
@@ -340,6 +348,11 @@ jobs:
     # the "latest" download with a branch's build.
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    # Builds of two commits can finish close together now that neither
+    # cancels the other, so they publish one at a time.
+    concurrency:
+      group: publish-latest
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -353,6 +366,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # "latest" only moves forward. A build that finishes after a newer
+          # commit's build has published leaves the newer one in place.
+          published=$(gh release view latest --json targetCommitish --jq .targetCommitish 2>/dev/null || true)
+          if [ -n "$published" ]; then
+            relation=$(gh api "repos/${GH_REPO}/compare/${published}...${GITHUB_SHA}" --jq .status)
+            if [ "$relation" != "ahead" ] && [ "$relation" != "identical" ]; then
+              echo "latest is at ${published}, and this commit is ${relation} it. Nothing is published."
+              exit 0
+            fi
+          fi
           cd dist
           sha256sum * > SHA256SUMS
           cat > notes.md <<EOF
