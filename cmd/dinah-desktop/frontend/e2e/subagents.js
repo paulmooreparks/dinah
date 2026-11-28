@@ -12,7 +12,7 @@
 // the Go side.
 const { launch } = require('./lib/page');
 (async () => {
-  const t = await launch({
+  const fixture = {
     viewport: { width: 1400, height: 900 },
     state: { workspace: 'C:\\Work\\Parser Workspace', recent: ['C:\\Work\\Parser Workspace'], approvals: 'dinah', devin: 'devin.exe', catalog: [{ id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'opus', options: [{ value: 'opus', name: 'Opus' }] }], showThinking: true },
     app: () => {
@@ -45,15 +45,15 @@ const { launch } = require('./lib/page');
         b: { id: 'sub-b', parentId: 'sub-a', rootId: 'sa', thisRun: true, name: 'Verify', task: 'Run the parser tests', state: 'running', canCancel: true, started }
       };
     },
-  });
+  };
+  const t = await launch(fixture);
   const { page: p, ok } = t;
   require('./lib/windows')(p);
   await p.openNewChat();
   try {
-  await p.waitForTimeout(500);
   await p.fill('.win[data-chat-current] [data-view-id=prompt]', 'Find the parser.');
   await p.click('.win[data-chat-current] [data-view-id=send]');
-  await p.waitForTimeout(300);
+  await p.waitForFunction(() => window.__calls.some(c => c[0] === 'Send'));
   const win = '.win[data-chat-current]';
   const emit = (n, d) => p.evaluate(([n, d]) => window.__emit(n, d), [n, d]);
   const sub = async (key, change) => { const s = await p.evaluate(([k, c]) => Object.assign(window.__subs[k], c || {}), [key, change]); await emit('agent:subagent', { sessionId: 'sa', subagent: s }); };
@@ -64,7 +64,6 @@ const { launch } = require('./lib/page');
   const chatWidth = w => p.evaluate(([k, w]) => { const el = document.querySelector('.win[data-win="' + k + '"]'); el.style.left = Math.round((innerWidth - w) / 2) + 'px'; el.style.width = w + 'px'; }, [chatKey, w]);
   await p.evaluate(k => window.pudlWindows.snap(k, 'floating'), chatKey);
   await chatWidth(800);
-  await p.waitForTimeout(200);
 
   // The Subagents menu button in the composer's Turn group, and the same
   // menu as a row of the host's Chat menu.
@@ -88,12 +87,10 @@ const { launch } = require('./lib/page');
   // The agent hands work to a subagent, which hands some to another.
   await sub('a');
   await emit('agent:update', { sessionId: 'sa', update: { sessionUpdate: 'subagent_spawned', subagentSessionId: 'sub-a', name: 'Explore', task: 'Find where the parser lives', capabilities: {} } });
-  await p.waitForTimeout(200);
-  ctl = await control();
+  ctl = await t.until(control, c => c && c.shown && c.text === 'Subagents1' && c.name === 'Subagents, 1');
   ok('the Subagents button appears in the Turn group with the count', ctl && ctl.shown && ctl.group === 'Turn' && ctl.text === 'Subagents1' && ctl.name === 'Subagents, 1', JSON.stringify(ctl));
   await sub('b');
-  await p.waitForTimeout(300);
-  ctl = await control();
+  ctl = await t.until(control, c => c && c.text === 'Subagents2' && c.name === 'Subagents, 2');
   ok('its count follows the subagents as they start, and its name says it', ctl && ctl.text === 'Subagents2' && ctl.name === 'Subagents, 2', JSON.stringify(ctl));
   let panel = await openMenu();
   let menu = await menuOf(panel);
@@ -136,8 +133,7 @@ const { launch } = require('./lib/page');
   // docs/design/background-activity.md).
   const engineState = exec => p.evaluate(exec => { window.__stateVer = (window.__stateVer || 0) + 1; window.__emit('agent:chatstate', { chats: [{ sessionId: 'sa', bus: '', life: 'open', window: true, exec }], groups: [], stateGen: 'subagents', stateVer: window.__stateVer }); }, exec);
   await engineState({ state: 'working', why: 'Turn in progress', subagents: 2 });
-  await p.waitForTimeout(200);
-  let c = await chips();
+  let c = await t.until(chips, c => c.working && c.line.includes('2 subagents'));
   ok('the chat head shows Working while they run, with no count chip of its own', !c.subagents && c.working, JSON.stringify(c));
   ok('the state line counts the running subagents', c.line.includes('Background work continues: 2 subagents.'), c.line);
   ok('the nested subagent has no row in the chat itself', rows.every(r => r.id !== 'sub-b'));
@@ -145,28 +141,22 @@ const { launch } = require('./lib/page');
   // The tree, from Show All Subagents in the Subagents menu.
   panel = await openMenu();
   await p.locator(panel + ' .menu-action').filter({ hasText: 'Show All Subagents' }).click();
-  await p.waitForTimeout(400);
   const tree = () => p.evaluate(() => {
     const t = document.querySelector('.win[data-win-kind=subagents] .subagent-tree');
     if (!t) return null;
     const walk = ul => Array.from(ul.children).map(li => ({ id: li.dataset.subagent, state: li.querySelector('.subagent-state').textContent, title: li.querySelector('.subagent-state').title, name: li.querySelector('.subagent-name').textContent, task: li.querySelector('.subagent-task').textContent, ran: li.querySelector('.subagent-ran').textContent, stop: !!li.querySelector(':scope > .subagent-line .subagent-stop'), open: !!li.querySelector(':scope > .subagent-line .subagent-open'), kids: li.querySelector(':scope > ul') ? walk(li.querySelector(':scope > ul')) : [] }));
     return walk(t);
   });
-  let tr = await tree();
+  let tr = await t.until(tree, tr => tr && tr.length === 1 && tr[0].kids.length === 1);
   ok('Show All Subagents opens the tree with the nested subagent under its parent', tr && tr.length === 1 && tr[0].id === 'sub-a' && tr[0].kids.length === 1 && tr[0].kids[0].id === 'sub-b' && tr[0].kids[0].name === 'Verify', JSON.stringify(tr));
   ok('each node has its state, task, how long it has run and Open', tr && tr[0].state === 'Running' && tr[0].task === 'Find where the parser lives' && /^1 min [0-9]+ s$/.test(tr[0].ran) && tr[0].open && tr[0].kids[0].open, JSON.stringify(tr && tr[0]));
   ok('Stop is offered only where the agent allows it', tr && !tr[0].stop && tr[0].kids[0].stop);
-  const before = tr && tr[0].ran;
-  await p.waitForTimeout(1300);
-  tr = await tree();
-  ok('a running subagent\'s time ticks', tr && tr[0].ran !== before, before + ' -> ' + (tr && tr[0].ran));
   await p.click('.win[data-win-kind=subagents] li[data-subagent=sub-b] .subagent-stop');
-  await p.waitForTimeout(200);
+  await p.waitForFunction(() => window.__calls.some(x => x[0] === 'CancelSubagent'));
   ok('Stop cancels that subagent', await p.evaluate(() => JSON.stringify(window.__calls.find(x => x[0] === 'CancelSubagent')) === JSON.stringify(['CancelSubagent', 'sub-b'])));
 
   // One subagent's work, opened from the chat's row.
   await p.click(win + ' .subagent-row .subagent-open');
-  await p.waitForTimeout(500);
   const one = '.win[data-win-kind=subagent]';
   const child = () => p.evaluate(one => {
     const w = document.querySelector(one);
@@ -178,7 +168,7 @@ const { launch } = require('./lib/page');
       nested: Array.from(w.querySelectorAll('.subagent-row')).map(r => r.textContent), note: w.querySelector('[data-sa-note]').hidden ? '' : w.querySelector('[data-sa-note]').textContent,
       inputs: w.querySelectorAll('textarea, input, [contenteditable=true], [data-view-id=prompt]').length };
   }, one);
-  let k = await child();
+  let k = await t.until(child, k => k && k.name === 'Explore' && k.thoughts[0] === 'I will search for it.' && k.tools[0] === 'Search for "func Parse" | running' && k.messages.length === 1 && k.messages[0].includes('The parser'));
   ok('Open shows the subagent\'s window with its name, task and state', k && k.name === 'Explore' && k.task === 'Find where the parser lives' && k.state === 'Running' && k.title.includes('Explore'), JSON.stringify(k));
   ok('the prompt is there, folded', k && k.prompt === 'Find the parser and report the file it is in.' && !k.promptOpen, JSON.stringify(k && k.prompt));
   ok('the kept work is drawn: thought, tool call and the message so far', k && k.thoughts[0] === 'I will search for it.' && k.tools[0] === 'Search for "func Parse" | running' && k.messages.length === 1 && k.messages[0].includes('The parser'), JSON.stringify(k));
@@ -190,8 +180,7 @@ const { launch } = require('./lib/page');
   await live(4, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'is in **parse.go**.' } });
   await live(5, { sessionUpdate: 'tool_call_update', toolCallId: 't1', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'parse.go:12: func Parse(' } }] });
   await live(6, { sessionUpdate: 'subagent_spawned', subagentSessionId: 'sub-b', name: 'Verify', task: 'Run the parser tests', capabilities: { cancel: true } });
-  await p.waitForTimeout(400);
-  k = await child();
+  k = await t.until(child, k => k && k.messages.length === 1 && k.messages[0].includes('<strong>parse.go</strong>') && k.tools[0] === 'Search for "func Parse" | done' && k.nested.length === 1);
   ok('messages arrive live, drawn as Markdown, without repeating what was kept', k && k.messages.length === 1 && k.messages[0].includes('The parser is in <strong>parse.go</strong>.') && !k.messages[0].includes('The parser The parser'), JSON.stringify(k && k.messages));
   ok('tool calls change live', k && k.tools.length === 1 && k.tools[0] === 'Search for "func Parse" | done', JSON.stringify(k && k.tools));
   ok('a subagent of the subagent shows as a row in its window', k && k.nested.length === 1 && k.nested[0].includes('Verify') && k.nested[0].includes('Running'), JSON.stringify(k && k.nested));
@@ -201,32 +190,33 @@ const { launch } = require('./lib/page');
   // The window follows its output while it is at the end, and stays where
   // the person scrolled to otherwise.
   const tailEnd = () => p.evaluate(one => { const b = document.querySelector(one + ' [data-sa-body]'); return b.scrollTop + b.clientHeight >= b.scrollHeight - 24; }, one);
+  const drawn = n => p.waitForFunction(([one, title]) => Array.from(document.querySelectorAll(one + ' .tool-row .tool-title')).some(el => el.textContent === title), [one, 'Read file ' + n]);
   for (let i = 0; i < 40; i++) await live(100 + i, { sessionUpdate: 'tool_call', toolCallId: 'tail' + i, title: 'Read file ' + i, status: 'completed' });
-  await p.waitForTimeout(400);
-  ok('a subagent window at its end follows new output', await tailEnd());
+  await drawn(39);
+  ok('a subagent window at its end follows new output', await t.until(tailEnd, end => end));
   await p.evaluate(one => { const b = document.querySelector(one + ' [data-sa-body]'); b.scrollTop = 0; b.dispatchEvent(new Event('scroll')); }, one);
   for (let i = 40; i < 50; i++) await live(100 + i, { sessionUpdate: 'tool_call', toolCallId: 'tail' + i, title: 'Read file ' + i, status: 'completed' });
-  await p.waitForTimeout(400);
+  await drawn(49);
+  await t.settled();
   ok('a subagent window scrolled back stays where it is', await p.evaluate(one => document.querySelector(one + ' [data-sa-body]').scrollTop === 0, one));
   await p.evaluate(one => { const b = document.querySelector(one + ' [data-sa-body]'); b.scrollTop = b.scrollHeight; b.dispatchEvent(new Event('scroll')); }, one);
   for (let i = 50; i < 60; i++) await live(100 + i, { sessionUpdate: 'tool_call', toolCallId: 'tail' + i, title: 'Read file ' + i, status: 'completed' });
-  await p.waitForTimeout(400);
-  ok('scrolling back to the end follows again', await tailEnd());
+  await drawn(59);
+  ok('scrolling back to the end follows again', await t.until(tailEnd, end => end));
 
   // The ends: one completes, and the turn ends before the agent reports the other.
   await sub('b', { state: 'completed', ended: new Date().toISOString() });
   await sub('a', { state: 'disconnected', local: true, ended: new Date().toISOString() });
   await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, background: [], subagents: await p.evaluate(() => [window.__subs.a, window.__subs.b]) });
   await engineState({ state: 'idle', why: 'No work in progress' });
-  await p.waitForTimeout(400);
-  tr = await tree();
+  tr = await t.until(tree, tr => tr && tr[0].state === 'Disconnected' && tr[0].kids[0].state === 'Completed');
   ok('the tree shows each end as a glyph and a word', tr && tr[0].kids[0].state === 'Completed' && tr[0].state === 'Disconnected', JSON.stringify(tr));
   ok('disconnected says the outcome is unknown and is neither failed nor cancelled', tr && /unknown/.test(tr[0].title) && !/fail|cancel/i.test(tr[0].state), tr && tr[0].title);
   ok('ended subagents offer no Stop', tr && !tr[0].stop && !tr[0].kids[0].stop);
   ok('the disconnected state has a glyph of its own', await p.evaluate(() => { const b = document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-a] .subagent-state'); return b.classList.contains('subagent-unknown') && !b.classList.contains('danger') && getComputedStyle(b, '::before').content !== 'none'; }));
-  rows = await inline();
+  rows = await t.until(inline, rows => rows.length > 0 && rows[0].state === 'Disconnected');
   ok('the chat\'s row follows the subagent to its end', rows[0].state === 'Disconnected', JSON.stringify(rows));
-  c = await chips();
+  c = await t.until(chips, c => !c.subagents && !c.line.includes('subagent'));
   ok('the chip goes when no subagent runs', !c.subagents && !c.line.includes('subagent'), JSON.stringify(c));
   ctl = await control();
   ok('the Subagents button stays while the ended subagents are listed', ctl && ctl.shown && ctl.text === 'Subagents2', JSON.stringify(ctl));
@@ -235,29 +225,24 @@ const { launch } = require('./lib/page');
   await p.keyboard.press('Escape');
   ok('its menu shows each end as a glyph and a word', menu[0].detail.startsWith('Disconnected') && menu[0].glyph === 'var(--glyph-ring)' &&
     menu[1].detail.startsWith('Completed') && menu[1].glyph === 'var(--glyph-circle)' && menu[1].tone === 'positive', JSON.stringify(menu));
-  k = await child();
+  k = await t.until(child, k => k && k.state === 'Disconnected' && /unknown/.test(k.note));
   ok('the subagent\'s window says its outcome is unknown', k && k.state === 'Disconnected' && /unknown/.test(k.note), JSON.stringify(k && k.note));
-  const ran = await p.evaluate(() => document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-a] .subagent-ran').textContent);
-  await p.waitForTimeout(1200);
-  ok('an ended subagent\'s time stops', ran === await p.evaluate(() => document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-a] .subagent-ran').textContent), ran);
   await p.evaluate(() => window.pudlWindows.raise(document.querySelector('.win[data-win-kind=subagents]').dataset.win));
-  await p.waitForTimeout(200);
+  await t.settled();
   await t.shot('subagents-tree');
 
   // A subagent's question goes to its chat, saying which subagent asks.
   await emit('agent:permission', { sessionId: 'sa', key: 'q1', toolCall: { toolCallId: 'x1', title: 'Run go test ./parser' }, options: [{ optionId: 'allow', name: 'Allow', kind: 'allow_once' }], subagent: { id: 'sub-b', name: 'Verify' } });
-  await p.waitForTimeout(300);
-  const card = await p.evaluate(w => { const el = document.querySelector(w + ' [data-view-id=chat-approvals]'); return el ? el.textContent : ''; }, win);
+  const card = await t.until(() => p.evaluate(w => { const el = document.querySelector(w + ' [data-view-id=chat-approvals]'); return el ? el.textContent : ''; }, win), card => card.includes('The subagent "Verify" wants to: Run go test ./parser'));
   ok('a subagent\'s question is in its chat and says which subagent asks', card.includes('The subagent "Verify" wants to: Run go test ./parser'), card);
 
   // Another subagent starts, and fails.
   await p.evaluate(() => { window.__subs.c = { id: 'sub-c', parentId: 'sa', rootId: 'sa', thisRun: true, name: 'Lint', task: 'Lint the parser', state: 'running', canCancel: false, started: new Date().toISOString() }; });
   await sub('c');
-  await p.waitForTimeout(200);
-  ctl = await control();
+  ctl = await t.until(control, c => c && c.text === 'Subagents3');
   ok('a new subagent raises the count', ctl && ctl.text === 'Subagents3', JSON.stringify(ctl));
   await sub('c', { state: 'failed', ended: new Date().toISOString() });
-  await p.waitForTimeout(200);
+  await p.waitForFunction(() => { const s = document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-c] .subagent-state'); return !!s && s.textContent === 'Failed'; });
   panel = await openMenu();
   menu = await menuOf(panel);
   await p.keyboard.press('Escape');
@@ -284,16 +269,17 @@ const { launch } = require('./lib/page');
   // the call that started it draws no row; and a running subagent is listed
   // first in the menu (28 October 2026).
   await chatWidth(800);
-  await p.waitForTimeout(300);
+  await p.waitForFunction(t => (Number(document.querySelector(t).getAttribute('data-toolbar-stage')) || 1) < 3, turn);
   const longTask = 'Read the whole of the chat window and the subagent windows, and report every place where a subagent task is drawn, with the line numbers of each. '.repeat(4).trim();
   await p.evaluate(t => { window.__subs.d = { id: 'sub-d', parentId: 'sa', rootId: 'sa', thisRun: true, name: 'Survey', task: t, state: 'running', canCancel: false, started: new Date().toISOString() }; }, longTask);
   await sub('d');
   const rowsBefore = await p.evaluate(w => document.querySelectorAll(w + ' .chat-instance .activity-row').length, win);
   await emit('agent:update', { sessionId: 'sa', update: { sessionUpdate: 'subagent_spawned', subagentSessionId: 'sub-d', name: 'Survey', task: longTask, capabilities: {} } });
   await emit('agent:update', { sessionId: 'sa', update: { sessionUpdate: 'tool_call_update', toolCallId: 'agent-call-d' } });
-  await p.waitForTimeout(300);
   const lines = el => { const cs = getComputedStyle(el); return Math.round(el.getBoundingClientRect().height / parseFloat(cs.lineHeight)); };
-  const rowTask = await p.evaluate(([w, lines]) => { const f = new Function('return ' + lines)(); const t = document.querySelector(w + ' .subagent-row[data-subagent="sub-d"] .subagent-row-task'); return t && { lines: f(t), text: t.textContent, title: t.title }; }, [win, lines.toString()]);
+  const readRowTask = () => p.evaluate(([w, lines]) => { const f = new Function('return ' + lines)(); const t = document.querySelector(w + ' .subagent-row[data-subagent="sub-d"] .subagent-row-task'); return t && { lines: f(t), text: t.textContent, title: t.title }; }, [win, lines.toString()]);
+  const rowTask = await t.until(readRowTask, task => task && task.lines === 2 && task.text === longTask && task.title === longTask);
+  await t.settled();
   ok('a long task in the chat\'s row is drawn on two lines with its whole text kept and as its tooltip', rowTask && rowTask.lines === 2 && rowTask.text === longTask && rowTask.title === longTask, JSON.stringify(rowTask));
   const added = await p.evaluate(w => Array.from(document.querySelectorAll(w + ' .chat-instance .activity-row')).map(r => r.className), win);
   ok('the empty update for the call that started the subagent draws no "waiting" row', added.length === rowsBefore + 1 && !added.slice(rowsBefore).some(c => /tool-row/.test(c)) && !(await p.evaluate(w => Array.from(document.querySelectorAll(w + ' .tool-row .badge')).some(b => b.textContent === 'waiting'), win)), JSON.stringify(added.slice(rowsBefore)));
@@ -304,15 +290,12 @@ const { launch } = require('./lib/page');
   ok('the Subagents menu lists the running subagent first', menu[0].label === 'Survey' && menu[1].label === 'Explore', JSON.stringify(menu.map(m => m.label || m)));
   ok('the menu draws the task on two lines, its whole text the tooltip', detail && detail.lines === 2 && detail.whole && detail.title.endsWith(longTask), JSON.stringify(detail));
   await p.evaluate(() => window.pudlWindows.raise(document.querySelector('.win[data-win-kind=subagents]').dataset.win));
-  await p.waitForTimeout(300);
-  const treeTask = await p.evaluate(lines => { const f = new Function('return ' + lines)(); const t = document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-d] .subagent-task'); return t && { lines: f(t), text: t.textContent, title: t.title }; }, lines.toString());
+  const treeTask = await t.until(() => p.evaluate(lines => { const f = new Function('return ' + lines)(); const t = document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-d] .subagent-task'); return t && { lines: f(t), text: t.textContent, title: t.title }; }, lines.toString()), task => task && task.lines === 2);
   ok('the tree draws it on two lines with its whole text kept and as its tooltip', treeTask && treeTask.lines === 2 && treeTask.text === longTask && treeTask.title === longTask, JSON.stringify(treeTask));
   await p.evaluate(k => window.pudlWindows.raise(k), chatKey);
-  await p.waitForTimeout(200);
   await p.click(win + ' .subagent-row[data-subagent="sub-d"] .subagent-open');
   await p.waitForFunction(() => Array.from(document.querySelectorAll('.win[data-win-kind=subagent] [data-sa-name]')).some(n => n.textContent === 'Survey'));
-  await p.waitForTimeout(200);
-  const headTask = await p.evaluate(lines => { const f = new Function('return ' + lines)(); const w = Array.from(document.querySelectorAll('.win[data-win-kind=subagent]')).find(x => x.querySelector('[data-sa-name]').textContent === 'Survey'); const t = w.querySelector('[data-sa-task]'); return { lines: f(t), text: t.textContent, title: t.title }; }, lines.toString());
+  const headTask = await t.until(() => p.evaluate(lines => { const f = new Function('return ' + lines)(); const w = Array.from(document.querySelectorAll('.win[data-win-kind=subagent]')).find(x => x.querySelector('[data-sa-name]').textContent === 'Survey'); const t = w.querySelector('[data-sa-task]'); return { lines: f(t), text: t.textContent, title: t.title }; }, lines.toString()), task => task.lines === 2 && task.text === longTask);
   ok('the subagent window\'s head draws it on two lines with its whole text kept and as its tooltip', headTask.lines === 2 && headTask.text === longTask && headTask.title === longTask, JSON.stringify(headTask));
   await t.shot('subagents-long-task');
 
@@ -321,7 +304,7 @@ const { launch } = require('./lib/page');
   const raiseKind = kind => p.evaluate(kind => window.pudlWindows.raise(document.querySelector('.win[data-win-kind=' + kind + ']').dataset.win), kind);
   const chatsPart = () => p.evaluate(() => Array.from(document.querySelectorAll('#sessions [data-earlier-subagents]')).map(a => ({ id: a.dataset.earlierSubagents, text: a.textContent, nested: a.closest('.browser-row').classList.contains('browser-row-part') })));
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
-  await p.waitForTimeout(300);
+  await p.locator('#sessions [data-session="sa"]').waitFor({ state: 'attached' });
   panel = await openMenu();
   menu = await menuOf(panel);
   await p.keyboard.press('Escape');
@@ -337,12 +320,12 @@ const { launch } = require('./lib/page');
   await earlierSub({ id: 'old-1', parentId: 'sa', name: 'Archaeology', task: 'Dig through the old parser', state: 'completed' });
   await emit('agent:update', { sessionId: 'sa', update: { sessionUpdate: 'subagent_spawned', subagentSessionId: 'old-1', name: 'Archaeology', task: 'Dig through the old parser', capabilities: {} } });
   await earlierSub({ id: 'old-2', parentId: 'old-1', name: 'Survey Old', task: 'List what the old parser did', state: 'failed' });
-  await p.waitForTimeout(400);
+  await t.until(inline, rows => rows.some(r => r.id === 'old-1' && r.state === 'Completed'));
+  await p.waitForFunction(() => !document.querySelector('.win[data-win-kind=subagents] [data-sa-foot]').hidden);
   ctl = await control();
   ok('earlier subagents do not change the count', ctl && ctl.text === 'Subagents4', JSON.stringify(ctl));
   await engineState({ state: 'background', why: '1 subagent', subagents: 1 });
-  await p.waitForTimeout(200);
-  c = await chips();
+  c = await t.until(chips, c => c.line.includes('1 subagent'));
   ok('nor the state line, which counts the one running', !c.subagents && c.line.startsWith('Background work') && c.line.includes('1 subagent'), JSON.stringify(c));
   panel = await openMenu();
   menu = await menuOf(panel);
@@ -358,8 +341,7 @@ const { launch } = require('./lib/page');
   await p.keyboard.press('Escape');
   ok('so does the Subagents flyout of the Chat menu', !subRows2.some(r => /Archaeology|Survey Old/.test(r)) && subRows2[subRows2.length - 1] === 'Earlier Subagents…' && subRows2.length === 6, JSON.stringify(subRows2));
   await raiseKind('subagents');
-  await p.waitForTimeout(200);
-  tr = await tree();
+  tr = await t.until(tree, tr => !!tr);
   const flat = n => n.reduce((all, x) => all.concat([x.id], flat(x.kids)), []);
   foot = await p.evaluate(() => document.querySelector('.win[data-win-kind=subagents] [data-sa-foot]').hidden);
   ok('the tree shows only this run\'s subagents, with Earlier Subagents… at its foot', tr && !flat(tr).some(id => /^old-/.test(id)) && flat(tr).length === 4 && !foot, JSON.stringify(tr && flat(tr)));
@@ -409,8 +391,7 @@ const { launch } = require('./lib/page');
   // The archive from the chat's entry in the Chats pane, where old chats
   // are found.
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
-  await p.waitForTimeout(300);
-  parts = await chatsPart();
+  parts = await t.until(chatsPart, parts => parts.length === 1 && /2 from earlier runs/.test(parts[0].text));
   ok('the chat\'s entry in the Chats pane has a Subagents part for its earlier subagents', parts.length === 1 && parts[0].id === 'sa' && /Subagents/.test(parts[0].text) && /2 from earlier runs/.test(parts[0].text) && parts[0].nested, JSON.stringify(parts));
   ok('the part sits right under the chat\'s own entry and is not counted as a chat', await p.evaluate(() => { const part = document.querySelector('#sessions [data-earlier-subagents="sa"]').closest('.browser-row'); const prev = part.previousElementSibling; const group = part.closest('.browser-group'); return !!prev && prev.dataset.sessionRow === 'sa' && group.querySelector('.browser-group-count').textContent === String(group.querySelectorAll('[data-session-row]').length); }));
   await p.click('#sessions [data-earlier-subagents="sa"]');
@@ -418,4 +399,42 @@ const { launch } = require('./lib/page');
   arc = await archive();
   ok('pressing it opens the archive, at the same address', arc && arc.key === archiveKey && arc.rows.map(r => r.id).join() === 'old-2,old-1', JSON.stringify(arc && { key: arc.key, rows: arc.rows.map(r => r.id) }));
   } finally { await t.close(); }
+
+  // Time. The tree counts a running subagent's time once a second, so this
+  // page runs on Playwright's clock (page.clock), installed before the page
+  // loads so that everything in it tells one time, and moved forward by hand.
+  const timed = await launch(Object.assign({}, fixture, { goto: false }));
+  try {
+    const p = timed.page, win = '.win[data-chat-current]';
+    require('./lib/windows')(p);
+    await p.clock.install();
+    await p.goto('http://dinah.test/index.html');
+    await timed.waitReady();
+    await p.openNewChat();
+    await p.fill(win + ' [data-view-id=prompt]', 'Find the parser.');
+    await p.click(win + ' [data-view-id=send]');
+    await p.waitForFunction(() => window.__calls.some(c => c[0] === 'Send'));
+    const sub = change => p.evaluate(c => window.__emit('agent:subagent', { sessionId: 'sa', subagent: Object.assign(window.__subs.a, c || {}) }), change);
+    await p.evaluate(() => window.__emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: true, chatState: { life: 'open', window: true, exec: { state: 'working', why: 'Turn in progress' } }, background: [], subagents: [] }));
+    await sub();
+    await p.evaluate(() => window.__emit('agent:update', { sessionId: 'sa', update: { sessionUpdate: 'subagent_spawned', subagentSessionId: 'sub-a', name: 'Explore', task: 'Find where the parser lives', capabilities: {} } }));
+    const button = win + ' .composer-toolbar [data-command=subagents]';
+    // A window wide enough for the toolbar to show the button, as above.
+    await p.evaluate(w => { const el = document.querySelector(w); window.pudlWindows.snap(el.dataset.win, 'floating'); el.style.left = Math.round((innerWidth - 800) / 2) + 'px'; el.style.width = '800px'; }, win);
+    await p.locator(button).waitFor();
+    await p.click(button);
+    const panel = '#' + await p.getAttribute(button, 'popovertarget');
+    await p.waitForSelector(panel + ':popover-open');
+    await p.locator(panel + ' .menu-action').filter({ hasText: 'Show All Subagents' }).click();
+    const ran = () => p.evaluate(() => { const el = document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-a] .subagent-ran'); return el ? el.textContent : null; });
+    const before = await timed.until(ran, text => !!text);
+    await p.clock.fastForward(2000);
+    const after = await ran();
+    timed.ok('a running subagent\'s time ticks', !!before && after !== before, before + ' -> ' + after);
+    await sub({ state: 'completed', ended: await p.evaluate(() => new Date().toISOString()) });
+    await p.waitForFunction(() => document.querySelector('.win[data-win-kind=subagents] li[data-subagent=sub-a] .subagent-state').textContent === 'Completed');
+    const ended = await ran();
+    await p.clock.fastForward(2000);
+    timed.ok('an ended subagent\'s time stops', ended === await ran(), ended);
+  } finally { await timed.close(); }
 })();
