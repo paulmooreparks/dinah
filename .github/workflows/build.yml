@@ -264,9 +264,68 @@ jobs:
           name: browser-reports-${{ matrix.share }}
           path: ${{ runner.temp }}/browser-reports/
 
+  # The browser suites drive the page against a stub. This job builds the
+  # real window program once and runs the checks in e2e/hidden-checks.json
+  # against it, each hidden and on a fresh isolated home. The first of them
+  # is a cold start with no input.
+  cold-start:
+    name: Start the real program cold and run the hidden checks
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: dinah
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dinah/cmd/dinah-desktop/frontend/e2e/package-lock.json
+      - name: Install the browser test driver
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the window program, the command line and the stand-in agent
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          $bin = Join-Path $env:RUNNER_TEMP 'hidden-bin'
+          [IO.Directory]::CreateDirectory($bin) | Out-Null
+          go build -trimpath -tags desktop,production -ldflags "-H windowsgui" -o (Join-Path $bin 'dinah-desktop.exe') ./cmd/dinah-desktop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -trimpath -o (Join-Path $bin 'dinah.exe') ./cmd/dinah
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -trimpath -ldflags "-H windowsgui" -o (Join-Path $bin 'decisions-agent.exe') ./cmd/dinah-desktop/testdata/decisions-agent
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run the hidden checks
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: ./run-hidden.ps1 -Bin ${{ runner.temp }}/hidden-bin -Out ${{ runner.temp }}/hidden-reports
+      # The output folders also hold a copy of each program, which is not kept.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: hidden-reports
+          path: |
+            ${{ runner.temp }}/hidden-reports/*.log
+            ${{ runner.temp }}/hidden-reports/*/receipt.json
+            ${{ runner.temp }}/hidden-reports/*/desktop.log
+            ${{ runner.temp }}/hidden-reports/*/failure-page.txt
+
   build:
     name: Build ${{ matrix.name }}
-    needs: [vulnerabilities, guards, guards-linux, go-tests, browser]
+    needs: [vulnerabilities, guards, guards-linux, go-tests, browser, cold-start]
     strategy:
       fail-fast: false
       matrix:

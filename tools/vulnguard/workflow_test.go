@@ -267,7 +267,8 @@ func (n needs) has(job string) bool {
 // This check couples the scan coverage to the actual publication matrix, so
 // adding an artifact cannot silently leave its platform outside the gate.
 // Building, and so publication, must also wait for the review's guards on
-// Windows and Linux and the full Go and browser suites
+// Windows and Linux, the full Go and browser suites and the cold start of
+// the real program
 // (docs/design/invariants.md).
 func TestEveryPublishedPlatformHasABlockingSourceScan(t *testing.T) {
 	var workflow struct {
@@ -294,7 +295,7 @@ func TestEveryPublishedPlatformHasABlockingSourceScan(t *testing.T) {
 		t.Fatal(err)
 	}
 	build, scans := workflow.Jobs["build"], workflow.Jobs["vulnerabilities"]
-	for _, gate := range []string{"vulnerabilities", "guards", "guards-linux", "go-tests", "browser"} {
+	for _, gate := range []string{"vulnerabilities", "guards", "guards-linux", "go-tests", "browser", "cold-start"} {
 		if _, ok := workflow.Jobs[gate]; !ok || !build.Needs.has(gate) {
 			t.Fatalf("building does not depend on the %s job", gate)
 		}

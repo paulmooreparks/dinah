@@ -1,0 +1,21 @@
+{
+  "comment": "The real-program checks that run-hidden.ps1 runs as a gate. Each takes the window program, the stand-in agent and a fresh output folder, and uses only the isolated home of lib/hidden-desktop.cjs. leftOut gives every other *-hidden.cjs file with the reason it is not in the gate, so a new check is either run or accounted for.",
+  "gate": [
+    "cold-start-hidden",
+    "decisions-hidden",
+    "decisions-dismiss-hidden"
+  ],
+  "leftOut": {
+    "answer-origin-hidden": "Starts the program with the caller's whole environment, so it is not isolated from the profile of whoever runs it.",
+    "attention-hidden": "Needs the full playwright package, which the suites do not install, and the caller's whole environment.",
+    "broadcast-all-hidden": "Needs the full playwright package, which the suites do not install, and the caller's whole environment.",
+    "first-restart-hidden": "Needs two older builds, a bus fixture built from old source, and a Playwright found at a fixed path in another repository.",
+    "going-back-hidden": "Needs an old build and the invented state that scripts/going-back-trial.ps1 prepares.",
+    "org-chart-hidden": "Needs a seed home and a refusing provider program that its own harness builds.",
+    "profile-version-hidden": "Needs two builds with different versions and an asset manifest from scripts/profile-version-trial.ps1.",
+    "release-dinah-hidden": "Needs a folder of release binaries and a Playwright found at a fixed path in another repository.",
+    "restart-copy-hidden": "Runs on a prepared copy of a real database, which no hosted runner has.",
+    "restart-hidden": "Needs the full playwright package, which the suites do not install.",
+    "set-aside-live-hidden": "Needs a holder program that its own harness builds."
+  }
+}

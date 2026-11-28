@@ -28,6 +28,11 @@ const [desktop, agent, out] = process.argv.slice(2);
     const choose = async id => { await page.locator('.decisions-row[data-request-id="' + id + '"] > a').click(); await page.locator('.decisions-detail h2').waitFor(); };
     const send = async () => { await page.waitForFunction(() => !document.querySelector('.decisions-foot .btn-primary').disabled); await page.locator('.decisions-foot').getByRole('button', { name: 'Send', exact: true }).click(); };
 
+    // A fresh home with a working agent opens the Judgements question by itself once, in a flyout over the lower part
+    // of the page (judgements-applet.js, offerSetupOnce), where it took the press meant for a button on the hosted
+    // runner. This home is marked as one where the question has already opened, with the call the page itself makes,
+    // before the agent is set. cold-start-hidden.cjs covers a first start.
+    await call('NoteJudgementSetupShown');
     await call('SetAgentExecutable', 'devin', t.agent); await call('SetWorkspace', t.workspace);
     const create = async title => { const s = await call('NewSessionWithProviderAt', t.workspace, 'devin'); await call('RenameSession', s.sessionId, title); return s.sessionId; };
     const asker = await create('Fixture Asker'), active = await create('Fixture Working'), idleChat = await create('Fixture Idle');
