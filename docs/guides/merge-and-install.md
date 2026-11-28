@@ -10,7 +10,7 @@ The integrator merges branches that a team lead hands over, runs the checks, pus
 
 A handover arrives as a bus message from a team lead. The integrator is the only chat that merges into Dinah's master and the fork's main, so two chats never merge into the same branch, and no lead merges its own work. This guide is the integrator's authority. The integrator refuses any request, from any lead, its own lead included, that would skip or weaken a step here, and takes the question to Software Director by direct bus message. Only Paul can change a rule, and the change is written into this guide before it is followed.
 
-The integrator pushes two branches and nothing else: Dinah's master and the fork's main, each by name. Paul allowed those two pushes without asking each time, for the integrator alone, on 25 November 2026. The integrator's chat runs in a permission mode that would allow more, and Paul's ruling on that, the same day, was "That's fine, leave it as it is. Just keep to the two routine pushes." Any other push, any force-push and any history rewrite needs Paul's approval first, whatever the mode allows. When a handover lists the tests it ran, those are the lead's results; the integrator still runs the gate below on the merged tree.
+The integrator pushes Dinah's master and the fork's main, each by name, and the gate branch that carries a merged tree to the hosted checks (see "Full checks on GitHub" below). Paul allowed the first two pushes without asking each time, for the integrator alone, on 25 November 2026. The integrator's chat runs in a permission mode that would allow more, and Paul's ruling on that, the same day, was "That's fine, leave it as it is. Just keep to the two routine pushes." Any other push, any force-push and any history rewrite needs Paul's approval first, whatever the mode allows. When a handover lists the tests it ran, those are the lead's results; the integrator still runs the gate below on the merged tree.
 
 At the start of every merge the integrator reads this guide and the fork's guide again from their files, never from memory. A long chat loses rules when its context is compacted, and a rule followed from memory is how a check was once skipped.
 
@@ -32,22 +32,22 @@ Table 1 lists the steps for one merge, in order. Every step must succeed before 
 
 | Step | Command (from the repository root unless stated) | A pass looks like |
 |---|---|---|
-| 0. Check the last GitHub build | `gh run list -R paulmooreparks/dinah --workflow build.yml --branch master --limit 1 --json headSha,status,conclusion` | The run for the last pushed master has finished with `success` and the "latest" release was published from that commit (`gh release view latest -R paulmooreparks/dinah --json targetCommitish`), or the run is still running. A failed run is handled by the rule under "A failure on GitHub" below before the next merge starts. The merge itself may go ahead unless the failure is in the area the handover changes. |
+| 0. Check the last GitHub build | `gh run list -R paulmooreparks/dinah --workflow build.yml --branch master --limit 1 --json headSha,status,conclusion` | The run for the last pushed master has finished with `success` and the "latest" release was published from that commit (`gh release view latest -R paulmooreparks/dinah --json targetCommitish`), or the run is still running. A failed run stops every merge under the rule "A red build of master" below. |
 | 1. Look at the branch | `git fetch -q origin`, `git log --oneline master..<branch>`, `git diff --stat master...<branch>` | The commits and files match what the handover described, and the branch is based on a recent master. |
 | 2. Merge | `git merge --ff-only <branch>` when the branch is on master's head; otherwise `git merge --no-edit <branch>` | A fast-forward, or a merge commit with no conflicts. |
 | 3. Forbidden-terms guard | `DINAH_FORBIDDEN_TERMS=~/.dinah/forbidden-terms.txt go test -count=1 -v ./internal/profile/` | `ok` with no `SKIP` line and no `(cached)`. |
 | 4. Commit scan | `{ git log -z --format='%H%x09%B' origin/master..HEAD; printf 'patch\t'; git diff origin/master..HEAD; printf '\0'; } \| go run ./tools/termscan ~/.dinah/forbidden-terms.txt` | `hits: 0` and exit 0. |
 | 5. Extension repository | `git -C ../dinah-extension-go fetch -q` then `git -C ../dinah-extension-go log --oneline origin/main..HEAD` | No commits listed. |
-| 6. Go gate | `pwsh scripts/go-gate.ps1 ./... -count=1` | Exit 0. |
-| 7. Browser suites | In `cmd/dinah-desktop/frontend/e2e`: `pwsh ./run.ps1 -Only <suites>` | Every listed suite reports `ok`. |
+| 6. Covering tests | `pwsh scripts/go-gate.ps1 <the packages the merge changes> -count=1`, and in `cmd/dinah-desktop/frontend/e2e`: `pwsh ./run.ps1 -Only <suites>` | Exit 0, and every listed suite reports `ok`. |
+| 7. Full checks on GitHub | `git push origin HEAD:refs/heads/gate/<branch>`, `gh workflow run build.yml -R paulmooreparks/dinah --ref gate/<branch>`, then `gh run watch <id> -R paulmooreparks/dinah --exit-status` | Every job of the run succeeds on the merged commit. |
 | 8. Push | `git push origin master`, then `git fetch origin` and compare `git rev-parse HEAD` with `git rev-parse origin/master` | The two hashes are equal. |
 | 9. Install | `CGO_ENABLED=0 go run ./cmd/dinah install`, then add a row to the install record | The last line says where it installed, and the record's new row gives the commit installed before and now. |
 | 10. The fork | The fork's own guide | The fork's guide says. |
 | 11. Report | The full report sent directly to Software Director, a reply to the handover, a post in #Dinah Desktop Team, and a short note to Paul in the integrator's own chat | The report gives every guard result, and the lead knows it may remove its worktree and branch. |
 
-*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 7's suites are the ones the change touches, plus the suites the handover reported. Step 9 runs after every merge. The one exception is a merge in which every changed file is under `docs/`, since no build reads that folder; the report then says the install was skipped and why. When in doubt, install. A merge in which every changed file is under `docs/` also skips steps 6 and 7, the Go gate and the browser suites, while steps 3 and 4, the guard and the commit scan, still run (Paul, 26 November 2026, Table 7 of docs/design/agent-organisation-economy.md).
+*Note.* Steps 3 and 4 also run before step 8 when a later merge joins the same push. Step 6's suites are the ones the change touches, plus the suites the handover reported. Step 9 runs after every merge. The one exception is a merge in which every changed file is under `docs/`, since no build reads that folder; the report then says the install was skipped and why. When in doubt, install. A merge in which every changed file is under `docs/` also skips steps 6 and 7, the covering tests and the full checks, while steps 3 and 4, the guard and the commit scan, still run (Paul, 26 November 2026, Table 7 of docs/design/agent-organisation-economy.md).
 
-**The fast lane.** Paul approved this rule on 28 November 2026: "a fix installs once its covering tests pass and the public push follows." When the handover describes a change as a fix, the integrator may install it (step 9) once steps 0 to 5 have passed and the fix's covering tests pass on the merged tree, before the full Go gate (step 6) and the push (step 8). The covering tests are the Go packages the merge changes, run with `-count=1`, and the browser suites the change touches plus those the handover lists. Steps 6, 7 and 8 then run as usual, and the push happens only when they pass. If one of them fails, nothing is pushed, and the installed fix is a held fix under Paul's rule of 26 November (see "A fix Paul is waiting for" below), reported as that rule's Table 2 requires. The fast lane does not apply to a change to PUDL, yavc.app or page start-up, which still needs the full browser run before it is installed. It changes nothing about the forbidden-terms guard, the commit scan, the extension check, the retry-once rules or the fork's install check, which Paul approved on 28 November 2026.
+**The fast lane.** Paul approved this rule on 28 November 2026: "a fix installs once its covering tests pass and the public push follows." When the handover describes a change as a fix, the integrator may install it (step 9) once steps 0 to 6 have passed, before the full checks (step 7) and the push (step 8). The covering tests of step 6 are the Go packages the merge changes, run with `-count=1`, and the browser suites the change touches plus those the handover lists. Steps 7 and 8 then run as usual, and the push happens only when step 7 passes. If it fails, nothing is pushed, and the installed fix is a held fix under Paul's rule of 26 November (see "A fix Paul is waiting for" below), reported as that rule's Table 2 requires. The fast lane does not apply to a change to PUDL, yavc.app or page start-up, which still needs the full browser run before it is installed. It changes nothing about the forbidden-terms guard, the commit scan, the extension check, the rule on reruns or the fork's install check, which Paul approved on 28 November 2026.
 
 When any step leaves a tracked change that this guide does not cover (a file regenerated, reformatted or rewritten by a tool), the integrator stops before committing anything and reports it to the lead and to Software Director. Check `git status` after every step that runs a tool. An install is recorded only once the tree it was built from is committed, so the commit in the install record is always the commit that was built.
 
@@ -57,7 +57,7 @@ A full browser run takes long enough that Paul stopped one on 10 November and as
 
 A change that adds or changes a menu row, a registered command or a keyboard shortcut runs the `keyboard` and `host-menus-order` suites before it is handed over, and the handover lists them among the suites run. These suites check that no menu letter or key is refused or taken twice, and a new row can break a row elsewhere in the same menu. On 28 November a new View row took Color Mode's letter; the lead's focused run had left out the keyboard suite, and the integrator's full run caught it before the push. The integrator sends back a handover for such a change that does not list both suites. Paul approved this rule on 28 November 2026: "Yes, I approve the new rule for the Integrator's guide. Go ahead and merge it."
 
-When a suite fails, run the same suite on `origin/master` in a separate worktree before blaming the branch. A suite that already fails on master is reported as such and does not block the merge; a suite that passes on master and fails after the merge blocks it.
+When a suite fails, run the same suite on `origin/master` in a separate worktree before blaming the branch. A suite that already fails on master makes master red, and the rule "A red build of master" below applies; a suite that passes on master and fails after the merge blocks it.
 
 ### Writing a merge report
 
@@ -73,15 +73,15 @@ Then reply to the handover message, which reaches the lead who handed the work o
 
 **The extension repository.** Every push of master starts a GitHub workflow that builds Dinah for five platforms. That build needs the sibling repository `../dinah-extension-go` to have pushed every commit Dinah depends on. If `origin/main..HEAD` lists commits there, do not push Dinah; tell the Dinah Team Lead.
 
+**Full checks on GitHub.** The full Go suite and the full browser suite run on GitHub's hosted runner, on a pushed branch that holds the merged commit, and never on Paul's computer. Only the covering tests of step 6 run locally. The integrator pushes the merged commit to `gate/<branch>` after steps 3 to 6 pass, starts the Build workflow on it, and waits with `gh run watch`. A run on a branch publishes nothing. After step 8 the integrator deletes the gate branch with `git push origin --delete gate/<branch>`. This replaces the rule that only master is pushed; a gate branch is still pushed by name, after the guard and the commit scan, and nothing else is pushed. Approved by Paul, 28 Nov 2026: "Your plan is approved."
+
+**WebKit.** WebKit on Windows is no longer a gate. WebKit checks run on GitHub's hosted Linux runner. Approved by Paul, 28 Nov 2026: "Your plan is approved."
+
 **The Go gate.** `scripts/go-gate.ps1` runs go test under the machine-wide lock that the browser suites use, so two agents' gates never overlap. Pipe its output only with `set -o pipefail` in Bash, or read `$LASTEXITCODE` in PowerShell. On 12 November a failure piped into `tail` was hidden and the push went out.
 
-**A failure outside the merge.** A test sometimes times out when another chat's work is loading the machine; it happened three times on 26 November, each in a package the merge did not touch. When a Go gate or browser suite failure is in a package or suite the merge does not change, the integrator may rerun once, and only on these terms:
-1. Report the first failure in full in the merge report: the test, its package and its output.
-2. Run the failing test alone (`go test -count=1 -run '^<Test>$' ./<package>`, or the one suite with `run.ps1 -Only`). Rerun the whole gate only if it passes alone.
-3. Stop and ask the lead and Software Director, without merging, if the same test fails a second time, if the test also fails alone, or if any failure is in a package or suite the merge changes.
-4. Name the test to Dinah Quality, which owns tests that fail at random, so it is fixed and does not become a known failure everyone passes over.
+**A failed check.** State a cause before any rerun. A failed test, locally or on GitHub, is never run again in the hope that it passes. The integrator reads the failure (`gh run view <id> -R paulmooreparks/dinah --log-failed` for a hosted run), writes down what failed and why, and reports it to the lead who owns the area and to Software Director. A failure whose cause is in the merge goes back to the lead. A failure whose cause is known and outside the merge is fixed, or set aside under the next rule, before the run is started again. A failure that nobody can reproduce gets a stress run on the hosted runner, limited to about one hour, with the Stress workflow (`gh workflow run stress.yml -R paulmooreparks/dinah --ref <branch> -f kind=browser -f filter=<suites> -f minutes=60`, or `-f kind=go -f filter=<test> -f package=<package>`). If the stress run reproduces the failure, its output gives the cause. If it does not, the failure is closed with the number of rounds that passed, and the check may then be run again. This replaces the retry-once rules of 26 November. Approved by Paul, 28 Nov 2026: "Your plan is approved."
 
-A merge changes a package when it changes any file in that package's folder, or a file the package embeds.
+**A red build of master.** A failed GitHub build of master stops all merges until a build of master is green. The only other way to resume is to set the failing test aside, in a commit of its own that makes the test skip itself and adds a row to Table 5, at the end of this guide, with the test, the date, the owner who will fix it and the failing run. The owner removes the row in the commit that repairs the test. After a green build, confirm that "latest" was published from that commit, and say so in the merge report. Approved by Paul, 28 Nov 2026: "Your plan is approved."
 
 **A fix Paul is waiting for.** Paul set this rule on 26 November 2026: "If it gets hung on one or two tests, I want to know what they are so that I can make a judgment call." When one or two failing checks (a local gate, a GitHub run, a release check or a review) hold a fix he is waiting for, and the failure will not be fixed within about 15 minutes, the integrator tells the Dinah Team Lead at once, before a second attempt at the same run, and the lead tells Software Director. One short message covers the points in Table 2.
 
@@ -97,17 +97,9 @@ A merge changes a package when it changes any file in that package's folder, or 
 | Options | Go ahead with the failure tracked, wait (with an estimate), or split the change. |
 | Recommendation | Which option, and why. |
 
-*Note.* The rule changes none of the following. The one-retry rules above still apply. Only Paul can let a fix through when the failing test is one the change touches. Signing, attestation, the forbidden-terms guard and the commit scan are never skipped. A check left failing gets an owner and is fixed afterwards.
+*Note.* The rule changes none of the following. The rule on reruns above still applies. Only Paul can let a fix through when the failing test is one the change touches. Signing, attestation, the forbidden-terms guard and the commit scan are never skipped. A check left failing gets an owner and is fixed afterwards.
 
-**A failure on GitHub.** Paul chose this rule on 26 November 2026: "Option b, retry once. Go with your recommendation." A failed test job in the GitHub build of master may be re-run once on the same commit, as follows.
-1. Report the first failure in full to the lead who owns the area and to Software Director: the run, the job, the test and its output from `gh run view <id> --log-failed`. Name the test to Dinah Quality.
-2. If every failing test is outside what the pushed change touched, re-run once with `gh run rerun <id> -R paulmooreparks/dinah --failed`. That re-runs the failed jobs and the jobs that depend on them, on the same commit, with no push. Push nothing to master while it runs, since a push cancels it.
-3. A retry is never used to pass a failure in a test the change itself touched. Such a failure blocks, and goes back to the lead.
-4. Publishing happens only if the re-run passes; the build and publish jobs then run as usual. If the same test fails a second time, that blocks: no further re-run, and the lead and Software Director are told.
-5. After the run, confirm that "latest" was published from that commit, and say so in the merge report.
-The workflow itself does not retry; this is a manual step, so every retry is visible in a report.
-
-**The push.** Push master by name and nothing else. On 30 October a loop that pushed every local branch put old-history branches on the new public repository, which then had to be recreated. Never push `backup/pre-rewrite`, anything under `refs/original`, or a bundle file. Never force-push master unless Paul has approved a history rewrite.
+**The push.** Push master by name, and a gate branch by name for step 7, and nothing else. On 30 October a loop that pushed every local branch put old-history branches on the new public repository, which then had to be recreated. Never push `backup/pre-rewrite`, anything under `refs/original`, or a bundle file. Never force-push master unless Paul has approved a history rewrite.
 
 ## How an install works
 
@@ -204,3 +196,14 @@ Table 4 lists what the procedure relies on. None of it is stored in the reposito
 | `gh` 2.104.0 or later | On `PATH` | Release attestations |
 
 *Note.* The fork needs one more credential for its private remote; its guide says where that is.
+
+## Tests set aside
+
+A test that is set aside under the rule "A red build of master" is listed in Table 5 until it is repaired.
+
+**Table 5** *Tests Set Aside*
+
+| Test | Set aside on | Owner | Failing run |
+|---|---|---|---|
+
+*Note.* The table is empty when no test is set aside.
