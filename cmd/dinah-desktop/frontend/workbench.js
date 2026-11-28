@@ -353,11 +353,15 @@
     var win = window.dinahHelpers.windowOf(key);
     if (!win) return;
     if (detail === undefined) detail = win.dataset.dinahTitleDetail || '';
+    // The Window menu lists each window by its title and detail, so a new
+    // title is a change of that menu's rows.
+    var renamed = win.dataset.dinahTitle !== title || (win.dataset.dinahTitleDetail || '') !== (detail || '');
     win.dataset.dinahTitle = title;
     win.dataset.dinahTitleDetail = detail || '';
     ownRetitle = true;
     try { window.pudlWindows.retitle(key, combinedTitle(title, detail), ''); } finally { ownRetitle = false; }
     document.dispatchEvent(new CustomEvent('dinah:pin-categories-change'));
+    if (renamed && window.dinahCommands) window.dinahCommands.changed();
   }
   var TITLES_KEY = 'dinah-window-titles', titlesTimer = 0;
   function savedTitles() {
