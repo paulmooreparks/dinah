@@ -73,7 +73,7 @@ The underlying contracts are documented by Microsoft in [FileShare](https://lear
 
 `chat-streaming` checks that 5,000 command-output updates stay within a small layout budget, preserve terminal colors, escaped text, output bounds and final status, keep background output in its own chat and flush output after history replay. It checks typing during two simultaneous command streams and catches up a minimized chat when restored.
 
-`render-scheduler` checks the shared queue with a controlled clock, including coalescing, yielding at the frame budget, fairness between views, visibility, cancellation, reentrant invalidation, error isolation and the absence of idle frames.
+`render-scheduler` checks the shared queue with a controlled clock, including coalescing, yielding at the frame budget, fairness between views, visibility, cancellation, reentrant invalidation, error isolation and the absence of idle frames. It also checks the queue's `idle()` promise. `settled-signal` checks the command registry's `idle()` promise and the fixture's `settled` and `until` waits in the real page.
 
 `applet-mentions` checks Add > Windows and Applets and the `@` picker: pending, failed and retried discovery, keyboard and Tab selection, complete-token matching, multiple applets, built-in providers, tool windows with and without an applet, the workspace's other open chats, per-chat drafts, the native file picker and narrow menus. Selection never invokes an action. Its Send stub records attachment metadata; Go attachment tests separately verify registered identities and rejection of unavailable providers. It also includes Settings in its discovery and selection checks.
 

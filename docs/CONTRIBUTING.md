@@ -42,6 +42,8 @@ Dinah draws transcripts, folds, replayed history and agent events a few at a tim
 
 The helper counts hidden matches as well as visible ones, and that default stays. A hidden copy of a line can be a real defect, as the pinned-message strip's was in November 2026, and text that is laid out but invisible is still read by a screen reader. A page that keeps a hidden copy on purpose, such as a measuring clone, a closed menu holding the same words or a reserve badge, is handled by narrowing that suite's locator, for example with `:visible`, and never by changing the helper's default.
 
+A check waits for a stated condition and never for a length of time, so no new `waitForTimeout` or hand-written sleep is added. A check that expects a change waits for that change with `t.until(read, pass)` from `e2e/lib/page.js` or with Playwright's own waits. A check that something did not change first waits on `t.settled()`, which resolves when the command registry has made any waiting redraw (`dinahCommands.idle()`) and the render queue has nothing left that it can draw (`dinahRender.idle()`). Both promises are the product's own and are covered by the `render-scheduler` and `settled-signal` suites. A check about the passing of time drives it with Playwright's clock. The older suites still hold fixed waits, and they are being moved to these waits, the suites with the most waits first.
+
 A suite run directly with `node` takes the test lock itself. Launches within one process share one lease, which ends when each launch's browser closes, and a lease held for more than 15 minutes is released and its suite stopped, so a stuck suite cannot hold every other run. `run.ps1` holds the lock once for its whole batch.
 
 ## CI

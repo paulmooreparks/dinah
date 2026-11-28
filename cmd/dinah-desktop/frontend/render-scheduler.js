@@ -28,7 +28,28 @@
     if (!job) return;
     pending.delete(key); unwatch(job.root);
     if (!pending.size && frame) { cancelAnimationFrame(frame); frame = 0; }
+    settle();
   }
+  /* idle() returns a promise that resolves when the queue has nothing it
+     can draw: no frame is running or requested, and every job still queued
+     belongs to a view that cannot be seen. A hidden page draws nothing, so
+     it counts as idle. A check waits on this promise, never on a length of
+     time (docs/CONTRIBUTING.md, Writing browser checks). */
+  var idlers = [];
+  function quiet() {
+    if (running) return false;
+    if (document.hidden) return true;
+    if (frame) return false;
+    var work = false;
+    pending.forEach(function (job) { if (!job.blocked) work = true; });
+    return !work;
+  }
+  function settle() {
+    if (!idlers.length || !quiet()) return;
+    var waiters = idlers; idlers = [];
+    waiters.forEach(function (resolve) { resolve(); });
+  }
+  function idle() { return new Promise(function (resolve) { idlers.push(resolve); settle(); }); }
   function enqueue(key, root, draw, after, label) {
     if (running) invalidated = true;
     var previous = pending.get(key);
@@ -91,14 +112,16 @@
     } finally {
       running = false;
       if (more || invalidated) wake();
+      settle();
     }
   }
   document.addEventListener('pudl:windows-change', wake);
   document.addEventListener('visibilitychange', function () {
     pending.forEach(function (job) { job.since = performance.now(); });
     wake();
+    settle();
   });
-  window.dinahRender = { enqueue: enqueue, cancel: remove, wake: wake, diagnostics: function () {
+  window.dinahRender = { enqueue: enqueue, cancel: remove, wake: wake, idle: idle, diagnostics: function () {
     var blocked = 0, oldest = 0, now = performance.now();
     pending.forEach(function (job) { if (job.blocked) blocked++; oldest = Math.max(oldest, now - job.since); });
     return { pending: pending.size, blocked: blocked, watchedRoots: roots.size, framePending: !!frame, oldestWaitMs: Math.max(0, oldest) };
