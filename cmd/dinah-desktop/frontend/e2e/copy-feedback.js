@@ -1,8 +1,14 @@
 const { launch } = require('./lib/page');
 (async () => {
-  const t = await launch();
+  const t = await launch({ goto: false });
   const { page: p, ok } = t;
   try {
+    // Control the short-lived confirmation independently of driver scheduling.
+    const time = new Date('2026-01-01T00:00:00Z');
+    await p.clock.install({ time });
+    await p.goto('http://dinah.test/index.html');
+    await t.waitReady();
+    await p.clock.pauseAt(new Date(time.getTime() + 60 * 60 * 1000));
     await p.evaluate(() => {
       window.__copyNotices = [];
       dinahHost.toast = (text, kind) => __copyNotices.push({ text, kind });
@@ -15,12 +21,14 @@ const { launch } = require('./lib/page');
     });
     const b = p.locator('#copy-fixture'), before = await b.boundingBox();
     await b.click();
+    await p.clock.runFor(40);
     await p.waitForFunction(() => document.querySelector('[role="status"].visually-hidden')?.textContent === 'Copied');
     const after = await b.boundingBox();
-    ok('copy confirms locally without changing geometry', before.width === after.width && before.height === after.height && await b.getAttribute('aria-label') === 'Copied');
+    ok('copy confirms locally without changing geometry', before.width === after.width && before.height === after.height && await b.getAttribute('aria-label') === 'Copied', JSON.stringify({ before, after, label: await b.getAttribute('aria-label') }));
     ok('copy writes the exact value without success notices', await p.evaluate(() => __copyValue === 'C:/Fixture/a.txt' && __copyNotices.length === 0));
     await b.click();
     ok('repeated copy has only one confirmation', await b.locator('.copy-feedback').count() === 1);
+    await p.clock.runFor(1500);
     await p.waitForFunction(() => document.querySelector('#copy-fixture').getAttribute('aria-label') === 'Copy path');
     ok('copy restores the original button', await b.textContent() === 'Copy path' && await b.locator('.copy-feedback').count() === 0);
     await p.evaluate(() => dinahChatText.copy('menu value'));
