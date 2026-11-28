@@ -5,6 +5,8 @@ const { launch, PAGE } = require('./lib/page');
     // The theme is read from storage before the page's scripts run, so it is
     // set by an init script of this page, after the fixture's stub.
     const t = await launch({
+      // The suite replaces window.dinahOpenWindows with a fixture, so the Window menu's rows are stale by its own doing.
+      auditCommands: false,
       viewport: { width: 1000, height: 600 },
       state: { workspace: 'C:\\W', recent: ['C:\\W'], approvals: 'dinah', devin: 'd', titles: {}, templates: [] },
       goto: false,

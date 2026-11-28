@@ -80,6 +80,7 @@
     var head = document.querySelector('#dinah-launcher .start-header');
     if (!head) return;
     var rows = window.dinahCommands.rows('launcher').filter(function (row) { return row !== '-'; });
+    window.dinahCommands.drew('launcher', undefined, rows);
     var key = JSON.stringify(rows.map(function (row) { return [row.label, row.title || '', row.glyph || '', !!row.disabled]; }));
     if (key === launcherDrawn) return;
     launcherDrawn = key;
@@ -110,10 +111,12 @@
     if (!list) return;
     list.querySelectorAll(':scope > li[data-generated]').forEach(function (li) { li.remove(); });
     var markers = Array.from(list.querySelectorAll(':scope > li[data-commands]'));
-    if (!markers.length) { window.dinahCommands.rows(menu).forEach(function (row) { command(list, row); }); return; }
+    // Each drawing is told to the registry, which audits it in strict mode.
+    if (!markers.length) { var all = window.dinahCommands.rows(menu); window.dinahCommands.drew(menu, undefined, all); all.forEach(function (row) { command(list, row); }); return; }
     markers.forEach(function (marker) {
-      var at = marker.nextSibling;
-      window.dinahCommands.rows(menu, marker.getAttribute('data-commands') || '').forEach(function (row) { list.insertBefore(command(list, row), at); });
+      var at = marker.nextSibling, group = marker.getAttribute('data-commands') || '', part = window.dinahCommands.rows(menu, group);
+      window.dinahCommands.drew(menu, group, part);
+      part.forEach(function (row) { list.insertBefore(command(list, row), at); });
     });
   }
   function drawWindows() {
@@ -130,8 +133,11 @@
     if (state.top && !state.min[state.top]) api.menuCommands(state.top).filter(function (item) { return !['page', 'copy-link', 'close'].includes(item.id); }).forEach(function (item) {
       command(windows, item.id === 'snap' || item.id === 'dock' ? Object.assign({}, item, { radio: true }) : item);
     });
-    window.dinahCommands.rows('window', 'front').forEach(function (row) { command(windows, row); });
+    var frontRows = window.dinahCommands.rows('window', 'front');
+    window.dinahCommands.drew('window', 'front', frontRows);
+    frontRows.forEach(function (row) { command(windows, row); });
     var rows = window.dinahCommands.rows('window', '');
+    window.dinahCommands.drew('window', '', rows);
     if (windows.children.length && rows.length && rows[0] !== '-') command(windows, '-');
     rows.forEach(function (row) { command(windows, row); });
   }

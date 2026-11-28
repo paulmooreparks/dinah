@@ -44,6 +44,8 @@ The helper counts hidden matches as well as visible ones, and that default stays
 
 A suite run directly with `node` takes the test lock itself. Launches within one process share one lease, which ends when each launch's browser closes, and a lease held for more than 15 minutes is released and its suite stopped, so a stuck suite cannot hold every other run. `run.ps1` holds the lock once for its whole batch.
 
+When a suite closes, `t.close()` asks the command registry whether any menu row or command control shows a state other than its command's live one (`dinahCommands.audit()` in `commands.js`). A difference fails the suite and gives the command and both values. It means that code changed a command's state without calling `dinahCommands.changed()`, and the repair is that call where the state changes.
+
 ## CI
 
 The Build workflow runs the guards, the full Go suite and the full browser suite as required jobs on Windows, the Go guards again on Linux, and the vulnerability scans on every published platform. It runs on every push to master, on every pull request and when started by hand on a branch. The browser suites are divided between eight runners with `run.ps1 -Shard i/8`, balanced by the times in `e2e/suite-times.json`. A push to master never cancels the build of an earlier commit, and "latest" only moves forward. Building and publication wait for all of them, and `TestEveryPublishedPlatformHasABlockingSourceScan` fails if the workflow stops waiting for any of them. CI has no copy of the private terms list, so there the forbidden-terms guard reports itself skipped, and the local run before a push is what enforces it.
