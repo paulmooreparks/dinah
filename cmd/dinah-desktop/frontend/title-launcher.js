@@ -113,6 +113,8 @@
     pudlStart.enhance(root);
     started=pudlLauncher.enhance(root,{pane:document.getElementById('launcher-slot'),layout:document.getElementById('launcher-workspace'),invoker:function(){return pudlMenubar.launcherButton();},anchor:function(){return pudlMenubar.launcherButton({visible:true});},presentation:'closed',size:{width:saved.width||720,height:saved.height||600}});
     restore();
+    // Menus drawn before enhancement still carry the disabled command.
+    if (started) dinahCommands.changed();
   }
   if(document.documentElement.dataset.uiStateReady==='true')init();else document.addEventListener('dinah:ui-state-restored',init,{once:true});
 })();

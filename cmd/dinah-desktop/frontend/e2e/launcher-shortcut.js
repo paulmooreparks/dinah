@@ -1,5 +1,48 @@
-const { launch } = require('./lib/page');
+const { launch, PAGE, FRONTEND } = require('./lib/page');
+const path = require('path');
 (async () => {
+  // Start the real launcher after the menu has drawn its disabled command.
+  // Other startup work finishes first so it cannot supply the missing redraw.
+  for (const ribbon of [false, true]) {
+    const t = await launch({ goto: false });
+    const p = t.page;
+    try {
+      await t.context.route('**/title-launcher.js', route => route.fulfill({ body: '', contentType: 'text/javascript' }));
+      await p.goto(PAGE);
+      await t.waitReady();
+      await p.evaluate(ribbon => {
+        pudlMenubar.ribbon(ribbon);
+        document.documentElement.dataset.uiStateReady = 'false';
+      }, ribbon);
+      await p.addScriptTag({ path: path.join(FRONTEND, 'title-launcher.js') });
+      await p.evaluate(() => dinahCommands.flush());
+      const rowDisabled = () => p.evaluate(() => {
+        const row = Array.from(document.querySelectorAll('[data-menubar-source] button')).find(el => el.textContent === 'Launcher');
+        return row ? row.disabled : null;
+      });
+      t.ok('the fresh Launcher row starts disabled ' + ribbon, await rowDisabled() === true);
+      await p.evaluate(() => {
+        window.__launcherStartupRedraw = new Promise(resolve => document.addEventListener('dinah:commands-change', resolve, { once: true }));
+        document.documentElement.dataset.uiStateReady = 'true';
+        document.dispatchEvent(new CustomEvent('dinah:ui-state-restored', { detail: { explicit: true, restored: false } }));
+      });
+      t.ok('launcher enhancement has completed ' + ribbon, await p.evaluate(() => !!pudlLauncher.state(document.getElementById('dinah-launcher'))));
+      // A real command notification is the readiness signal, with no menu open
+      // or command flush between enhancement and the physical key press.
+      let notified = true;
+      try { await p.evaluate(() => Promise.race([__launcherStartupRedraw, new Promise((_, reject) => setTimeout(() => reject(Error('No startup command notification')), 1500))])); }
+      catch (_) { notified = false; }
+      t.ok('launcher startup notifies command consumers ' + ribbon, notified);
+      t.ok('the drawn Launcher row becomes enabled ' + ribbon, await rowDisabled() === false);
+      await p.keyboard.press('Control+Shift+x');
+      const opened = await p.evaluate(() => pudlLauncher.state(document.getElementById('dinah-launcher')).visible);
+      t.ok('the first key opens the freshly started Launcher ' + ribbon, opened);
+      if (opened) {
+        await p.keyboard.press('Control+Shift+x');
+        t.ok('the second key closes the previously open Launcher ' + ribbon, await p.evaluate(() => !pudlLauncher.state(document.getElementById('dinah-launcher')).visible));
+      }
+    } finally { await t.close(); }
+  }
   for (const mac of [false, true]) for (const ribbon of [false, true]) {
     const name = (mac ? 'command' : 'control') + (ribbon ? '-ribbon' : '-menu');
     const t = await launch({ viewport: { width: 1440, height: 1000 }, args: { mac },
