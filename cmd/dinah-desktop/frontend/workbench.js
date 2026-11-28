@@ -320,7 +320,11 @@
          2026). */
       if (win && !ownRetitle && /^(editor|content-)/.test(win.dataset.winKind || '')) return;
       if (t && t.textContent === String(title) && (detail === undefined || (win.getAttribute('data-win-detail') || '') === String(detail || ''))) return;
-      return pudlRetitle.apply(this, arguments);
+      var result = pudlRetitle.apply(this, arguments);
+      // Every retitle that changes a title passes through here, whoever
+      // asks for it, and the Window menu lists each window by its title.
+      if (window.dinahCommands) window.dinahCommands.changed();
+      return result;
     };
     window.pudlWindows.retitle.__dinahGuarded = true;
     /* PUDL draws every command-bound control on the page again once per
