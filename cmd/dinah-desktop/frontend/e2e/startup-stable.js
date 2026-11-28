@@ -115,6 +115,32 @@ const record = () => {
       ok('and nothing moved once it could be seen', seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
     } finally { await t.close(); }
   }
+  // The text faces are web fonts that are swapped in when they arrive, and words are narrower in the
+  // face that stands in for them. Here the font files are held back until the page's scripts have run,
+  // its state has been restored and twelve more frames have been drawn. Until 28 November 2026 the
+  // start screen lifted in those frames, and the status items then grew in plain sight.
+  {
+    const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, init: () => { document.addEventListener('DOMContentLoaded', () => { window.__scriptsRun = true; }); } });
+    const { page: p, ok } = t;
+    try {
+      await t.context.addInitScript({ content: '(' + record.toString() + ')();' });
+      let release, asked = 0;
+      const held = new Promise(resolve => { release = resolve; });
+      await t.context.route('http://dinah.test/**/*.woff2', async route => { asked++; await held; await route.fallback(); });
+      await p.goto('http://dinah.test/index.html', { waitUntil: 'commit' });
+      await p.waitForFunction(() => window.__scriptsRun && document.documentElement.dataset.uiStateReady === 'true');
+      await p.evaluate(() => new Promise(resolve => { let left = 12; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const early = await p.evaluate(() => window.__frames.filter(frame => frame.seen).length);
+      release();
+      await p.waitForFunction(() => !document.body.hasAttribute('aria-busy') && getComputedStyle(document.getElementById('start-screen')).display === 'none');
+      // Thirty more frames are recorded, in which a late change would show.
+      await p.evaluate(() => new Promise(resolve => { let left = 30; (function next() { if (left-- <= 0) resolve(); else requestAnimationFrame(next); })(); }));
+      const frames = await p.evaluate(() => window.__frames), last = frames[frames.length - 1];
+      const seen = frames.filter(frame => frame.seen);
+      ok('the page asked for a font, and the start screen stays up while it has still to arrive', asked > 0 && early === 0, asked + ' ' + early);
+      ok('and nothing moved once the page could be seen in its own fonts', seen.length > 0 && seen.every(frame => JSON.stringify(frame.parts) === JSON.stringify(last.parts)), seen.map(frame => frame.t + ' ' + JSON.stringify(frame.parts) + ' status: ' + frame.chips).join(' // '));
+    } finally { await t.close(); }
+  }
   // A page whose state cannot be read is still shown, with the reason.
   {
     const t = await launch({ viewport: { width: 1600, height: 1000 }, goto: false, app: () => ({ State: async () => { throw new Error('The state could not be read.'); } }) });
